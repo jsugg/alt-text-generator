@@ -101,18 +101,14 @@ app.use(appRouter);
   
     await new Promise((resolve, reject) => {
       try {
-        const httpServer = http.createServer(app);
-        const httpsServer = https.createServer(options, app);
-        
         if (process.env.NODE_ENV === 'production') { 
-            httpServer.listen(80, process.env.RENDER_EXTERNAL_URL, () => {
-                serverLogger.info('HTTP server listening on port 80');
-              });
-              
+            const httpsServer = https.createServer(options, app);
               httpsServer.listen(443, process.env.RENDER_EXTERNAL_URL, () => {
                 serverLogger.info('HTTPS server listening on port 443');
               });
         } else {
+            const httpServer = http.createServer(app);
+            const httpsServer = https.createServer(options, app);
             httpServer.listen(80, '0.0.0.0', () => {
                 serverLogger.info('HTTP server listening on port 80');
               });
