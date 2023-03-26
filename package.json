@@ -1,0 +1,41 @@
+{
+  "name": "alt-text-generator",
+  "version": "1.0.0",
+  "description": "A simple service that uses AI services to propose Alt Text descriptions for your website images.",
+  "main": "index.js",
+  "scripts": {
+    "test": "test",
+    "prod": "NODE_ENV=production node index.js | pino-pretty -i streams,options",
+    "dev": "NODE_ENV=development node index.js | pino-pretty -i streams,options"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jsugg/alt-text-generator.git"
+  },
+  "keywords": [
+    "alt",
+    "text",
+    "AI",
+    "accessibility",
+    "WCAG"
+  ],
+  "author": "Juan Sugg",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/jsugg/alt-text-generator/issues"
+  },
+  "homepage": "https://github.com/jsugg/alt-text-generator#readme",
+  "dependencies": {
+    "app-root-path": "^3.1.0",
+    "axios": "^1.3.4",
+    "cheerio": "^1.0.0-rc.12",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+    "http": "^0.0.1-security",
+    "https": "^1.0.0",
+    "pino": "^8.11.0",
+    "pino-http": "^8.3.3",
+    "pino-pretty": "^10.0.0"
+  }
+}
