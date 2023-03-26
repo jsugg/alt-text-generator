@@ -3,8 +3,8 @@ const http = require('http');
 const https = require('https');
 const express = require('express');
 const app = express();
-const path = require('node:path');
-const crypto = require('node:crypto');
+const path = require('path');
+const crypto = require('crypto');
 const appPath = require('app-root-path').toString();
 const fs = require('fs')
 fs.writeFileSync(`${appPath}/alt-text-generator.pid`, process.pid.toString());
@@ -59,6 +59,7 @@ const appRouter = require(`${appPath}/api/v1/routes/app`)(serverLogger);
 const { loadRequestFilter } = require(`${appPath}/api/v1/middleware/request-filter`)(serverLogger);
 const { apiRouter, loadAPIRoutes } = require(`${appPath}/api/v1/routes/api`)(serverLogger);
 
+
 httpServerLogger.level = 'trace';
 serverLogger.level = 'trace';
 
@@ -103,11 +104,11 @@ app.use(appRouter);
         const httpServer = http.createServer(app);
         const httpsServer = https.createServer(options, app);
         
-        httpServer.listen(8080, '0.0.0.0', () => {
+        httpServer.listen(80, () => {
           serverLogger.info('HTTP server listening on port 80');
         });
         
-        httpsServer.listen(4443, '0.0.0.0', () => {
+        httpsServer.listen(443, () => {
           serverLogger.info('HTTPS server listening on port 443');
         });
         
