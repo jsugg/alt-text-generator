@@ -89,35 +89,36 @@ app.use(appRouter);
 
     // TSL Certificates
     const options = process.env.NODE_ENV === 'production' ? {
-            key: Buffer.from(process.env.TSL_KEY, "base64").toString('ascii'),
+           /* key: Buffer.from(process.env.TSL_KEY, "base64").toString('ascii'),
             cert: Buffer.from(process.env.TSL_CERT, "base64").toString('ascii'),
             cors: {
                 origin: RENDER_EXTERNAL_URL
-            }
+            }*/
         } : 
         {
-            key: readFileSync(`${appPath}/certs/key.pem`),
-            cert: readFileSync(`${appPath}/certs/cert.pem`)
+            key: fs.readFileSync(`${appPath}/certs/key.pem`),
+            cert: fs.readFileSync(`${appPath}/certs/cert.pem`)
         };
   
     await new Promise((resolve, reject) => {
       try {
         if (process.env.NODE_ENV === 'production') { 
-            PORT = process.env.PORT || 4443;
-            const httpsServer = https.createServer(options, app);
+            PORT = process.env.PORT || 8080;
+
+            const httpsServer = http.createServer(app);
               httpsServer.listen(PORT, () => {
-                serverLogger.info(`HTTPS server listening on port ${PORT}`);
+                serverLogger.info(`HTTP server listening on port ${PORT}`);
               });
 
               resolve([httpsServer]);
         } else {
             const httpServer = http.createServer(app);
             const httpsServer = https.createServer(options, app);
-            httpServer.listen(80, '0.0.0.0', () => {
+            httpServer.listen(8080, '0.0.0.0', () => {
                 serverLogger.info('HTTP server listening on port 80');
               });
               
-            httpsServer.listen(443, '0.0.0.0', () => {
+            httpsServer.listen(4443, '0.0.0.0', () => {
             serverLogger.info('HTTPS server listening on port 443');
 
             resolve([httpServer, httpsServer]);
