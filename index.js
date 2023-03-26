@@ -103,7 +103,7 @@ app.use(appRouter);
       try {
         if (process.env.NODE_ENV === 'production') { 
             const httpsServer = https.createServer(options, app);
-              httpsServer.listen(443, process.env.RENDER_EXTERNAL_URL, () => {
+              httpsServer.listen(443, () => {
                 serverLogger.info('HTTPS server listening on port 443');
               });
         } else {
