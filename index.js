@@ -85,14 +85,15 @@ app.use(appRouter);
 // Start the HTTP Server
 (async () => {
     serverLogger.info('Starting HTTP Server...');
-  
+    RENDER_EXTERNAL_URL = process.env.RENDER_EXTERNAL_URL;
+
     // TSL Certificates
     const options = process.env.NODE_ENV === 'production' ? {
             key: Buffer.from(process.env.TSL_KEY, "base64").toString('ascii'),
             cert: Buffer.from(process.env.TSL_CERT, "base64").toString('ascii'),
-            /*cors: {
-                origin: "http://localhost:8080"
-            }*/
+            cors: {
+                origin: RENDER_EXTERNAL_URL
+            }
         } : 
         {
             key: readFileSync(`${appPath}/certs/key.pem`),
@@ -125,7 +126,7 @@ app.use(appRouter);
         
       } catch (error) {
         reject(serverLogger.error(error));
-      }``
+      }
     });
     serverLogger.info('HTTP Server started.');
   })();
