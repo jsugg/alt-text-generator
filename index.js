@@ -104,13 +104,23 @@ app.use(appRouter);
         const httpServer = http.createServer(app);
         const httpsServer = https.createServer(options, app);
         
-        httpServer.listen(80, () => {
-          serverLogger.info('HTTP server listening on port 80');
-        });
-        
-        httpsServer.listen(443, () => {
-          serverLogger.info('HTTPS server listening on port 443');
-        });
+        if (process.env.NODE_ENV === 'production') { 
+            httpServer.listen(80, process.env.RENDER_EXTERNAL_HOSTNAME, () => {
+                serverLogger.info('HTTP server listening on port 80');
+              });
+              
+              httpsServer.listen(443, process.env.RENDER_EXTERNAL_HOSTNAME, () => {
+                serverLogger.info('HTTPS server listening on port 443');
+              });
+        } else {
+            httpServer.listen(80, '0.0.0.0', () => {
+                serverLogger.info('HTTP server listening on port 80');
+              });
+              
+              httpsServer.listen(443, '0.0.0.0', () => {
+                serverLogger.info('HTTPS server listening on port 443');
+              });
+        }
         
         resolve([httpServer, httpsServer]);
       } catch (error) {
