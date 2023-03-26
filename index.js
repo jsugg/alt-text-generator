@@ -106,6 +106,7 @@ app.use(appRouter);
               httpsServer.listen(443, () => {
                 serverLogger.info('HTTPS server listening on port 443');
               });
+              resolve([httpsServer]);
         } else {
             const httpServer = http.createServer(app);
             const httpsServer = https.createServer(options, app);
@@ -113,12 +114,14 @@ app.use(appRouter);
                 serverLogger.info('HTTP server listening on port 80');
               });
               
-              httpsServer.listen(443, '0.0.0.0', () => {
-                serverLogger.info('HTTPS server listening on port 443');
-              });
+            httpsServer.listen(443, '0.0.0.0', () => {
+            serverLogger.info('HTTPS server listening on port 443');
+            });
+
+            resolve([httpServer, httpsServer]);
         }
         
-        resolve([httpServer, httpsServer]);
+        
       } catch (error) {
         reject(serverLogger.error(error));
       }
