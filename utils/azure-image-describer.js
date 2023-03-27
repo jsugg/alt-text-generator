@@ -3,9 +3,9 @@ const axios = require('axios');
 
 class AzureImageDescriber {
 
-    static azureComputerVisionApiKey = process.env.ACV_API_KEY || '0708f80b58484dc99264db1c22d98c60';
-    static azureComputerVisionApiEndpoint = process.env.ACV_API_ENDPOINT || 'https://eastus.api.cognitive.microsoft.com/vision/v3.2/describe';
-    static azureComputerVisionSubscriptionKey = process.env.ACV_SUBSCRIPTION_KEY || '6bdabd22-123c-44ab-9519-7231ddfb9481';
+    static azureComputerVisionApiKey = process.env.ACV_API_KEY;
+    static azureComputerVisionApiEndpoint = process.env.ACV_API_ENDPOINT;
+    static azureComputerVisionSubscriptionKey = process.env.ACV_SUBSCRIPTION_KEY;
     static delayBetweenRequests = 3000;
     static altTextList = [];
 
