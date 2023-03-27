@@ -1,3 +1,4 @@
+"use strict"
 const axios = require('axios');
 const cheerio = require('cheerio');
 const url = require('url');
@@ -12,7 +13,11 @@ class WebScrapper {
     static async getImages(targetUrl) {
         try {
           // Fetch the HTML content of the website using Axios
-          const response = await axios.get(targetUrl);
+          const response = await axios.get(targetUrl, {
+            headers: {
+              'Origin': targetUrl
+            }
+          });
       
           // Parse the HTML using Cheerio
           const $ = cheerio.load(response.data);
@@ -63,9 +68,9 @@ class WebScrapper {
 
           // Log the images array
           console.log('Images:', images);
-
+          const imageSources = { "imageSources": images };
           // Return the images array
-          return images;
+          return imageSources;
 
         } catch (error) {
           console.error('Error fetching the website:', error);
@@ -73,4 +78,4 @@ class WebScrapper {
     }
 }
 
-module.exports = WebScrapper
+module.exports = WebScrapper;
