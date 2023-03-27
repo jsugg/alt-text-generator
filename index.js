@@ -57,7 +57,7 @@ app.use(appRouter);
     await new Promise((resolve, reject) => {
       try {
         if (process.env.NODE_ENV === 'production') { 
-            PORT = process.env.PORT || 8080;
+            const PORT = process.env.PORT || 8080;
 
             const httpsServer = http.createServer(app);
               httpsServer.listen(PORT, () => {
