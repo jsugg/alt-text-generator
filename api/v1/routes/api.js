@@ -12,7 +12,7 @@ module.exports = (serverLogger) => {
   function loadAPIRoutes(serverLogger, httpServerLogger) {
     serverLogger.info('Loading APIRoutes...');
 
-    // Ping route
+    // Ping
     apiRouter.get(['/ping', '/v1/ping'], (req, res) => {
       httpServerLogger.startTime = Date.now();
       httpServerLogger.info(`${httpServerLogger.startTime} Request received`);
@@ -42,7 +42,7 @@ module.exports = (serverLogger) => {
       }
     });
 
-    // Get Alt Text from images
+    // Get Alt Text for images
     apiRouter.get(['/accessibility/getImageDescriptions', '/v1/accessibility/getImageDescriptions'], cors(), async (req, res) => {
       httpServerLogger.startTime = Date.now();
       httpServerLogger.logger.info(`${httpServerLogger.startTime} Request received`);
@@ -58,17 +58,16 @@ module.exports = (serverLogger) => {
       }
       if (model === 'clip') {
         try {
-            
             const descriptions = await ReplicateImageDescriber.describeImages(imagesSource);
             res.json(descriptions);
-            //serverLogger.debug(`Response sent with descriptions: ${JSON.stringify(descriptions.map( images => images['title']))}`);
+            serverLogger.debug(`Response sent with descriptions:`);
         } catch (error) {
           res.status(500).json({ error: 'Error fetching descriptions for the provided images' });
         }
       }
     });
 
-    // Get Alt Text from (one) image
+    // Get Alt Text for (one) image
     apiRouter.get(['/accessibility/getImageDescription', '/v1/accessibility/getImageDescription'], cors(), async (req, res) => {
       httpServerLogger.startTime = Date.now();
       httpServerLogger.logger.info(`${httpServerLogger.startTime} Request received`);
