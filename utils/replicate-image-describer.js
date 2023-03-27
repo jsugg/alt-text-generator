@@ -111,7 +111,6 @@ class ReplicateImageDescriber {
       const dataURLArray = imageFileObjectArray.map( obj => obj.dataURL);
       const modelOwner = 'rmokady';
       const modelName = 'clip_prefix_caption';
-      //const model = await ReplicateImageDescriber.replicate.models.get(modelOwner, modelName);
       const modelLatestVersion = '9a34a6339872a03f45236f114321fb51fc7aa8269d38ae0ce5334969981e4cd8';
 
       for (const img of dataURLArray) {
@@ -124,9 +123,6 @@ class ReplicateImageDescriber {
           }
         );
         console.log(`Run output: ${output}`);
-        //descriptionId = output.id;
-        //const status = await ReplicateImageDescriber.pollEndpoint(`https://api.replicate.com/v1/predictions/${descriptionId}`, 5000);
-        //console.log(`Status: ${status}`);
         ReplicateImageDescriber.altTextList.push({ description: output, imageUrl: imageUrl });
       }
 

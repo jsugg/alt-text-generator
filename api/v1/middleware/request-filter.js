@@ -24,19 +24,24 @@ module.exports = (serverLogger) => {
         serverLogger.debug({ req, 'message': 'Denying resource - Disallowed URI format' }, '403 FORBIDEN Status response sent');
         res.status(400).send('Bad request. URI format not allowed.'); 
       }
+      //-- In prod, it's handled by prod server
       // Redirect from HTTP to HTTPS requests coming from a proxy server
-      else if (req.headers['x-forwarded-proto'] && req.headers['x-forwarded-proto'] !== 'https') {
+      else if (process.env.NODE_ENV != 'production' && req.headers['x-forwarded-proto'] && req.headers['x-forwarded-proto'] !== 'https') {
         serverLogger.debug({ req, 'message': 'Redirecting from HTTP to HTTPS' }, 'Redirecting Proxy-forwarded request');
         res.redirect(`https://${req.headers.host}${req.url}`);
       }
       // Redirect from HTTP to HTTPS any other request
-      else if (!req.headers['x-forwarded-proto'] && req.protocol !== 'https') {
+      else if (process.env.NODE_ENV != 'production' && !req.headers['x-forwarded-proto'] && req.protocol !== 'https') {
         serverLogger.debug({ req, 'message': 'Redirecting from HTTP to HTTPS' }, 'Redirecting request');
         res.redirect(`https://${req.headers.host}${req.url}`);
       }
-      else if (`${req.url}` == '/api/') {
+      else if (process.env.NODE_ENV != 'production' && (`${req.url}` == '/api/')) {
         serverLogger.debug({ req, 'message': 'Redirecting /api to api/v1' }, 'Redirecting request');
         res.redirect(`https://${req.headers.host}${req.url}v1/`);
+      }
+      else if (process.env.NODE_ENV === 'production' && (`${req.url}` == '/api/')) {
+        serverLogger.debug({ req, 'message': 'Redirecting /api to api/v1' }, 'Redirecting request');
+        res.redirect(`http://${req.headers.host}${req.url}v1/`);
       }
       // Else
       else { 
