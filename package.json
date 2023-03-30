@@ -22,7 +22,7 @@
   "scripts": {
     "test": "test",
     "prod": "NODE_ENV=production node index.js | pino-pretty -i streams,options",
-    "dev": "NODE_ENV=development node index.js | pino-pretty -i streams,options"
+    "dev": "NODE_ENV=development nodemon index.js | pino-pretty -i streams,options"
   },
   "repository": {
     "type": "git",
@@ -45,7 +45,14 @@
     "pino": "^8.11.0",
     "pino-http": "^8.3.3",
     "pino-pretty": "^10.0.0",
-    "replicate": "^0.6.0",
+    "replicate": "github:replicate/replicate-javascript",
     "replicate-js": "github:nicholascelestin/replicate-js"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
+  },
+  "nodemonConfig": {
+    "ignore": ["**/test/**", "**/docs/**"],
+    "delay": 2500
   }
 }
