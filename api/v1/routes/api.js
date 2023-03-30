@@ -88,12 +88,12 @@ module.exports = (serverLogger) => {
       }
       if (model === 'clip') {
         try {
-            req.log.debug(`Asking replicate-image-describer module to describe ${imageSource}`);
+            req.log.logger.debug(`Asking replicate-image-describer module to describe ${imageSource}`);
             const descriptions = await ReplicateImageDescriber.describeImage(imageSource, req.log);
-            req.log.debug(`replicate-image-describer module returned ${descriptions}`);
+            req.log.logger.debug(`replicate-image-describer module returned ${descriptions}`);
             res.json(descriptions);
         } catch (error) {
-          req.log.debug(`Error trying to get a description from the replicate-image-describer module: ${error}`);
+          req.log.logger.debug(`Error trying to get a description from the replicate-image-describer module: ${error}`);
           res.status(500).json({ error: 'Error fetching description for the provided image' });
         }
       }
