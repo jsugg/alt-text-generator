@@ -42,21 +42,18 @@ class ReplicateImageDescriber {
     return new Promise((resolve) => setTimeout(resolve, interval));
   }
 
-  // Convert an image URL to a File object
+  // Converts image URL to dataUrl
   static async urlToDataURL(url) {
     const fetch = (await import("node-fetch")).default;
     const response = await fetch(url);
     const buffer = await response.arrayBuffer();
     const contentType = response.headers.get("content-type");
     const fileExtension = contentType.split("/")[1];
-  
     const base64Data = Buffer.from(buffer).toString("base64");
     const dataURL = `data:${contentType};base64,${base64Data}.${fileExtension}`;
-  
     const dataURLWithoutPrefix = dataURL.slice(dataURL.indexOf(",") + 1);
     const decodedData = Buffer.from(dataURLWithoutPrefix, "base64");
     const contentLength = decodedData.byteLength;
-  
     const headers = { "Content-Length": contentLength };
     const options = { headers };
   
@@ -75,11 +72,9 @@ class ReplicateImageDescriber {
   static async describeImages(imagesObject) {
     try {
       const imageFilesObjectArray = await ReplicateImageDescriber.imagesObjectToArray(imagesObject);
-      //const { dataURL, options } = imageFilesObjectArray
       const dataURLArray = imageFilesObjectArray.map( obj => obj.dataURL);
       const modelOwner = 'rmokady';
       const modelName = 'clip_prefix_caption';
-      //const model = await ReplicateImageDescriber.replicate.models.get(modelOwner, modelName);
       const modelLatestVersion = '9a34a6339872a03f45236f114321fb51fc7aa8269d38ae0ce5334969981e4cd8';
 
       for (const img of dataURLArray) {
@@ -104,7 +99,7 @@ class ReplicateImageDescriber {
     }
   }
 
-  static async describeImage(imageObject) {
+  static async describeImage(imageObject, logger) {
     try {
       const imageUrl = JSON.parse(imageObject)["imagesSource"][0];
       const imageFileObjectArray = await ReplicateImageDescriber.imagesObjectToArray(imageObject);

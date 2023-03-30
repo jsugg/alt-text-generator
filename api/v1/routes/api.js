@@ -9,25 +9,30 @@ const cors =  require('cors');
 
 module.exports = (serverLogger) => {
 
-  function loadAPIRoutes(serverLogger, httpServerLogger) {
-    serverLogger.info('Loading APIRoutes...');
+  apiRouter.use((req, res, next) => {
+    req.log = serverLogger;
+    next();
+  });
+  
+  function loadAPIRoutes(serverLogger) {
+    serverLogger.logger.info('Loading APIRoutes...');
 
     // Ping
     apiRouter.get(['/ping', '/v1/ping'], (req, res) => {
-      httpServerLogger.startTime = Date.now();
-      httpServerLogger.info(`${httpServerLogger.startTime} Request received`);
-      serverLogger(req, res);
+      req.log.startTime = Date.now();
+      req.log.logger.info(`${req.log.startTime} Request received`);
+      req.log(req, res);
       res.status(200).send('pong');
     });
 
     // getImages from external URL
     apiRouter.get(['/webScrapper/getImages', '/v1/webScrapper/getImages'], cors(), async (req, res) => {
-      httpServerLogger.startTime = Date.now();
-      httpServerLogger.logger.info(`${httpServerLogger.startTime} Request received`);
-      httpServerLogger(req, res);
+      req.log.startTime = Date.now();
+      req.log.logger.info(`${req.log.startTime} Request received`);
+      req.log(req, res);
       
       const requestUrl = req.query.url;
-      serverLogger.debug(`Queried URL: ${requestUrl}`);
+      req.log.logger.debug(`Queried URL: ${requestUrl}`);
 
       if (!requestUrl) {
         res.status(400).json({ error: 'Missing required query parameter: url' });
@@ -36,7 +41,7 @@ module.exports = (serverLogger) => {
       try {
         const images = await WebScrapper.getImages(requestUrl);
         res.json(images);
-        serverLogger.debug(`Response sent with images: ${JSON.stringify(images)}`);
+        req.log.logger.debug(`Response sent with images: ${JSON.stringify(images)}`);
       } catch (error) {
         res.status(500).json({ error: 'Error fetching images from the provided URL' });
       }
@@ -44,13 +49,13 @@ module.exports = (serverLogger) => {
 
     // Get Alt Text for images
     apiRouter.get(['/accessibility/getImageDescriptions', '/v1/accessibility/getImageDescriptions'], cors(), async (req, res) => {
-      httpServerLogger.startTime = Date.now();
-      httpServerLogger.logger.info(`${httpServerLogger.startTime} Request received`);
-      httpServerLogger(req, res);
+      req.log.startTime = Date.now();
+      req.log.logger.info(`${req.log.startTime} Request received`);
+      req.log(req, res);
 
       const imagesSource = req.query.imagesSource;
       const model = req.query.model;
-      serverLogger.debug(`Model: ${model}, imagesSource: ${imagesSource}`);
+      req.log.logger.debug(`Model: ${model}, imagesSource: ${imagesSource}`);
 
       if (!imagesSource || !model) {
         res.status(400).json({ error: 'Missing required query parameter(s): imagesSources and model are required.' });
@@ -60,7 +65,7 @@ module.exports = (serverLogger) => {
         try {
             const descriptions = await ReplicateImageDescriber.describeImages(imagesSource);
             res.json(descriptions);
-            serverLogger.debug(`Response sent with descriptions:`);
+            req.log.logger.debug(`Response sent with descriptions:`);
         } catch (error) {
           res.status(500).json({ error: 'Error fetching descriptions for the provided images' });
         }
@@ -69,13 +74,13 @@ module.exports = (serverLogger) => {
 
     // Get Alt Text for (one) image
     apiRouter.get(['/accessibility/getImageDescription', '/v1/accessibility/getImageDescription'], cors(), async (req, res) => {
-      httpServerLogger.startTime = Date.now();
-      httpServerLogger.logger.info(`${httpServerLogger.startTime} Request received`);
-      httpServerLogger(req, res);
+      req.log.startTime = Date.now();
+      req.log.logger.info(`${req.log.startTime} Request received`);
+      req.log(req, res);
 
       const imageSource = req.query.imageSource;
       const model = req.query.model;
-      serverLogger.debug(`Model: ${model}, imageSource: ${imageSource}`);
+      req.log.logger.debug(`Model: ${model}, imageSource: ${imageSource}`);
 
       if (!imageSource || !model) {
         res.status(400).json({ error: 'Missing required query parameter(s): imageSource and model are required.' });
@@ -83,7 +88,7 @@ module.exports = (serverLogger) => {
       }
       if (model === 'clip') {
         try {
-            const descriptions = await ReplicateImageDescriber.describeImage(imageSource);
+            const descriptions = await ReplicateImageDescriber.describeImage(imageSource, req.log);
             res.json(descriptions);
         } catch (error) {
           res.status(500).json({ error: 'Error fetching description for the provided image' });
@@ -97,10 +102,10 @@ module.exports = (serverLogger) => {
       next();
     });
 
-    serverLogger.info('APIRoutes loaded.');
+    serverLogger.logger.info('APIRoutes loaded.');
   }
 
-  setImmediate(() => { serverLogger.debug('[MODULE] api/v1/routes/api loaded'); });
+  setImmediate(() => { serverLogger.logger.debug('[MODULE] api/v1/routes/api loaded'); });
 
   // Module exports
   return {
