@@ -5,7 +5,7 @@ const http = require('http');
 const https = require('https');
 const express = require('express');
 const app = express();
-const { serverLogger, httpServerLogger } = require(`${appPath}/utils/logger`);
+const { appLogger, serverLogger } = require(`${appPath}/utils/logger`);
 const appRouter = require(`${appPath}/api/v1/routes/app`)(serverLogger);
 const { loadRequestFilter } = require(`${appPath}/api/v1/middleware/request-filter`)(serverLogger);
 const { apiRouter, loadAPIRoutes } = require(`${appPath}/api/v1/routes/api`)(serverLogger);
@@ -13,17 +13,17 @@ const fs = require('fs');
 // End Requires
 
 // Set log level
-httpServerLogger.level = 'trace';
-serverLogger.level = 'trace';
+serverLogger.logger.level = 'trace';
+appLogger.level = 'trace';
 
 // Load the apiRouter into the appRouter
 appRouter.use('/api', apiRouter);
 
 // Load the request filter
-loadRequestFilter(serverLogger, httpServerLogger, appRouter);
+loadRequestFilter(serverLogger, appRouter);
 
 // Load the API routes
-loadAPIRoutes(serverLogger, httpServerLogger);
+loadAPIRoutes(serverLogger);
 
 // Main router; appRouter assigns routers to the specified routes
 appRouter.use((req, res, next) => {
@@ -33,21 +33,18 @@ appRouter.use((req, res, next) => {
       next();
     }
 });
-app.use(httpServerLogger);
+
+app.use(serverLogger);
 app.use(appRouter);
 
 // Start the HTTP Server
 (async () => {
-    serverLogger.info('Starting HTTP Server...');
+    serverLogger.logger.info('Starting HTTP Server...');
     const RENDER_EXTERNAL_URL = process.env.RENDER_EXTERNAL_URL || '';
 
     // TLS Certificates
     const options = process.env.NODE_ENV === 'production' ? {
-           /* key: Buffer.from(process.env.TSL_KEY, "base64").toString('ascii'),
-            cert: Buffer.from(process.env.TSL_CERT, "base64").toString('ascii'),
-            cors: {
-                origin: RENDER_EXTERNAL_URL
-            }*/
+        // The server is currently handling certificates.
         } : 
         {
             key: fs.readFileSync(`${appPath}/certs/key.pem`),
@@ -61,7 +58,7 @@ app.use(appRouter);
 
             const httpsServer = http.createServer(app);
               httpsServer.listen(PORT, () => {
-                serverLogger.info(`HTTP server listening on port ${PORT}`);
+                serverLogger.logger.info(`HTTP server listening on port ${PORT}`);
               });
 
               resolve([httpsServer]);
@@ -69,22 +66,22 @@ app.use(appRouter);
             const httpServer = http.createServer(app);
             const httpsServer = https.createServer(options, app);
             httpServer.listen(8080, '0.0.0.0', () => {
-                serverLogger.info('HTTP server listening on port 80');
+                serverLogger.logger.info('HTTP server listening on port 80');
               });
               
             httpsServer.listen(4443, '0.0.0.0', () => {
-            serverLogger.info('HTTPS server listening on port 443');
+            serverLogger.logger.info('HTTPS server listening on port 443');
 
             resolve([httpServer, httpsServer]);
             });
         }
         
       } catch (error) {
-        reject(serverLogger.error(error));
+        reject(serverLogger.logger.error(error));
       }
     });
-    serverLogger.info('HTTP Server started.');
+    serverLogger.logger.info('HTTP Server started.');
   })();
   
   
-  setImmediate(() => { serverLogger.debug('[MODULE] index object loaded') });
+  setImmediate(() => { serverLogger.logger.debug('[MODULE] index object loaded') });
