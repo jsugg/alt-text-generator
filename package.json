@@ -41,18 +41,24 @@
     "http": "^0.0.1-security",
     "https": "^1.0.0",
     "node-fetch": "^3.3.1",
+    "os": "^0.1.2",
     "path": "^0.12.7",
     "pino": "^8.11.0",
     "pino-http": "^8.3.3",
     "pino-pretty": "^10.0.0",
     "replicate": "github:replicate/replicate-javascript",
-    "replicate-js": "github:nicholascelestin/replicate-js"
+    "replicate-js": "github:nicholascelestin/replicate-js",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^4.6.2"
   },
   "devDependencies": {
     "nodemon": "^2.0.22"
   },
   "nodemonConfig": {
-    "ignore": ["**/test/**", "**/docs/**"],
+    "ignore": [
+      "**/test/**",
+      "**/docs/**"
+    ],
     "delay": 2500
   }
 }
