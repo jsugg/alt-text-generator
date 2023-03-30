@@ -4,11 +4,11 @@ const crypto = require('crypto');
 const fs = require('fs')
 fs.writeFileSync(`${appPath}/alt-text-generator.pid`, process.pid.toString());
 const LOGS_FOLDER = `${appPath}/logs/`;
-const serverLogger = require('pino')({level: 'info', name: 'serverLogger', destination: `${LOGS_FOLDER}/date_${Date.now()}__PID_${process.pid}.log`});
+const appLogger = require('pino')({level: 'info', name: 'appLogger', destination: `${LOGS_FOLDER}/date_${Date.now()}__PID_${process.pid}.log`});
 process.on('SIGHUP', () => dest.reopen());
 const pinoHttp = require('pino-http');
-const httpServerLogger = pinoHttp({
-    logger: serverLogger.child({name: 'httpServerLogger'}),
+const serverLogger = pinoHttp({
+    logger: appLogger.child({name: 'serverLogger'}),
         genReqId: function (req, res) {
         const existingID = req.id ?? req.headers["x-request-id"];
         if (existingID) return existingID;
@@ -50,7 +50,7 @@ const httpServerLogger = pinoHttp({
     }
 });
 
-module.exports = {
-    serverLogger,
-    httpServerLogger
+module.exports = { 
+    appLogger,
+    serverLogger
 }
