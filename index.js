@@ -7,10 +7,12 @@ const express = require('express');
 const app = express();
 const { appLogger, serverLogger } = require(`${appPath}/utils/logger`);
 const appRouter = require(`${appPath}/api/v1/routes/app`)(serverLogger);
+const swaggerRouter = require('express').Router();
 const { loadRequestFilter } = require(`${appPath}/api/v1/middleware/request-filter`)(serverLogger);
 const { apiRouter, loadAPIRoutes } = require(`${appPath}/api/v1/routes/api`)(serverLogger);
 const fs = require('fs');
-// End Requires
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require(`${appPath}/swagger`);
 
 // Set log level
 serverLogger.logger.level = 'trace';
@@ -18,6 +20,8 @@ appLogger.level = 'trace';
 
 // Load the apiRouter into the appRouter
 appRouter.use('/api', apiRouter);
+
+swaggerRouter.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Load the request filter
 loadRequestFilter(serverLogger, appRouter);
@@ -27,7 +31,9 @@ loadAPIRoutes(serverLogger);
 
 // Main router; appRouter assigns routers to the specified routes
 appRouter.use((req, res, next) => {
-    if (req.path.startsWith('/api')) {
+    if (req.path.startsWith('/api-docs')) {
+      swaggerRouter(req, res, next);
+    } else if (req.path.startsWith('/api')) {
       apiRouter(req, res, next);
     } else {
       next();

@@ -1,10 +1,14 @@
 "use strict"
 const appPath = require('app-root-path').toString();
+const os = require('os');
+const hostname = os.hostname();
+const username = os.userInfo().username;
+const packageJSON = require(`${appPath}/package.json`);
 const crypto = require('crypto');
 const fs = require('fs')
 fs.writeFileSync(`${appPath}/alt-text-generator.pid`, process.pid.toString());
 const LOGS_FOLDER = `${appPath}/logs/`;
-const appLogger = require('pino')({level: 'info', name: 'appLogger', destination: `${LOGS_FOLDER}/date_${Date.now()}__PID_${process.pid}.log`});
+const appLogger = require('pino')({level: 'info', name: 'appLogger', destination: `${LOGS_FOLDER}/${hostname} ${username} ${packageJSON.name} start_date:[${Date.now()}] pid:${process.pid}.log`});
 process.on('SIGHUP', () => dest.reopen());
 const pinoHttp = require('pino-http');
 const serverLogger = pinoHttp({
