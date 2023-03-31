@@ -31,7 +31,7 @@ module.exports = (serverLogger) => {
      *               type: string
      *               example: pong
      *       500:
-     *         description: Some server error
+     *         description: Server error
      */
     apiRouter.get(['/ping', '/v1/ping'], (req, res) => {
       req.log.startTime = Date.now();
@@ -49,12 +49,14 @@ module.exports = (serverLogger) => {
      *     parameters:
      *       - name: url
      *         in: query
-     *         description: URL of the website containing the image hrefs to be scrapped
+     *         description: URLEncoded address of the website containing the image hrefs to be scrapped (see https://www.urlencoder.org/).
      *         required: true
      *         schema:
      *           type: string
+     *           example: https%3A%2F%2Fneymarques.com%2Fsimple-lofi-hip-hop-music-sleep-relax-study%2F
      *     responses:
      *       200:
+     *         description: OK
      *         content:
      *           application/json:
      *             schema:
@@ -64,7 +66,7 @@ module.exports = (serverLogger) => {
      *                   type: array
      *                   example: ["https://cdn.statically.io/img/neymarques.com/wp-content/uploads/2022/11/Ney-Simple-LoFi-1024x1024.jpeg","https://cdn.statically.io/img/neymarques.com/wp-content/uploads/2022/11/Spotify-Emblema-e1668647961321-150x150.png"]
      *       500:
-     *         description: Some server error
+     *         description: Server error
      */
     apiRouter.get(['/scrapper/images', '/v1/scrapper/images'], cors(), async (req, res) => {
       req.log.startTime = Date.now();
@@ -91,17 +93,26 @@ module.exports = (serverLogger) => {
      * @swagger
      * /api/accessibility/description:
      *   get:
-     *     summary: Returns a description for a given image
+     *     summary: Returns a description for a given image.
      *     description: This endpoint takes an image URL, fetches its content, converts it into a data URL, and sends it to an AI service that returns a description for it.
      *     parameters:
      *       - name: image_source
      *         in: query
-     *         description: URL of the image to be described
+     *         description: URLEncoded address of the image (see https://www.urlencoder.org/).
      *         required: true
      *         schema:
      *           type: string
+     *           example: https%3A%2F%2Fneymarques.com%2Fwp-content%2Fuploads%2F2022%2F12%2FIMG_2752-2.jpg
+     *       - name: model
+     *         in: query
+     *         description: The AI model used to generate a description for the image. Only 'clip' is currently available.
+     *         required: true
+     *         schema:
+     *           type: string
+     *           example: clip
      *     responses:
      *       200:
+     *         description: OK
      *         content:
      *           application/json:
      *             schema:
@@ -116,14 +127,16 @@ module.exports = (serverLogger) => {
      *                     type: string
      *                     example: https://neymarques.com/wp-content/uploads/2022/12/IMG_2752-2.jpg
      *       500:
-     *         description: Some server error
+     *         description: Server error
      */
     apiRouter.get(['/accessibility/description', '/v1/accessibility/description'], cors(), async (req, res) => {
       req.log.startTime = Date.now();
       req.log.logger.info(`${req.log.startTime} Request received`);
       req.log(req, res);
 
-      const imageSource = req.query.image_source;
+      const imageSource = {
+        "imagesSource": [req.query.image_source]
+      }
       const model = req.query.model;
       req.log.logger.debug(`Model: ${model}, imageSource: ${imageSource}`);
 
