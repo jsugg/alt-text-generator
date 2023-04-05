@@ -51,8 +51,8 @@ app.use(appRouter);
     // TLS Certificates
     const options = process.env.NODE_ENV === 'production' ? {
         // The server is currently handling certificates.
-            key: process.env.TLS_KEY? Buffer.from(process.env.TLS_KEY, 'base64').toString('ascii') : fs.readFileSync(`${appPath}/certs/key.pem`),
-            cert: process.env.TLS_CERT? Buffer.from(process.env.TLS_CERT, 'base64').toString('ascii') : fs.readFileSync(`${appPath}/certs/cert.pem`)
+            key: process.env.TLS_KEY? Buffer.from(process.env.TLS_KEY, 'base64').toString('ascii') : null,
+            cert: process.env.TLS_CERT? Buffer.from(process.env.TLS_CERT, 'base64').toString('ascii') : null
         } : 
         {
             key: fs.readFileSync(`${appPath}/certs/key.pem`),
