@@ -117,6 +117,7 @@ class ReplicateImageDescriber {
       }
     }
 
+
     static async describeImage(imageObject) {
       try {
         ReplicateImageDescriber.log.logger.debug(`Generating imageFileObjectArray...`);
