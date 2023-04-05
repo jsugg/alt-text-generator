@@ -60,17 +60,18 @@ app.use(appRouter);
     await new Promise((resolve, reject) => {
       try {
         if (process.env.NODE_ENV === 'production') { 
-            const PORT = process.env.PORT || 80;
-            const TLS_PORT = process.env.TLS_PORT || 443;
-
+            const port = {
+              p: process.env.PORT || 8080,
+              tls: process.env.TLS_PORT || 4443
+            };
             const httpServer = http.createServer(app);
             const httpsServer = https.createServer(options, app); //
               httpServer.listen(PORT, () => {
-                serverLogger.logger.info(`HTTP server listening on port ${PORT}`);
+                serverLogger.logger.info(`HTTP server listening on port ${port.p}`);
               });
 
               httpsServer.listen(TLS_PORT, () => { //
-                serverLogger.logger.info(`HTTPS server listening on port ${TLS_PORT}`); //
+                serverLogger.logger.info(`HTTPS server listening on port ${port.tls}`); //
 
               resolve([httpServer, httpsServer]); //
             });//
