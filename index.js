@@ -72,7 +72,7 @@ app.use(appRouter);
               });
 
               httpsServer.listen(4443, '0.0.0.0', () => { //
-                serverLogger.logger.info('HTTPS server listening on port 4443'); //
+                serverLogger.logger.info(`HTTPS server listening on port ${TLS_PORT}`); //
 
               resolve([httpServer, httpsServer]); //
             });//
