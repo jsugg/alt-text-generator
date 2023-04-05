@@ -153,12 +153,13 @@ module.exports = (serverLogger) => {
             req.log.logger.info(`Response sent with alt text.`);
             res.json(descriptions);
         } catch (error) {
+          req.log.logger.debug(`Error trying to get a description from the replicate-image-describer module: ${error}`);
           res.status(500).json({ error: 'Error fetching description for the provided image' });
         }
       }
     });
 
-    // API 404 error handling
+    // API 404 error handler
     apiRouter.use((req, res, next) => {
       res.status(404).json({ error: 'Endpoint not found' });
       next();
