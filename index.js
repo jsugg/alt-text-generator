@@ -51,6 +51,8 @@ app.use(appRouter);
     // TLS Certificates
     const options = process.env.NODE_ENV === 'production' ? {
         // The server is currently handling certificates.
+        key: fs.readFileSync(`${appPath}/certs/key.pem`), //
+        cert: fs.readFileSync(`${appPath}/certs/cert.pem`) //
         } : 
         {
             key: fs.readFileSync(`${appPath}/certs/key.pem`),
@@ -61,13 +63,19 @@ app.use(appRouter);
       try {
         if (process.env.NODE_ENV === 'production') { 
             const PORT = process.env.PORT || 8080;
+            const TLS_PORT = process.env.TLS_PORT || 4443;
 
-            const httpsServer = http.createServer(app);
-              httpsServer.listen(PORT, () => {
+            const httpServer = http.createServer(app);
+            const httpsServer = https.createServer(options, app); //
+              httpServer.listen(PORT, '0.0.0.0', () => {
                 serverLogger.logger.info(`HTTP server listening on port ${PORT}`);
               });
 
-              resolve([httpsServer]);
+              httpsServer.listen(4443, '0.0.0.0', () => { //
+                serverLogger.logger.info('HTTPS server listening on port 4443'); //
+
+              resolve([httpServer, httpsServer]); //
+            });//
         } else {
             const httpServer = http.createServer(app);
             const httpsServer = https.createServer(options, app);
