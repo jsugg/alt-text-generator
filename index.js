@@ -51,8 +51,6 @@ app.use(appRouter);
     // TLS Certificates
     const options = process.env.NODE_ENV === 'production' ? {
         // The server is currently handling certificates.
-        key: fs.readFileSync(`${appPath}/certs/key.pem`), //
-        cert: fs.readFileSync(`${appPath}/certs/cert.pem`) //
         } : 
         {
             key: fs.readFileSync(`${appPath}/certs/key.pem`),
@@ -62,16 +60,16 @@ app.use(appRouter);
     await new Promise((resolve, reject) => {
       try {
         if (process.env.NODE_ENV === 'production') { 
-            const PORT = process.env.PORT || 8080;
-            const TLS_PORT = process.env.TLS_PORT || 4443;
+            const PORT = process.env.PORT || 80;
+            const TLS_PORT = process.env.TLS_PORT || 443;
 
             const httpServer = http.createServer(app);
             const httpsServer = https.createServer(options, app); //
-              httpServer.listen(PORT, '0.0.0.0', () => {
+              httpServer.listen(PORT, () => {
                 serverLogger.logger.info(`HTTP server listening on port ${PORT}`);
               });
 
-              httpsServer.listen(4443, '0.0.0.0', () => { //
+              httpsServer.listen(TLS_PORT, () => { //
                 serverLogger.logger.info(`HTTPS server listening on port ${TLS_PORT}`); //
 
               resolve([httpServer, httpsServer]); //
@@ -80,11 +78,11 @@ app.use(appRouter);
             const httpServer = http.createServer(app);
             const httpsServer = https.createServer(options, app);
             httpServer.listen(8080, '0.0.0.0', () => {
-                serverLogger.logger.info('HTTP server listening on port 80');
+                serverLogger.logger.info('HTTP server listening on port 8080');
               });
               
             httpsServer.listen(4443, '0.0.0.0', () => {
-            serverLogger.logger.info('HTTPS server listening on port 443');
+            serverLogger.logger.info('HTTPS server listening on port 4443');
 
             resolve([httpServer, httpsServer]);
             });
