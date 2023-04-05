@@ -4,7 +4,7 @@ const swaggerJSDoc = require('swagger-jsdoc');
 const swaggerDefinition = {
   openapi: '3.0.0',
   info: {
-    title: 'Alt-text generator API',
+    title: 'AI-Powered Alternative Text Provider API',
     version: '1.0.0',
     description: 'This API provides descriptions to images, to contribute to the world-wide accessibility efforts.',
   },
