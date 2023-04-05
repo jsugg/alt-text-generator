@@ -13,6 +13,10 @@ const swaggerDefinition = {
       url: 'https://localhost:4443',
       description: 'Development server',
     },
+    {
+      url: 'https://api.wcat.qcraft.dev',
+      description: 'Production server',
+    }
   ],
 };
 

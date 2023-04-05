@@ -51,19 +51,26 @@ app.use(appRouter);
     // TLS Certificates
     const options = process.env.NODE_ENV === 'production' ? {
         // The server is currently handling certificates.
+            key: process.env.TLS_KEY? Buffer.from(process.env.TLS_KEY, 'base64').toString('ascii') : fs.readFileSync(`${appPath}/certs/key.pem`),
+            cert: process.env.TLS_CERT? Buffer.from(process.env.TLS_CERT, 'base64').toString('ascii') : fs.readFileSync(`${appPath}/certs/cert.pem`)
         } : 
         {
             key: fs.readFileSync(`${appPath}/certs/key.pem`),
             cert: fs.readFileSync(`${appPath}/certs/cert.pem`)
         };
+    const ports = process.env.NODE_ENV === 'production' ? {
+          p: process.env.PORT || 8080,
+          tls: process.env.TLS_PORT || 4443
+        } :
+        {
+          p: process.env.PORT || 80,
+          tls: process.env.TLS_PORT || 443
+        }
   
     await new Promise((resolve, reject) => {
       try {
         if (process.env.NODE_ENV === 'production') { 
-            const ports = {
-              p: process.env.PORT || 8080,
-              tls: process.env.TLS_PORT || 4443
-            };
+
             const httpServer = http.createServer(app);
             const httpsServer = https.createServer(options, app); //
               httpServer.listen(ports.p, () => {
@@ -78,12 +85,12 @@ app.use(appRouter);
         } else {
             const httpServer = http.createServer(app);
             const httpsServer = https.createServer(options, app);
-            httpServer.listen(8080, '0.0.0.0', () => {
-                serverLogger.logger.info('HTTP server listening on port 8080');
-              });
+            httpServer.listen(ports.p, '0.0.0.0', () => {
+                serverLogger.logger.info(`HTTP server listening on port ${ports.p}`);
+            });
               
-            httpsServer.listen(4443, '0.0.0.0', () => {
-            serverLogger.logger.info('HTTPS server listening on port 4443');
+            httpsServer.listen(ports.tls, '0.0.0.0', () => {
+            serverLogger.logger.info(`HTTPS server listening on port ${ports.tls}`);
 
             resolve([httpServer, httpsServer]);
             });
