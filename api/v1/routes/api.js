@@ -1,23 +1,32 @@
-"use strict"
-const express = require('express');
+"use strict";
+
+const express = require("express");
 const apiRouter = express.Router();
-const appPath = require('app-root-path').toString();
+const appPath = require("app-root-path").toString();
 const WebScrapper = require(`${appPath}/utils/webscrapper`);
 const AzureImageDescriber = require(`${appPath}/utils/azure-image-describer`);
 const ReplicateImageDescriber = require(`${appPath}/utils/replicate-image-describer`);
-const cors =  require('cors');
+const cors = require("cors");
 
 module.exports = (serverLogger) => {
-
-  ReplicateImageDescriber.use({logger: serverLogger});
+  ReplicateImageDescriber.use({ logger: serverLogger });
 
   apiRouter.use((req, res, next) => {
     req.log = serverLogger;
     next();
   });
+
+  function validateUrl(url) {
+    try {
+      new URL(url);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
   
   function loadAPIRoutes(serverLogger) {
-    serverLogger.logger.info('Loading APIRoutes...');
+    serverLogger.logger.info("Loading APIRoutes...");
 
     /**
      * @swagger
@@ -35,11 +44,11 @@ module.exports = (serverLogger) => {
      *       500:
      *         description: Server error
      */
-    apiRouter.get(['/ping', '/v1/ping'], (req, res) => {
+    apiRouter.get(["/ping", "/v1/ping"], (req, res) => {
       req.log.startTime = Date.now();
       req.log.logger.info(`${req.log.startTime} Request received`);
       req.log(req, res);
-      res.status(200).send('pong');
+      res.status(200).send("pong");
     });
 
     /**
@@ -70,26 +79,34 @@ module.exports = (serverLogger) => {
      *       500:
      *         description: Server error
      */
-    apiRouter.get(['/scrapper/images', '/v1/scrapper/images'], cors(), async (req, res) => {
-      req.log.startTime = Date.now();
-      req.log.logger.info(`${req.log.startTime} Request received`);
-      req.log(req, res);
-      
-      const requestUrl = req.query.url;
-      req.log.logger.debug(`Queried URL: ${requestUrl}`);
+    apiRouter.get(
+      ["/scrapper/images", "/v1/scrapper/images"],
+      cors(),
+      async (req, res) => {
+        req.log.startTime = Date.now();
+        req.log.logger.info(`${req.log.startTime} Request received`);
+        req.log(req, res);
 
-      if (!requestUrl) {
-        res.status(400).json({ error: 'Missing required query parameter: url' });
-        return;
+        const requestUrl = req.query.url;
+        req.log.logger.debug(`Queried URL: ${requestUrl}`);
+
+        if (!requestUrl || !validateUrl(requestUrl)) {
+          res
+            .status(400)
+            .json({ error: "Missing or invalid required query parameter: url" });
+          return;
+        }
+        try {
+          const images = await WebScrapper.getImages(requestUrl);
+          res.json(images);
+          req.log.logger.debug(`Response sent with images: ${images.toString()}`);
+        } catch (error) {
+          res
+            .status(500)
+            .json({ error: "Error fetching images from the provided URL" });
+        }
       }
-      try {
-        const images = await WebScrapper.getImages(requestUrl);
-        res.json(images);
-        req.log.logger.debug(`Response sent with images: ${images.toString()}`);
-      } catch (error) {
-        res.status(500).json({ error: 'Error fetching images from the provided URL' });
-      }
-    });
+    );
 
     /**
      * @swagger
@@ -131,33 +148,57 @@ module.exports = (serverLogger) => {
      *       500:
      *         description: Server error
      */
-    apiRouter.get(['/accessibility/description', '/v1/accessibility/description'], cors(), async (req, res) => {
-      req.log.startTime = Date.now();
-      req.log.logger.info(`${req.log.startTime} Request received`);
-      req.log(req, res);
+    apiRouter.get(
+      ["/accessibility/description", "/v1/accessibility/description"],
+      cors(),
+      async (req, res) => {
+        req.log.startTime = Date.now();
+        req.log.logger.info(`${req.log.startTime} Request received`);
+        req.log(req, res);
+        const imageSource = {
+          imagesSource: [decodeURIComponent(req.query.image_source)],
+        };
+        const model = req.query.model;
+        req.log.logger.debug(
+          `Model: ${model}, imageSource: ${JSON.stringify(imageSource)}`
+        );
 
-      const imageSource = {
-        "imagesSource": [decodeURIComponent(req.query.image_source)]
-      }
-      const model = req.query.model;
-      req.log.logger.debug(`Model: ${model}, imageSource: ${JSON.stringify(imageSource)}`);
-
-      if (!imageSource || !model) {
-        res.status(400).json({ error: 'Missing required query parameter(s): image_source and model are required.' });
-        return;
-      }
-      if (model === 'clip') {
-        try {
-          req.log.logger.debug(`Using Replicate image-to-text module...`);
-            const descriptions = await ReplicateImageDescriber.describeImage(imageSource);
+        if (!imageSource || !model || !validateUrl(imageSource.imagesSource[0])) {
+          res.status(400).json({
+            error:
+              "Missing or invalid required query parameter(s): image_source and model are required.",
+          });
+          return;
+        }
+        if (model === "clip") {
+          try {
+            req.log.logger.debug(`Using Replicate image-to-text module...`);
+            const descriptions = await ReplicateImageDescriber.describeImage(
+              imageSource
+            );
             req.log.logger.info(`Response sent with alt text.`);
             res.json(descriptions);
-        } catch (error) {
-          req.log.logger.debug(`Error trying to get a description from the replicate-image-describer module: ${error}`);
-          res.status(500).json({ error: 'Error fetching description for the provided image' });
+          } catch (error) {
+            req.log.logger.debug(
+              `Error trying to get a description from the replicate-image-describer module: ${error}`
+            );
+            res.status(500).json({
+              error: "Error fetching description for the provided image",
+            });
+          }
         }
       }
+    );
+
+    // API 404 error handler
+    apiRouter.use((req, res, next) => {
+      res.status(404).json({ error: "Endpoint not found" });
+      next();
     });
+
+    serverLogger.logger.info("APIRoutes loaded.");
+  }
+
 
     // API 404 error handler
     apiRouter.use((req, res, next) => {
@@ -165,10 +206,7 @@ module.exports = (serverLogger) => {
       next();
     });
 
-    serverLogger.logger.info('APIRoutes loaded.');
-  }
-
-  setImmediate(() => { serverLogger.logger.debug('[MODULE] api/v1/routes/api loaded'); });
+    setImmediate(() => { serverLogger.logger.debug('[MODULE] api/v1/routes/api loaded'); });
 
   // Module exports
   return {
