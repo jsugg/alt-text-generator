@@ -23,12 +23,12 @@ Alt-Text Generator is a web service that automates the generation of alternative
 
 ## Installation
 Clone the repository and navigate to the project directory. Install the required packages and start the server.
-\`\`\`bash
+```bash
 git clone https://github.com/jsugg/alt-text-generator.git
 cd alt-text-generator
 npm install
 npm run dev
-\`\`\`
+```
 
 ## Usage
 
@@ -37,13 +37,15 @@ npm run dev
 #### Swagger Documentation
 For detailed API documentation, visit `/api-docs` Swagger documentation.
 
-#### GET `/api/scrapper/images` or `/api/v1/scrapper/images`
+#### Images
+GET `/api/scrapper/images` or `/api/v1/scrapper/images`
 - **Summary**: Returns the list of images found on a website.
 - **Parameters**:
   - `url`: URLEncoded address of the website.
 - **Response**: `200 OK` with JSON containing image URLs.
 
-#### GET `/api/accessibility/description` or `/api/v1/accessibility/description`
+#### Descriptions
+GET `/api/accessibility/description` or `/api/v1/accessibility/description`
 - **Summary**: Returns a description for a given image.
 - **Parameters**:
   - `image_source`: URLEncoded address of the image.
