@@ -16,11 +16,7 @@ class WebScrapper {
    * @return {undefined} This function does not return anything.
    */
   static use({ logger } = {}) {
-    if (logger) {
-      WebScrapper.log = logger;
-    } else {
-      WebScrapper.log = this.log;
-    }
+    WebScrapper.log = logger || this.log;
   }
 
   /**
@@ -30,16 +26,8 @@ class WebScrapper {
    * @returns {boolean} - True if the URL is an image, false otherwise.
    */
   static isImage(imageUrl) {
-    const imageExtensions = [
-      '.jpg',
-      '.jpeg',
-      '.png',
-      '.gif',
-      '.bmp',
-      '.webp',
-      '.svg',
-    ];
-    return imageExtensions.some((ext) => imageUrl.toLowerCase().split('?')[0].endsWith(ext));
+    const imageExtensions = new Set(['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg']);
+    return imageExtensions.has(imageUrl.toLowerCase().split('?')[0].slice(-4));
   }
 
   /**
@@ -73,30 +61,25 @@ class WebScrapper {
   static extractImageSources(html, targetUrl) {
     const $ = cheerio.load(html);
     const images = [];
-    const possibleAttributes = [
+    const possibleAttributes = new Set([
       'data-src',
       'data-original-src',
       'data-lazy-src',
       'data-srcset',
       'src',
-    ];
+    ]);
 
     $('img').each((index, img) => {
       const imgAttributes = $(img)[0].attribs;
-      let src;
 
-      possibleAttributes.some((attr) => {
+      let src = Array.from(possibleAttributes).find((attr) => {
         const candidateSrc = imgAttributes[attr];
-        if (candidateSrc && WebScrapper.isImage(candidateSrc)) {
-          [src] = candidateSrc.split('?');
-          return true;
-        }
-        return false;
+        return candidateSrc && WebScrapper.isImage(candidateSrc);
       });
 
       if (!src) {
         const candidateSrc = Object.keys(imgAttributes)
-          .filter((attr) => !possibleAttributes.includes(attr))
+          .filter((attr) => !possibleAttributes.has(attr))
           .find((attr) => WebScrapper.isImage(imgAttributes[attr]));
         if (candidateSrc) {
           src = imgAttributes[candidateSrc];
