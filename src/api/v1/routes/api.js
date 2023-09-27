@@ -53,6 +53,15 @@ module.exports = (serverLogger) => {
     }
   }
 
+  const health = (req, res) => {
+    const healthCheck = {
+      uptime: process.uptime(),
+      message: 'OK',
+      timestamp: Date.now(),
+    };
+    res.json(healthCheck);
+  };
+
   function loadAPIRoutes(logger) {
     logger.logger.info('Loading APIRoutes...');
 
@@ -78,6 +87,24 @@ module.exports = (serverLogger) => {
       req.log(req, res);
       res.status(200).send('pong');
     });
+
+    /**
+     * @swagger
+     * /api/health:
+     *   get:
+     *     summary: Check if the API is healthy
+     *     responses:
+     *       200:
+     *         description: API is online and healthy
+     *         content:
+     *           text/plain:
+     *             schema:
+     *               type: string
+     *               example: OK
+     *       500:
+     *         description: Server error
+     */
+    apiRouter.get(['/health', 'v1/health'], health);
 
     /**
      * @swagger

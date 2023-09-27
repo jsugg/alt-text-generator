@@ -1,10 +1,8 @@
 /**
- * This module exports a function called `loadRequestFilter` that is used to filter HTTP(S)
- * requests.
- * It checks if the requested URI format is allowed and redirects requests to HTTPS if necessary.
+ * Loads the request filter middleware into the appRouter.
  *
  * @param {Object} serverLogger - An object that provides logging functionality.
- * @returns {Object} - An object containing the `loadRequestFilter` function.
+ * @returns {Object} An object with the `loadRequestFilter` function.
  */
 module.exports = (serverLogger) => {
   // Validate if the requested URI format is allowed
