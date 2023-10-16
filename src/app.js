@@ -62,15 +62,6 @@ app.use(cors());
 app.use(serverLogger);
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 100, message: 'Too many requests, please try again later.' }));
 
-// Error Handling
-// app.use((err, req, res, next) => {
-//   serverLogger.logger.error(`Error: ${err.message}\nStack: ${err.stack}`);
-//   if (res) {
-//     res.status(err.status || 500).json({ error: err.message });
-//   }
-//   next(err);
-// });
-
 // API Routes
 const appRouter = express.Router();
 loadRequestFilter(serverLogger, appRouter);
@@ -94,73 +85,94 @@ appRouter.use((req, res, next) => {
 
 app.use(appRouter);
 
-// Health Check Endpoint
-app.get('/health', (req, res) => res.status(200).send('OK'));
+const { logger } = serverLogger;
 
-// Server Initialization Function
+/**
+ * Reads a certificate from either an environment variable or a default file path.
+ *
+ * @param {String} envVar - The environment variable containing the certificate (base64 encoded).
+ * @param {String} defaultPath - The default file path to read the certificate
+ * from if the environment variable is not set.
+ * @return {String|Buffer} The certificate content as a string if the environment variable
+ * is set, or as a Buffer if read from the default file path.
+ */
+const readCert = (envVar, defaultPath) => (
+  envVar
+    ? Buffer.from(envVar, 'base64').toString('ascii')
+    : fs.readFileSync(path.join(__dirname, defaultPath))
+);
+
+/**
+ * Starts the server on the specified port.
+ *
+ * @param {object} server - The server object to start.
+ * @param {number} port - The port number to listen on.
+ * @return {Promise} A promise that resolves when the server starts listening.
+ */
+const startServer = (server, port) => new Promise((resolve) => {
+  server.listen(port, '0.0.0.0', () => {
+    logger.info(`Server listening on port ${port}`);
+    resolve();
+  });
+});
+
+/**
+ * Initializes the server by creating HTTP and HTTPS servers and starting them
+ * on the specified ports. It also sets up a graceful shutdown mechanism to
+ * close the servers and terminate the process when a termination signal is
+ * received.
+ *
+ * @return {void}
+ */
 const initServer = async () => {
-  serverLogger.logger.info('Starting server...');
+  logger.info('Starting server...');
 
-  // TLS Certificates and Ports
-  const options = process.env.NODE_ENV === 'production'
-    ? {
-      key: process.env.TLS_KEY
-        ? Buffer.from(process.env.TLS_KEY, 'base64').toString('ascii')
-        : fs.readFileSync(path.join(__dirname, '../certs/localhost-key.pem')),
-      cert: process.env.TLS_CERT
-        ? Buffer.from(process.env.TLS_CERT, 'base64').toString('ascii')
-        : fs.readFileSync(path.join(__dirname, '../certs/localhost.pem')),
-    }
-    : {
-      key: fs.readFileSync(path.join(__dirname, '../certs/localhost-key.pem')),
-      cert: fs.readFileSync(path.join(__dirname, '../certs/localhost.pem')),
-    };
-  const ports = {
-    p: process.env.PORT || (process.env.NODE_ENV === 'production' ? 8080 : 80),
-    tls: process.env.TLS_PORT || (process.env.NODE_ENV === 'production' ? 4443 : 443),
+  const isProduction = process.env.NODE_ENV === 'production';
+  const httpPort = process.env.PORT || (isProduction ? 80 : 8080);
+  const httpsPort = process.env.TLS_PORT || (isProduction ? 443 : 4443);
+
+  const httpServer = http.createServer(app);
+  const httpsServer = https.createServer({
+    key: readCert(process.env.TLS_KEY, '../certs/localhost-key.pem'),
+    cert: readCert(process.env.TLS_CERT, '../certs/localhost.pem'),
+  }, app);
+
+  /**
+   * Shuts down the server gracefully by closing the HTTP and HTTPS servers
+   * and then exiting the process.
+   *
+   * @param {function} callback - The callback function to be executed after
+   * the servers have been closed.
+   * @return {void}
+   */
+  const shutdown = () => {
+    httpServer.close(() => {
+      httpsServer.close(() => {
+        process.exit(0);
+      });
+    });
   };
 
-  // Create HTTP and HTTPS servers
-  const httpServer = http.createServer(app);
-  const httpsServer = https.createServer(options, app);
+  ['SIGTERM', 'SIGINT'].forEach((signal) => process.on(signal, shutdown));
 
-  // Start listening on ports
-  await new Promise((resolve) => {
-    httpServer.listen(ports.p, '0.0.0.0', () => {
-      serverLogger.logger.info(`HTTP server listening on port ${ports.p}`);
-    });
+  await Promise.all([
+    startServer(httpServer, httpPort),
+    startServer(httpsServer, httpsPort),
+  ]);
 
-    httpsServer.listen(ports.tls, '0.0.0.0', () => {
-      serverLogger.logger.info(`HTTPS server listening on port ${ports.tls}`);
-    });
-
-    // Graceful Shutdown
-    const shutdown = () => {
-      httpServer.close(() => {
-        httpsServer.close(() => {
-          process.exit(0);
-        });
-      });
-    };
-
-    process.on('SIGTERM', shutdown);
-    process.on('SIGINT', shutdown);
-
-    serverLogger.logger.info('Server started.');
-
-    resolve([httpServer, httpsServer]);
-  });
+  logger.info('Server started.');
 };
 
 // Cluster Mode Initialization
 if (cluster.isMaster) {
   const numCPUs = os.cpus().length;
+  cluster.setupMaster();
   for (let i = 0; i < numCPUs; i += 1) {
     cluster.fork();
   }
   cluster.on('exit', (worker, code, signal) => {
     serverLogger.logger.info(`Worker ${worker.process.pid} died, code: ${code}, signal: ${signal}`);
-    cluster.fork();
+    cluster.disconnect();
   });
   cluster.on('message', (worker, message) => {
     serverLogger.logger.info(`Message from worker ${worker.process.pid}: ${message}`);
