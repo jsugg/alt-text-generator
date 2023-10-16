@@ -62,6 +62,7 @@ class WebScrapper {
     const $ = cheerio.load(html);
     const images = [];
     const possibleAttributes = new Set([
+      'data-srcset',
       'data-src',
       'data-original-src',
       'data-lazy-src',
