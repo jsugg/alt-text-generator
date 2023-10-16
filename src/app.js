@@ -128,8 +128,8 @@ const initServer = async () => {
   logger.info('Starting server...');
 
   const isProduction = process.env.NODE_ENV === 'production';
-  const httpPort = process.env.PORT || (isProduction ? 8080 : 80);
-  const httpsPort = process.env.TLS_PORT || (isProduction ? 4443 : 443);
+  const httpPort = process.env.PORT || (isProduction ? 80 : 8080);
+  const httpsPort = process.env.TLS_PORT || (isProduction ? 443 : 4443);
 
   const httpServer = http.createServer(app);
   const httpsServer = https.createServer({
