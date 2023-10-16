@@ -22,8 +22,12 @@ const Joi = require('joi');
 
 // Custom Modules
 const { appLogger, serverLogger } = require('./utils/logger');
-const { loadRequestFilter } = require('./api/v1/middleware/request-filter')(serverLogger);
-const { apiRouter, loadAPIRoutes } = require('./api/v1/routes/api')(serverLogger);
+const { loadRequestFilter } = require('./api/v1/middleware/request-filter')(
+  serverLogger,
+);
+const { apiRouter, loadAPIRoutes } = require('./api/v1/routes/api')(
+  serverLogger,
+);
 const swaggerSpec = require('../config/swagger');
 
 // Set log level
@@ -34,7 +38,9 @@ appLogger.level = 'trace';
 const envVarsSchema = Joi.object({
   PORT: Joi.number().required(),
   TLS_PORT: Joi.number().required(),
-}).unknown().required();
+})
+  .unknown()
+  .required();
 
 const { error: envVarsError } = envVarsSchema.validate(process.env);
 if (envVarsError) {
@@ -50,7 +56,7 @@ app.use(
   helmet({
     contentSecurityPolicy: {
       directives: {
-        defaultSrc: ["'self'"],
+        defaultSrc: ['\'self\''],
         upgradeInsecureRequests: [],
       },
     },
@@ -60,7 +66,13 @@ app.use(cors());
 
 // Logger and Rate Limiter
 app.use(serverLogger);
-app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 100, message: 'Too many requests, please try again later.' }));
+app.use(
+  rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+    message: 'Too many requests, please try again later.',
+  }),
+);
 
 // API Routes
 const appRouter = express.Router();
@@ -99,8 +111,7 @@ const { logger } = serverLogger;
 const readCert = (envVar, defaultPath) => (
   envVar
     ? Buffer.from(envVar, 'base64').toString('ascii')
-    : fs.readFileSync(path.join(__dirname, defaultPath))
-);
+    : fs.readFileSync(path.join(__dirname, defaultPath)));
 
 /**
  * Starts the server on the specified port.
@@ -132,10 +143,13 @@ const initServer = async () => {
   const httpsPort = process.env.TLS_PORT || (isProduction ? 443 : 4443);
 
   const httpServer = http.createServer(app);
-  const httpsServer = https.createServer({
-    key: readCert(process.env.TLS_KEY, '../certs/localhost-key.pem'),
-    cert: readCert(process.env.TLS_CERT, '../certs/localhost.pem'),
-  }, app);
+  const httpsServer = https.createServer(
+    {
+      key: readCert(process.env.TLS_KEY, '../certs/localhost-key.pem'),
+      cert: readCert(process.env.TLS_CERT, '../certs/localhost.pem'),
+    },
+    app,
+  );
 
   /**
    * Shuts down the server gracefully by closing the HTTP and HTTPS servers
@@ -155,10 +169,11 @@ const initServer = async () => {
 
   ['SIGTERM', 'SIGINT'].forEach((signal) => process.on(signal, shutdown));
 
-  await Promise.all([
-    startServer(httpServer, httpPort),
-    startServer(httpsServer, httpsPort),
-  ]);
+  const startServers = isProduction
+    ? [[startServer(httpServer, httpPort)]]
+    : [startServer(httpServer, httpPort), startServer(httpsServer, httpsPort)];
+
+  await Promise.all(startServers);
 
   logger.info('Server started.');
 };
@@ -171,11 +186,15 @@ if (cluster.isMaster) {
     cluster.fork();
   }
   cluster.on('exit', (worker, code, signal) => {
-    serverLogger.logger.info(`Worker ${worker.process.pid} died, code: ${code}, signal: ${signal}`);
+    serverLogger.logger.info(
+      `Worker ${worker.process.pid} died, code: ${code}, signal: ${signal}`,
+    );
     cluster.disconnect();
   });
   cluster.on('message', (worker, message) => {
-    serverLogger.logger.info(`Message from worker ${worker.process.pid}: ${message}`);
+    serverLogger.logger.info(
+      `Message from worker ${worker.process.pid}: ${message}`,
+    );
   });
 } else {
   initServer().catch((err) => {
