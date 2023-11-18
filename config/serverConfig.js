@@ -12,7 +12,7 @@ module.exports = {
 
     cluster.on('exit', (worker, code, signal) => {
       logger.info(
-        `Worker ${worker.process.pid} died, code: ${code}, signal: ${signal}`
+        `Worker ${worker.process.pid} died, code: ${code}, signal: ${signal}`,
       );
       cluster.fork(); // Restart the worker
     });
