@@ -1,6 +1,7 @@
 // Node Modules
 const cluster = require('cluster');
 const os = require('os');
+require('dotenv').config();
 const express = require('express');
 
 // Configuration and Utilities
@@ -20,7 +21,7 @@ const {
 } = require('./server/serverFunctions');
 
 // Initialize and configure logger
-const logger = createLogger();
+const appLogger = createLogger('app');
 
 // Validate Environment Variables
 validateEnvVars();
@@ -36,14 +37,15 @@ app.use(appRouter);
 
 // Cluster Mode Initialization
 if (cluster.isMaster) {
-  serverConfig.setupCluster(cluster, os, logger);
+  serverConfig.setupCluster(cluster, os, appLogger);
 } else {
   // Server initialization
+  const args = process.env.NODE_ENV === 'production' ? [app] : [app, readCertFile];
   const httpServer = createHttpServer(app);
-  const httpsServer = createHttpsServer(app, readCertFile);
+  const httpsServer = createHttpsServer(...args);
 
-  startServer(httpServer, serverConfig.httpPort, logger);
-  startServer(httpsServer, serverConfig.httpsPort, logger);
+  startServer(httpServer, serverConfig.httpPort, serverLogger);
+  startServer(httpsServer, serverConfig.httpsPort, serverLogger);
 
-  gracefulShutdown(httpServer, httpsServer, logger);
+  gracefulShutdown(httpServer, httpsServer, appLogger);
 }
