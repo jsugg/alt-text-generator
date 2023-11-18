@@ -27,7 +27,7 @@ class WebScrapper {
    */
   static isImage(imageUrl) {
     const imageExtensions = new Set(['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg']);
-    return imageExtensions.has(imageUrl.toLowerCase().split('?')[0].slice(-4));
+    return imageExtensions.has(imageUrl.toLowerCase().split('?')[0].slice(-4)) || imageExtensions.has(imageUrl.toLowerCase().split('?')[0].slice(-3));
   }
 
   /**
@@ -62,7 +62,6 @@ class WebScrapper {
     const $ = cheerio.load(html);
     const images = [];
     const possibleAttributes = new Set([
-      'data-srcset',
       'data-src',
       'data-original-src',
       'data-lazy-src',
@@ -77,6 +76,7 @@ class WebScrapper {
         const candidateSrc = imgAttributes[attr];
         return candidateSrc && WebScrapper.isImage(candidateSrc);
       });
+      if (src) src = imgAttributes[src];
 
       if (!src) {
         const candidateSrc = Object.keys(imgAttributes)
@@ -88,8 +88,16 @@ class WebScrapper {
       }
 
       if (src) {
-        const resolvedUrl = new URL(src, targetUrl).href;
-        images.push(resolvedUrl);
+        if (src.includes('?')) {
+          [src] = src.split('?');
+        }
+        if (src.startsWith('http://') || src.startsWith('https://')) {
+          src = new URL(src).href;
+        } else {
+          src = new URL(src, targetUrl).href;
+        }
+        // const resolvedUrl = new URL(src, targetUrl).href;
+        images.push(src);
       }
     });
 
