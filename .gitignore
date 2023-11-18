@@ -112,3 +112,6 @@ package-lock.json
 
 .DS_Store
 .vscode/
+
+.env.prod
+.env.dev
