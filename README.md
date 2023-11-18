@@ -1,3 +1,7 @@
+<div align="center">
+    <img src="https://raw.githubusercontent.com/jsugg/alt-text-generator/main/.github/assets/alt-text-generator.png" width="1000">
+</div>
+
 # Alt-Text Generator
 
 ![GitHub license](https://img.shields.io/github/license/jsugg/alt-text-generator)
