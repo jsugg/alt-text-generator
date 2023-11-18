@@ -56,7 +56,8 @@ class AzureImageDescriber {
   /**
    * Describes the images using the Azure Computer Vision API.
    * @param {string} imagesParam - A JSON string containing the image sources.
-   * @returns {Promise<Array>} A promise that resolves with an array of objects containing the image URL and its corresponding alt text.
+   * @returns {Promise<Array>} A promise that resolves with an array of
+   * objects containing the image URL and its corresponding alt text.
    * @static
    */
   static async describeImages(imagesParam) {
