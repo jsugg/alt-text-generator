@@ -13,7 +13,7 @@ const swaggerDefinition = {
       description: 'Development server',
     },
     {
-      url: 'https://api.wcat.qcraft.dev',
+      url: 'https://wcag.qcraft.dev',
       description: 'Production server',
     },
   ],
