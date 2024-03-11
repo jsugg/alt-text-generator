@@ -19,7 +19,7 @@
 - [License](#license)
 ---
 ## Overview
-The AI-Driven Alt-Text Generator is a web service that automates the generation of alternative text for images on websites. It utilizes AI models to provide descriptive text for images, enhancing web accessibility. You can check a demo running [here](https://wcag.qcraft.dev)
+The AI-Driven Alt-Text Generator is a web service that automates the generation of alternative text for images on websites. It utilizes AI models to provide descriptive text for images, enhancing web accessibility. You can check a demo running [here](https://wcag.qcraft.com.br/api-docs)
 
 ## Features
 - **Image Scraper**: Extracts image URLs from a given website.
