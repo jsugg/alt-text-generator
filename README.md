@@ -4,10 +4,9 @@
 
 # Alt-Text 4 All
 
-![GitHub license](https://img.shields.io/github/license/jsugg/alt-text-generator)
-![GitHub issues](https://img.shields.io/github/issues/jsugg/alt-text-generator)
-![GitHub stars](https://img.shields.io/github/stars/jsugg/alt-text-generator)
-![GitHub forks](https://img.shields.io/github/forks/jsugg/alt-text-generator)
+[![GitHub license](https://img.shields.io/github/license/jsugg/alt-text-generator)](https://github.com/jsugg/alt-text-generator/blob/main/LICENSE)
+[![CI/CD Pipeline](https://github.com/jsugg/alt-text-generator/actions/workflows/ci-cd.yml/badge.svg?branch=main)](https://github.com/jsugg/alt-text-generator/actions/workflows/ci-cd.yml)
+![Node 20.x](https://img.shields.io/badge/node-20.x-339933?logo=node.js&logoColor=white)
 
 ## Overview
 
@@ -29,7 +28,7 @@ The service exposes these primary capabilities:
 
 ## Requirements
 
-- Node.js 20.x recommended. CI runs on Node 20, while [package.json](./package.json) declares `>=18`.
+- CI validates Node 20, 22, and 24.
 - npm 10+
 - A Replicate API token (required to boot; must be valid for real alt-text generation)
 
