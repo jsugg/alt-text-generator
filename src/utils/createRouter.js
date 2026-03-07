@@ -1,19 +1,42 @@
 const express = require('express');
-const swaggerUi = require('swagger-ui-express');
 
 const createSwaggerRouter = () => {
   const swaggerRouter = express.Router();
+  let swaggerUiServe = null;
   let swaggerUiMiddleware = null;
 
-  swaggerRouter.use('/api-docs', swaggerUi.serve, (req, res, next) => {
+  swaggerRouter.use('/api-docs', (req, res, next) => {
     if (!swaggerUiMiddleware) {
+      // Lazy-load the UI package so regular startup does not pull the docs bundle
+      // into memory unless the docs route is actually requested.
+      // eslint-disable-next-line global-require
+      const swaggerUi = require('swagger-ui-express');
       // Lazy-load the spec so regular startup and test paths do not build it.
       // eslint-disable-next-line global-require
       const swaggerSpec = require('../../config/swagger');
+      swaggerUiServe = Array.isArray(swaggerUi.serve)
+        ? swaggerUi.serve
+        : [swaggerUi.serve];
       swaggerUiMiddleware = swaggerUi.setup(swaggerSpec);
     }
 
-    return swaggerUiMiddleware(req, res, next);
+    let middlewareIndex = 0;
+    const runSwaggerServe = (error) => {
+      if (error) {
+        return next(error);
+      }
+
+      const serveMiddleware = swaggerUiServe[middlewareIndex];
+      middlewareIndex += 1;
+
+      if (!serveMiddleware) {
+        return swaggerUiMiddleware(req, res, next);
+      }
+
+      return serveMiddleware(req, res, runSwaggerServe);
+    };
+
+    return runSwaggerServe();
   });
 
   return swaggerRouter;
