@@ -69,6 +69,9 @@ Required for real descriptions:
 Common local settings:
 
 - `PORT` and `TLS_PORT`
+- `TRUST_PROXY_HOPS`
+  - Defaults to `1`
+  - Controls how many proxy hops Express trusts for forwarded headers
 - `TLS_KEY` and `TLS_CERT`
   - Optional in local development
   - Required in production
@@ -78,6 +81,7 @@ Common local settings:
   - Use `npm run doctor:tls -- https://example.com --fix --write-env --env-file .env.test` when a target works in `curl` but fails in Node/app scraping
 
 Advanced runtime settings such as worker count, scraper timeouts, rate limits, logging, Swagger URLs, and stubbed provider endpoints are documented in [DEVELOPMENT.md](./DEVELOPMENT.md).
+The Render deployment shape is versioned in [render.yaml](./render.yaml), while the Node runtime pin remains in [`package.json`](./package.json) under `engines.node`.
 
 ## API Endpoints
 

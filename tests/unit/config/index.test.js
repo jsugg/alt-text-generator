@@ -25,6 +25,7 @@ describe('config', () => {
   it('uses the documented defaults when optional env vars are unset', () => {
     const config = loadConfig({
       remove: [
+        'TRUST_PROXY_HOPS',
         'WORKER_COUNT',
         'SCRAPER_REQUEST_TIMEOUT_MS',
         'SCRAPER_MAX_REDIRECTS',
@@ -34,6 +35,7 @@ describe('config', () => {
       ],
     });
 
+    expect(config.proxy.trustProxyHops).toBe(1);
     expect(config.cluster.workers).toBe(1);
     expect(config.scraper).toEqual({
       requestTimeoutMs: 10000,
@@ -49,6 +51,7 @@ describe('config', () => {
   it('parses numeric overrides for worker and scraper controls', () => {
     const config = loadConfig({
       overrides: {
+        TRUST_PROXY_HOPS: '2',
         WORKER_COUNT: '4',
         SCRAPER_REQUEST_TIMEOUT_MS: '2500',
         SCRAPER_MAX_REDIRECTS: '2',
@@ -58,6 +61,7 @@ describe('config', () => {
       },
     });
 
+    expect(config.proxy.trustProxyHops).toBe(2);
     expect(config.cluster.workers).toBe(4);
     expect(config.scraper).toEqual({
       requestTimeoutMs: 2500,

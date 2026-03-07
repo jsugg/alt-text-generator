@@ -149,11 +149,12 @@ Development TLS behavior:
 | `OUTBOUND_CA_BUNDLE_FILE` | No | unset | App-managed supplemental PEM bundle used to extend Node trust for outbound HTTPS. |
 | `NODE_EXTRA_CA_CERTS` | No | unset | Node-supported extra CA file. This app also accepts it as a fallback. Not validated by Joi. |
 
-### Worker and Scraper Runtime Controls
+### Worker, Proxy, and Scraper Runtime Controls
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
-| `WORKER_COUNT` | No | `1` outside production, available parallelism in production | Overrides the number of cluster workers. |
+| `TRUST_PROXY_HOPS` | No | `1` | Number of proxy hops Express trusts when processing forwarded headers. Render production uses `1`. |
+| `WORKER_COUNT` | No | `1` | Overrides the number of cluster workers. |
 | `SCRAPER_REQUEST_TIMEOUT_MS` | No | `10000` | Timeout for outbound page fetches. |
 | `SCRAPER_MAX_REDIRECTS` | No | `5` | Redirect limit for outbound page fetches. |
 | `SCRAPER_MAX_CONTENT_LENGTH_BYTES` | No | `2097152` | Maximum response body size accepted when scraping HTML. |
@@ -188,6 +189,12 @@ Development TLS behavior:
 | `LOGS_DIR` | No | `./logs` | Directory for production log files. |
 | `SWAGGER_DEV_URL` | No | `https://localhost:8443` | Swagger server URL for development. |
 | `SWAGGER_PROD_URL` | No | `https://wcag.qcraft.dev` | Swagger server URL for production. |
+
+## Render Deployment Contract
+
+- The Render web service shape is versioned in [`render.yaml`](./render.yaml).
+- Render reads the Node runtime version from [`package.json`](./package.json) `engines.node`.
+- Secrets such as `REPLICATE_API_TOKEN`, `TLS_KEY`, and `TLS_CERT` stay dashboard-managed and are represented in the Blueprint with `sync: false`.
 
 ## Quality Gates
 
@@ -359,7 +366,8 @@ It disables certificate validation and is not an acceptable operating mode.
 - For local development, prefer calling the HTTPS port directly (`https://localhost:8443/...`).
   - The HTTP to HTTPS redirect behavior depends on the incoming `Host` header and proxy layout.
 - Swagger spec is lazy-loaded, so docs-only dependency warnings should not appear during ordinary startup or test paths.
-- Cluster workers default to `1` outside production and scale to available parallelism in production unless `WORKER_COUNT` is set.
+- Cluster workers default to `1` unless `WORKER_COUNT` is set.
+- Express trusts `TRUST_PROXY_HOPS` forwarded proxy hops, which defaults to `1` to match the current Render ingress layout.
 
 ## Keeping This Doc Correct
 
@@ -367,4 +375,5 @@ If you change configuration, update these together:
 
 - `config/index.js` (defaults and wiring)
 - `src/utils/validateEnvVars.js` (startup contract)
+- `render.yaml` (Render deployment contract)
 - this file (developer-facing reference and runbook)

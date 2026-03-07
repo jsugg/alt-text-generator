@@ -7,6 +7,7 @@ const envVarsSchema = Joi.object({
 
   PORT: Joi.number().default(8080),
   TLS_PORT: Joi.number().default(8443),
+  TRUST_PROXY_HOPS: Joi.number().integer().min(0).optional(),
   WORKER_COUNT: Joi.number().integer().min(1).optional(),
 
   // TLS certs are required in production

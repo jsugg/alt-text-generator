@@ -46,4 +46,32 @@ describe('validateEnvVars', () => {
 
     expect(() => validateEnvVars()).toThrow(/TLS_KEY/);
   });
+
+  it('accepts a non-negative TRUST_PROXY_HOPS override', () => {
+    const validateEnvVars = loadValidator({
+      overrides: {
+        NODE_ENV: 'production',
+        REPLICATE_API_TOKEN: 'test-token',
+        TLS_KEY: 'tls-key',
+        TLS_CERT: 'tls-cert',
+        TRUST_PROXY_HOPS: '2',
+      },
+    });
+
+    expect(() => validateEnvVars()).not.toThrow();
+  });
+
+  it('rejects a negative TRUST_PROXY_HOPS override', () => {
+    const validateEnvVars = loadValidator({
+      overrides: {
+        NODE_ENV: 'production',
+        REPLICATE_API_TOKEN: 'test-token',
+        TLS_KEY: 'tls-key',
+        TLS_CERT: 'tls-cert',
+        TRUST_PROXY_HOPS: '-1',
+      },
+    });
+
+    expect(() => validateEnvVars()).toThrow(/TRUST_PROXY_HOPS/);
+  });
 });
