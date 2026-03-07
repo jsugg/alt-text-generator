@@ -56,6 +56,7 @@ describe('createApp', () => {
     });
 
     expect(app).toBeDefined();
+    expect(app.get('trust proxy')).toBe(1);
     expect(services.scraperService.httpClient).toBe(httpClient);
     expect(services.scraperService.requestOptions).toEqual({
       timeout: 1500,
@@ -93,6 +94,7 @@ describe('createApp', () => {
       const { app, services } = createApp({ config });
 
       expect(app).toBeDefined();
+      expect(app.get('trust proxy')).toBe(1);
       expect(services.imageDescriberFactory.getAvailableModels()).toEqual(['clip']);
       expect(services.imageDescriberFactory.get('clip').replicate).toBeDefined();
     } finally {

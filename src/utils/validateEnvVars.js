@@ -1,5 +1,9 @@
 const Joi = require('joi');
 
+const resolveEnvAlias = (primaryKey, legacyKey) => (
+  process.env[primaryKey] ?? process.env[legacyKey]
+);
+
 const envVarsSchema = Joi.object({
   NODE_ENV: Joi.string()
     .valid('development', 'production', 'test')
@@ -58,7 +62,12 @@ const envVarsSchema = Joi.object({
 }).unknown();
 
 const validateEnvVars = () => {
-  const { error } = envVarsSchema.validate(process.env);
+  const { error } = envVarsSchema.validate({
+    ...process.env,
+    TLS_PORT: resolveEnvAlias('TLS_PORT', 'TSL_PORT'),
+    TLS_KEY: resolveEnvAlias('TLS_KEY', 'TSL_KEY'),
+    TLS_CERT: resolveEnvAlias('TLS_CERT', 'TSL_CERT'),
+  });
   if (error) {
     throw new Error(`Config validation error: ${error.message}`);
   }

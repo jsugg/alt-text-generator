@@ -34,7 +34,7 @@ describe('config', () => {
       ],
     });
 
-    expect(config.cluster.workers).toBeUndefined();
+    expect(config.cluster.workers).toBe(1);
     expect(config.scraper).toEqual({
       requestTimeoutMs: 10000,
       maxRedirects: 5,
@@ -67,6 +67,23 @@ describe('config', () => {
     expect(config.rateLimit).toEqual({
       windowMs: 30000,
       max: 50,
+    });
+  });
+
+  it('uses the legacy TSL_* aliases for HTTPS settings when TLS_* is unset', () => {
+    const config = loadConfig({
+      overrides: {
+        TSL_PORT: '9443',
+        TSL_KEY: 'legacy-key',
+        TSL_CERT: 'legacy-cert',
+      },
+      remove: ['TLS_PORT', 'TLS_KEY', 'TLS_CERT'],
+    });
+
+    expect(config.https).toEqual({
+      port: 9443,
+      keyPath: 'legacy-key',
+      certPath: 'legacy-cert',
     });
   });
 });
