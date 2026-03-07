@@ -65,9 +65,8 @@ npm run doctor:tls -- https://example.com --fix --write-env --env-file .env.test
 API routes that generate descriptions require a `model` query parameter. Today the runtime registers:
 
 - `clip` (Replicate-backed)
-
-There is an `AzureDescriberService` implementation in the codebase, but it is not currently registered in
-the model registry exposed by the API, so setting `ACV_*` variables alone does not make an Azure model usable (yet).
+- `azure` (Azure Computer Vision-backed, registered only when `ACV_API_ENDPOINT` and
+  `ACV_SUBSCRIPTION_KEY` or legacy `ACV_API_KEY` are set)
 
 ## Configuration and Profiles
 
@@ -169,15 +168,17 @@ Development TLS behavior:
 | `REPLICATE_MODEL_NAME` | No | `clip_prefix_caption` | Replicate model name. |
 | `REPLICATE_MODEL_VERSION` | No | pinned in `config/index.js` | Replicate model version. |
 
-### Azure Computer Vision (not currently wired into API models)
+### Azure Computer Vision (optional provider)
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
-| `ACV_API_KEY` | No | unset | Azure Computer Vision API key. |
-| `ACV_API_ENDPOINT` | No | unset | Azure Computer Vision endpoint. |
-| `ACV_SUBSCRIPTION_KEY` | No | unset | Azure subscription key. |
+| `ACV_API_ENDPOINT` | Yes, for Azure | unset | Azure Computer Vision describe endpoint. |
+| `ACV_SUBSCRIPTION_KEY` | Yes, for Azure | unset | Preferred Azure subscription key. |
+| `ACV_API_KEY` | No | unset | Legacy alias for `ACV_SUBSCRIPTION_KEY`. |
 | `ACV_LANGUAGE` | No | `en` | Azure response language. |
 | `ACV_MAX_CANDIDATES` | No | `4` | Maximum Azure caption candidates. |
+
+`ACV_API_ENDPOINT` and one Azure credential must be set together or startup validation fails.
 
 ### Rate Limiting, Logging, and Swagger
 
@@ -185,10 +186,11 @@ Development TLS behavior:
 | --- | --- | --- | --- |
 | `RATE_LIMIT_WINDOW_MS` | No | `900000` | Rate-limit window. |
 | `RATE_LIMIT_MAX` | No | `100` | Max requests per window. |
-| `LOG_LEVEL` | No | `debug` in non-production, `info` in production | Pino log level. |
-| `LOGS_DIR` | No | `./logs` | Directory for production log files. |
+| `LOG_LEVEL` | No | `debug` in non-production, `info` in production | Pino log level for process-stream logs. |
 | `SWAGGER_DEV_URL` | No | `https://localhost:8443` | Swagger server URL for development. |
 | `SWAGGER_PROD_URL` | No | `https://wcag.qcraft.dev` | Swagger server URL for production. |
+
+- Logging stays on stdout so container platforms can collect it without relying on local files.
 
 ## Render Deployment Contract
 
@@ -229,6 +231,7 @@ Do not collapse those into a single smoke test. Treat them as separate checks.
 | Scraper preflight | `npm run doctor:tls -- <target>` | `200` or site-specific expected status | trust store / target policy |
 | Scraper API | `GET /api/scraper/images?...` | `200` with `imageSources` array | scraper logic or target policy |
 | Replicate execution | `GET /api/accessibility/description?...&model=clip` | `200` with non-empty description | vendor account / model execution |
+| Azure execution | `GET /api/accessibility/description?...&model=azure` | `200` with non-empty description | Azure credentials / model execution |
 | Page orchestration | `GET /api/accessibility/descriptions?...&model=clip` | `200` with ordered `descriptions` array | orchestration / provider reuse |
 
 ### Validation sequence (recommended)
@@ -259,7 +262,13 @@ curl -sk 'https://localhost:8443/api/scraper/images?url=https%3A%2F%2Fdeveloper.
 curl -sk 'https://localhost:8443/api/accessibility/description?image_source=https%3A%2F%2Fwww.google.com%2Fimages%2Fbranding%2Fgooglelogo%2F1x%2Fgooglelogo_color_272x92dp.png&model=clip'
 ```
 
-6. Validate the page-level orchestration route:
+6. If Azure is configured, validate the Azure provider through the app:
+
+```bash
+curl -sk 'https://localhost:8443/api/accessibility/description?image_source=https%3A%2F%2Fwww.google.com%2Fimages%2Fbranding%2Fgooglelogo%2F1x%2Fgooglelogo_color_272x92dp.png&model=azure'
+```
+
+7. Validate the page-level orchestration route:
 
 ```bash
 curl -sk 'https://localhost:8443/api/accessibility/descriptions?url=https%3A%2F%2Fdeveloper.chrome.com%2F&model=clip'

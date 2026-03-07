@@ -76,4 +76,25 @@ describe('AzureDescriberService.describeImage', () => {
 
     await expect(svc.describeImage('https://example.com/img.jpg')).rejects.toThrow('Azure error');
   });
+
+  it('throws a descriptive error when Azure returns no captions', async () => {
+    const mockHttpClient = {
+      post: jest.fn().mockResolvedValue({
+        data: {
+          description: {
+            captions: [],
+          },
+        },
+      }),
+    };
+    const svc = new AzureDescriberService({
+      logger: mockLogger,
+      httpClient: mockHttpClient,
+      config: mockConfig,
+    });
+
+    await expect(svc.describeImage('https://example.com/img.jpg'))
+      .rejects
+      .toThrow('Azure provider returned no captions');
+  });
 });

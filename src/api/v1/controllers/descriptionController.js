@@ -36,7 +36,7 @@ class DescriptionController {
    *           example: https%3A%2F%2Fexample.com%2Fphoto.jpg
    *       - name: model
    *         in: query
-   *         description: The AI model to use, for example `clip`.
+   *         description: The AI model to use, for example `clip` or `azure`.
    *         required: true
    *         schema:
    *           type: string
@@ -112,7 +112,7 @@ class DescriptionController {
    *           example: https%3A%2F%2Fexample.com
    *       - name: model
    *         in: query
-   *         description: The AI model to use, for example `clip`.
+   *         description: The AI model to use, for example `clip` or `azure`.
    *         required: true
    *         schema:
    *           type: string

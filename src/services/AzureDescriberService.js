@@ -18,6 +18,10 @@ class AzureDescriberService {
     this.subscriptionKey = config.azure.subscriptionKey;
     this.language = config.azure.language;
     this.maxCandidates = config.azure.maxCandidates;
+
+    if (!this.endpoint || !this.subscriptionKey) {
+      throw new Error('Azure provider requires both apiEndpoint and subscriptionKey');
+    }
   }
 
   /**
@@ -42,8 +46,20 @@ class AzureDescriberService {
     );
 
     // axios already parses JSON — use response.data, not response.json()
-    const captions = response.data.description.captions.map((c) => c.text);
-    const description = captions.join(', ');
+    const captions = response?.data?.description?.captions;
+
+    if (!Array.isArray(captions) || captions.length === 0) {
+      throw new Error('Azure provider returned no captions');
+    }
+
+    const description = captions
+      .map((caption) => caption.text)
+      .filter(Boolean)
+      .join(', ');
+
+    if (!description) {
+      throw new Error('Azure provider returned empty captions');
+    }
 
     this.logger.debug({ imageUrl }, 'Azure alt text generated');
     return { description, imageUrl };

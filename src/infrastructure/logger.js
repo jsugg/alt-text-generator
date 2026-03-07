@@ -1,35 +1,11 @@
-const os = require('os');
-const path = require('path');
 const crypto = require('crypto');
-const fs = require('fs');
 const pino = require('pino');
 const pinoHttp = require('pino-http');
 const config = require('../../config');
-const packageJSON = require('../../package.json');
-
-const hostname = os.hostname();
-const { username } = os.userInfo();
-const logsDir = path.resolve(config.logging.logsDir);
-
-// Ensure logs directory exists
-if (!fs.existsSync(logsDir)) {
-  fs.mkdirSync(logsDir, { recursive: true });
-}
 
 const createAppLogger = () => pino({
   level: config.logging.level,
   name: 'appLogger',
-  transport: config.env !== 'production'
-    ? undefined
-    : {
-      target: 'pino/file',
-      options: {
-        destination: path.join(
-          logsDir,
-          `${hostname} ${username} ${packageJSON.name} start_date:[${Date.now()}] pid:${process.pid}.log`,
-        ),
-      },
-    },
 });
 
 const createRequestLogger = (appLogger) => pinoHttp({
