@@ -76,6 +76,23 @@ describe('loadTlsCredentials', () => {
     expect(credentials.cert).toBe('-----BEGIN CERTIFICATE-----\ncert\n-----END CERTIFICATE-----');
   });
 
+  it('uses base64-encoded PEM values when they are provided', async () => {
+    const keyPem = '-----BEGIN PRIVATE KEY-----\nkey\n-----END PRIVATE KEY-----';
+    const certPem = '-----BEGIN CERTIFICATE-----\ncert\n-----END CERTIFICATE-----';
+    const { loadTlsCredentials } = loadModule({
+      env: 'production',
+      https: {
+        keyPath: Buffer.from(keyPem).toString('base64'),
+        certPath: Buffer.from(certPem).toString('base64'),
+      },
+    });
+
+    const credentials = await loadTlsCredentials();
+
+    expect(credentials.key).toBe(keyPem);
+    expect(credentials.cert).toBe(certPem);
+  });
+
   it('throws a helpful error when production credentials are missing', async () => {
     const { loadTlsCredentials } = loadModule({
       env: 'production',

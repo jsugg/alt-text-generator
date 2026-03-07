@@ -132,15 +132,15 @@ Notes:
 | --- | --- | --- | --- |
 | `PORT` | No | `8080` | HTTP listener port (same app as HTTPS). |
 | `TLS_PORT` | No | `8443` | HTTPS listener port. |
-| `TLS_KEY` | No | none | TLS private key (inline PEM or file path). Prefer absolute paths. Must be paired with `TLS_CERT`. |
-| `TLS_CERT` | No | none | TLS certificate (inline PEM or file path). Prefer absolute paths. Must be paired with `TLS_KEY`. |
+| `TLS_KEY` | Prod: Yes, Dev: No | none | TLS private key (inline PEM, base64-encoded PEM, or file path). Prefer absolute paths. |
+| `TLS_CERT` | Prod: Yes, Dev: No | none | TLS certificate (inline PEM, base64-encoded PEM, or file path). Prefer absolute paths. |
 
 Development TLS behavior:
 
 - If `TLS_KEY` and `TLS_CERT` are set, they are used.
 - If unset and `NODE_ENV` is not `production`, the app tries `certs/localhost-key.pem` and `certs/localhost.pem`.
 - If those files are absent, the app generates a short-lived self-signed localhost certificate in-process.
-- If unset in production, the app starts HTTP-only so a platform proxy can terminate TLS upstream.
+- In production, explicit TLS credentials are required.
 
 ### Outbound TLS (scraper and providers)
 

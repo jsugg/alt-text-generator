@@ -23,7 +23,6 @@ const { createApp } = require('./createApp');
 
 // Server
 const { setupCluster } = require('./server/clusterManager');
-const { startWorkerServers } = require('./server/startWorkerServers');
 const {
   createHttpServer,
   createHttpsServer,
@@ -64,18 +63,16 @@ if (cluster.isPrimary) {
 } else {
   const startWorker = async () => {
     const { app } = createApp({ config, appLogger });
+    const tlsCredentials = await loadTlsCredentials();
 
-    await startWorkerServers({
-      app,
-      config,
-      serverConfig,
-      appLogger,
-      loadTlsCredentials,
-      createHttpServer,
-      createHttpsServer,
-      startServer,
-      gracefulShutdown,
-    });
+    // Servers
+    const httpServer = createHttpServer(app);
+    const httpsServer = createHttpsServer(app, () => tlsCredentials);
+
+    startServer(httpServer, serverConfig.httpPort, appLogger);
+    startServer(httpsServer, serverConfig.httpsPort, appLogger);
+
+    gracefulShutdown([httpServer, httpsServer], appLogger);
   };
 
   startWorker().catch((error) => {

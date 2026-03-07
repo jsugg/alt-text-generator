@@ -9,9 +9,17 @@ const envVarsSchema = Joi.object({
   TLS_PORT: Joi.number().default(8443),
   WORKER_COUNT: Joi.number().integer().min(1).optional(),
 
-  // TLS is optional when the platform terminates HTTPS upstream.
-  TLS_KEY: Joi.string().optional(),
-  TLS_CERT: Joi.string().optional(),
+  // TLS certs are required in production
+  TLS_KEY: Joi.string().when('NODE_ENV', {
+    is: 'production',
+    then: Joi.required(),
+    otherwise: Joi.optional(),
+  }),
+  TLS_CERT: Joi.string().when('NODE_ENV', {
+    is: 'production',
+    then: Joi.required(),
+    otherwise: Joi.optional(),
+  }),
   OUTBOUND_CA_BUNDLE_FILE: Joi.string().optional(),
 
   // Replicate is required for core functionality
@@ -47,9 +55,7 @@ const envVarsSchema = Joi.object({
   // Swagger
   SWAGGER_DEV_URL: Joi.string().uri().optional(),
   SWAGGER_PROD_URL: Joi.string().uri().optional(),
-})
-  .and('TLS_KEY', 'TLS_CERT')
-  .unknown();
+}).unknown();
 
 const validateEnvVars = () => {
   const { error } = envVarsSchema.validate(process.env);

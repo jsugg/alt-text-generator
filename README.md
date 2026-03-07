@@ -11,7 +11,7 @@
 
 ## Overview
 
-Alt-Text 4 All is an API that scrapes website images and generates AI-powered alt text to improve accessibility workflows.
+Alt-Text 4 All is an HTTPS-first API that scrapes website images and generates AI-powered alt text to improve accessibility workflows.
 
 The service exposes these primary capabilities:
 
@@ -23,7 +23,7 @@ The service exposes these primary capabilities:
 
 - Website image scraping with relative URL resolution
 - AI-generated descriptions for image URLs
-- Local HTTPS runtime with automatic HTTP -> HTTPS redirect
+- HTTPS-first local runtime with automatic HTTP -> HTTPS redirect
 - Swagger UI for interactive API exploration
 - Lint and test automation in CI
 
@@ -70,10 +70,9 @@ Common local settings:
 
 - `PORT` and `TLS_PORT`
 - `TLS_KEY` and `TLS_CERT`
-  - Optional when your platform terminates TLS upstream (for example Render)
-  - Required only if this app must bind its own HTTPS listener
-  - Must be set together
-  - Can be file paths or inline PEM values
+  - Optional in local development
+  - Required in production
+  - Can be file paths, inline PEM values, or base64-encoded PEM values
 - `OUTBOUND_CA_BUNDLE_FILE`
   - Optional app-managed supplemental PEM bundle for outbound HTTPS trust
   - Use `npm run doctor:tls -- https://example.com --fix --write-env --env-file .env.test` when a target works in `curl` but fails in Node/app scraping
