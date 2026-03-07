@@ -22,27 +22,26 @@ afterEach(() => {
 });
 
 describe('validateEnvVars', () => {
-  it('accepts the legacy TSL_* aliases in production', () => {
+  it('accepts TLS_* credentials in production', () => {
     const validateEnvVars = loadValidator({
       overrides: {
         NODE_ENV: 'production',
         REPLICATE_API_TOKEN: 'test-token',
-        TSL_KEY: 'legacy-key',
-        TSL_CERT: 'legacy-cert',
+        TLS_KEY: 'tls-key',
+        TLS_CERT: 'tls-cert',
       },
-      remove: ['TLS_KEY', 'TLS_CERT'],
     });
 
     expect(() => validateEnvVars()).not.toThrow();
   });
 
-  it('still requires production TLS credentials when neither TLS_* nor TSL_* is set', () => {
+  it('requires production TLS credentials when TLS_* is missing', () => {
     const validateEnvVars = loadValidator({
       overrides: {
         NODE_ENV: 'production',
         REPLICATE_API_TOKEN: 'test-token',
       },
-      remove: ['TLS_KEY', 'TLS_CERT', 'TSL_KEY', 'TSL_CERT'],
+      remove: ['TLS_KEY', 'TLS_CERT'],
     });
 
     expect(() => validateEnvVars()).toThrow(/TLS_KEY/);
