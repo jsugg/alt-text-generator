@@ -6,6 +6,7 @@
 
 [![GitHub license](https://img.shields.io/github/license/jsugg/alt-text-generator)](https://github.com/jsugg/alt-text-generator/blob/main/LICENSE)
 [![CI/CD Pipeline](https://github.com/jsugg/alt-text-generator/actions/workflows/ci-cd.yml/badge.svg?branch=main)](https://github.com/jsugg/alt-text-generator/actions/workflows/ci-cd.yml)
+[![Tests](https://github.com/jsugg/alt-text-generator/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/jsugg/alt-text-generator/actions/workflows/tests.yml)
 ![Node CI 20 | 22 | 24](https://img.shields.io/badge/node%20CI-20%20%7C%2022%20%7C%2024-339933?logo=node.js&logoColor=white)
 
 ## Overview
