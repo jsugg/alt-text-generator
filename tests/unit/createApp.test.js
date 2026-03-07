@@ -40,6 +40,12 @@ describe('createApp', () => {
         modelName: 'model',
         modelVersion: 'version',
       },
+      azure: {
+        apiEndpoint: 'https://azure.example.com/vision/v3.2/describe',
+        subscriptionKey: 'azure-key',
+        language: 'en',
+        maxCandidates: 4,
+      },
       scraper: {
         requestTimeoutMs: 1500,
         maxRedirects: 4,
@@ -66,8 +72,9 @@ describe('createApp', () => {
       maxRedirects: 4,
       maxContentLength: 2048,
     });
-    expect(services.imageDescriberFactory.getAvailableModels()).toEqual(['clip']);
+    expect(services.imageDescriberFactory.getAvailableModels()).toEqual(['clip', 'azure']);
     expect(services.imageDescriberFactory.get('clip').replicate).toBe(replicateClient);
+    expect(services.imageDescriberFactory.get('azure').httpClient).toBe(httpClient);
     expect(services.pageDescriptionService.scraperService).toBe(services.scraperService);
     expect(services.pageDescriptionService.imageDescriberFactory)
       .toBe(services.imageDescriberFactory);
@@ -131,5 +138,36 @@ describe('createApp', () => {
     });
 
     expect(app.get('trust proxy')).toBe(1);
+  });
+
+  it('does not register azure when its config is incomplete', () => {
+    const config = {
+      replicate: {
+        apiToken: 'test-token',
+        apiEndpoint: 'https://replicate.example.com',
+        userAgent: 'alt-text-generator/test',
+        modelOwner: 'owner',
+        modelName: 'model',
+        modelVersion: 'version',
+      },
+      azure: {
+        apiEndpoint: 'https://azure.example.com/vision/v3.2/describe',
+      },
+      scraper: {
+        requestTimeoutMs: 1500,
+        maxRedirects: 4,
+        maxContentLengthBytes: 2048,
+      },
+    };
+
+    const { services } = createApp({
+      appLogger: createAppLogger(),
+      requestLogger: createRequestLogger(),
+      httpClient: { get: jest.fn(), post: jest.fn() },
+      replicateClient: { run: jest.fn() },
+      config,
+    });
+
+    expect(services.imageDescriberFactory.getAvailableModels()).toEqual(['clip']);
   });
 });

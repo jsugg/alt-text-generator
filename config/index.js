@@ -64,11 +64,12 @@ module.exports = {
   },
 
   azure: {
-    apiKey: process.env.ACV_API_KEY,
     apiEndpoint: process.env.ACV_API_ENDPOINT,
-    subscriptionKey: process.env.ACV_SUBSCRIPTION_KEY,
+    subscriptionKey:
+      process.env.ACV_SUBSCRIPTION_KEY
+      || process.env.ACV_API_KEY,
     language: process.env.ACV_LANGUAGE || 'en',
-    maxCandidates: Number(process.env.ACV_MAX_CANDIDATES) || 4,
+    maxCandidates: toNumber(process.env.ACV_MAX_CANDIDATES, 4),
   },
 
   rateLimit: {
@@ -85,6 +86,5 @@ module.exports = {
     level:
       process.env.LOG_LEVEL
       || (process.env.NODE_ENV === 'production' ? 'info' : 'debug'),
-    logsDir: process.env.LOGS_DIR || './logs',
   },
 };

@@ -24,7 +24,7 @@
     "dev:test-env": "ENV_FILE=.env.test NODE_ENV=development nodemon src/app.js | pino-pretty -i streams,options",
     "lint": "eslint .",
     "test": "jest",
-    "prod": "NODE_ENV=production node src/app.js | pino-pretty -i streams,options",
+    "prod": "NODE_ENV=production node src/app.js",
     "dev": "NODE_ENV=development nodemon src/app.js | pino-pretty -i streams,options"
   },
   "repository": {

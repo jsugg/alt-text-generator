@@ -206,6 +206,80 @@ describe('GET /api/accessibility/description', () => {
       imageUrl: 'https://example.com/img.jpg',
     }]);
   });
+
+  it('serves Azure descriptions through the default runtime composition when configured', async () => {
+    const appLogger = createAppLogger();
+    const requestLogger = createRequestLogger();
+    const httpClient = {
+      get: jest.fn(),
+      post: jest.fn().mockResolvedValue({
+        data: {
+          description: {
+            captions: [
+              { text: 'an azure-generated caption' },
+            ],
+          },
+        },
+      }),
+    };
+    const replicateClient = { run: jest.fn() };
+    const runtimeConfig = {
+      replicate: {
+        apiToken: 'test-token',
+        apiEndpoint: 'https://replicate.example.com',
+        userAgent: 'alt-text-generator/test',
+        modelOwner: 'owner',
+        modelName: 'model',
+        modelVersion: 'version',
+      },
+      azure: {
+        apiEndpoint: 'https://azure.example.com/vision/v3.2/describe',
+        subscriptionKey: 'azure-key',
+        language: 'en',
+        maxCandidates: 4,
+      },
+      scraper: {
+        requestTimeoutMs: 1500,
+        maxRedirects: 4,
+        maxContentLengthBytes: 2048,
+      },
+      proxy: {
+        trustProxyHops: 1,
+      },
+    };
+    const { app, services } = createApp({
+      appLogger,
+      requestLogger,
+      httpClient,
+      replicateClient,
+      config: runtimeConfig,
+    });
+
+    expect(services.imageDescriberFactory.getAvailableModels()).toEqual(['clip', 'azure']);
+
+    const res = await secureGet(
+      app,
+      `/api/accessibility/description?image_source=${
+        encodeURIComponent('https://example.com/azure-image.jpg')
+      }&model=azure`,
+    );
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([{
+      description: 'an azure-generated caption',
+      imageUrl: 'https://example.com/azure-image.jpg',
+    }]);
+    expect(httpClient.post).toHaveBeenCalledWith(
+      'https://azure.example.com/vision/v3.2/describe?maxCandidates=4&language=en&model-version=latest',
+      { url: 'https://example.com/azure-image.jpg' },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'Ocp-Apim-Subscription-Key': 'azure-key',
+        },
+      },
+    );
+  });
 });
 
 describe('GET /api/accessibility/descriptions', () => {

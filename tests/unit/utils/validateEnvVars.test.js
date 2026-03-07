@@ -74,4 +74,52 @@ describe('validateEnvVars', () => {
 
     expect(() => validateEnvVars()).toThrow(/TRUST_PROXY_HOPS/);
   });
+
+  it('accepts Azure provider credentials when endpoint and subscription key are set', () => {
+    const validateEnvVars = loadValidator({
+      overrides: {
+        REPLICATE_API_TOKEN: 'test-token',
+        ACV_API_ENDPOINT: 'https://azure.example.com/vision/v3.2/describe',
+        ACV_SUBSCRIPTION_KEY: 'azure-key',
+      },
+    });
+
+    expect(() => validateEnvVars()).not.toThrow();
+  });
+
+  it('accepts the legacy Azure API key alias', () => {
+    const validateEnvVars = loadValidator({
+      overrides: {
+        REPLICATE_API_TOKEN: 'test-token',
+        ACV_API_ENDPOINT: 'https://azure.example.com/vision/v3.2/describe',
+        ACV_API_KEY: 'azure-key',
+      },
+    });
+
+    expect(() => validateEnvVars()).not.toThrow();
+  });
+
+  it('rejects an Azure endpoint without credentials', () => {
+    const validateEnvVars = loadValidator({
+      overrides: {
+        REPLICATE_API_TOKEN: 'test-token',
+        ACV_API_ENDPOINT: 'https://azure.example.com/vision/v3.2/describe',
+      },
+      remove: ['ACV_API_KEY', 'ACV_SUBSCRIPTION_KEY'],
+    });
+
+    expect(() => validateEnvVars()).toThrow(/ACV_API_ENDPOINT/);
+  });
+
+  it('rejects Azure credentials without an endpoint', () => {
+    const validateEnvVars = loadValidator({
+      overrides: {
+        REPLICATE_API_TOKEN: 'test-token',
+        ACV_SUBSCRIPTION_KEY: 'azure-key',
+      },
+      remove: ['ACV_API_ENDPOINT'],
+    });
+
+    expect(() => validateEnvVars()).toThrow(/ACV_API_ENDPOINT/);
+  });
 });

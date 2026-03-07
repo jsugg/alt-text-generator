@@ -81,6 +81,7 @@ Common local settings:
   - Use `npm run doctor:tls -- https://example.com --fix --write-env --env-file .env.test` when a target works in `curl` but fails in Node/app scraping
 
 Advanced runtime settings such as worker count, scraper timeouts, rate limits, logging, Swagger URLs, and stubbed provider endpoints are documented in [DEVELOPMENT.md](./DEVELOPMENT.md).
+Production logs stay on the process stream so platforms such as Render can collect them directly.
 The Render deployment shape is versioned in [render.yaml](./render.yaml), while the Node runtime pin remains in [`package.json`](./package.json) under `engines.node`.
 
 ## API Endpoints
@@ -110,7 +111,7 @@ GET `/api/accessibility/description` or `/api/v1/accessibility/description`
 - Summary: returns an alt-text description for a given image
 - Query params:
   - `image_source`: URL-encoded address of the image
-  - `model`: AI model identifier, currently `clip`
+  - `model`: AI model identifier, `clip` or `azure` when Azure is configured
 
 Example:
 
@@ -123,7 +124,7 @@ GET `/api/accessibility/descriptions` or `/api/v1/accessibility/descriptions`
 - Summary: scrapes a page and returns descriptions for its images
 - Query params:
   - `url`: URL-encoded address of the target website
-  - `model`: AI model identifier, currently `clip`
+  - `model`: AI model identifier, `clip` or `azure` when Azure is configured
 - Notes:
   - preserves duplicate image entries in page order
   - reuses one prediction per unique normalized image URL per request

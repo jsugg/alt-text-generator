@@ -10,6 +10,7 @@ const {
 const { createOutboundClients } = require('./infrastructure/outboundTrust');
 const ScraperService = require('./services/ScraperService');
 const ReplicateDescriberService = require('./services/ReplicateDescriberService');
+const AzureDescriberService = require('./services/AzureDescriberService');
 const ImageDescriberFactory = require('./services/ImageDescriberFactory');
 const PageDescriptionService = require('./services/PageDescriptionService');
 const healthController = require('./api/v1/controllers/healthController');
@@ -27,10 +28,15 @@ const buildReplicateClient = (config, fetch) => new Replicate({
   userAgent: config.replicate.userAgent,
 });
 
+const hasAzureProviderConfig = (azureConfig = {}) => Boolean(
+  azureConfig.apiEndpoint && azureConfig.subscriptionKey,
+);
+
 const buildImageDescriberFactory = ({
   config,
   logger,
   replicateClient,
+  httpClient,
 }) => {
   const factory = new ImageDescriberFactory();
   const replicateDescriber = new ReplicateDescriberService({
@@ -39,7 +45,19 @@ const buildImageDescriberFactory = ({
     config,
   });
 
-  return factory.register('clip', replicateDescriber);
+  factory.register('clip', replicateDescriber);
+
+  if (hasAzureProviderConfig(config.azure)) {
+    const azureDescriber = new AzureDescriberService({
+      logger,
+      httpClient,
+      config,
+    });
+
+    factory.register('azure', azureDescriber);
+  }
+
+  return factory;
 };
 
 const createApp = ({
@@ -71,6 +89,7 @@ const createApp = ({
     ?? buildImageDescriberFactory({
       config,
       logger: appLogger,
+      httpClient: resolvedHttpClient,
       replicateClient: replicateClient
         ?? buildReplicateClient(config, resolvedOutboundClients.fetch),
     });

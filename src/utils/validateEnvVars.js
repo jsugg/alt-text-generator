@@ -40,14 +40,13 @@ const envVarsSchema = Joi.object({
   LOG_LEVEL: Joi.string()
     .valid('trace', 'debug', 'info', 'warn', 'error', 'fatal')
     .optional(),
-  LOGS_DIR: Joi.string().optional(),
 
   // Azure Computer Vision (optional provider)
   ACV_API_KEY: Joi.string().optional(),
   ACV_API_ENDPOINT: Joi.string().uri().optional(),
   ACV_SUBSCRIPTION_KEY: Joi.string().optional(),
   ACV_LANGUAGE: Joi.string().optional(),
-  ACV_MAX_CANDIDATES: Joi.number().optional(),
+  ACV_MAX_CANDIDATES: Joi.number().integer().min(1).optional(),
 
   // Rate limiting
   RATE_LIMIT_WINDOW_MS: Joi.number().optional(),
@@ -62,6 +61,18 @@ const validateEnvVars = () => {
   const { error } = envVarsSchema.validate(process.env);
   if (error) {
     throw new Error(`Config validation error: ${error.message}`);
+  }
+
+  const hasAzureEndpoint = Boolean(process.env.ACV_API_ENDPOINT);
+  const hasAzureCredential = Boolean(
+    process.env.ACV_SUBSCRIPTION_KEY || process.env.ACV_API_KEY,
+  );
+
+  if (hasAzureEndpoint !== hasAzureCredential) {
+    throw new Error(
+      'Config validation error: ACV_API_ENDPOINT and either ACV_SUBSCRIPTION_KEY '
+        + 'or ACV_API_KEY must be set together to enable the Azure provider',
+    );
   }
 };
 
