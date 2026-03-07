@@ -29,6 +29,10 @@ module.exports = {
     certPath: process.env.TLS_CERT,
   },
 
+  proxy: {
+    trustProxyHops: toOptionalNumber(process.env.TRUST_PROXY_HOPS) ?? 1,
+  },
+
   cluster: {
     workers: toOptionalNumber(process.env.WORKER_COUNT) ?? 1,
   },

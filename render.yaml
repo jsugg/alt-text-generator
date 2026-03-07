@@ -1,0 +1,28 @@
+# Render reads the Node runtime version from package.json `engines.node`.
+services:
+  - type: web
+    name: alt-text-generator
+    runtime: node
+    repo: https://github.com/jsugg/alt-text-generator
+    branch: production
+    autoDeployTrigger: commit
+    plan: free
+    region: oregon
+    numInstances: 1
+    buildCommand: npm install
+    startCommand: npm run prod
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: WORKER_COUNT
+        value: 1
+      - key: TRUST_PROXY_HOPS
+        value: 1
+      - key: TLS_PORT
+        value: 8443
+      - key: REPLICATE_API_TOKEN
+        sync: false
+      - key: TLS_KEY
+        sync: false
+      - key: TLS_CERT
+        sync: false

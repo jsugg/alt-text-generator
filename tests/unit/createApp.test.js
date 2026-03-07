@@ -45,6 +45,9 @@ describe('createApp', () => {
         maxRedirects: 4,
         maxContentLengthBytes: 2048,
       },
+      proxy: {
+        trustProxyHops: 2,
+      },
     };
 
     const { app, services } = createApp({
@@ -56,7 +59,7 @@ describe('createApp', () => {
     });
 
     expect(app).toBeDefined();
-    expect(app.get('trust proxy')).toBe(1);
+    expect(app.get('trust proxy')).toBe(2);
     expect(services.scraperService.httpClient).toBe(httpClient);
     expect(services.scraperService.requestOptions).toEqual({
       timeout: 1500,
@@ -100,5 +103,33 @@ describe('createApp', () => {
     } finally {
       defaultAppLogger.level = originalLevel;
     }
+  });
+
+  it('falls back to the default trust proxy setting when config omits proxy', () => {
+    const config = {
+      replicate: {
+        apiToken: 'test-token',
+        apiEndpoint: 'https://replicate.example.com',
+        userAgent: 'alt-text-generator/test',
+        modelOwner: 'owner',
+        modelName: 'model',
+        modelVersion: 'version',
+      },
+      scraper: {
+        requestTimeoutMs: 1500,
+        maxRedirects: 4,
+        maxContentLengthBytes: 2048,
+      },
+    };
+
+    const { app } = createApp({
+      appLogger: createAppLogger(),
+      requestLogger: createRequestLogger(),
+      httpClient: { get: jest.fn() },
+      replicateClient: { run: jest.fn() },
+      config,
+    });
+
+    expect(app.get('trust proxy')).toBe(1);
   });
 });

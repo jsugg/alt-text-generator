@@ -55,6 +55,7 @@ const createApp = ({
   replicateClient,
 } = {}) => {
   const scraperConfig = config.scraper ?? defaultConfig.scraper;
+  const proxyConfig = config.proxy ?? defaultConfig.proxy;
   const resolvedOutboundClients = outboundClients ?? createOutboundClients(config);
   const resolvedHttpClient = httpClient ?? resolvedOutboundClients.httpClient ?? axios;
   const resolvedScraperService = scraperService ?? new ScraperService({
@@ -91,7 +92,7 @@ const createApp = ({
 
   const app = express();
   app.disable('x-powered-by');
-  app.set('trust proxy', 1);
+  app.set('trust proxy', proxyConfig.trustProxyHops);
 
   applyMiddlewares(app, requestLogger);
   const { loadRequestFilter } = createRequestFilter(appLogger);
