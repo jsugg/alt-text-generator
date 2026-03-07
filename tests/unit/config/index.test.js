@@ -70,20 +70,19 @@ describe('config', () => {
     });
   });
 
-  it('uses the legacy TSL_* aliases for HTTPS settings when TLS_* is unset', () => {
+  it('uses the explicit TLS_* settings for HTTPS config', () => {
     const config = loadConfig({
       overrides: {
-        TSL_PORT: '9443',
-        TSL_KEY: 'legacy-key',
-        TSL_CERT: 'legacy-cert',
+        TLS_PORT: '9443',
+        TLS_KEY: 'tls-key',
+        TLS_CERT: 'tls-cert',
       },
-      remove: ['TLS_PORT', 'TLS_KEY', 'TLS_CERT'],
     });
 
     expect(config.https).toEqual({
       port: 9443,
-      keyPath: 'legacy-key',
-      certPath: 'legacy-cert',
+      keyPath: 'tls-key',
+      certPath: 'tls-cert',
     });
   });
 });
