@@ -18,7 +18,7 @@ class ScraperController {
 
   /**
    * @swagger
-   * /api/scrapper/images:
+   * /api/scraper/images:
    *   get:
    *     summary: Returns the list of images found in a website
    *     description: Visits the website, selects img elements, and returns their src URLs as JSON.

@@ -2,6 +2,7 @@ const request = require('supertest');
 
 const { createApp } = require('../../src/createApp');
 const ImageDescriberFactory = require('../../src/services/ImageDescriberFactory');
+const config = require('../../config');
 
 const createAppLogger = () => ({
   info: jest.fn(),
@@ -51,10 +52,15 @@ describe('request filter', () => {
   it('redirects direct HTTP traffic to HTTPS', async () => {
     const { app } = buildTestApp();
 
-    const res = await request(app).get('/api/ping');
+    const res = await request(app)
+      .get('/api/ping')
+      .set('Host', 'localhost:8080');
 
     expect(res.status).toBe(302);
-    expect(res.headers.location).toMatch(/^https:\/\//);
+    const expectedHost = config.https.port === 443
+      ? 'localhost'
+      : `localhost:${config.https.port}`;
+    expect(res.headers.location).toBe(`https://${expectedHost}/api/ping`);
   });
 
   it('redirects proxy-forwarded HTTP traffic to HTTPS', async () => {
@@ -62,10 +68,14 @@ describe('request filter', () => {
 
     const res = await request(app)
       .get('/api/ping')
+      .set('Host', 'localhost:8080')
       .set('X-Forwarded-Proto', 'http');
 
     expect(res.status).toBe(302);
-    expect(res.headers.location).toMatch(/^https:\/\//);
+    const expectedHost = config.https.port === 443
+      ? 'localhost'
+      : `localhost:${config.https.port}`;
+    expect(res.headers.location).toBe(`https://${expectedHost}/api/ping`);
   });
 
   it('redirects /api/ to the versioned route for secure requests', async () => {
@@ -103,11 +113,11 @@ describe('GET /api/health', () => {
   });
 });
 
-describe('GET /api/scrapper/images', () => {
+describe('GET /api/scraper/images', () => {
   it('returns 400 when url is missing', async () => {
     const { app } = buildTestApp();
 
-    const res = await secureGet(app, '/api/scrapper/images');
+    const res = await secureGet(app, '/api/scraper/images');
 
     expect(res.status).toBe(400);
   });
@@ -122,7 +132,7 @@ describe('GET /api/scrapper/images', () => {
 
     const res = await secureGet(
       app,
-      `/api/scrapper/images?url=${encodeURIComponent('https://example.com')}`,
+      `/api/scraper/images?url=${encodeURIComponent('https://example.com')}`,
     );
 
     expect(res.status).toBe(200);
@@ -137,7 +147,7 @@ describe('GET /api/scrapper/images', () => {
 
     const res = await secureGet(
       app,
-      `/api/scrapper/images?url=${encodeURIComponent('https://example.com')}`,
+      `/api/scraper/images?url=${encodeURIComponent('https://example.com')}`,
     );
 
     expect(res.status).toBe(500);

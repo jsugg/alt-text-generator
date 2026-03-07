@@ -20,7 +20,7 @@ module.exports = ({ health, scraper, description }, logger) => {
   apiRouter.get(['/api/health', '/api/v1/health'], health.health);
 
   apiRouter.get(
-    ['/api/scrapper/images', '/api/v1/scrapper/images'],
+    ['/api/scraper/images', '/api/v1/scraper/images'],
     scraper.getImages,
   );
 
