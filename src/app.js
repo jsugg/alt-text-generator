@@ -1,18 +1,28 @@
-// Node Modules
+// dotenv must be loaded before any other module reads process.env
+require('dotenv').config({
+  path: process.env.ENV_FILE || '.env',
+  override: Boolean(process.env.ENV_FILE),
+});
+
 const cluster = require('cluster');
 const os = require('os');
-require('dotenv').config();
-const express = require('express');
+const path = require('path');
+const fs = require('fs');
 
-// Configuration and Utilities
-const { serverLogger } = require('./utils/logger');
-const { createLogger } = require('./utils/createLogger');
+// Config & validation
+const config = require('../config');
 const serverConfig = require('../config/serverConfig');
 const { validateEnvVars } = require('./utils/validateEnvVars');
-const { readCertFile } = require('./utils/readCertFile');
-const { applyMiddlewares } = require('./utils/applyBaseMiddleware');
-const { loadRequestFilter } = require('./api/v1/middleware/request-filter')(serverLogger);
-const { createRouter } = require('./utils/createRouter');
+
+validateEnvVars();
+
+// Infrastructure
+const { appLogger } = require('./infrastructure/logger');
+const { loadTlsCredentials } = require('./infrastructure/loadTlsCredentials');
+const { createApp } = require('./createApp');
+
+// Server
+const { setupCluster } = require('./server/clusterManager');
 const {
   createHttpServer,
   createHttpsServer,
@@ -20,32 +30,53 @@ const {
   gracefulShutdown,
 } = require('./server/serverFunctions');
 
-// Initialize and configure logger
-const appLogger = createLogger('app');
+const getAvailableWorkerCount = () => (
+  typeof os.availableParallelism === 'function'
+    ? os.availableParallelism()
+    : os.cpus().length
+);
 
-// Validate Environment Variables
-validateEnvVars();
+const resolveWorkerCount = () => (
+  config.cluster.workers
+  ?? (config.env === 'production' ? getAvailableWorkerCount() : 1)
+);
 
-// Initialize Express App and apply middlewares
-const app = express();
-applyMiddlewares(app);
-loadRequestFilter(serverLogger, app);
+// Global error handlers — registered before any async work
+process.on('uncaughtException', (error) => {
+  appLogger.fatal({ error }, 'Uncaught exception — shutting down');
+  process.exit(1);
+});
 
-// Setup Routers
-const appRouter = createRouter(serverLogger);
-app.use(appRouter);
+process.on('unhandledRejection', (reason) => {
+  appLogger.fatal({ reason }, 'Unhandled promise rejection — shutting down');
+  process.exit(1);
+});
 
-// Cluster Mode Initialization
-if (cluster.isMaster) {
-  serverConfig.setupCluster(cluster, os, appLogger);
+if (cluster.isPrimary) {
+  // Write PID file from the primary process only
+  const pidFile = path.resolve(__dirname, '../alt-text-generator.pid');
+  fs.writeFileSync(pidFile, process.pid.toString());
+
+  const workerCount = resolveWorkerCount();
+  appLogger.info({ workerCount, env: config.env }, 'Starting cluster');
+  setupCluster(cluster, appLogger, workerCount);
 } else {
-  // Server initialization
-  const args = process.env.NODE_ENV === 'production' ? [app] : [app, readCertFile];
-  const httpServer = createHttpServer(app);
-  const httpsServer = createHttpsServer(...args);
+  const startWorker = async () => {
+    const { app } = createApp({ config, appLogger });
+    const tlsCredentials = await loadTlsCredentials();
 
-  startServer(httpServer, serverConfig.httpPort, serverLogger);
-  startServer(httpsServer, serverConfig.httpsPort, serverLogger);
+    // Servers
+    const httpServer = createHttpServer(app);
+    const httpsServer = createHttpsServer(app, () => tlsCredentials);
 
-  gracefulShutdown(httpServer, httpsServer, appLogger);
+    startServer(httpServer, serverConfig.httpPort, appLogger);
+    startServer(httpsServer, serverConfig.httpsPort, appLogger);
+
+    gracefulShutdown([httpServer, httpsServer], appLogger);
+  };
+
+  startWorker().catch((error) => {
+    appLogger.fatal({ error }, 'Worker startup failed');
+    process.exit(1);
+  });
 }
