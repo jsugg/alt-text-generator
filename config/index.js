@@ -16,6 +16,10 @@ const toOptionalNumber = (value) => {
   return Number.isFinite(parsedValue) ? parsedValue : undefined;
 };
 
+const resolveEnvAlias = (primaryKey, legacyKey) => (
+  process.env[primaryKey] ?? process.env[legacyKey]
+);
+
 module.exports = {
   env: process.env.NODE_ENV || 'development',
 
@@ -24,10 +28,10 @@ module.exports = {
   },
 
   https: {
-    port: Number(process.env.TLS_PORT) || 8443,
-    // TLS_KEY / TLS_CERT can be file paths or inline PEM values.
-    keyPath: process.env.TLS_KEY,
-    certPath: process.env.TLS_CERT,
+    port: Number(resolveEnvAlias('TLS_PORT', 'TSL_PORT')) || 8443,
+    // Accept the legacy TSL_* aliases still configured in Render.
+    keyPath: resolveEnvAlias('TLS_KEY', 'TSL_KEY'),
+    certPath: resolveEnvAlias('TLS_CERT', 'TSL_CERT'),
   },
 
   cluster: {
