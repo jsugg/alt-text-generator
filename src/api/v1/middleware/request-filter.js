@@ -1,44 +1,76 @@
 /**
  * Request filter middleware factory.
  *
- * - Validates URI format
  * - Redirects HTTP → HTTPS
- * - Attaches the logger to req.log (single injection point)
+ * - Normalizes the bare /api/ entrypoint
  *
  * @param {object} logger - app logger instance
  * @returns {{ loadRequestFilter: function }}
  */
 const config = require('../../../../config');
 
-const buildHttpsRedirectUrl = (req, pathOverride) => {
-  const forwardedProto = req.headers['x-forwarded-proto'];
-  const forwardedHost = req.headers['x-forwarded-host'];
-  const hostHeader = forwardedHost || req.headers.host;
+const INVALID_REDIRECT_HOST_MESSAGE = 'Bad request. Invalid redirect host.';
 
-  const base = new URL('https://localhost/');
-  if (hostHeader) {
-    try {
-      const parsedHost = new URL(`http://${hostHeader}`);
-      base.hostname = parsedHost.hostname;
-      if (parsedHost.port) {
-        base.port = parsedHost.port;
-      }
-    } catch {
-      // Keep localhost fallback.
-    }
+const parseRedirectHost = (headerValue) => {
+  if (typeof headerValue !== 'string') {
+    return null;
   }
 
-  const location = new URL(pathOverride || req.originalUrl || req.url || '/', base);
+  const candidate = headerValue.trim();
+  if (
+    !candidate
+    || candidate.includes(',')
+    || /[\s/?#@\\]/.test(candidate)
+  ) {
+    return null;
+  }
+
+  try {
+    const parsedHost = new URL(`http://${candidate}`);
+    if (!parsedHost.hostname) {
+      return null;
+    }
+
+    return {
+      hostname: parsedHost.hostname,
+      port: parsedHost.port,
+    };
+  } catch {
+    return null;
+  }
+};
+
+const resolveRedirectHost = (req) => {
+  const forwardedHost = req.headers['x-forwarded-host'];
+  if (forwardedHost !== undefined) {
+    return parseRedirectHost(forwardedHost);
+  }
+
+  return parseRedirectHost(req.headers.host);
+};
+
+const buildHttpsRedirectUrl = (req) => {
+  const redirectHost = resolveRedirectHost(req);
+  if (!redirectHost) {
+    return null;
+  }
+
+  const location = new URL(
+    req.originalUrl || req.url || '/',
+    `https://${redirectHost.hostname}/`,
+  );
 
   const httpPort = String(config.http?.port ?? 8080);
   const httpsPort = String(config.https?.port ?? 8443);
 
   // If the incoming Host explicitly targets the HTTP listener, rewrite to the HTTPS listener.
-  if (location.port && location.port === httpPort) {
+  if (redirectHost.port && redirectHost.port === httpPort) {
     location.port = httpsPort === '443' ? '' : httpsPort;
-  } else if (!forwardedProto && !location.port && httpsPort !== '443') {
+  } else if (!req.headers['x-forwarded-proto'] && !redirectHost.port && httpsPort !== '443') {
     // Direct HTTP requests on default ports omit :80; ensure we redirect to the actual HTTPS port.
     location.port = httpsPort;
+  } else if (redirectHost.port) {
+    location.port = redirectHost.port;
   }
 
   location.protocol = 'https:';
@@ -46,16 +78,6 @@ const buildHttpsRedirectUrl = (req, pathOverride) => {
 };
 
 module.exports = (logger) => {
-  /**
-   * Returns a match if the URL matches the expected path format, null otherwise.
-   * @param {string} url
-   * @returns {RegExpExecArray|null}
-   */
-  function isAllowedURIFormat(url) {
-    const pattern = /(?:http:\/\/)?(?:www\.)?(.*?)\/(.+?)(?:\/|\?|#|$|\n)/;
-    return pattern.exec(url);
-  }
-
   /**
    * Registers the request filter on appRouter.
    * The logger comes from the outer factory closure.
@@ -65,33 +87,36 @@ module.exports = (logger) => {
     logger.info('Loading request-filter...');
 
     appRouter.use((req, res, next) => {
-      const fullUrl = `${req.protocol}://${req.headers.host}${req.originalUrl}`;
       const requestLogger = req.log ?? logger;
-
-      if (!isAllowedURIFormat(fullUrl)) {
-        requestLogger.debug(
-          { req, message: 'Denying resource - Disallowed URI format' },
-          '400 Bad Request - Disallowed URI format',
-        );
-        return res.status(400).send('Bad request. URI format not allowed.');
-      }
 
       // Redirect proxy-forwarded HTTP to HTTPS (handled by prod server in production)
       if (req.headers['x-forwarded-proto'] && req.headers['x-forwarded-proto'] !== 'https') {
+        const redirectUrl = buildHttpsRedirectUrl(req);
+        if (!redirectUrl) {
+          requestLogger.warn({ req }, 'Rejecting proxy redirect with invalid host header');
+          return res.status(400).send(INVALID_REDIRECT_HOST_MESSAGE);
+        }
+
         requestLogger.debug({ req }, 'Redirecting proxy-forwarded HTTP to HTTPS');
-        return res.redirect(buildHttpsRedirectUrl(req));
+        return res.redirect(redirectUrl);
       }
 
       // Redirect direct HTTP to HTTPS
       if (!req.headers['x-forwarded-proto'] && req.protocol !== 'https') {
+        const redirectUrl = buildHttpsRedirectUrl(req);
+        if (!redirectUrl) {
+          requestLogger.warn({ req }, 'Rejecting direct redirect with invalid host header');
+          return res.status(400).send(INVALID_REDIRECT_HOST_MESSAGE);
+        }
+
         requestLogger.debug({ req }, 'Redirecting HTTP to HTTPS');
-        return res.redirect(buildHttpsRedirectUrl(req));
+        return res.redirect(redirectUrl);
       }
 
       // Redirect bare /api/ to versioned /api/v1/
       if (req.url === '/api/') {
         requestLogger.debug({ req }, 'Redirecting /api/ to /api/v1/');
-        return res.redirect(buildHttpsRedirectUrl(req, '/api/v1/'));
+        return res.redirect('/api/v1/');
       }
 
       return next();
