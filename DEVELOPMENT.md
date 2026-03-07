@@ -1,74 +1,153 @@
 # Development Guide
 
-## Purpose
+This is the developer-facing guide and validation runbook for this project.
 
-This document is the developer-facing runtime contract for the project. It covers local setup, environment variables, TLS requirements, quality gates, and live external-integration validation.
+If you only need a quick local boot, start with `README.md` and come back here for:
 
-## Recommended Toolchain
+- full configuration reference (env vars and defaults)
+- production-like external integration validation
+- TLS and outbound trust troubleshooting (scraper and providers)
 
-- Node.js 20.x recommended
+## Table of Contents
+
+- Quick Start (Dev)
+- Common Commands
+- Supported Models
+- Configuration and Profiles
+- Environment Variable Reference
+- Quality Gates
+- External Integration Validation Runbook
+- TLS and Outbound Trust Troubleshooting
+- Operational Notes
+- Keeping This Doc Correct
+
+## Quick Start (Dev)
+
+Recommended toolchain:
+
+- Node.js 20.x recommended (CI runs on Node 20)
 - npm 10+
 
-Why Node 20:
-
-- CI runs on Node 20 in `.github/workflows/ci-cd.yml`
-- local validation is easier when the runtime matches CI
-
-## Local Setup
-
-1. Copy the example environment file:
+Boot locally:
 
 ```bash
 cp .env.example .env
-```
-
-2. Set at least:
-
-```bash
-REPLICATE_API_TOKEN=your-token-here
-```
-
-3. Install dependencies:
-
-```bash
+# edit .env and set REPLICATE_API_TOKEN (required even to boot)
 npm install
-```
-
-4. Start the app:
-
-```bash
 npm run dev
 ```
 
-5. Verify the local runtime:
+Smoke checks (use `-k` because local HTTPS may be self-signed):
 
 ```bash
 curl -sk https://localhost:8443/api/health
 curl -sk https://localhost:8443/api-docs/
 ```
 
-## Environment Variables
+## Common Commands
 
-### Required
+```bash
+# dev
+npm run dev
+npm run dev:test-env
 
-| Variable | Required | Description |
-| --- | --- | --- |
-| `REPLICATE_API_TOKEN` | Yes | Replicate API token used by the `clip` describer. |
+# quality
+npm run lint
+NODE_ENV=test REPLICATE_API_TOKEN=test-token npm test -- --runInBand
 
-### Network and TLS
+# outbound TLS diagnostics
+npm run doctor:tls -- https://example.com
+npm run doctor:tls -- https://example.com --fix --write-env --env-file .env.test
+```
+
+## Supported Models
+
+API routes that generate descriptions require a `model` query parameter. Today the runtime registers:
+
+- `clip` (Replicate-backed)
+
+There is an `AzureDescriberService` implementation in the codebase, but it is not currently registered in
+the model registry exposed by the API, so setting `ACV_*` variables alone does not make an Azure model usable (yet).
+
+## Configuration and Profiles
+
+### How env is loaded
+
+The app loads environment variables via `dotenv` before it reads configuration:
+
+- By default it reads `.env`
+- If `ENV_FILE` is set, it reads that file instead and enables dotenv `override` for a reproducible profile
+
+Recommended patterns:
+
+- `.env` for day-to-day local dev
+- `.env.test` for repeatable local validation (this repo ignores `.env.test` in Git)
+
+### Suggested local validation profile
+
+Example `.env.test` (edit values as needed):
+
+```bash
+NODE_ENV=development
+PORT=18084
+TLS_PORT=18447
+WORKER_COUNT=1
+LOG_LEVEL=info
+REPLICATE_API_TOKEN=replace-me
+# written by doctor:tls in many workflows:
+OUTBOUND_CA_BUNDLE_FILE=/absolute/path/to/certs/outbound-extra-ca.pem
+```
+
+Start with the profile:
+
+```bash
+ENV_FILE=.env.test node src/app.js
+```
+
+Or use the dedicated script:
+
+```bash
+npm run dev:test-env
+```
+
+## Environment Variable Reference
+
+Notes:
+
+- The config single source of truth is `config/index.js`
+- Validation rules are enforced by `src/utils/validateEnvVars.js` at startup
+- Some behavior (example: default Replicate API base URL) is provided by upstream SDK defaults when unset
+
+### Core
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
-| `PORT` | No | `8080` | HTTP port. Requests are redirected to HTTPS. |
-| `TLS_PORT` | No | `8443` | HTTPS port. |
-| `TLS_KEY` | Prod: Yes, Dev: No | none | TLS private key. Can be a file path or inline PEM. |
-| `TLS_CERT` | Prod: Yes, Dev: No | none | TLS certificate. Can be a file path or inline PEM. |
+| `NODE_ENV` | No | `development` | Valid values: `development`, `production`, `test`. |
+| `REPLICATE_API_TOKEN` | Yes | none | Required for boot (env validation) and for real descriptions. |
+| `ENV_FILE` | No | `.env` | Selects which dotenv file to load at startup. Not validated by Joi. |
 
-Development note:
+### Network and Inbound TLS (server)
 
-- if `TLS_KEY` and `TLS_CERT` are unset, the app tries local `certs/localhost-key.pem` and `certs/localhost.pem`
-- if those files are also absent, the app auto-generates a localhost self-signed certificate in-process for non-production runtime
-- production still requires explicit TLS credentials
+| Variable | Required | Default | Description |
+| --- | --- | --- | --- |
+| `PORT` | No | `8080` | HTTP listener port (same app as HTTPS). |
+| `TLS_PORT` | No | `8443` | HTTPS listener port. |
+| `TLS_KEY` | Prod: Yes, Dev: No | none | TLS private key (inline PEM or file path). Prefer absolute paths. |
+| `TLS_CERT` | Prod: Yes, Dev: No | none | TLS certificate (inline PEM or file path). Prefer absolute paths. |
+
+Development TLS behavior:
+
+- If `TLS_KEY` and `TLS_CERT` are set, they are used.
+- If unset and `NODE_ENV` is not `production`, the app tries `certs/localhost-key.pem` and `certs/localhost.pem`.
+- If those files are absent, the app generates a short-lived self-signed localhost certificate in-process.
+- In production, explicit TLS credentials are required.
+
+### Outbound TLS (scraper and providers)
+
+| Variable | Required | Default | Description |
+| --- | --- | --- | --- |
+| `OUTBOUND_CA_BUNDLE_FILE` | No | unset | App-managed supplemental PEM bundle used to extend Node trust for outbound HTTPS. |
+| `NODE_EXTRA_CA_CERTS` | No | unset | Node-supported extra CA file. This app also accepts it as a fallback. Not validated by Joi. |
 
 ### Worker and Scraper Runtime Controls
 
@@ -79,18 +158,17 @@ Development note:
 | `SCRAPER_MAX_REDIRECTS` | No | `5` | Redirect limit for outbound page fetches. |
 | `SCRAPER_MAX_CONTENT_LENGTH_BYTES` | No | `2097152` | Maximum response body size accepted when scraping HTML. |
 
-### Replicate
+### Replicate (clip provider)
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
-| `REPLICATE_API_ENDPOINT` | No | `https://api.replicate.com/v1/` | Override for stubs, proxies, or alternate environments. |
+| `REPLICATE_API_ENDPOINT` | No | Replicate SDK default | Override for stubs, proxies, or alternate environments. |
 | `REPLICATE_USER_AGENT` | No | `alt-text-generator/1.0.0` | Replicate client user agent. |
 | `REPLICATE_MODEL_OWNER` | No | `rmokady` | Replicate model owner. |
 | `REPLICATE_MODEL_NAME` | No | `clip_prefix_caption` | Replicate model name. |
 | `REPLICATE_MODEL_VERSION` | No | pinned in `config/index.js` | Replicate model version. |
-| `OUTBOUND_CA_BUNDLE_FILE` | No | unset | App-managed supplemental PEM bundle used for outbound HTTPS trust. |
 
-### Optional Azure Provider
+### Azure Computer Vision (not currently wired into API models)
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
@@ -121,82 +199,35 @@ NODE_ENV=test REPLICATE_API_TOKEN=test-token npm test -- --runInBand
 npm ci --dry-run
 ```
 
-Useful diagnostics:
-
-```bash
-npm run doctor:tls -- https://example.com
-npm run doctor:tls -- https://example.com --fix --write-env --env-file .env.test
-```
-
-## External Integration Validation
+## External Integration Validation Runbook
 
 ### Validation goals
 
-A professional validation pass should answer four separate questions:
+A production-quality validation pass should answer these separately:
 
 1. Does the app boot and serve its HTTPS endpoints correctly?
 2. Can the scraper reach and parse real public pages from the current runtime?
 3. Can the app reach Replicate and execute the configured model with the current account?
 4. Are failures caused by this codebase, the machine trust store, or the external vendor account?
 
-Treat those as separate checks. Do not collapse them into a single smoke test.
-
-### Recommended local validation profile
-
-Use a local-only `.env.test` file for repeatable validation runs. Keep it out of Git.
-
-Example:
-
-```bash
-cat > .env.test <<'EOF'
-NODE_ENV=development
-PORT=18084
-TLS_PORT=18447
-WORKER_COUNT=1
-LOG_LEVEL=info
-REPLICATE_API_TOKEN=replace-me
-OUTBOUND_CA_BUNDLE_FILE=/absolute/path/to/certs/outbound-extra-ca.pem
-EOF
-```
-
-Load it explicitly when validating:
-
-```bash
-set -a
-source .env.test
-set +a
-ENV_FILE=.env.test node src/app.js
-```
-
-Or use the dedicated script:
-
-```bash
-npm run dev:test-env
-```
-
-Why this is better than ad hoc shell state:
-
-- validation runs are reproducible
-- contributors can share the exact local profile internally
-- outbound CA fixes and temporary provider tokens stay out of committed files
+Do not collapse those into a single smoke test. Treat them as separate checks.
 
 ### Validation matrix
 
 | Check | Command / Endpoint | Expected result | Failure class |
 | --- | --- | --- | --- |
-| App boot | `node src/app.js` | HTTP and HTTPS listeners start cleanly | local config / TLS bootstrap |
+| App boot | `ENV_FILE=.env.test node src/app.js` | HTTP and HTTPS listeners start cleanly | local config / TLS bootstrap |
 | Health | `GET /api/health` | `200 OK` with health payload | local runtime |
 | Docs | `GET /api-docs/` | `200 OK` | docs stack only |
-| Scraper preflight | direct Node HTTPS request to target | `200` or site-specific expected status | trust store / target policy |
+| Scraper preflight | `npm run doctor:tls -- <target>` | `200` or site-specific expected status | trust store / target policy |
 | Scraper API | `GET /api/scrapper/images?...` | `200` with `imageSources` array | scraper logic or target policy |
-| Replicate reachability | direct SDK call or app route | vendor request accepted | token / endpoint / network |
 | Replicate execution | `GET /api/accessibility/description?...&model=clip` | `200` with non-empty description | vendor account / model execution |
-| Page description orchestration | `GET /api/accessibility/descriptions?...&model=clip` | `200` with ordered `descriptions` array | orchestration / provider reuse |
+| Page orchestration | `GET /api/accessibility/descriptions?...&model=clip` | `200` with ordered `descriptions` array | orchestration / provider reuse |
 
-### Validation sequence
+### Validation sequence (recommended)
 
 1. Start the app with the local validation profile.
-2. Verify:
+2. Verify health and docs:
 
 ```bash
 curl -sk https://localhost:8443/api/health
@@ -209,7 +240,7 @@ curl -sk https://localhost:8443/api-docs/
 npm run doctor:tls -- https://developer.chrome.com/
 ```
 
-4. If the preflight succeeds, validate the scraper route:
+4. If preflight succeeds, validate the scraper route:
 
 ```bash
 curl -sk 'https://localhost:8443/api/scrapper/images?url=https%3A%2F%2Fdeveloper.chrome.com%2F'
@@ -227,15 +258,15 @@ curl -sk 'https://localhost:8443/api/accessibility/description?image_source=http
 curl -sk 'https://localhost:8443/api/accessibility/descriptions?url=https%3A%2F%2Fdeveloper.chrome.com%2F&model=clip'
 ```
 
-Expected:
+Expected properties:
 
 - `descriptions` preserves duplicate image entries in page order
 - `uniqueImages` is less than or equal to `totalImages`
 - duplicate `imageUrl` values reuse the same description content in the response
 
-7. Capture evidence from both the HTTP response and the app log. That lets you separate app defects from external-service failures.
+7. Capture evidence from the HTTP response and the app log (to separate app defects from vendor failures).
 
-### Interpreting failures
+### Interpreting failures (common)
 
 - `UNABLE_TO_GET_ISSUER_CERT_LOCALLY`
   - outbound trust-store problem for the current Node runtime
@@ -253,25 +284,26 @@ Expected:
 For deterministic local testing or CI-like validation, point the app at a local stub:
 
 ```bash
-REPLICATE_API_ENDPOINT=http://127.0.0.1:19091 node src/app.js
+REPLICATE_API_ENDPOINT=http://127.0.0.1:19091 REPLICATE_API_TOKEN=test-token node src/app.js
 ```
 
-Use that mode to validate routing, controller wiring, and provider integration mechanics. Use the real Replicate API only when validating actual vendor connectivity and account readiness.
+Use the stub mode to validate routing and controller wiring. Use the real Replicate API when validating vendor connectivity and account readiness.
 
-## TLS and Outbound CA Troubleshooting
+## TLS and Outbound Trust Troubleshooting
 
-### Local server certificates
+### Local server (inbound) HTTPS
 
-The app itself serves HTTPS locally. In development:
+In development you can:
 
-- set `TLS_KEY` and `TLS_CERT` to your own PEM files
-- or set `TLS_KEY` and `TLS_CERT` to inline PEM values
-- or place local cert files at `certs/localhost-key.pem` and `certs/localhost.pem`
-- or rely on the built-in non-production self-signed localhost fallback
+- set `TLS_KEY` and `TLS_CERT` to inline PEM values
+- set `TLS_KEY` and `TLS_CERT` to file paths (prefer absolute paths)
+- place local cert files at `certs/localhost-key.pem` and `certs/localhost.pem`
+- rely on the built-in non-production self-signed localhost fallback
 
-### Outbound HTTPS trust
+### Outbound HTTPS trust (scraper and providers)
 
-The scraper and provider clients use the app's outbound TLS configuration, which starts from Node's trust store and can be extended with `OUTBOUND_CA_BUNDLE_FILE`. That distinction matters because curl and Node may not trust exactly the same roots on a given machine.
+The scraper and provider clients start from Node's trust store and can be extended with a supplemental CA bundle.
+This matters because curl and Node may not trust the exact same roots on a given machine.
 
 #### Root-cause workflow
 
@@ -287,17 +319,9 @@ node -e "require('https').get('https://example.com', (res) => { console.log(res.
 curl -I https://example.com
 ```
 
-3. If curl succeeds but Node fails, inspect the certificate chain and identify the missing trust anchor.
+3. If curl succeeds but Node fails with an issuer or verification error, identify which trust anchor is missing for the Node runtime.
 
-On this machine, `example.com` chains through:
-
-- `Cloudflare TLS Issuing ECC CA 3`
-- `SSL.com TLS Transit ECC CA R2`
-- `AAA Certificate Services`
-
-The macOS system keychain contains `AAA Certificate Services`, but this Node runtime does not trust it by default. That is why curl succeeds while Node fails.
-
-#### Practical fix for this machine
+#### Practical fix (recommended)
 
 Run the doctor in autofix mode:
 
@@ -305,33 +329,42 @@ Run the doctor in autofix mode:
 npm run doctor:tls -- https://example.com --fix --write-env --env-file .env.test
 ```
 
-That command:
+What it does:
 
-- inspects the remote chain
-- finds the missing trust anchor in the local platform trust source when possible
-- writes an app-local bundle such as `certs/outbound-extra-ca.pem`
-- updates `.env.test` with `OUTBOUND_CA_BUNDLE_FILE=/absolute/path/to/certs/outbound-extra-ca.pem`
+- inspects the remote certificate chain
+- attempts to locate the missing trust anchor in the local system trust source
+- writes/updates an app-local bundle (default `certs/outbound-extra-ca.pem`)
+- updates the env file with `OUTBOUND_CA_BUNDLE_FILE=<absolute path>`
 - retries the probe and confirms success
 
-Then run the app with:
+Then start the app with the profile:
 
 ```bash
 ENV_FILE=.env.test node src/app.js
 ```
 
-That fixes outbound Node HTTPS for `example.com` on this machine and, by extension, fixes the scraper path for that target.
-
 #### Why this fix is correct
 
 - it preserves TLS verification
-- it adds the exact missing root instead of disabling security
-- it is app-scoped and reproducible across shells, containers, and process managers
+- it adds the missing root or intermediate without disabling security
+- it is app-scoped and reproducible across shells and process managers
 - it is consumed by both the scraper HTTP client and the Replicate client
 
-Do not use `NODE_TLS_REJECT_UNAUTHORIZED=0` except as a temporary debugging aid. It disables certificate validation and is not an acceptable operating mode.
+Do not use `NODE_TLS_REJECT_UNAUTHORIZED=0` except as a temporary debugging aid.
+It disables certificate validation and is not an acceptable operating mode.
 
 ## Operational Notes
 
-- HTTP requests redirect to HTTPS
-- Swagger is lazy-loaded, so docs-only dependency warnings should not appear during ordinary startup or ordinary test paths
-- cluster workers default to `1` outside production and scale to available parallelism in production unless `WORKER_COUNT` is set
+- The app runs both HTTP and HTTPS listeners.
+- For local development, prefer calling the HTTPS port directly (`https://localhost:8443/...`).
+  - The HTTP to HTTPS redirect behavior depends on the incoming `Host` header and proxy layout.
+- Swagger spec is lazy-loaded, so docs-only dependency warnings should not appear during ordinary startup or test paths.
+- Cluster workers default to `1` outside production and scale to available parallelism in production unless `WORKER_COUNT` is set.
+
+## Keeping This Doc Correct
+
+If you change configuration, update these together:
+
+- `config/index.js` (defaults and wiring)
+- `src/utils/validateEnvVars.js` (startup contract)
+- this file (developer-facing reference and runbook)
