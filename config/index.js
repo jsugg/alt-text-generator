@@ -35,7 +35,7 @@ module.exports = {
   },
 
   cluster: {
-    workers: toOptionalNumber(process.env.WORKER_COUNT),
+    workers: toOptionalNumber(process.env.WORKER_COUNT) ?? 1,
   },
 
   scraper: {
