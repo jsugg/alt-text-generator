@@ -132,8 +132,8 @@ Notes:
 | --- | --- | --- | --- |
 | `PORT` | No | `8080` | HTTP listener port (same app as HTTPS). |
 | `TLS_PORT` | No | `8443` | HTTPS listener port. |
-| `TLS_KEY` | Prod: Yes, Dev: No | none | TLS private key (inline PEM or file path). Prefer absolute paths. |
-| `TLS_CERT` | Prod: Yes, Dev: No | none | TLS certificate (inline PEM or file path). Prefer absolute paths. |
+| `TLS_KEY` | Prod: Yes, Dev: No | none | TLS private key (inline PEM, base64-encoded PEM, or file path). Prefer absolute paths. |
+| `TLS_CERT` | Prod: Yes, Dev: No | none | TLS certificate (inline PEM, base64-encoded PEM, or file path). Prefer absolute paths. |
 
 Development TLS behavior:
 

@@ -11,16 +11,36 @@ const DEFAULT_LOCAL_TLS_PATHS = {
 
 let generatedDevelopmentCredentialsPromise;
 
+const resolveInlineCredential = (source) => {
+  const trimmedSource = source.trim();
+  if (INLINE_PEM_PATTERN.test(trimmedSource)) {
+    return trimmedSource;
+  }
+
+  const normalizedBase64 = trimmedSource.replace(/\s+/g, '');
+  if (
+    normalizedBase64.length === 0
+    || normalizedBase64.length % 4 !== 0
+    || /[^A-Za-z0-9+/=]/.test(normalizedBase64)
+  ) {
+    return undefined;
+  }
+
+  const decoded = Buffer.from(normalizedBase64, 'base64').toString('utf8').trim();
+  return INLINE_PEM_PATTERN.test(decoded) ? decoded : undefined;
+};
+
 const readCredential = (source, envVarName) => {
   if (!source) {
     throw new Error(`${envVarName} is not configured.`);
   }
 
-  if (INLINE_PEM_PATTERN.test(source)) {
-    return source;
+  const inlineCredential = resolveInlineCredential(source);
+  if (inlineCredential) {
+    return inlineCredential;
   }
 
-  return fs.readFileSync(path.resolve(__dirname, source));
+  return fs.readFileSync(path.resolve(__dirname, source.trim()));
 };
 
 const readLocalDevelopmentCredentials = () => {
@@ -96,7 +116,9 @@ const loadTlsCredentials = async () => {
     };
   } catch (err) {
     throw new Error(
-      `TLS credentials could not be loaded. Ensure TLS_KEY and TLS_CERT are valid file paths or PEM values. Detail: ${err.message}`,
+      'TLS credentials could not be loaded. '
+      + 'Ensure TLS_KEY and TLS_CERT are valid file paths, PEM values, or base64-encoded PEM values. '
+      + `Detail: ${err.message}`,
     );
   }
 };
