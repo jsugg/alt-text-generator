@@ -220,7 +220,7 @@ Do not collapse those into a single smoke test. Treat them as separate checks.
 | Health | `GET /api/health` | `200 OK` with health payload | local runtime |
 | Docs | `GET /api-docs/` | `200 OK` | docs stack only |
 | Scraper preflight | `npm run doctor:tls -- <target>` | `200` or site-specific expected status | trust store / target policy |
-| Scraper API | `GET /api/scrapper/images?...` | `200` with `imageSources` array | scraper logic or target policy |
+| Scraper API | `GET /api/scraper/images?...` | `200` with `imageSources` array | scraper logic or target policy |
 | Replicate execution | `GET /api/accessibility/description?...&model=clip` | `200` with non-empty description | vendor account / model execution |
 | Page orchestration | `GET /api/accessibility/descriptions?...&model=clip` | `200` with ordered `descriptions` array | orchestration / provider reuse |
 
@@ -243,7 +243,7 @@ npm run doctor:tls -- https://developer.chrome.com/
 4. If preflight succeeds, validate the scraper route:
 
 ```bash
-curl -sk 'https://localhost:8443/api/scrapper/images?url=https%3A%2F%2Fdeveloper.chrome.com%2F'
+curl -sk 'https://localhost:8443/api/scraper/images?url=https%3A%2F%2Fdeveloper.chrome.com%2F'
 ```
 
 5. Validate Replicate through the app with a public image URL:

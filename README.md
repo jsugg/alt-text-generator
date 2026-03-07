@@ -13,13 +13,11 @@
 
 Alt-Text 4 All is an HTTPS-first API that scrapes website images and generates AI-powered alt text to improve accessibility workflows.
 
-The service exposes two primary capabilities:
+The service exposes these primary capabilities:
 
 - discover image URLs on a target page
 - generate alt text for a specific image with the `clip` model
 - generate alt text for all images on a page while preserving duplicate entries
-
-Swagger documentation is available at `/api-docs`.
 
 ## Features
 
@@ -33,7 +31,7 @@ Swagger documentation is available at `/api-docs`.
 
 - Node.js 20.x recommended. CI runs on Node 20, while [package.json](./package.json) declares `>=18`.
 - npm 10+
-- A valid Replicate API token for real alt-text generation
+- A Replicate API token (required to boot; must be valid for real alt-text generation)
 
 ## Quick Start
 
@@ -59,11 +57,14 @@ curl -sk https://localhost:8443/api/health
 curl -sk https://localhost:8443/api-docs/
 ```
 
+Note: `-k` skips TLS certificate verification. It is used here because development HTTPS may be self-signed.
+Do not use `-k` for production traffic.
+
 ## Runtime Essentials
 
 Required for real descriptions:
 
-- `REPLICATE_API_TOKEN`
+- `REPLICATE_API_TOKEN` (required at startup; a dummy value is OK for stubbed-provider validation)
 
 Common local settings:
 
@@ -86,11 +87,17 @@ Interactive documentation: `/api-docs`
 
 ### Images
 
-GET `/api/scrapper/images` or `/api/v1/scrapper/images`
+GET `/api/scraper/images` or `/api/v1/scraper/images`
 
 - Summary: returns image URLs found on a website
 - Query params:
   - `url`: URL-encoded address of the target website
+
+Example:
+
+```bash
+curl -sk "https://localhost:8443/api/scraper/images?url=https%3A%2F%2Fdeveloper.chrome.com%2F"
+```
 
 ### Descriptions
 
@@ -101,6 +108,12 @@ GET `/api/accessibility/description` or `/api/v1/accessibility/description`
   - `image_source`: URL-encoded address of the image
   - `model`: AI model identifier, currently `clip`
 
+Example:
+
+```bash
+curl -sk "https://localhost:8443/api/accessibility/description?image_source=https%3A%2F%2Fwww.google.com%2Fimages%2Fbranding%2Fgooglelogo%2F1x%2Fgooglelogo_color_272x92dp.png&model=clip"
+```
+
 GET `/api/accessibility/descriptions` or `/api/v1/accessibility/descriptions`
 
 - Summary: scrapes a page and returns descriptions for its images
@@ -110,6 +123,12 @@ GET `/api/accessibility/descriptions` or `/api/v1/accessibility/descriptions`
 - Notes:
   - preserves duplicate image entries in page order
   - reuses one prediction per unique normalized image URL per request
+
+Example:
+
+```bash
+curl -sk "https://localhost:8443/api/accessibility/descriptions?url=https%3A%2F%2Fdeveloper.chrome.com%2F&model=clip"
+```
 
 ## Development
 
