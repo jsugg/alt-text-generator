@@ -72,7 +72,7 @@ Common local settings:
 - `TLS_KEY` and `TLS_CERT`
   - Optional in local development
   - Required in production
-  - Can be file paths or inline PEM values
+  - Can be file paths, inline PEM values, or base64-encoded PEM values
 - `OUTBOUND_CA_BUNDLE_FILE`
   - Optional app-managed supplemental PEM bundle for outbound HTTPS trust
   - Use `npm run doctor:tls -- https://example.com --fix --write-env --env-file .env.test` when a target works in `curl` but fails in Node/app scraping
