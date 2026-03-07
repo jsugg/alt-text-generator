@@ -34,7 +34,7 @@ describe('config', () => {
       ],
     });
 
-    expect(config.cluster.workers).toBeUndefined();
+    expect(config.cluster.workers).toBe(1);
     expect(config.scraper).toEqual({
       requestTimeoutMs: 10000,
       maxRedirects: 5,

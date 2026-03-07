@@ -5,7 +5,6 @@ require('dotenv').config({
 });
 
 const cluster = require('cluster');
-const os = require('os');
 const path = require('path');
 const fs = require('fs');
 
@@ -30,16 +29,7 @@ const {
   gracefulShutdown,
 } = require('./server/serverFunctions');
 
-const getAvailableWorkerCount = () => (
-  typeof os.availableParallelism === 'function'
-    ? os.availableParallelism()
-    : os.cpus().length
-);
-
-const resolveWorkerCount = () => (
-  config.cluster.workers
-  ?? (config.env === 'production' ? getAvailableWorkerCount() : 1)
-);
+const resolveWorkerCount = () => config.cluster.workers ?? 1;
 
 // Global error handlers — registered before any async work
 process.on('uncaughtException', (error) => {
