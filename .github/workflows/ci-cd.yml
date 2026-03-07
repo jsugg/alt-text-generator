@@ -1,16 +1,65 @@
-# .github/workflows/ci-cd.yml
 name: CI/CD Pipeline
+
 on:
   push:
     branches:
       - main
+      - housekeeping
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build:
+  lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v2
-      - name: Install Dependencies
-        run: npm install
-      - name: Run Tests
-        run: npm test
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run lint
+        run: npm run lint
+
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version:
+          - '18'
+          - '20'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test -- --ci
+        env:
+          NODE_ENV: test
+          REPLICATE_API_TOKEN: test-token

@@ -107,11 +107,11 @@ dist
 # TernJS port file
 .tern-port
 
-# Package-lock
-package-lock.json
-
 .DS_Store
 .vscode/
 
 .env.prod
 .env.dev
+certs/local-node-extra-ca.pem
+
+.serena/
