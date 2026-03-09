@@ -35,6 +35,17 @@ module.exports = {
 
   cluster: {
     workers: toOptionalNumber(process.env.WORKER_COUNT) ?? 1,
+    restartBackoffMs: toNumber(process.env.CLUSTER_RESTART_BACKOFF_MS, 1000),
+    maxRestartBackoffMs: toNumber(
+      process.env.CLUSTER_RESTART_MAX_BACKOFF_MS,
+      30000,
+    ),
+    crashWindowMs: toNumber(process.env.CLUSTER_CRASH_WINDOW_MS, 60000),
+    maxCrashCount: toNumber(process.env.CLUSTER_MAX_CRASHES, 5),
+    shutdownTimeoutMs: toNumber(
+      process.env.CLUSTER_SHUTDOWN_TIMEOUT_MS,
+      10000,
+    ),
   },
 
   scraper: {
