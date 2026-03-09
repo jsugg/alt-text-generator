@@ -106,8 +106,9 @@ describe('DescriptionController.describe', () => {
   });
 
   it('returns 500 when describer throws a non-model error', async () => {
+    const error = new Error('API timeout');
     const mockDescriber = {
-      describeImage: jest.fn().mockRejectedValue(new Error('API timeout')),
+      describeImage: jest.fn().mockRejectedValue(error),
     };
     const factory = new ImageDescriberFactory().register('clip', mockDescriber);
     const controller = createController(factory);
@@ -125,6 +126,11 @@ describe('DescriptionController.describe', () => {
     expect(res.json).toHaveBeenCalledWith({
       error: 'Error fetching description for the provided image',
     });
+    expect(mockLogger.error).toHaveBeenCalledWith(expect.objectContaining({
+      err: error,
+      model: 'clip',
+      imageSource: 'https://example.com/img.jpg',
+    }), 'Error generating description');
   });
 });
 
@@ -222,9 +228,10 @@ describe('DescriptionController.describePage', () => {
   });
 
   it('returns 500 when the page orchestration fails', async () => {
+    const error = new Error('network error');
     const controller = createController(
       new ImageDescriberFactory(),
-      { describePage: jest.fn().mockRejectedValue(new Error('network error')) },
+      { describePage: jest.fn().mockRejectedValue(error) },
     );
     const req = {
       query: {
@@ -240,5 +247,10 @@ describe('DescriptionController.describePage', () => {
     expect(res.json).toHaveBeenCalledWith({
       error: 'Error fetching descriptions for the provided page',
     });
+    expect(mockLogger.error).toHaveBeenCalledWith(expect.objectContaining({
+      err: error,
+      model: 'clip',
+      pageUrl: 'https://example.com/page',
+    }), 'Error generating page descriptions');
   });
 });

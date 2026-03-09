@@ -48,6 +48,7 @@ class ScraperController {
    *         description: Server error
    */
   async getImages(req, res) {
+    const requestLogger = req.log ?? this.logger;
     const { url } = req.query;
 
     if (!url) {
@@ -64,7 +65,7 @@ class ScraperController {
       const result = await this.scraperService.getImages(decodedUrl);
       return res.json(result);
     } catch (error) {
-      this.logger.error({ error }, 'Error scraping images');
+      requestLogger.error({ err: error, url: decodedUrl }, 'Error scraping images');
       return res.status(500).json({ error: 'Error fetching images from the provided URL' });
     }
   }

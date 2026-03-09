@@ -1,3 +1,5 @@
+const { getUpstreamErrorSummary } = require('../utils/getUpstreamErrorSummary');
+
 /**
  * Image description service backed by the Replicate AI platform.
  *
@@ -29,12 +31,23 @@ class ReplicateDescriberService {
     const modelRef = `${this.modelOwner}/${this.modelName}:${this.modelVersion}`;
     this.logger.info({ imageUrl, modelRef }, 'Generating alt text');
 
-    const output = await this.replicate.run(modelRef, {
-      input: { image: imageUrl },
-    });
+    try {
+      const output = await this.replicate.run(modelRef, {
+        input: { image: imageUrl },
+      });
 
-    this.logger.debug({ imageUrl }, 'Alt text generated');
-    return { description: output, imageUrl };
+      this.logger.debug({ imageUrl }, 'Alt text generated');
+      return { description: output, imageUrl };
+    } catch (error) {
+      this.logger.error({
+        err: error,
+        provider: 'replicate',
+        imageUrl,
+        modelRef,
+        upstream: getUpstreamErrorSummary(error),
+      }, 'Replicate prediction failed');
+      throw error;
+    }
   }
 }
 
