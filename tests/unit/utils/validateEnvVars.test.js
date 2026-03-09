@@ -61,6 +61,24 @@ describe('validateEnvVars', () => {
     expect(() => validateEnvVars()).not.toThrow();
   });
 
+  it('accepts valid cluster lifecycle overrides', () => {
+    const validateEnvVars = loadValidator({
+      overrides: {
+        NODE_ENV: 'production',
+        REPLICATE_API_TOKEN: 'test-token',
+        TLS_KEY: 'tls-key',
+        TLS_CERT: 'tls-cert',
+        CLUSTER_RESTART_BACKOFF_MS: '1000',
+        CLUSTER_RESTART_MAX_BACKOFF_MS: '5000',
+        CLUSTER_CRASH_WINDOW_MS: '45000',
+        CLUSTER_MAX_CRASHES: '4',
+        CLUSTER_SHUTDOWN_TIMEOUT_MS: '8000',
+      },
+    });
+
+    expect(() => validateEnvVars()).not.toThrow();
+  });
+
   it('rejects a negative TRUST_PROXY_HOPS override', () => {
     const validateEnvVars = loadValidator({
       overrides: {
@@ -73,6 +91,21 @@ describe('validateEnvVars', () => {
     });
 
     expect(() => validateEnvVars()).toThrow(/TRUST_PROXY_HOPS/);
+  });
+
+  it('rejects a max restart backoff smaller than the base restart backoff', () => {
+    const validateEnvVars = loadValidator({
+      overrides: {
+        NODE_ENV: 'production',
+        REPLICATE_API_TOKEN: 'test-token',
+        TLS_KEY: 'tls-key',
+        TLS_CERT: 'tls-cert',
+        CLUSTER_RESTART_BACKOFF_MS: '5000',
+        CLUSTER_RESTART_MAX_BACKOFF_MS: '1000',
+      },
+    });
+
+    expect(() => validateEnvVars()).toThrow(/CLUSTER_RESTART_MAX_BACKOFF_MS/);
   });
 
   it('accepts Azure provider credentials when endpoint and subscription key are set', () => {

@@ -9,6 +9,11 @@ const envVarsSchema = Joi.object({
   TLS_PORT: Joi.number().default(8443),
   TRUST_PROXY_HOPS: Joi.number().integer().min(0).optional(),
   WORKER_COUNT: Joi.number().integer().min(1).optional(),
+  CLUSTER_RESTART_BACKOFF_MS: Joi.number().integer().min(1).optional(),
+  CLUSTER_RESTART_MAX_BACKOFF_MS: Joi.number().integer().min(1).optional(),
+  CLUSTER_CRASH_WINDOW_MS: Joi.number().integer().min(1).optional(),
+  CLUSTER_MAX_CRASHES: Joi.number().integer().min(1).optional(),
+  CLUSTER_SHUTDOWN_TIMEOUT_MS: Joi.number().integer().min(1).optional(),
 
   // TLS certs are required in production
   TLS_KEY: Joi.string().when('NODE_ENV', {
@@ -72,6 +77,18 @@ const validateEnvVars = () => {
     throw new Error(
       'Config validation error: ACV_API_ENDPOINT and either ACV_SUBSCRIPTION_KEY '
         + 'or ACV_API_KEY must be set together to enable the Azure provider',
+    );
+  }
+
+  if (
+    process.env.CLUSTER_RESTART_BACKOFF_MS
+    && process.env.CLUSTER_RESTART_MAX_BACKOFF_MS
+    && Number(process.env.CLUSTER_RESTART_MAX_BACKOFF_MS)
+      < Number(process.env.CLUSTER_RESTART_BACKOFF_MS)
+  ) {
+    throw new Error(
+      'Config validation error: CLUSTER_RESTART_MAX_BACKOFF_MS must be greater '
+        + 'than or equal to CLUSTER_RESTART_BACKOFF_MS',
     );
   }
 };

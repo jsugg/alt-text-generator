@@ -153,7 +153,12 @@ Development TLS behavior:
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
 | `TRUST_PROXY_HOPS` | No | `1` | Number of proxy hops Express trusts when processing forwarded headers. Render production uses `1`. |
-| `WORKER_COUNT` | No | `1` | Overrides the number of cluster workers. |
+| `WORKER_COUNT` | No | `1` | Number of app processes to run. `1` uses single-process mode; values greater than `1` enable Node cluster mode. |
+| `CLUSTER_RESTART_BACKOFF_MS` | No | `1000` | Base backoff for restarting an unexpectedly exited worker in cluster mode. |
+| `CLUSTER_RESTART_MAX_BACKOFF_MS` | No | `30000` | Maximum backoff between clustered worker restart attempts. Must be greater than or equal to `CLUSTER_RESTART_BACKOFF_MS`. |
+| `CLUSTER_CRASH_WINDOW_MS` | No | `60000` | Sliding window used to count clustered worker crashes. |
+| `CLUSTER_MAX_CRASHES` | No | `5` | Maximum unexpected worker exits allowed inside the crash window before the primary exits non-zero. |
+| `CLUSTER_SHUTDOWN_TIMEOUT_MS` | No | `10000` | Time the cluster primary waits for worker disconnect during shutdown before forcing exit. |
 | `SCRAPER_REQUEST_TIMEOUT_MS` | No | `10000` | Timeout for outbound page fetches. |
 | `SCRAPER_MAX_REDIRECTS` | No | `5` | Redirect limit for outbound page fetches. |
 | `SCRAPER_MAX_CONTENT_LENGTH_BYTES` | No | `2097152` | Maximum response body size accepted when scraping HTML. |
@@ -375,7 +380,9 @@ It disables certificate validation and is not an acceptable operating mode.
 - For local development, prefer calling the HTTPS port directly (`https://localhost:8443/...`).
   - The HTTP to HTTPS redirect behavior depends on the incoming `Host` header and proxy layout.
 - Swagger spec is lazy-loaded, so docs-only dependency warnings should not appear during ordinary startup or test paths.
-- Cluster workers default to `1` unless `WORKER_COUNT` is set.
+- `WORKER_COUNT=1` runs the server as a single process with no internal cluster primary.
+- Cluster mode is only enabled when `WORKER_COUNT > 1`.
+- Cluster mode now applies restart backoff, crash-budget enforcement, and intentional-shutdown detection.
 - Express trusts `TRUST_PROXY_HOPS` forwarded proxy hops, which defaults to `1` to match the current Render ingress layout.
 
 ## Keeping This Doc Correct

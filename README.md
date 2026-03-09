@@ -81,6 +81,8 @@ Common local settings:
   - Use `npm run doctor:tls -- https://example.com --fix --write-env --env-file .env.test` when a target works in `curl` but fails in Node/app scraping
 
 Advanced runtime settings such as worker count, scraper timeouts, rate limits, logging, Swagger URLs, and stubbed provider endpoints are documented in [DEVELOPMENT.md](./DEVELOPMENT.md).
+`WORKER_COUNT=1` runs the app as a single process; cluster management is only enabled when `WORKER_COUNT > 1`.
+Clustered mode applies bounded restart backoff and a crash budget so persistent worker faults do not spin forever inside the app process.
 Production logs stay on the process stream so platforms such as Render can collect them directly.
 The Render deployment shape is versioned in [render.yaml](./render.yaml), while the Node runtime pin remains in [`package.json`](./package.json) under `engines.node`.
 
