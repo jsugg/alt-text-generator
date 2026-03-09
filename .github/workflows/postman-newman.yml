@@ -1,0 +1,45 @@
+name: Postman/Newman Harness
+
+on:
+  push:
+    branches:
+      - main
+      - housekeeping
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: postman-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  newman:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run deterministic Postman/Newman harness
+        run: npm run postman:harness
+
+      - name: Upload Newman artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: newman-artifacts
+          path: reports/newman/

@@ -26,6 +26,7 @@ The service exposes these primary capabilities:
 - HTTPS-first local runtime with automatic HTTP -> HTTPS redirect
 - Swagger UI for interactive API exploration
 - Lint and test automation in CI
+- Deterministic Postman/Newman API contract harness with local stubs
 
 ## Requirements
 
@@ -59,6 +60,26 @@ curl -sk https://localhost:8443/api-docs/
 
 Note: `-k` skips TLS certificate verification. It is used here because development HTTPS may be self-signed.
 Do not use `-k` for production traffic.
+
+## API Contract Harness
+
+The repository includes a deterministic Postman/Newman harness that boots the app locally, starts a fixture server, and validates the public HTTP contract from outside the process.
+
+Commands:
+
+```bash
+npm run postman:smoke
+npm run postman:harness
+npm run postman:live
+```
+
+Notes:
+
+- `postman:smoke` is the fast deterministic gate.
+- `postman:harness` runs the full deterministic suite and writes JSON and JUnit reports under `reports/newman/`.
+- `postman:live` is optional and reserved for explicit Replicate validation.
+- Local harness runs accept self-signed development TLS.
+- The deterministic harness uses a local Azure stub and does not require real vendor credentials beyond a dummy Replicate token at app startup.
 
 ## Runtime Essentials
 
@@ -142,6 +163,7 @@ curl -sk "https://localhost:8443/api/accessibility/descriptions?url=https%3A%2F%
 Use the development guide for:
 
 - complete environment-variable reference
+- Postman/Newman harness usage and report interpretation
 - TLS and outbound CA troubleshooting
 - lint, test, and live validation commands
 - real external-integration validation with Replicate
