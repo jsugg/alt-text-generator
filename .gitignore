@@ -113,5 +113,5 @@ dist
 .env.prod
 .env.dev
 certs/local-node-extra-ca.pem
-
-.serena/
+reports/newman/*
+!reports/newman/.gitkeep
