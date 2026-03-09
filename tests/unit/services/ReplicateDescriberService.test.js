@@ -38,8 +38,23 @@ describe('ReplicateDescriberService.describeImage', () => {
   });
 
   it('propagates errors from the Replicate client', async () => {
+    const error = new Error('API error');
+    error.request = {
+      method: 'POST',
+      url: 'https://api.replicate.com/v1/predictions',
+    };
+    error.response = {
+      status: 429,
+      statusText: 'Too Many Requests',
+      headers: {
+        get: (name) => {
+          const values = { 'retry-after': '30' };
+          return values[name] ?? null;
+        },
+      },
+    };
     const mockReplicate = {
-      run: jest.fn().mockRejectedValue(new Error('API error')),
+      run: jest.fn().mockRejectedValue(error),
     };
     const svc = new ReplicateDescriberService({
       logger: mockLogger,
@@ -48,5 +63,24 @@ describe('ReplicateDescriberService.describeImage', () => {
     });
 
     await expect(svc.describeImage('https://example.com/cat.jpg')).rejects.toThrow('API error');
+    expect(mockLogger.error).toHaveBeenCalledWith(expect.objectContaining({
+      err: error,
+      provider: 'replicate',
+      imageUrl: 'https://example.com/cat.jpg',
+      modelRef: 'testowner/testmodel:abc123',
+      upstream: {
+        request: {
+          method: 'POST',
+          url: 'https://api.replicate.com/v1/predictions',
+        },
+        response: {
+          status: 429,
+          statusText: 'Too Many Requests',
+          headers: {
+            'retry-after': '30',
+          },
+        },
+      },
+    }), 'Replicate prediction failed');
   });
 });

@@ -63,6 +63,7 @@ class DescriptionController {
    *         description: Server error
    */
   async describe(req, res) {
+    const requestLogger = req.log ?? this.logger;
     const { image_source: rawImageSource, model } = req.query;
 
     if (!rawImageSource || !model) {
@@ -77,7 +78,7 @@ class DescriptionController {
       return res.status(400).json({ error: 'Invalid image_source URL' });
     }
 
-    this.logger.info({ model, imageSource }, 'Description request');
+    requestLogger.info({ model, imageSource }, 'Description request');
 
     try {
       const describer = this.factory.get(model);
@@ -88,7 +89,7 @@ class DescriptionController {
       if (error.message.startsWith('Unknown model')) {
         return res.status(400).json({ error: error.message });
       }
-      this.logger.error({ error }, 'Error generating description');
+      requestLogger.error({ err: error, model, imageSource }, 'Error generating description');
       return res.status(500).json({
         error: 'Error fetching description for the provided image',
       });
@@ -126,6 +127,7 @@ class DescriptionController {
    *         description: Server error
    */
   async describePage(req, res) {
+    const requestLogger = req.log ?? this.logger;
     const { url: rawPageUrl, model } = req.query;
 
     if (!rawPageUrl || !model) {
@@ -140,7 +142,7 @@ class DescriptionController {
       return res.status(400).json({ error: 'Invalid url parameter' });
     }
 
-    this.logger.info({ model, pageUrl }, 'Page description request');
+    requestLogger.info({ model, pageUrl }, 'Page description request');
 
     try {
       const result = await this.pageDescriptionService.describePage({
@@ -153,7 +155,7 @@ class DescriptionController {
         return res.status(400).json({ error: error.message });
       }
 
-      this.logger.error({ error }, 'Error generating page descriptions');
+      requestLogger.error({ err: error, model, pageUrl }, 'Error generating page descriptions');
       return res.status(500).json({
         error: 'Error fetching descriptions for the provided page',
       });

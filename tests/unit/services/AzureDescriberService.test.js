@@ -65,8 +65,14 @@ describe('AzureDescriberService.describeImage', () => {
   });
 
   it('propagates errors from the HTTP client', async () => {
+    const error = new Error('Azure error');
+    error.code = 'ENOTFOUND';
+    error.config = {
+      method: 'post',
+      url: mockConfig.azure.apiEndpoint,
+    };
     const mockHttpClient = {
-      post: jest.fn().mockRejectedValue(new Error('Azure error')),
+      post: jest.fn().mockRejectedValue(error),
     };
     const svc = new AzureDescriberService({
       logger: mockLogger,
@@ -75,6 +81,19 @@ describe('AzureDescriberService.describeImage', () => {
     });
 
     await expect(svc.describeImage('https://example.com/img.jpg')).rejects.toThrow('Azure error');
+    expect(mockLogger.error).toHaveBeenCalledWith(expect.objectContaining({
+      err: error,
+      provider: 'azure',
+      endpoint: mockConfig.azure.apiEndpoint,
+      imageUrl: 'https://example.com/img.jpg',
+      upstream: {
+        code: 'ENOTFOUND',
+        request: {
+          method: 'POST',
+          url: mockConfig.azure.apiEndpoint,
+        },
+      },
+    }), 'Azure description request failed');
   });
 
   it('throws a descriptive error when Azure returns no captions', async () => {

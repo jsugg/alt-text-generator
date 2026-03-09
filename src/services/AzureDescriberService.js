@@ -1,3 +1,5 @@
+const { getUpstreamErrorSummary } = require('../utils/getUpstreamErrorSummary');
+
 /**
  * Image description service backed by Azure Computer Vision.
  *
@@ -38,31 +40,42 @@ class AzureDescriberService {
       'Ocp-Apim-Subscription-Key': this.subscriptionKey,
     };
 
-    // Correct axios usage: post(url, data, config)
-    const response = await this.httpClient.post(
-      url,
-      { url: imageUrl },
-      { headers },
-    );
+    try {
+      // Correct axios usage: post(url, data, config)
+      const response = await this.httpClient.post(
+        url,
+        { url: imageUrl },
+        { headers },
+      );
 
-    // axios already parses JSON — use response.data, not response.json()
-    const captions = response?.data?.description?.captions;
+      // axios already parses JSON — use response.data, not response.json()
+      const captions = response?.data?.description?.captions;
 
-    if (!Array.isArray(captions) || captions.length === 0) {
-      throw new Error('Azure provider returned no captions');
+      if (!Array.isArray(captions) || captions.length === 0) {
+        throw new Error('Azure provider returned no captions');
+      }
+
+      const description = captions
+        .map((caption) => caption.text)
+        .filter(Boolean)
+        .join(', ');
+
+      if (!description) {
+        throw new Error('Azure provider returned empty captions');
+      }
+
+      this.logger.debug({ imageUrl }, 'Azure alt text generated');
+      return { description, imageUrl };
+    } catch (error) {
+      this.logger.error({
+        err: error,
+        provider: 'azure',
+        endpoint: this.endpoint,
+        imageUrl,
+        upstream: getUpstreamErrorSummary(error),
+      }, 'Azure description request failed');
+      throw error;
     }
-
-    const description = captions
-      .map((caption) => caption.text)
-      .filter(Boolean)
-      .join(', ');
-
-    if (!description) {
-      throw new Error('Azure provider returned empty captions');
-    }
-
-    this.logger.debug({ imageUrl }, 'Azure alt text generated');
-    return { description, imageUrl };
   }
 }
 
