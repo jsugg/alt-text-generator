@@ -12,6 +12,7 @@ If you only need a quick local boot, start with `README.md` and come back here f
 
 - Quick Start (Dev)
 - Common Commands
+- Postman/Newman Harness
 - Supported Models
 - Configuration and Profiles
 - Environment Variable Reference
@@ -54,11 +55,51 @@ npm run dev:test-env
 # quality
 npm run lint
 NODE_ENV=test REPLICATE_API_TOKEN=test-token npm test -- --runInBand
+npm run postman:smoke
+npm run postman:harness
 
 # outbound TLS diagnostics
 npm run doctor:tls -- https://example.com
 npm run doctor:tls -- https://example.com --fix --write-env --env-file .env.test
 ```
+
+## Postman/Newman Harness
+
+The repository includes a black-box contract harness that validates the API over real HTTP/HTTPS instead of through in-process Supertest only.
+
+Modes:
+
+- `npm run postman:smoke`
+  - fast deterministic gate
+  - covers core smoke, scraper contract, one Azure-stubbed description, and routing checks
+- `npm run postman:harness`
+  - full deterministic suite
+  - includes page descriptions and negative-path coverage
+  - writes JSON and JUnit reports to `reports/newman/`
+- `npm run postman:live`
+  - optional live-provider validation
+  - intended for explicit Replicate checks, not default CI
+
+Deterministic harness characteristics:
+
+- starts the local app on `https://127.0.0.1:8443` and `http://127.0.0.1:8080`
+- starts a local fixture server on `http://127.0.0.1:19090`
+- configures Azure to point at the fixture server stub endpoint
+- uses a dummy `REPLICATE_API_TOKEN` if one is not already set
+- runs Newman with insecure local TLS enabled because development certificates may be self-signed
+
+Generated artifacts:
+
+- `reports/newman/smoke.json`
+- `reports/newman/smoke.xml`
+- `reports/newman/core.json`
+- `reports/newman/core.xml`
+- `reports/newman/routing.json`
+- `reports/newman/routing.xml`
+- `reports/newman/live-provider.json`
+- `reports/newman/live-provider.xml`
+
+Use the deterministic modes for routine validation and CI. Use the live mode only when you deliberately want to validate vendor connectivity and account readiness.
 
 ## Supported Models
 

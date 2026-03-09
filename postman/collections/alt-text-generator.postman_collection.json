@@ -1,0 +1,1138 @@
+{
+  "info": {
+    "_postman_id": "e379638e-f74f-4aa6-813c-6073da2cfab1",
+    "name": "alt-text-generator API Contract Harness",
+    "description": "Deterministic Postman/Newman contract harness for the alt-text-generator API. Use the local stub environment for CI/local runs, and keep live-provider validation separate.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const maxResponseTimeMs = Number(",
+          "  pm.environment.get('maxResponseTimeMs') || '1500'",
+          ");",
+          "",
+          "pm.test('response is not 5xx', function () {",
+          "  pm.expect(pm.response.code, `unexpected status ${pm.response.code}`).to.be.below(500);",
+          "});",
+          "",
+          "pm.test(`response time is below ${maxResponseTimeMs}ms`, function () {",
+          "  pm.expect(pm.response.responseTime).to.be.below(maxResponseTimeMs);",
+          "});",
+          "",
+          "const contentType =",
+          "  pm.response.headers.get('Content-Type') ||",
+          "  pm.response.headers.get('content-type') ||",
+          "  '';",
+          "",
+          "if (contentType.includes('application/json')) {",
+          "  pm.test('response body is valid JSON', function () {",
+          "    pm.expect(() => pm.response.json()).not.to.throw();",
+          "  });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "00 Core Smoke",
+      "item": [
+        {
+          "name": "Ping",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/plain"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/ping",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ping"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ping returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('ping returns pong', function () {",
+                  "  pm.expect(pm.response.text()).to.eql('pong');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "health"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('health returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('health payload contains expected fields', function () {",
+                  "  pm.expect(body).to.have.property('message', 'OK');",
+                  "  pm.expect(body).to.have.property('uptime');",
+                  "  pm.expect(body).to.have.property('timestamp');",
+                  "  pm.expect(body.uptime).to.be.a('number');",
+                  "  pm.expect(body.timestamp).to.be.a('number');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Swagger UI",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/html"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api-docs/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api-docs"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('swagger docs return 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const contentType =",
+                  "  pm.response.headers.get('Content-Type') ||",
+                  "  pm.response.headers.get('content-type') ||",
+                  "  '';",
+                  "",
+                  "pm.test('swagger docs are HTML', function () {",
+                  "  pm.expect(contentType).to.include('text/html');",
+                  "});",
+                  "",
+                  "pm.test('swagger docs body is non-empty', function () {",
+                  "  pm.expect(pm.response.text().length).to.be.above(100);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05 Routing & Redirects",
+      "item": [
+        {
+          "name": "Bare /api redirects to /api/v1/",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/html"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                ""
+              ]
+            }
+          },
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('bare /api returns 302', function () {",
+                  "  pm.response.to.have.status(302);",
+                  "});",
+                  "",
+                  "pm.test('redirect location points to /api/v1/', function () {",
+                  "  const location = pm.response.headers.get('Location') || pm.response.headers.get('location') || '';",
+                  "  pm.expect(location).to.match(/\\/api\\/v1\\/$/);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "HTTP redirects to HTTPS",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/plain"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrlHttp}}/api/ping",
+              "host": [
+                "{{baseUrlHttp}}"
+              ],
+              "path": [
+                "api",
+                "ping"
+              ]
+            }
+          },
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('http request returns 302', function () {",
+                  "  pm.response.to.have.status(302);",
+                  "});",
+                  "",
+                  "pm.test('redirect location is the https ping endpoint', function () {",
+                  "  const location = pm.response.headers.get('Location') || pm.response.headers.get('location') || '';",
+                  "  pm.expect(location).to.eql(`${pm.environment.get('baseUrl')}/api/ping`);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "10 Scraper Contract",
+      "item": [
+        {
+          "name": "Scrape fixture page images",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/scraper/images",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "scraper",
+                "images"
+              ],
+              "query": [
+                {
+                  "key": "url",
+                  "value": "{{samplePageUrl}}"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('scraper returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "const expectedA = pm.environment.get('sampleImageAUrl');",
+                  "const expectedB = pm.environment.get('sampleImageBUrl');",
+                  "",
+                  "pm.test('response has imageSources array', function () {",
+                  "  pm.expect(body).to.have.property('imageSources');",
+                  "  pm.expect(body.imageSources).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('relative URLs are resolved and duplicate order is preserved', function () {",
+                  "  pm.expect(body.imageSources).to.eql([",
+                  "    expectedA,",
+                  "    expectedB,",
+                  "    expectedA",
+                  "  ]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "20 Single Description (Azure Stub)",
+      "item": [
+        {
+          "name": "Describe fixture image A",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/accessibility/description",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accessibility",
+                "description"
+              ],
+              "query": [
+                {
+                  "key": "image_source",
+                  "value": "{{sampleImageAUrl}}"
+                },
+                {
+                  "key": "model",
+                  "value": "{{model}}"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('single description returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "const expectedImageUrl = pm.environment.get('sampleImageAUrl');",
+                  "",
+                  "pm.test('response is a one-item array', function () {",
+                  "  pm.expect(body).to.be.an('array').with.lengthOf(1);",
+                  "});",
+                  "",
+                  "pm.test('payload matches expected shape and stub caption', function () {",
+                  "  pm.expect(body[0]).to.eql({",
+                  "    description: 'stub caption for asset a',",
+                  "    imageUrl: expectedImageUrl",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "30 Page Descriptions (Azure Stub)",
+      "item": [
+        {
+          "name": "Describe all images on fixture page",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/accessibility/descriptions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accessibility",
+                "descriptions"
+              ],
+              "query": [
+                {
+                  "key": "url",
+                  "value": "{{samplePageUrl}}"
+                },
+                {
+                  "key": "model",
+                  "value": "{{model}}"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('page descriptions return 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "const expectedA = pm.environment.get('sampleImageAUrl');",
+                  "const expectedB = pm.environment.get('sampleImageBUrl');",
+                  "const expectedPageUrl = pm.environment.get('samplePageUrl');",
+                  "",
+                  "const schema = {",
+                  "  type: 'object',",
+                  "  required: ['pageUrl', 'model', 'totalImages', 'uniqueImages', 'descriptions'],",
+                  "  properties: {",
+                  "    pageUrl: { type: 'string' },",
+                  "    model: { type: 'string' },",
+                  "    totalImages: { type: 'integer' },",
+                  "    uniqueImages: { type: 'integer' },",
+                  "    descriptions: {",
+                  "      type: 'array',",
+                  "      items: {",
+                  "        type: 'object',",
+                  "        required: ['description', 'imageUrl'],",
+                  "        properties: {",
+                  "          description: { type: 'string' },",
+                  "          imageUrl: { type: 'string' }",
+                  "        }",
+                  "      }",
+                  "    }",
+                  "  }",
+                  "};",
+                  "",
+                  "pm.test('response schema is valid', function () {",
+                  "  pm.response.to.have.jsonSchema(schema);",
+                  "});",
+                  "",
+                  "pm.test('page metadata is correct', function () {",
+                  "  pm.expect(body.pageUrl).to.eql(expectedPageUrl);",
+                  "  pm.expect(body.model).to.eql('azure');",
+                  "  pm.expect(body.totalImages).to.eql(3);",
+                  "  pm.expect(body.uniqueImages).to.eql(2);",
+                  "});",
+                  "",
+                  "pm.test('duplicate output order is preserved', function () {",
+                  "  pm.expect(body.descriptions.map((item) => item.imageUrl)).to.eql([",
+                  "    expectedA,",
+                  "    expectedB,",
+                  "    expectedA",
+                  "  ]);",
+                  "});",
+                  "",
+                  "pm.test('descriptions match expected stub captions', function () {",
+                  "  pm.expect(body.descriptions).to.eql([",
+                  "    { description: 'stub caption for asset a', imageUrl: expectedA },",
+                  "    { description: 'stub caption for asset b', imageUrl: expectedB },",
+                  "    { description: 'stub caption for asset a', imageUrl: expectedA }",
+                  "  ]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "40 Negative Paths",
+      "item": [
+        {
+          "name": "Scraper missing url",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/scraper/images",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "scraper",
+                "images"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('error matches contract', function () {",
+                  "  pm.expect(body).to.eql({",
+                  "    error: 'Missing required query parameter: url'",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Scraper invalid url",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/scraper/images",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "scraper",
+                "images"
+              ],
+              "query": [
+                {
+                  "key": "url",
+                  "value": "not-a-url"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('error matches contract', function () {",
+                  "  pm.expect(body).to.eql({",
+                  "    error: 'Invalid URL format'",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Single description missing image_source",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/accessibility/description",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accessibility",
+                "description"
+              ],
+              "query": [
+                {
+                  "key": "model",
+                  "value": "azure"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('error matches contract', function () {",
+                  "  pm.expect(body).to.eql({",
+                  "    error: 'Missing required query parameters: image_source and model'",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Single description invalid image_source",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/accessibility/description",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accessibility",
+                "description"
+              ],
+              "query": [
+                {
+                  "key": "image_source",
+                  "value": "not-a-url"
+                },
+                {
+                  "key": "model",
+                  "value": "azure"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('error matches contract', function () {",
+                  "  pm.expect(body).to.eql({",
+                  "    error: 'Invalid image_source URL'",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Single description unknown model",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/accessibility/description",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accessibility",
+                "description"
+              ],
+              "query": [
+                {
+                  "key": "image_source",
+                  "value": "{{sampleImageAUrl}}"
+                },
+                {
+                  "key": "model",
+                  "value": "unknownmodel"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('error identifies unknown model and available providers', function () {",
+                  "  pm.expect(body).to.have.property('error');",
+                  "  pm.expect(body.error).to.include(\"Unknown model 'unknownmodel'\");",
+                  "  pm.expect(body.error).to.include('clip');",
+                  "  pm.expect(body.error).to.include('azure');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Page descriptions missing url",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/accessibility/descriptions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accessibility",
+                "descriptions"
+              ],
+              "query": [
+                {
+                  "key": "model",
+                  "value": "azure"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('error matches contract', function () {",
+                  "  pm.expect(body).to.eql({",
+                  "    error: 'Missing required query parameters: url and model'",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Page descriptions invalid url",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/accessibility/descriptions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accessibility",
+                "descriptions"
+              ],
+              "query": [
+                {
+                  "key": "url",
+                  "value": "not-a-url"
+                },
+                {
+                  "key": "model",
+                  "value": "azure"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('error matches contract', function () {",
+                  "  pm.expect(body).to.eql({",
+                  "    error: 'Invalid url parameter'",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Page descriptions unknown model",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/accessibility/descriptions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accessibility",
+                "descriptions"
+              ],
+              "query": [
+                {
+                  "key": "url",
+                  "value": "{{samplePageUrl}}"
+                },
+                {
+                  "key": "model",
+                  "value": "unknownmodel"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 400', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('error identifies unknown model and available providers', function () {",
+                  "  pm.expect(body).to.have.property('error');",
+                  "  pm.expect(body.error).to.include(\"Unknown model 'unknownmodel'\");",
+                  "  pm.expect(body.error).to.include('clip');",
+                  "  pm.expect(body.error).to.include('azure');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unknown route",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/does-not-exist",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "does-not-exist"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 404', function () {",
+                  "  pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('404 fallback matches contract', function () {",
+                  "  pm.expect(body).to.eql({",
+                  "    error: 'Endpoint not found'",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "90 Live Provider Validation",
+      "item": [
+        {
+          "name": "Live clip single image",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/accessibility/description",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accessibility",
+                "description"
+              ],
+              "query": [
+                {
+                  "key": "image_source",
+                  "value": "{{liveImageUrl}}"
+                },
+                {
+                  "key": "model",
+                  "value": "clip"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('response is a one-item array', function () {",
+                  "  pm.expect(body).to.be.an('array').with.lengthOf(1);",
+                  "});",
+                  "",
+                  "pm.test('description is a non-empty string for the requested image', function () {",
+                  "  pm.expect(body[0].imageUrl).to.eql(pm.environment.get('liveImageUrl'));",
+                  "  pm.expect(body[0].description).to.be.a('string');",
+                  "  pm.expect(body[0].description.length).to.be.above(5);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Live clip page descriptions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/accessibility/descriptions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accessibility",
+                "descriptions"
+              ],
+              "query": [
+                {
+                  "key": "url",
+                  "value": "{{livePageUrl}}"
+                },
+                {
+                  "key": "model",
+                  "value": "clip"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('response includes page metadata', function () {",
+                  "  pm.expect(body.pageUrl).to.eql(pm.environment.get('livePageUrl'));",
+                  "  pm.expect(body.model).to.eql('clip');",
+                  "  pm.expect(body.totalImages).to.be.a('number');",
+                  "  pm.expect(body.uniqueImages).to.be.a('number');",
+                  "  pm.expect(body.descriptions).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('at least one description is returned', function () {",
+                  "  pm.expect(body.descriptions.length).to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test('each description has the expected shape', function () {",
+                  "  body.descriptions.forEach((item) => {",
+                  "    pm.expect(item).to.have.property('imageUrl');",
+                  "    pm.expect(item).to.have.property('description');",
+                  "    pm.expect(item.imageUrl).to.be.a('string');",
+                  "    pm.expect(item.description).to.be.a('string');",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "collectionVersion",
+      "value": "1.0.0"
+    },
+    {
+      "key": "owner",
+      "value": "Juan Sugg"
+    }
+  ]
+}
