@@ -32,7 +32,7 @@ The service exposes these primary capabilities:
 ## Requirements
 
 - CI validates Node 20, 22, and 24.
-- `engines.node` is currently pinned to `20.x`; use Node 20 locally for the least friction.
+- `engines.node` allows Node 20 through 24; use Node 20 locally for the least friction.
 - npm 10+
 - At least one provider configuration:
   - `REPLICATE_API_TOKEN` for the `clip` model
@@ -82,9 +82,12 @@ Notes:
 - `postman:smoke` is the fast deterministic gate.
 - `postman:harness` runs the full deterministic suite and writes JSON and JUnit reports under `reports/newman/`.
 - `postman:live` is optional and reserved for explicit live-provider validation.
+- CI runs `postman:smoke` on pull requests and `postman:harness` on `main` / `production` pushes.
 - Live mode validates Replicate by default and also validates Azure when `ACV_API_ENDPOINT` and either `ACV_SUBSCRIPTION_KEY` or `ACV_API_KEY` are set.
 - Local harness runs accept self-signed development TLS.
 - The deterministic harness uses a local Azure stub and can boot with a dummy Replicate token or Azure-only configuration.
+
+Contribution standards for the contract suite live in [docs/postman-standards.md](./docs/postman-standards.md).
 
 ## Runtime Essentials
 

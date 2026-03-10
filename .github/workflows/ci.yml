@@ -105,6 +105,8 @@ jobs:
     name: newman
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      NEWMAN_MODE: ${{ github.event_name == 'pull_request' && 'smoke' || 'harness' }}
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -115,13 +117,21 @@ jobs:
           node-version: '20'
 
       - name: Run deterministic Postman/Newman harness
-        run: npm run postman:harness
+        run: npm run "postman:${NEWMAN_MODE}"
+
+      - name: Write Newman summary
+        if: always()
+        run: |
+          node scripts/github/write-newman-summary.js \
+            --reports-dir reports/newman \
+            --collection-path postman/collections/alt-text-generator.postman_collection.json \
+            --summary-file "$GITHUB_STEP_SUMMARY"
 
       - name: Upload Newman artifacts
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: newman-artifacts
+          name: newman-artifacts-${{ env.NEWMAN_MODE }}
           path: reports/newman/
           if-no-files-found: ignore
           retention-days: 7
@@ -145,4 +155,5 @@ jobs:
             echo "- lint: ${{ needs.lint.result }}"
             echo "- test: ${{ needs.test.result }}"
             echo "- newman: ${{ needs.newman.result }}"
+            echo "- newman mode: ${{ github.event_name == 'pull_request' && 'smoke' || 'harness' }}"
           } >> "$GITHUB_STEP_SUMMARY"

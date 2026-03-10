@@ -28,7 +28,7 @@ If you only need a quick local boot, start with `README.md` and come back here f
 
 Recommended toolchain:
 
-- Node.js 20.x recommended (CI runs on Node 20)
+- Node.js 20.x recommended (compatibility is validated on Node 20, 22, and 24)
 - npm 10+
 
 Boot locally:
@@ -73,6 +73,8 @@ The repository uses a small workflow set with separate responsibilities:
   - runs on pushes to `main` and `production`
   - runs on pull requests targeting `main` and `production`
   - executes `actionlint`, `npm run lint`, the Jest matrix on Node 20/22/24, and the deterministic Newman harness
+  - uses `postman:smoke` on pull requests and `postman:harness` on `main` / `production` pushes
+  - publishes a Newman summary derived from JSON artifacts into the workflow summary
 - `Dependency Review` in `.github/workflows/dependency-review.yml`
   - runs only on pull requests that change `package.json` or `package-lock.json`
   - blocks unsafe dependency changes before merge
@@ -125,6 +127,8 @@ Modes:
   - optional live-provider validation
   - intended for explicit live-provider checks, not default CI
   - supports Replicate-only, Azure-only, or combined validation through workflow env flags
+
+Contribution standards for folder naming, tier placement, and assertion policy are documented in [docs/postman-standards.md](./docs/postman-standards.md).
 
 Deterministic harness characteristics:
 

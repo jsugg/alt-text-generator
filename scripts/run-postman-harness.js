@@ -10,6 +10,11 @@ const path = require('node:path');
 const http = require('node:http');
 const https = require('node:https');
 const { spawn } = require('node:child_process');
+const {
+  assertTopLevelFoldersExist,
+  listTopLevelFolderNames,
+  readCollection,
+} = require('./postman/collection-utils');
 
 const ROOT = path.resolve(__dirname, '..');
 const COLLECTION_PATH = path.join(
@@ -264,6 +269,8 @@ async function main() {
   const azureSubscriptionKey = process.env.ACV_SUBSCRIPTION_KEY || process.env.ACV_API_KEY || null;
   const hasLiveAzureConfig = Boolean(process.env.ACV_API_ENDPOINT && azureSubscriptionKey);
   const managedChildren = new Set();
+  const collection = readCollection(COLLECTION_PATH);
+  const availableFolders = listTopLevelFolderNames(collection);
 
   await fs.mkdir(REPORTS_DIR, { recursive: true });
 
@@ -311,6 +318,16 @@ async function main() {
     });
 
     if (mode === 'smoke') {
+      assertTopLevelFoldersExist(
+        availableFolders,
+        [
+          '00 Core Smoke',
+          '07 Route Aliases',
+          '10 Scraper Contract',
+          '20 Single Description (Azure Stub)',
+        ],
+        'smoke mode',
+      );
       await runNewman(
         'smoke',
         [
@@ -322,6 +339,11 @@ async function main() {
         ['--insecure'],
       );
 
+      assertTopLevelFoldersExist(
+        availableFolders,
+        ['05 Routing & Redirects'],
+        'smoke routing verification',
+      );
       await runNewman(
         'routing',
         ['05 Routing & Redirects'],
@@ -330,6 +352,18 @@ async function main() {
     }
 
     if (mode === 'full') {
+      assertTopLevelFoldersExist(
+        availableFolders,
+        [
+          '00 Core Smoke',
+          '07 Route Aliases',
+          '10 Scraper Contract',
+          '20 Single Description (Azure Stub)',
+          '30 Page Descriptions (Azure Stub)',
+          '40 Negative Paths',
+        ],
+        'full mode',
+      );
       await runNewman(
         'core',
         [
@@ -343,6 +377,11 @@ async function main() {
         ['--insecure'],
       );
 
+      assertTopLevelFoldersExist(
+        availableFolders,
+        ['05 Routing & Redirects'],
+        'full routing verification',
+      );
       await runNewman(
         'routing',
         ['05 Routing & Redirects'],
@@ -374,6 +413,11 @@ async function main() {
         throw new Error('Live mode enabled but no live validation folders were selected');
       }
 
+      assertTopLevelFoldersExist(
+        availableFolders,
+        liveFolders,
+        'live mode',
+      );
       await runNewman(
         'live-provider',
         liveFolders,
