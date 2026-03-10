@@ -56,4 +56,51 @@ describe('PageDescriptionService', () => {
       ],
     });
   });
+
+  it('filters model-incompatible image sources before describing a page', async () => {
+    const scraperService = {
+      getImages: jest.fn().mockResolvedValue({
+        imageSources: [
+          'https://example.com/logo.svg',
+          'https://example.com/photo.jpg',
+          'https://example.com/logo.svg',
+        ],
+      }),
+    };
+    const describeImage = jest
+      .fn()
+      .mockImplementation(async (imageUrl) => ({
+        description: `description for ${imageUrl}`,
+        imageUrl,
+      }));
+    const imageDescriberFactory = new ImageDescriberFactory().register('azure', {
+      describeImage,
+      filterSupportedImageSources: jest.fn((imageSources) => imageSources
+        .filter((imageSource) => !imageSource.endsWith('.svg'))),
+    });
+    const service = new PageDescriptionService({
+      scraperService,
+      imageDescriberFactory,
+    });
+
+    const result = await service.describePage({
+      pageUrl: 'https://example.com/page',
+      model: 'azure',
+    });
+
+    expect(describeImage).toHaveBeenCalledTimes(1);
+    expect(describeImage).toHaveBeenCalledWith('https://example.com/photo.jpg');
+    expect(result).toEqual({
+      pageUrl: 'https://example.com/page',
+      model: 'azure',
+      totalImages: 1,
+      uniqueImages: 1,
+      descriptions: [
+        {
+          description: 'description for https://example.com/photo.jpg',
+          imageUrl: 'https://example.com/photo.jpg',
+        },
+      ],
+    });
+  });
 });

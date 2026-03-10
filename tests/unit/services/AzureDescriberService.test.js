@@ -18,6 +18,12 @@ const mockConfig = {
 describe('AzureDescriberService.describeImage', () => {
   it('returns joined captions as description', async () => {
     const mockHttpClient = {
+      get: jest.fn().mockResolvedValue({
+        data: Buffer.from('fake-image-bytes'),
+        headers: {
+          'content-type': 'image/png',
+        },
+      }),
       post: jest.fn().mockResolvedValue({
         data: {
           description: {
@@ -45,6 +51,12 @@ describe('AzureDescriberService.describeImage', () => {
 
   it('calls the API with correct url, data, and headers', async () => {
     const mockHttpClient = {
+      get: jest.fn().mockResolvedValue({
+        data: Buffer.from('image-bytes'),
+        headers: {
+          'content-type': 'image/jpeg',
+        },
+      }),
       post: jest.fn().mockResolvedValue({
         data: { description: { captions: [{ text: 'test' }] } },
       }),
@@ -57,21 +69,32 @@ describe('AzureDescriberService.describeImage', () => {
 
     await svc.describeImage('https://example.com/img.jpg');
 
+    expect(mockHttpClient.get).toHaveBeenCalledWith('https://example.com/img.jpg', {
+      timeout: undefined,
+      maxRedirects: undefined,
+      maxContentLength: undefined,
+      maxBodyLength: undefined,
+      responseType: 'arraybuffer',
+    });
     const [url, data, axiosConfig] = mockHttpClient.post.mock.calls[0];
-    expect(url).toContain('maxCandidates=4');
-    expect(url).toContain('language=en');
-    expect(data).toEqual({ url: 'https://example.com/img.jpg' });
+    expect(url).toBe(
+      'https://eastus.api.cognitive.microsoft.com/vision/v3.2/describe?maxCandidates=4&language=en&model-version=latest&overload=stream',
+    );
+    expect(Buffer.isBuffer(data)).toBe(true);
+    expect(data.equals(Buffer.from('image-bytes'))).toBe(true);
     expect(axiosConfig.headers['Ocp-Apim-Subscription-Key']).toBe('test-key');
+    expect(axiosConfig.headers['Content-Type']).toBe('application/octet-stream');
   });
 
   it('propagates errors from the HTTP client', async () => {
     const error = new Error('Azure error');
     error.code = 'ENOTFOUND';
     error.config = {
-      method: 'post',
-      url: mockConfig.azure.apiEndpoint,
+      method: 'get',
+      url: 'https://example.com/img.jpg',
     };
     const mockHttpClient = {
+      get: jest.fn().mockRejectedValue(error),
       post: jest.fn().mockRejectedValue(error),
     };
     const svc = new AzureDescriberService({
@@ -89,8 +112,8 @@ describe('AzureDescriberService.describeImage', () => {
       upstream: {
         code: 'ENOTFOUND',
         request: {
-          method: 'POST',
-          url: mockConfig.azure.apiEndpoint,
+          method: 'GET',
+          url: 'https://example.com/img.jpg',
         },
       },
     }), 'Azure description request failed');
@@ -98,6 +121,12 @@ describe('AzureDescriberService.describeImage', () => {
 
   it('throws a descriptive error when Azure returns no captions', async () => {
     const mockHttpClient = {
+      get: jest.fn().mockResolvedValue({
+        data: Buffer.from('image-bytes'),
+        headers: {
+          'content-type': 'image/png',
+        },
+      }),
       post: jest.fn().mockResolvedValue({
         data: {
           description: {
@@ -115,5 +144,47 @@ describe('AzureDescriberService.describeImage', () => {
     await expect(svc.describeImage('https://example.com/img.jpg'))
       .rejects
       .toThrow('Azure provider returned no captions');
+  });
+
+  it('filters unsupported sources before they reach Azure', () => {
+    const svc = new AzureDescriberService({
+      logger: mockLogger,
+      httpClient: {
+        get: jest.fn(),
+        post: jest.fn(),
+      },
+      config: mockConfig,
+    });
+
+    expect(svc.filterSupportedImageSources([
+      'https://example.com/a.svg',
+      'https://example.com/b.png',
+      'https://example.com/c.jpg',
+    ])).toEqual([
+      'https://example.com/b.png',
+      'https://example.com/c.jpg',
+    ]);
+  });
+
+  it('rejects unsupported image content types before calling Azure', async () => {
+    const mockHttpClient = {
+      get: jest.fn().mockResolvedValue({
+        data: Buffer.from('<svg></svg>'),
+        headers: {
+          'content-type': 'image/svg+xml',
+        },
+      }),
+      post: jest.fn(),
+    };
+    const svc = new AzureDescriberService({
+      logger: mockLogger,
+      httpClient: mockHttpClient,
+      config: mockConfig,
+    });
+
+    await expect(svc.describeImage('https://example.com/a.svg'))
+      .rejects
+      .toThrow("Azure provider does not support content type 'image/svg+xml'");
+    expect(mockHttpClient.post).not.toHaveBeenCalled();
   });
 });

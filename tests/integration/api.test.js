@@ -211,7 +211,12 @@ describe('GET /api/accessibility/description', () => {
     const appLogger = createAppLogger();
     const requestLogger = createRequestLogger();
     const httpClient = {
-      get: jest.fn(),
+      get: jest.fn().mockResolvedValue({
+        data: Buffer.from('azure-image-bytes'),
+        headers: {
+          'content-type': 'image/jpeg',
+        },
+      }),
       post: jest.fn().mockResolvedValue({
         data: {
           description: {
@@ -269,12 +274,19 @@ describe('GET /api/accessibility/description', () => {
       description: 'an azure-generated caption',
       imageUrl: 'https://example.com/azure-image.jpg',
     }]);
+    expect(httpClient.get).toHaveBeenCalledWith('https://example.com/azure-image.jpg', {
+      timeout: 1500,
+      maxRedirects: 4,
+      maxContentLength: 2048,
+      maxBodyLength: 2048,
+      responseType: 'arraybuffer',
+    });
     expect(httpClient.post).toHaveBeenCalledWith(
-      'https://azure.example.com/vision/v3.2/describe?maxCandidates=4&language=en&model-version=latest',
-      { url: 'https://example.com/azure-image.jpg' },
+      'https://azure.example.com/vision/v3.2/describe?maxCandidates=4&language=en&model-version=latest&overload=stream',
+      Buffer.from('azure-image-bytes'),
       {
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/octet-stream',
           'Ocp-Apim-Subscription-Key': 'azure-key',
         },
       },
