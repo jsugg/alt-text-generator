@@ -90,7 +90,7 @@ module.exports = {
 
   swagger: {
     devServerUrl: process.env.SWAGGER_DEV_URL || 'https://localhost:8443',
-    prodServerUrl: process.env.SWAGGER_PROD_URL || 'https://wcag.qcraft.dev',
+    prodServerUrl: process.env.SWAGGER_PROD_URL || 'https://wcag.qcraft.com.br',
   },
 
   logging: {

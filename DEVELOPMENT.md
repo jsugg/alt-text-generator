@@ -233,8 +233,8 @@ Development TLS behavior:
 | `RATE_LIMIT_WINDOW_MS` | No | `900000` | Rate-limit window. |
 | `RATE_LIMIT_MAX` | No | `100` | Max requests per window. |
 | `LOG_LEVEL` | No | `debug` in non-production, `info` in production | Pino log level for process-stream logs. |
-| `SWAGGER_DEV_URL` | No | `https://localhost:8443` | Swagger server URL for development. |
-| `SWAGGER_PROD_URL` | No | `https://wcag.qcraft.dev` | Swagger server URL for production. |
+| `SWAGGER_DEV_URL` | No | `https://localhost:8443` | Swagger server URL for local development docs. |
+| `SWAGGER_PROD_URL` | No | `https://wcag.qcraft.com.br` | Swagger server URL for production docs. |
 
 - Logging stays on stdout so container platforms can collect it without relying on local files.
 
