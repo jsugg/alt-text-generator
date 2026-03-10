@@ -187,4 +187,47 @@ describe('AzureDescriberService.describeImage', () => {
       .toThrow("Azure provider does not support content type 'image/svg+xml'");
     expect(mockHttpClient.post).not.toHaveBeenCalled();
   });
+
+  it('marks image-source download failures as skippable for page descriptions', () => {
+    const svc = new AzureDescriberService({
+      logger: mockLogger,
+      httpClient: {
+        get: jest.fn(),
+        post: jest.fn(),
+      },
+      config: mockConfig,
+    });
+    const error = new Error('not found');
+    error.response = { status: 404 };
+    error.config = {
+      url: 'https://example.com/missing.png',
+    };
+
+    expect(svc.shouldSkipDescriptionError(error)).toBe(true);
+  });
+
+  it('does not mark Azure auth failures as skippable', () => {
+    const svc = new AzureDescriberService({
+      logger: mockLogger,
+      httpClient: {
+        get: jest.fn(),
+        post: jest.fn(),
+      },
+      config: mockConfig,
+    });
+    const error = new Error('permission denied');
+    error.response = {
+      status: 401,
+      data: {
+        error: {
+          code: 'PermissionDenied',
+        },
+      },
+    };
+    error.config = {
+      url: 'https://eastus.api.cognitive.microsoft.com/vision/v3.2/describe?maxCandidates=4',
+    };
+
+    expect(svc.shouldSkipDescriptionError(error)).toBe(false);
+  });
 });

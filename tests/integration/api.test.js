@@ -360,6 +360,62 @@ describe('GET /api/accessibility/descriptions', () => {
       ],
     });
   });
+
+  it('returns partial page descriptions when image-specific Azure failures are skippable', async () => {
+    const scraperService = {
+      getImages: jest.fn().mockResolvedValue({
+        imageSources: [
+          'https://example.com/a.jpg',
+          'https://example.com/missing.jpg',
+          'https://example.com/a.jpg',
+        ],
+      }),
+    };
+    const imageError = new Error('image timeout');
+    const mockDescriber = {
+      describeImage: jest.fn().mockImplementation(async (imageUrl) => {
+        if (imageUrl === 'https://example.com/missing.jpg') {
+          throw imageError;
+        }
+
+        return {
+          description: `description for ${imageUrl}`,
+          imageUrl,
+        };
+      }),
+      shouldSkipDescriptionError: jest.fn((error) => error === imageError),
+    };
+    const factory = new ImageDescriberFactory().register('azure', mockDescriber);
+    const { app } = buildTestApp({
+      scraperService,
+      imageDescriberFactory: factory,
+    });
+
+    const res = await secureGet(
+      app,
+      `/api/accessibility/descriptions?url=${
+        encodeURIComponent('https://example.com/page')
+      }&model=azure`,
+    );
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      pageUrl: 'https://example.com/page',
+      model: 'azure',
+      totalImages: 2,
+      uniqueImages: 1,
+      descriptions: [
+        {
+          description: 'description for https://example.com/a.jpg',
+          imageUrl: 'https://example.com/a.jpg',
+        },
+        {
+          description: 'description for https://example.com/a.jpg',
+          imageUrl: 'https://example.com/a.jpg',
+        },
+      ],
+    });
+  });
 });
 
 describe('unknown routes', () => {

@@ -71,6 +71,52 @@ class AzureDescriberService {
   }
 
   /**
+   * Returns whether a page-description failure is specific to one source image
+   * and can therefore be skipped without hiding provider-wide outages.
+   * @param {unknown} error
+   * @returns {boolean}
+   */
+  shouldSkipDescriptionError(error) {
+    const message = typeof error?.message === 'string' ? error.message : '';
+
+    if (
+      message.startsWith('Azure provider does not support content type')
+      || message === 'Azure provider received an empty image payload'
+    ) {
+      return true;
+    }
+
+    const requestUrl = typeof error?.config?.url === 'string'
+      ? error.config.url
+      : null;
+    const isAzureRequest = Boolean(requestUrl && requestUrl.startsWith(this.endpoint));
+
+    if (isAzureRequest) {
+      const status = error?.response?.status;
+      const errorCode = error?.response?.data?.error?.innererror?.code
+        || error?.response?.data?.error?.code
+        || null;
+
+      return status === 400 && (
+        errorCode === 'InvalidImageFormat'
+        || errorCode === 'InvalidImageUrl'
+      );
+    }
+
+    const status = error?.response?.status;
+    const code = error?.code;
+
+    return (
+      status === 403
+      || status === 404
+      || status === 410
+      || code === 'ECONNABORTED'
+      || code === 'ENOTFOUND'
+      || code === 'ETIMEDOUT'
+    );
+  }
+
+  /**
    * @param {string} value
    * @returns {string | null}
    */
