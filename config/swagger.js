@@ -1,6 +1,24 @@
 const swaggerJSDoc = require('swagger-jsdoc');
 const config = require('./index');
 
+const buildServers = () => {
+  if (config.env === 'production') {
+    return [
+      {
+        url: config.swagger.prodServerUrl,
+        description: 'Production server',
+      },
+    ];
+  }
+
+  return [
+    {
+      url: config.swagger.devServerUrl,
+      description: 'Development server',
+    },
+  ];
+};
+
 const swaggerDefinition = {
   openapi: '3.0.0',
   info: {
@@ -9,16 +27,7 @@ const swaggerDefinition = {
     description:
       'This API provides descriptions to images, to contribute to the world-wide accessibility efforts.',
   },
-  servers: [
-    {
-      url: config.swagger.devServerUrl,
-      description: 'Development server',
-    },
-    {
-      url: config.swagger.prodServerUrl,
-      description: 'Production server',
-    },
-  ],
+  servers: buildServers(),
 };
 
 const options = {

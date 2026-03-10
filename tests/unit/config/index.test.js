@@ -58,6 +58,10 @@ describe('config', () => {
       windowMs: 15 * 60 * 1000,
       max: 100,
     });
+    expect(config.swagger).toEqual({
+      devServerUrl: 'https://localhost:8443',
+      prodServerUrl: 'https://wcag.qcraft.com.br',
+    });
   });
 
   it('parses numeric overrides for worker and scraper controls', () => {
