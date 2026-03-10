@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - production
+      - housekeeping
+    paths-ignore:
+      - '**/*.md'
+      - '.github/assets/**'
+      - 'LICENSE'
+  pull_request:
+    branches:
+      - main
+      - production
+    paths-ignore:
+      - '**/*.md'
+      - '.github/assets/**'
+      - 'LICENSE'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Setup project
+        uses: ./.github/actions/setup-node-project
+        with:
+          node-version: '20'
+
+      - name: Run lint
+        run: npm run lint
+
+  test:
+    name: test (${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version:
+          - '20'
+          - '22'
+          - '24'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Setup project
+        uses: ./.github/actions/setup-node-project
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Run tests
+        run: npm test -- --ci
+        env:
+          NODE_ENV: test
+          REPLICATE_API_TOKEN: test-token
+
+      - name: Upload Jest coverage
+        if: always() && matrix.node-version == '20'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: jest-coverage-node-${{ matrix.node-version }}
+          path: coverage/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  newman:
+    name: newman
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Setup project
+        uses: ./.github/actions/setup-node-project
+        with:
+          node-version: '20'
+
+      - name: Run deterministic Postman/Newman harness
+        run: npm run postman:harness
+
+      - name: Upload Newman artifacts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: newman-artifacts
+          path: reports/newman/
+          if-no-files-found: ignore
+          retention-days: 7
