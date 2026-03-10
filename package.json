@@ -17,7 +17,7 @@
   "homepage": "https://github.com/jsugg/alt-text-generator#readme",
   "main": "src/app.js",
   "engines": {
-    "node": "20.x"
+    "node": ">=20 <25"
   },
   "scripts": {
     "doctor:tls": "node scripts/doctor-tls.js",
