@@ -1,4 +1,5 @@
 const ScraperController = require('../../../src/api/v1/controllers/scraperController');
+const { ApiError } = require('../../../src/errors/ApiError');
 
 const mockLogger = {
   info: jest.fn(),
@@ -6,40 +7,47 @@ const mockLogger = {
   error: jest.fn(),
 };
 
-const makeResMock = () => {
-  const res = {};
-  res.status = jest.fn().mockReturnValue(res);
-  res.json = jest.fn().mockReturnValue(res);
-  return res;
-};
+const makeResMock = () => ({
+  json: jest.fn(),
+});
 
 describe('ScraperController.getImages', () => {
-  it('returns 400 when url param is missing', async () => {
+  it('forwards a validation error when url is missing', async () => {
     const controller = new ScraperController({
       scraperService: {},
       logger: mockLogger,
     });
     const req = { query: {} };
     const res = makeResMock();
+    const next = jest.fn();
 
-    await controller.getImages(req, res);
+    await controller.getImages(req, res, next);
 
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith({ error: 'Missing required query parameter: url' });
+    expect(next).toHaveBeenCalledWith(expect.any(ApiError));
+    expect(next.mock.calls[0][0]).toMatchObject({
+      statusCode: 400,
+      code: 'QUERY_VALIDATION_ERROR',
+      details: [{ field: 'url', issue: 'required' }],
+    });
   });
 
-  it('returns 400 for an invalid URL', async () => {
+  it('forwards a validation error for an invalid URL', async () => {
     const controller = new ScraperController({
       scraperService: {},
       logger: mockLogger,
     });
     const req = { query: { url: 'not-a-url' } };
     const res = makeResMock();
+    const next = jest.fn();
 
-    await controller.getImages(req, res);
+    await controller.getImages(req, res, next);
 
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith({ error: 'Invalid URL format' });
+    expect(next).toHaveBeenCalledWith(expect.any(ApiError));
+    expect(next.mock.calls[0][0]).toMatchObject({
+      statusCode: 400,
+      code: 'INVALID_PAGE_URL',
+      message: 'Invalid URL format',
+    });
   });
 
   it('returns scraped images on success', async () => {
@@ -52,13 +60,15 @@ describe('ScraperController.getImages', () => {
     });
     const req = { query: { url: encodeURIComponent('https://example.com') } };
     const res = makeResMock();
+    const next = jest.fn();
 
-    await controller.getImages(req, res);
+    await controller.getImages(req, res, next);
 
     expect(res.json).toHaveBeenCalledWith({ imageSources: ['https://example.com/a.jpg'] });
+    expect(next).not.toHaveBeenCalled();
   });
 
-  it('returns 500 when scraper service throws', async () => {
+  it('forwards an internal error when the scraper service fails', async () => {
     const mockScraperService = {
       getImages: jest.fn().mockRejectedValue(new Error('fetch failed')),
     };
@@ -68,12 +78,15 @@ describe('ScraperController.getImages', () => {
     });
     const req = { query: { url: encodeURIComponent('https://example.com') } };
     const res = makeResMock();
+    const next = jest.fn();
 
-    await controller.getImages(req, res);
+    await controller.getImages(req, res, next);
 
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({
-      error: 'Error fetching images from the provided URL',
+    expect(next).toHaveBeenCalledWith(expect.any(ApiError));
+    expect(next.mock.calls[0][0]).toMatchObject({
+      statusCode: 500,
+      code: 'SCRAPE_FETCH_FAILED',
+      message: 'Error fetching images from the provided URL',
     });
   });
 });

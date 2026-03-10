@@ -4,6 +4,8 @@ const { createApp } = require('../../src/createApp');
 const ImageDescriberFactory = require('../../src/services/ImageDescriberFactory');
 const config = require('../../config');
 
+const TEST_REQUEST_ID = 'test-request-id';
+
 const createAppLogger = () => ({
   info: jest.fn(),
   debug: jest.fn(),
@@ -14,7 +16,9 @@ const createAppLogger = () => ({
 
 const createRequestLogger = () => {
   const requestLogger = jest.fn((req, res, next) => {
+    req.id = TEST_REQUEST_ID;
     req.log = requestLogger.logger;
+    res.setHeader('X-Request-Id', TEST_REQUEST_ID);
     next();
   });
 
@@ -35,6 +39,7 @@ const secureGet = (app, path) => request(app)
 const buildTestApp = ({
   scraperService = {},
   imageDescriberFactory = new ImageDescriberFactory(),
+  config: appConfig,
 } = {}) => {
   const appLogger = createAppLogger();
   const requestLogger = createRequestLogger();
@@ -43,6 +48,7 @@ const buildTestApp = ({
     requestLogger,
     scraperService,
     imageDescriberFactory,
+    config: appConfig,
   });
 
   return { app, appLogger, requestLogger };
@@ -120,6 +126,12 @@ describe('GET /api/scraper/images', () => {
     const res = await secureGet(app, '/api/scraper/images');
 
     expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({
+      error: 'Missing required query parameter: url',
+      code: 'QUERY_VALIDATION_ERROR',
+      requestId: TEST_REQUEST_ID,
+      details: [{ field: 'url', issue: 'required' }],
+    });
   });
 
   it('returns image list on success', async () => {
@@ -151,6 +163,11 @@ describe('GET /api/scraper/images', () => {
     );
 
     expect(res.status).toBe(500);
+    expect(res.body).toMatchObject({
+      error: 'Error fetching images from the provided URL',
+      code: 'SCRAPE_FETCH_FAILED',
+      requestId: TEST_REQUEST_ID,
+    });
   });
 });
 
@@ -164,6 +181,12 @@ describe('GET /api/accessibility/description', () => {
     );
 
     expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({
+      error: 'Missing required query parameters: image_source and model',
+      code: 'QUERY_VALIDATION_ERROR',
+      requestId: TEST_REQUEST_ID,
+      details: [{ field: 'image_source', issue: 'required' }],
+    });
   });
 
   it('returns 400 for an unknown model', async () => {
@@ -181,6 +204,8 @@ describe('GET /api/accessibility/description', () => {
 
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/Unknown model/);
+    expect(res.body.code).toBe('UNKNOWN_MODEL');
+    expect(res.body.requestId).toBe(TEST_REQUEST_ID);
   });
 
   it('returns description array on success', async () => {
@@ -304,6 +329,12 @@ describe('GET /api/accessibility/descriptions', () => {
     );
 
     expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({
+      error: 'Missing required query parameters: url and model',
+      code: 'QUERY_VALIDATION_ERROR',
+      requestId: TEST_REQUEST_ID,
+      details: [{ field: 'url', issue: 'required' }],
+    });
   });
 
   it('preserves duplicate entries while reusing one prediction per unique URL', async () => {
@@ -426,5 +457,96 @@ describe('unknown routes', () => {
 
     expect(res.status).toBe(404);
     expect(res.body.error).toBe('Endpoint not found');
+    expect(res.body.code).toBe('ENDPOINT_NOT_FOUND');
+    expect(res.body.requestId).toBe(TEST_REQUEST_ID);
+  });
+});
+
+describe('API access control', () => {
+  const authConfig = {
+    auth: {
+      tokens: ['test-api-token'],
+    },
+    replicate: {},
+    azure: {},
+    scraper: {
+      requestTimeoutMs: 1500,
+      maxRedirects: 4,
+      maxContentLengthBytes: 2048,
+    },
+  };
+
+  it('allows public health endpoints without authentication', async () => {
+    const { app } = buildTestApp({ config: authConfig });
+
+    const res = await secureGet(app, '/api/health');
+
+    expect(res.status).toBe(200);
+  });
+
+  it('rejects protected endpoints without authentication', async () => {
+    const { app } = buildTestApp({ config: authConfig });
+
+    const res = await secureGet(
+      app,
+      `/api/accessibility/description?image_source=${
+        encodeURIComponent('https://example.com/img.jpg')
+      }&model=clip`,
+    );
+
+    expect(res.status).toBe(401);
+    expect(res.body).toMatchObject({
+      error: 'Missing or invalid API authentication credentials',
+      code: 'API_AUTHENTICATION_FAILED',
+      requestId: TEST_REQUEST_ID,
+    });
+  });
+
+  it('accepts X-API-Key authentication on protected endpoints', async () => {
+    const factory = new ImageDescriberFactory().register('clip', {
+      describeImage: jest.fn().mockResolvedValue({
+        description: 'authenticated description',
+        imageUrl: 'https://example.com/img.jpg',
+      }),
+    });
+    const { app } = buildTestApp({
+      config: authConfig,
+      imageDescriberFactory: factory,
+    });
+
+    const res = await secureGet(
+      app,
+      `/api/accessibility/description?image_source=${
+        encodeURIComponent('https://example.com/img.jpg')
+      }&model=clip`,
+    ).set('X-API-Key', 'test-api-token');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([{
+      description: 'authenticated description',
+      imageUrl: 'https://example.com/img.jpg',
+    }]);
+  });
+
+  it('accepts Bearer authentication on protected endpoints', async () => {
+    const scraperService = {
+      getImages: jest.fn().mockResolvedValue({
+        imageSources: ['https://example.com/a.jpg'],
+      }),
+    };
+    const { app } = buildTestApp({
+      config: authConfig,
+      scraperService,
+    });
+
+    const res = await secureGet(
+      app,
+      `/api/scraper/images?url=${encodeURIComponent('https://example.com')}`,
+    ).set('Authorization', 'Bearer test-api-token');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      imageSources: ['https://example.com/a.jpg'],
+    });
   });
 });

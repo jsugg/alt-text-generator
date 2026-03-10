@@ -7,6 +7,7 @@ If you only need a quick local boot, start with `README.md` and come back here f
 - full configuration reference (env vars and defaults)
 - production-like external integration validation
 - TLS and outbound trust troubleshooting (scraper and providers)
+- auth and public error-contract behavior
 
 ## Table of Contents
 
@@ -209,6 +210,7 @@ Notes:
 | --- | --- | --- | --- |
 | `NODE_ENV` | No | `development` | Valid values: `development`, `production`, `test`. |
 | `REPLICATE_API_TOKEN` | No | none | Required only to register the `clip` provider and for real Replicate-backed descriptions. |
+| `API_AUTH_TOKENS` | No | unset | Optional comma-separated API tokens. When set, scraper and description endpoints require either `Authorization: Bearer <token>` or `X-API-Key: <token>`. |
 | `ENV_FILE` | No | `.env` | Selects which dotenv file to load at startup. Not validated by Joi. |
 
 ### Network and Inbound TLS (server)
@@ -283,6 +285,8 @@ At least one provider must be configured at startup: `REPLICATE_API_TOKEN`, or A
 | `SWAGGER_PROD_URL` | No | `https://wcag.qcraft.com.br` | Swagger server URL for production docs. |
 
 - Logging stays on stdout so container platforms can collect it without relying on local files.
+- Public endpoints remain `ping`, `health`, and `api-docs` even when `API_AUTH_TOKENS` is set.
+- Auth-protected API failures use a structured JSON contract with `error`, `code`, `requestId`, and optional `details`.
 
 ## Render Deployment Contract
 

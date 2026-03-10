@@ -184,4 +184,26 @@ describe('validateEnvVars', () => {
 
     expect(() => validateEnvVars()).toThrow(/ACV_API_ENDPOINT/);
   });
+
+  it('accepts non-empty API auth tokens when provided', () => {
+    const validateEnvVars = loadValidator({
+      overrides: {
+        REPLICATE_API_TOKEN: 'test-token',
+        API_AUTH_TOKENS: 'token-a, token-b',
+      },
+    });
+
+    expect(() => validateEnvVars()).not.toThrow();
+  });
+
+  it('rejects API auth tokens when the configured list is empty after trimming', () => {
+    const validateEnvVars = loadValidator({
+      overrides: {
+        REPLICATE_API_TOKEN: 'test-token',
+        API_AUTH_TOKENS: ' ,  , ',
+      },
+    });
+
+    expect(() => validateEnvVars()).toThrow(/API_AUTH_TOKENS/);
+  });
 });

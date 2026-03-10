@@ -16,6 +16,17 @@ const toOptionalNumber = (value) => {
   return Number.isFinite(parsedValue) ? parsedValue : undefined;
 };
 
+const toList = (value) => {
+  if (typeof value !== 'string') {
+    return [];
+  }
+
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+};
+
 module.exports = {
   env: process.env.NODE_ENV || 'development',
 
@@ -86,6 +97,10 @@ module.exports = {
   rateLimit: {
     windowMs: toNumber(process.env.RATE_LIMIT_WINDOW_MS, 15 * 60 * 1000),
     max: toNumber(process.env.RATE_LIMIT_MAX, 100),
+  },
+
+  auth: {
+    tokens: toList(process.env.API_AUTH_TOKENS),
   },
 
   swagger: {

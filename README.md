@@ -27,6 +27,7 @@ The service exposes these primary capabilities:
 - Swagger UI for interactive API exploration
 - Lint and test automation in CI
 - Deterministic Postman/Newman API contract harness with local stubs
+- Optional token-based API access control for cost-bearing endpoints
 
 ## Requirements
 
@@ -102,6 +103,10 @@ Required for live Azure descriptions:
 Common local settings:
 
 - `PORT` and `TLS_PORT`
+- `API_AUTH_TOKENS`
+  - Optional comma-separated tokens
+  - When set, scraper and description endpoints require `Authorization: Bearer <token>` or `X-API-Key: <token>`
+  - `ping`, `health`, and `api-docs` stay public
 - `TRUST_PROXY_HOPS`
   - Defaults to `1`
   - Controls how many proxy hops Express trusts for forwarded headers
@@ -119,11 +124,22 @@ Clustered mode applies bounded restart backoff and a crash budget so persistent 
 Production logs stay on the process stream so platforms such as Render can collect them directly.
 The Render deployment shape is versioned in [render.yaml](./render.yaml), while the Node runtime pin remains in [`package.json`](./package.json) under `engines.node`.
 
+## Error Contract
+
+Error responses keep the existing top-level `error` message and add stable metadata:
+
+- `error`: human-readable message
+- `code`: machine-readable error code
+- `requestId`: request correlation id when available
+- `details`: optional validation details for field-level failures
+
 ## API Endpoints
 
 ### Swagger Documentation
 
 Interactive documentation: `/api-docs`
+
+When `API_AUTH_TOKENS` is configured, use Swagger UI's `Authorize` flow with either a Bearer token or `X-API-Key`.
 
 ### Images
 
