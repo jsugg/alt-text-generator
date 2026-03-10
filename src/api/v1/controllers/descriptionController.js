@@ -33,7 +33,7 @@ class DescriptionController {
    *         required: true
    *         schema:
    *           type: string
-   *           example: https%3A%2F%2Fexample.com%2Fphoto.jpg
+   *           example: https%3A%2F%2Fdeveloper.chrome.com%2Fstatic%2Fimages%2Fai-homepage-card.png
    *       - name: model
    *         in: query
    *         description: The AI model to use, for example `clip` or `azure`.
@@ -56,7 +56,7 @@ class DescriptionController {
    *                     example: A man with glasses is playing a violin.
    *                   imageUrl:
    *                     type: string
-   *                     example: https://example.com/photo.jpg
+   *                     example: https://developer.chrome.com/static/images/ai-homepage-card.png
    *       400:
    *         description: Missing or invalid parameters, or unsupported model
    *       500:
@@ -110,7 +110,7 @@ class DescriptionController {
    *         required: true
    *         schema:
    *           type: string
-   *           example: https%3A%2F%2Fexample.com
+   *           example: https%3A%2F%2Fdeveloper.chrome.com%2F
    *       - name: model
    *         in: query
    *         description: The AI model to use, for example `clip` or `azure`.
