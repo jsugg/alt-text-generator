@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       run_replicate:
-        description: Include Replicate live validation. Use auto to defer to environment defaults.
+        description: Include Replicate live validation. Use auto to keep Replicate opt-in unless explicitly enabled.
         required: false
         default: auto
         type: choice
@@ -13,7 +13,7 @@ on:
           - true
           - false
       run_azure:
-        description: Include Azure live validation when Azure secrets are configured. Use auto to defer to environment defaults.
+        description: Include Azure live validation when Azure secrets are configured. Use auto to prefer Azure when available.
         required: false
         default: auto
         type: choice
@@ -71,6 +71,10 @@ jobs:
           SECRET_RUN_REPLICATE: ${{ secrets.RUN_REPLICATE }}
           SECRET_RUN_LIVE_AZURE: ${{ secrets.RUN_LIVE_AZURE }}
           SECRET_RUN_AZURE: ${{ secrets.RUN_AZURE }}
+          REPLICATE_API_TOKEN_CONFIGURED: ${{ secrets.REPLICATE_API_TOKEN != '' && 'true' || 'false' }}
+          ACV_API_ENDPOINT_CONFIGURED: ${{ secrets.ACV_API_ENDPOINT != '' && 'true' || 'false' }}
+          ACV_SUBSCRIPTION_KEY_CONFIGURED: ${{ secrets.ACV_SUBSCRIPTION_KEY != '' && 'true' || 'false' }}
+          ACV_API_KEY_CONFIGURED: ${{ secrets.ACV_API_KEY != '' && 'true' || 'false' }}
           ENABLE_SCHEDULED_AZURE_LIVE_VALIDATION: ${{ vars.ENABLE_SCHEDULED_AZURE_LIVE_VALIDATION }}
         run: |
           normalize_boolean() {
@@ -143,17 +147,38 @@ jobs:
             printf '%s\n' "$default_value"
           }
 
-          if [ "${{ github.event_name }}" = "schedule" ]; then
-            echo "RUN_REPLICATE=true" >> "$GITHUB_ENV"
-            if [ "${ENABLE_SCHEDULED_AZURE_LIVE_VALIDATION}" = "true" ]; then
-              echo "RUN_AZURE=true" >> "$GITHUB_ENV"
-            else
-              echo "RUN_AZURE=false" >> "$GITHUB_ENV"
-            fi
-          else
-            echo "RUN_REPLICATE=$(resolve_manual_toggle "$INPUT_RUN_REPLICATE" "$ENV_RUN_LIVE_REPLICATE" "$ENV_RUN_REPLICATE" "$SECRET_RUN_LIVE_REPLICATE" "$SECRET_RUN_REPLICATE" "true")" >> "$GITHUB_ENV"
-            echo "RUN_AZURE=$(resolve_manual_toggle "$INPUT_RUN_AZURE" "$ENV_RUN_LIVE_AZURE" "$ENV_RUN_AZURE" "$SECRET_RUN_LIVE_AZURE" "$SECRET_RUN_AZURE" "true")" >> "$GITHUB_ENV"
+          azure_configured='false'
+          if [ "${ACV_API_ENDPOINT_CONFIGURED}" = "true" ] && { [ "${ACV_SUBSCRIPTION_KEY_CONFIGURED}" = "true" ] || [ "${ACV_API_KEY_CONFIGURED}" = "true" ]; }; then
+            azure_configured='true'
           fi
+
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            run_replicate="$(resolve_manual_toggle "auto" "$ENV_RUN_LIVE_REPLICATE" "$ENV_RUN_REPLICATE" "$SECRET_RUN_LIVE_REPLICATE" "$SECRET_RUN_REPLICATE" "false")"
+            scheduled_azure_default='false'
+            if [ "${ENABLE_SCHEDULED_AZURE_LIVE_VALIDATION}" = "true" ] && [ "${azure_configured}" = "true" ]; then
+              scheduled_azure_default='true'
+            fi
+            run_azure="$(resolve_manual_toggle "auto" "$ENV_RUN_LIVE_AZURE" "$ENV_RUN_AZURE" "$SECRET_RUN_LIVE_AZURE" "$SECRET_RUN_AZURE" "${scheduled_azure_default}")"
+          else
+            manual_azure_default='false'
+            if [ "${azure_configured}" = "true" ]; then
+              manual_azure_default='true'
+            fi
+
+            run_replicate="$(resolve_manual_toggle "$INPUT_RUN_REPLICATE" "$ENV_RUN_LIVE_REPLICATE" "$ENV_RUN_REPLICATE" "$SECRET_RUN_LIVE_REPLICATE" "$SECRET_RUN_REPLICATE" "false")"
+            run_azure="$(resolve_manual_toggle "$INPUT_RUN_AZURE" "$ENV_RUN_LIVE_AZURE" "$ENV_RUN_AZURE" "$SECRET_RUN_LIVE_AZURE" "$SECRET_RUN_AZURE" "${manual_azure_default}")"
+
+            if [ "${run_replicate}" = "false" ] && [ "${run_azure}" = "false" ]; then
+              if [ "${azure_configured}" = "true" ]; then
+                run_azure='true'
+              elif [ "${REPLICATE_API_TOKEN_CONFIGURED}" = "true" ]; then
+                run_replicate='true'
+              fi
+            fi
+          fi
+
+          echo "RUN_REPLICATE=${run_replicate}" >> "$GITHUB_ENV"
+          echo "RUN_AZURE=${run_azure}" >> "$GITHUB_ENV"
 
       - name: Validate live-provider secrets
         env:

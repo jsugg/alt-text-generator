@@ -86,7 +86,7 @@ Notes:
 - `postman:deploy` runs the hosted deploy-smoke folder from the same Postman collection against a supplied base URL.
 - CI runs `postman:smoke` on pull requests and `postman:harness` on `main` / `production` pushes.
 - Deploy verification runs `postman:deploy` on `production` pushes so hosted smoke checks stay inside the Newman contract layer.
-- Live mode validates Replicate by default and also validates Azure when `ACV_API_ENDPOINT` and either `ACV_SUBSCRIPTION_KEY` or `ACV_API_KEY` are set.
+- Live mode is opt-in, prefers Azure when Azure credentials are configured, and only runs Replicate when it is explicitly enabled or it is the only configured live provider.
 - Local harness runs accept self-signed development TLS.
 - The deterministic harness uses a local Azure stub and can boot with a dummy Replicate token or Azure-only configuration.
 
