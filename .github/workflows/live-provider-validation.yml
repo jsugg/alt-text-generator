@@ -40,6 +40,7 @@ jobs:
     if: github.event_name != 'schedule' || vars.ENABLE_SCHEDULED_LIVE_PROVIDER_VALIDATION == 'true'
     name: live-provider
     runs-on: ubuntu-latest
+    environment: pre-prod
     timeout-minutes: 20
     steps:
       - name: Checkout
