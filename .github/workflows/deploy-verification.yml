@@ -59,3 +59,13 @@ jobs:
           curl --retry 2 --retry-all-errors --max-time 45 --fail-with-body --silent --show-error \
             "${BASE_URL}/api/accessibility/description?image_source=https%3A%2F%2Fdeveloper.chrome.com%2Fstatic%2Fimages%2Fai-homepage-card.png&model=azure" \
             | jq -e 'type == "array" and length == 1 and (.[0].description | type == "string" and length > 0)'
+
+      - name: Write summary
+        if: always()
+        run: |
+          {
+            echo "## Deploy Verification"
+            echo
+            echo "- Base URL: ${BASE_URL}"
+            echo "- Event: ${{ github.event_name }}"
+          } >> "$GITHUB_STEP_SUMMARY"

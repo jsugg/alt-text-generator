@@ -259,6 +259,8 @@ function installSignalCleanup(children) {
 async function main() {
   const mode = process.argv[2] || 'full';
   const liveModeEnabled = mode === 'live' || process.env.RUN_LIVE_PROVIDER === 'true';
+  const runLiveReplicate = process.env.RUN_LIVE_REPLICATE !== 'false';
+  const runLiveAzure = process.env.RUN_LIVE_AZURE !== 'false';
   const azureSubscriptionKey = process.env.ACV_SUBSCRIPTION_KEY || process.env.ACV_API_KEY || null;
   const hasLiveAzureConfig = Boolean(process.env.ACV_API_ENDPOINT && azureSubscriptionKey);
   const managedChildren = new Set();
@@ -349,13 +351,27 @@ async function main() {
     }
 
     if (liveModeEnabled) {
-      const liveFolders = ['90 Live Provider Validation'];
+      const liveFolders = [];
 
-      if (hasLiveAzureConfig) {
-        liveFolders.push('91 Live Azure Validation');
+      if (runLiveReplicate) {
+        liveFolders.push('90 Live Provider Validation');
       } else {
         // eslint-disable-next-line no-console
+        console.log('Skipping 90 Live Provider Validation: RUN_LIVE_REPLICATE=false');
+      }
+
+      if (runLiveAzure && hasLiveAzureConfig) {
+        liveFolders.push('91 Live Azure Validation');
+      } else if (runLiveAzure) {
+        // eslint-disable-next-line no-console
         console.log('Skipping 91 Live Azure Validation: ACV_API_ENDPOINT/ACV_SUBSCRIPTION_KEY not set');
+      } else {
+        // eslint-disable-next-line no-console
+        console.log('Skipping 91 Live Azure Validation: RUN_LIVE_AZURE=false');
+      }
+
+      if (liveFolders.length === 0) {
+        throw new Error('Live mode enabled but no live validation folders were selected');
       }
 
       await runNewman(

@@ -12,6 +12,7 @@ If you only need a quick local boot, start with `README.md` and come back here f
 
 - Quick Start (Dev)
 - Common Commands
+- GitHub Workflows
 - Postman/Newman Harness
 - Supported Models
 - Configuration and Profiles
@@ -63,6 +64,49 @@ npm run doctor:tls -- https://example.com
 npm run doctor:tls -- https://example.com --fix --write-env --env-file .env.test
 ```
 
+## GitHub Workflows
+
+The repository uses a small workflow set with separate responsibilities:
+
+- `CI` in `.github/workflows/ci.yml`
+  - runs on pushes to `main` and `production`
+  - runs on pull requests targeting `main` and `production`
+  - executes `actionlint`, `npm run lint`, the Jest matrix on Node 20/22/24, and the deterministic Newman harness
+- `Dependency Review` in `.github/workflows/dependency-review.yml`
+  - runs only on pull requests that change `package.json` or `package-lock.json`
+  - blocks unsafe dependency changes before merge
+- `CodeQL` in `.github/workflows/codeql.yml`
+  - runs on pushes and pull requests for `main` and `production`
+  - also runs on a weekly schedule for repository-wide static analysis
+- `Security Audit` in `.github/workflows/security-audit.yml`
+  - runs on a weekly schedule and by manual dispatch
+  - executes `npm audit --omit=dev --audit-level=high`
+  - uploads audit artifacts and fails when high or critical production dependency findings exist
+- `Live Provider Validation` in `.github/workflows/live-provider-validation.yml`
+  - manual only
+  - runs `npm run postman:live`
+  - requires `REPLICATE_API_TOKEN`
+  - includes Azure validation only when Azure secrets are provided and `run_azure` stays enabled
+  - also supports a guarded weekly schedule when the repository variable `ENABLE_SCHEDULED_LIVE_PROVIDER_VALIDATION` is set to `true`
+- scheduled Azure live validation additionally requires `ENABLE_SCHEDULED_AZURE_LIVE_VALIDATION=true`
+- `Deploy Verification` in `.github/workflows/deploy-verification.yml`
+  - runs automatically on `production` pushes
+  - verifies the deployed service health, Swagger server URL, scraper behavior, and one Azure-backed description endpoint
+- `Promote to Production` in `.github/workflows/promote-to-production.yml`
+  - manual only
+  - verifies that `main` has all required checks green
+  - opens or reuses a `main` -> `production` pull request
+  - can enable PR auto-merge after required checks pass
+
+Branch protection currently requires these checks on both `main` and `production`:
+
+- `actionlint`
+- `lint`
+- `newman`
+- `test (20)`
+- `test (22)`
+- `test (24)`
+
 ## Postman/Newman Harness
 
 The repository includes a black-box contract harness that validates the API over real HTTP/HTTPS instead of through in-process Supertest only.
@@ -78,7 +122,8 @@ Modes:
   - writes JSON and JUnit reports to `reports/newman/`
 - `npm run postman:live`
   - optional live-provider validation
-  - intended for explicit Replicate checks, not default CI
+  - intended for explicit live-provider checks, not default CI
+  - supports Replicate-only, Azure-only, or combined validation through workflow env flags
 
 Deterministic harness characteristics:
 
