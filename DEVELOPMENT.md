@@ -59,6 +59,7 @@ npm run lint
 NODE_ENV=test REPLICATE_API_TOKEN=test-token npm test -- --runInBand
 npm run postman:smoke
 npm run postman:harness
+npm run postman:deploy -- --base-url https://wcag.qcraft.com.br
 
 # outbound TLS diagnostics
 npm run doctor:tls -- https://example.com
@@ -95,7 +96,8 @@ The repository uses a small workflow set with separate responsibilities:
 - scheduled Azure live validation additionally requires `ENABLE_SCHEDULED_AZURE_LIVE_VALIDATION=true`
 - `Deploy Verification` in `.github/workflows/deploy-verification.yml`
   - runs automatically on `production` pushes
-  - verifies the deployed service health, Swagger server URL, scraper behavior, and one Azure-backed description endpoint
+  - runs `npm run postman:deploy -- --base-url <host>`
+  - reuses the Postman deploy folder to verify hosted health, Swagger server URL, scraper behavior, and one Azure-backed description endpoint
 - `Promote to Production` in `.github/workflows/promote-to-production.yml`
   - manual only
   - verifies that `main` has the required CI checks green
@@ -119,21 +121,25 @@ Modes:
 
 - `npm run postman:smoke`
   - fast deterministic gate
-  - covers core smoke, scraper contract, one Azure-stubbed description, and routing checks
+  - covers core smoke, route aliases, protected-endpoint auth, scraper contract, one Azure-stubbed description, and routing checks
 - `npm run postman:harness`
   - full deterministic suite
-  - includes page descriptions and negative-path coverage
+  - includes protected-endpoint auth, page descriptions, and negative-path coverage
   - writes JSON and JUnit reports to `reports/newman/`
 - `npm run postman:live`
   - optional live-provider validation
   - intended for explicit live-provider checks, not default CI
   - supports Replicate-only, Azure-only, or combined validation through workflow env flags
+- `npm run postman:deploy -- --base-url https://wcag.qcraft.com.br`
+  - hosted deploy smoke verification
+  - runs only the deploy folder from the shared Postman collection and writes `deploy.json` / `deploy.xml`
 
 Contribution standards for folder naming, tier placement, and assertion policy are documented in [docs/postman-standards.md](./docs/postman-standards.md).
 
 Deterministic harness characteristics:
 
 - starts the local app on `https://127.0.0.1:8443` and `http://127.0.0.1:8080`
+- starts an auth-enabled local app on `https://127.0.0.1:18443` for protected-endpoint contract checks
 - starts a local fixture server on `http://127.0.0.1:19090`
 - configures Azure to point at the fixture server stub endpoint
 - uses a dummy `REPLICATE_API_TOKEN` if one is not already set
@@ -149,6 +155,8 @@ Generated artifacts:
 - `reports/newman/routing.xml`
 - `reports/newman/live-provider.json`
 - `reports/newman/live-provider.xml`
+- `reports/newman/deploy.json`
+- `reports/newman/deploy.xml`
 
 Use the deterministic modes for routine validation and CI. Use the live mode only when you deliberately want to validate vendor connectivity and account readiness.
 

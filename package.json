@@ -26,6 +26,7 @@
     "postman:smoke": "node scripts/run-postman-harness.js smoke",
     "postman:harness": "node scripts/run-postman-harness.js full",
     "postman:live": "node scripts/run-postman-harness.js live",
+    "postman:deploy": "node scripts/run-postman-deploy.js",
     "test": "jest",
     "prod": "NODE_ENV=production node src/app.js",
     "dev": "NODE_ENV=development nodemon src/app.js | pino-pretty -i streams,options"

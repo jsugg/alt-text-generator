@@ -10,7 +10,7 @@ Use the Postman/Newman layer for external HTTP contract validation, not for re-t
 
 - `smoke`
   - Fast deterministic checks required on pull requests
-  - Covers core health/docs/routing and one representative provider path
+  - Covers core health/docs/routing, protected-endpoint auth, and one representative provider path
 - `full`
   - Full deterministic harness for `main` and `production`
   - Adds broader contract, negative-path, and page-description coverage
