@@ -1,0 +1,54 @@
+name: Live Provider Validation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-provider-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  live-provider:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate live-provider secrets
+        env:
+          REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
+        run: |
+          if [ -z "${REPLICATE_API_TOKEN}" ]; then
+            echo "REPLICATE_API_TOKEN secret is required for live provider validation."
+            exit 1
+          fi
+
+      - name: Run live provider validation
+        run: npm run postman:live
+        env:
+          REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
+          ACV_API_ENDPOINT: ${{ secrets.ACV_API_ENDPOINT }}
+          ACV_SUBSCRIPTION_KEY: ${{ secrets.ACV_SUBSCRIPTION_KEY }}
+          ACV_API_KEY: ${{ secrets.ACV_API_KEY }}
+
+      - name: Upload live validation artifacts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: live-provider-artifacts
+          path: reports/newman/
+          if-no-files-found: ignore
+          retention-days: 7

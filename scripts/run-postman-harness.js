@@ -159,9 +159,23 @@ function runNewman(label, folders, extraArgs = []) {
     '--env-var',
     `samplePageUrl=http://${HOST}:${FIXTURE_PORT}/fixtures/page-with-images`,
     '--env-var',
+    `samplePartialPageUrl=http://${HOST}:${FIXTURE_PORT}/fixtures/page-with-partial-images`,
+    '--env-var',
+    `sampleProviderFailurePageUrl=http://${HOST}:${FIXTURE_PORT}/fixtures/page-with-provider-failure`,
+    '--env-var',
     `sampleImageAUrl=http://${HOST}:${FIXTURE_PORT}/assets/a.png`,
     '--env-var',
     `sampleImageBUrl=http://${HOST}:${FIXTURE_PORT}/assets/b.png`,
+    '--env-var',
+    `missingImageUrl=http://${HOST}:${FIXTURE_PORT}/assets/missing.png`,
+    '--env-var',
+    `providerFailureImageUrl=http://${HOST}:${FIXTURE_PORT}/assets/provider-error.png`,
+    '--env-var',
+    `expectedSwaggerServerUrl=https://localhost:${APP_HTTPS_PORT}`,
+    '--env-var',
+    'liveAzureImageUrl=https://developer.chrome.com/static/images/ai-homepage-card.png',
+    '--env-var',
+    'liveAzurePageUrl=https://developer.chrome.com/',
     '--env-var',
     'model=azure',
     '--env-var',
@@ -244,6 +258,9 @@ function installSignalCleanup(children) {
  */
 async function main() {
   const mode = process.argv[2] || 'full';
+  const liveModeEnabled = mode === 'live' || process.env.RUN_LIVE_PROVIDER === 'true';
+  const azureSubscriptionKey = process.env.ACV_SUBSCRIPTION_KEY || process.env.ACV_API_KEY || null;
+  const hasLiveAzureConfig = Boolean(process.env.ACV_API_ENDPOINT && azureSubscriptionKey);
   const managedChildren = new Set();
 
   await fs.mkdir(REPORTS_DIR, { recursive: true });
@@ -269,9 +286,14 @@ async function main() {
       TLS_PORT: APP_HTTPS_PORT,
       WORKER_COUNT: '1',
       LOG_LEVEL: 'info',
+      SWAGGER_DEV_URL: `https://localhost:${APP_HTTPS_PORT}`,
       REPLICATE_API_TOKEN: process.env.REPLICATE_API_TOKEN || 'test-token',
-      ACV_API_ENDPOINT: `http://${HOST}:${FIXTURE_PORT}/vision/v3.2/describe`,
-      ACV_SUBSCRIPTION_KEY: 'stub-key',
+      ACV_API_ENDPOINT: liveModeEnabled && hasLiveAzureConfig
+        ? process.env.ACV_API_ENDPOINT
+        : `http://${HOST}:${FIXTURE_PORT}/vision/v3.2/describe`,
+      ACV_SUBSCRIPTION_KEY: liveModeEnabled && hasLiveAzureConfig
+        ? azureSubscriptionKey
+        : 'stub-key',
       ACV_LANGUAGE: 'en',
       ACV_MAX_CANDIDATES: '4',
     },
@@ -291,6 +313,7 @@ async function main() {
         'smoke',
         [
           '00 Core Smoke',
+          '07 Route Aliases',
           '10 Scraper Contract',
           '20 Single Description (Azure Stub)',
         ],
@@ -309,6 +332,7 @@ async function main() {
         'core',
         [
           '00 Core Smoke',
+          '07 Route Aliases',
           '10 Scraper Contract',
           '20 Single Description (Azure Stub)',
           '30 Page Descriptions (Azure Stub)',
@@ -324,10 +348,19 @@ async function main() {
       );
     }
 
-    if (mode === 'live' || process.env.RUN_LIVE_PROVIDER === 'true') {
+    if (liveModeEnabled) {
+      const liveFolders = ['90 Live Provider Validation'];
+
+      if (hasLiveAzureConfig) {
+        liveFolders.push('91 Live Azure Validation');
+      } else {
+        // eslint-disable-next-line no-console
+        console.log('Skipping 91 Live Azure Validation: ACV_API_ENDPOINT/ACV_SUBSCRIPTION_KEY not set');
+      }
+
       await runNewman(
         'live-provider',
-        ['90 Live Provider Validation'],
+        liveFolders,
         ['--insecure'],
       );
     }
