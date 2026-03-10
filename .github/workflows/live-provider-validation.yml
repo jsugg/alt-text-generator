@@ -67,6 +67,10 @@ jobs:
           ENV_RUN_REPLICATE: ${{ vars.RUN_REPLICATE }}
           ENV_RUN_LIVE_AZURE: ${{ vars.RUN_LIVE_AZURE }}
           ENV_RUN_AZURE: ${{ vars.RUN_AZURE }}
+          SECRET_RUN_LIVE_REPLICATE: ${{ secrets.RUN_LIVE_REPLICATE }}
+          SECRET_RUN_REPLICATE: ${{ secrets.RUN_REPLICATE }}
+          SECRET_RUN_LIVE_AZURE: ${{ secrets.RUN_LIVE_AZURE }}
+          SECRET_RUN_AZURE: ${{ secrets.RUN_AZURE }}
           ENABLE_SCHEDULED_AZURE_LIVE_VALIDATION: ${{ vars.ENABLE_SCHEDULED_AZURE_LIVE_VALIDATION }}
         run: |
           normalize_boolean() {
@@ -91,7 +95,9 @@ jobs:
             local input_value="$1"
             local primary_env_value="$2"
             local secondary_env_value="$3"
-            local default_value="$4"
+            local primary_secret_value="$4"
+            local secondary_secret_value="$5"
+            local default_value="$6"
 
             case "$input_value" in
               true|false)
@@ -120,6 +126,20 @@ jobs:
               return
             fi
 
+            local normalized_primary_secret
+            normalized_primary_secret="$(normalize_boolean "$primary_secret_value")"
+            if [ -n "$normalized_primary_secret" ]; then
+              printf '%s\n' "$normalized_primary_secret"
+              return
+            fi
+
+            local normalized_secondary_secret
+            normalized_secondary_secret="$(normalize_boolean "$secondary_secret_value")"
+            if [ -n "$normalized_secondary_secret" ]; then
+              printf '%s\n' "$normalized_secondary_secret"
+              return
+            fi
+
             printf '%s\n' "$default_value"
           }
 
@@ -131,8 +151,8 @@ jobs:
               echo "RUN_AZURE=false" >> "$GITHUB_ENV"
             fi
           else
-            echo "RUN_REPLICATE=$(resolve_manual_toggle "$INPUT_RUN_REPLICATE" "$ENV_RUN_LIVE_REPLICATE" "$ENV_RUN_REPLICATE" "true")" >> "$GITHUB_ENV"
-            echo "RUN_AZURE=$(resolve_manual_toggle "$INPUT_RUN_AZURE" "$ENV_RUN_LIVE_AZURE" "$ENV_RUN_AZURE" "true")" >> "$GITHUB_ENV"
+            echo "RUN_REPLICATE=$(resolve_manual_toggle "$INPUT_RUN_REPLICATE" "$ENV_RUN_LIVE_REPLICATE" "$ENV_RUN_REPLICATE" "$SECRET_RUN_LIVE_REPLICATE" "$SECRET_RUN_REPLICATE" "true")" >> "$GITHUB_ENV"
+            echo "RUN_AZURE=$(resolve_manual_toggle "$INPUT_RUN_AZURE" "$ENV_RUN_LIVE_AZURE" "$ENV_RUN_AZURE" "$SECRET_RUN_LIVE_AZURE" "$SECRET_RUN_AZURE" "true")" >> "$GITHUB_ENV"
           fi
 
       - name: Validate live-provider secrets
