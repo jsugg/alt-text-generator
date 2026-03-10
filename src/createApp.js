@@ -37,6 +37,7 @@ const buildImageDescriberFactory = ({
   logger,
   replicateClient,
   httpClient,
+  requestOptions,
 }) => {
   const factory = new ImageDescriberFactory();
   const replicateDescriber = new ReplicateDescriberService({
@@ -52,6 +53,7 @@ const buildImageDescriberFactory = ({
       logger,
       httpClient,
       config,
+      requestOptions,
     });
 
     factory.register('azure', azureDescriber);
@@ -90,6 +92,11 @@ const createApp = ({
       config,
       logger: appLogger,
       httpClient: resolvedHttpClient,
+      requestOptions: {
+        timeout: scraperConfig.requestTimeoutMs,
+        maxRedirects: scraperConfig.maxRedirects,
+        maxContentLength: scraperConfig.maxContentLengthBytes,
+      },
       replicateClient: replicateClient
         ?? buildReplicateClient(config, resolvedOutboundClients.fetch),
     });

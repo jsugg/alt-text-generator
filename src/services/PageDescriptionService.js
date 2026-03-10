@@ -32,9 +32,12 @@ class PageDescriptionService {
   async describePage({ pageUrl, model }) {
     const describer = this.imageDescriberFactory.get(model);
     const { imageSources } = await this.scraperService.getImages(pageUrl);
+    const filteredImageSources = typeof describer.filterSupportedImageSources === 'function'
+      ? describer.filterSupportedImageSources(imageSources)
+      : imageSources;
     const descriptionCache = new Map();
 
-    const descriptions = await Promise.all(imageSources.map((imageSource) => {
+    const descriptions = await Promise.all(filteredImageSources.map((imageSource) => {
       if (!descriptionCache.has(imageSource)) {
         descriptionCache.set(imageSource, describer.describeImage(imageSource));
       }
@@ -45,7 +48,7 @@ class PageDescriptionService {
     return {
       pageUrl,
       model,
-      totalImages: imageSources.length,
+      totalImages: filteredImageSources.length,
       uniqueImages: descriptionCache.size,
       descriptions,
     };
