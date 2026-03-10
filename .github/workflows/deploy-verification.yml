@@ -25,47 +25,19 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      DEFAULT_BASE_URL: https://wcag.qcraft.com.br
+      BASE_URL: ${{ github.event_name == 'workflow_dispatch' && inputs.base_url || 'https://wcag.qcraft.com.br' }}
     steps:
-      - name: Resolve target URL
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.base_url }}" ]; then
-            echo "BASE_URL=${{ inputs.base_url }}" >> "$GITHUB_ENV"
-          else
-            echo "BASE_URL=${DEFAULT_BASE_URL}" >> "$GITHUB_ENV"
-          fi
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
-      - name: Verify health endpoint
-        run: |
-          curl --retry 3 --retry-all-errors --max-time 30 --fail-with-body --silent --show-error \
-            "${BASE_URL}/api/health" \
-            | jq -e '.message == "OK"'
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '20'
 
-      - name: Verify Swagger server URL
+      - name: Run deploy verification
         run: |
-          curl --retry 3 --retry-all-errors --max-time 30 --fail-with-body --silent --show-error \
-            "${BASE_URL}/api-docs/swagger-ui-init.js" \
-            | tee /tmp/swagger-ui-init.js \
-            | grep -F "\"url\":\"${BASE_URL}\""
-
-      - name: Verify scraper endpoint
-        run: |
-          curl --retry 3 --retry-all-errors --max-time 45 --fail-with-body --silent --show-error \
-            "${BASE_URL}/api/scraper/images?url=https%3A%2F%2Fdeveloper.mozilla.org%2Fen-US%2F" \
-            | jq -e '.imageSources | type == "array"'
-
-      - name: Verify Azure-backed description endpoint
-        run: |
-          curl --retry 2 --retry-all-errors --max-time 45 --fail-with-body --silent --show-error \
-            "${BASE_URL}/api/accessibility/description?image_source=https%3A%2F%2Fdeveloper.chrome.com%2Fstatic%2Fimages%2Fai-homepage-card.png&model=azure" \
-            | jq -e 'type == "array" and length == 1 and (.[0].description | type == "string" and length > 0)'
-
-      - name: Write summary
-        if: always()
-        run: |
-          {
-            echo "## Deploy Verification"
-            echo
-            echo "- Base URL: ${BASE_URL}"
-            echo "- Event: ${{ github.event_name }}"
-          } >> "$GITHUB_STEP_SUMMARY"
+          node scripts/github/verify-deploy.js \
+            --base-url "${BASE_URL}" \
+            --event "${{ github.event_name }}" \
+            --summary-file "${GITHUB_STEP_SUMMARY}"
