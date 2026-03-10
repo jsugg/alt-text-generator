@@ -34,7 +34,10 @@ const REPORTS_DIR = path.join(ROOT, 'reports', 'newman');
 const HOST = '127.0.0.1';
 const APP_HTTP_PORT = '8080';
 const APP_HTTPS_PORT = '8443';
+const AUTH_APP_HTTP_PORT = String(process.env.POSTMAN_AUTH_HTTP_PORT || 18080);
+const AUTH_APP_HTTPS_PORT = String(process.env.POSTMAN_AUTH_HTTPS_PORT || 18443);
 const FIXTURE_PORT = String(process.env.POSTMAN_FIXTURE_PORT || 19090);
+const API_AUTH_TOKEN = process.env.POSTMAN_API_AUTH_TOKEN || 'postman-api-token';
 
 const NODE = process.execPath;
 const NPX = process.platform === 'win32' ? 'npx.cmd' : 'npx';
@@ -138,14 +141,68 @@ function spawnLogged(label, command, args, env = {}) {
 }
 
 /**
+ * Builds the environment for a local app instance.
+ *
+ * @param {{
+ *   httpPort: string,
+ *   httpsPort: string,
+ *   liveModeEnabled: boolean,
+ *   hasLiveAzureConfig: boolean,
+ *   azureSubscriptionKey: string | null,
+ *   apiAuthTokens?: string | null,
+ * }} options
+ * @returns {Record<string, string>}
+ */
+function buildAppServerEnv({
+  httpPort,
+  httpsPort,
+  liveModeEnabled,
+  hasLiveAzureConfig,
+  azureSubscriptionKey,
+  apiAuthTokens = null,
+}) {
+  const env = {
+    NODE_ENV: 'development',
+    PORT: httpPort,
+    TLS_PORT: httpsPort,
+    WORKER_COUNT: '1',
+    LOG_LEVEL: 'info',
+    SWAGGER_DEV_URL: `https://localhost:${httpsPort}`,
+    REPLICATE_API_TOKEN: process.env.REPLICATE_API_TOKEN || 'test-token',
+    ACV_API_ENDPOINT: liveModeEnabled && hasLiveAzureConfig
+      ? process.env.ACV_API_ENDPOINT
+      : `http://${HOST}:${FIXTURE_PORT}/vision/v3.2/describe`,
+    ACV_SUBSCRIPTION_KEY: liveModeEnabled && hasLiveAzureConfig
+      ? azureSubscriptionKey
+      : 'stub-key',
+    ACV_LANGUAGE: 'en',
+    ACV_MAX_CANDIDATES: '4',
+  };
+
+  if (apiAuthTokens) {
+    env.API_AUTH_TOKENS = apiAuthTokens;
+  }
+
+  return env;
+}
+
+/**
  * Runs Newman for the given folder list.
  *
  * @param {string} label
  * @param {string[]} folders
- * @param {string[]} extraArgs
+ * @param {{ envPath?: string, envVars?: string[], extraArgs?: string[] }} options
  * @returns {Promise<void>}
  */
-function runNewman(label, folders, extraArgs = []) {
+function runNewman(
+  label,
+  folders,
+  {
+    envPath = ENV_PATH,
+    envVars = [],
+    extraArgs = [],
+  } = {},
+) {
   const folderArgs = folders.flatMap((folder) => ['--folder', folder]);
 
   const args = [
@@ -154,7 +211,7 @@ function runNewman(label, folders, extraArgs = []) {
     'run',
     COLLECTION_PATH,
     '-e',
-    ENV_PATH,
+    envPath,
     '--env-var',
     `baseUrl=https://${HOST}:${APP_HTTPS_PORT}`,
     '--env-var',
@@ -185,6 +242,7 @@ function runNewman(label, folders, extraArgs = []) {
     'model=azure',
     '--env-var',
     'maxResponseTimeMs=1500',
+    ...envVars.flatMap((envVar) => ['--env-var', envVar]),
     '--timeout-request',
     '10000',
     '--timeout-script',
@@ -264,6 +322,7 @@ function installSignalCleanup(children) {
 async function main() {
   const mode = process.argv[2] || 'full';
   const liveModeEnabled = mode === 'live' || process.env.RUN_LIVE_PROVIDER === 'true';
+  const requiresAuthHarness = mode === 'smoke' || mode === 'full';
   const runLiveReplicate = process.env.RUN_LIVE_REPLICATE !== 'false';
   const runLiveAzure = process.env.RUN_LIVE_AZURE !== 'false';
   const azureSubscriptionKey = process.env.ACV_SUBSCRIPTION_KEY || process.env.ACV_API_KEY || null;
@@ -271,6 +330,10 @@ async function main() {
   const managedChildren = new Set();
   const collection = readCollection(COLLECTION_PATH);
   const availableFolders = listTopLevelFolderNames(collection);
+  const localNewmanEnvVars = [
+    `authBaseUrl=https://${HOST}:${AUTH_APP_HTTPS_PORT}`,
+    `apiAuthToken=${API_AUTH_TOKEN}`,
+  ];
 
   await fs.mkdir(REPORTS_DIR, { recursive: true });
 
@@ -289,26 +352,35 @@ async function main() {
     'app',
     NODE,
     [path.join(ROOT, 'src', 'app.js')],
-    {
-      NODE_ENV: 'development',
-      PORT: APP_HTTP_PORT,
-      TLS_PORT: APP_HTTPS_PORT,
-      WORKER_COUNT: '1',
-      LOG_LEVEL: 'info',
-      SWAGGER_DEV_URL: `https://localhost:${APP_HTTPS_PORT}`,
-      REPLICATE_API_TOKEN: process.env.REPLICATE_API_TOKEN || 'test-token',
-      ACV_API_ENDPOINT: liveModeEnabled && hasLiveAzureConfig
-        ? process.env.ACV_API_ENDPOINT
-        : `http://${HOST}:${FIXTURE_PORT}/vision/v3.2/describe`,
-      ACV_SUBSCRIPTION_KEY: liveModeEnabled && hasLiveAzureConfig
-        ? azureSubscriptionKey
-        : 'stub-key',
-      ACV_LANGUAGE: 'en',
-      ACV_MAX_CANDIDATES: '4',
-    },
+    buildAppServerEnv({
+      httpPort: APP_HTTP_PORT,
+      httpsPort: APP_HTTPS_PORT,
+      liveModeEnabled,
+      hasLiveAzureConfig,
+      azureSubscriptionKey,
+    }),
   );
   managedChildren.add(appServer);
   appServer.once('exit', () => managedChildren.delete(appServer));
+
+  let authAppServer;
+  if (requiresAuthHarness) {
+    authAppServer = spawnLogged(
+      'app-auth',
+      NODE,
+      [path.join(ROOT, 'src', 'app.js')],
+      buildAppServerEnv({
+        httpPort: AUTH_APP_HTTP_PORT,
+        httpsPort: AUTH_APP_HTTPS_PORT,
+        liveModeEnabled: false,
+        hasLiveAzureConfig: false,
+        azureSubscriptionKey: null,
+        apiAuthTokens: API_AUTH_TOKEN,
+      }),
+    );
+    managedChildren.add(authAppServer);
+    authAppServer.once('exit', () => managedChildren.delete(authAppServer));
+  }
   const cleanupSignalHandlers = installSignalCleanup(managedChildren);
 
   try {
@@ -316,6 +388,11 @@ async function main() {
     await waitForUrl(`https://${HOST}:${APP_HTTPS_PORT}/api/health`, {
       insecure: true,
     });
+    if (authAppServer) {
+      await waitForUrl(`https://${HOST}:${AUTH_APP_HTTPS_PORT}/api/health`, {
+        insecure: true,
+      });
+    }
 
     if (mode === 'smoke') {
       assertTopLevelFoldersExist(
@@ -323,6 +400,7 @@ async function main() {
         [
           '00 Core Smoke',
           '07 Route Aliases',
+          '08 API Auth Contract',
           '10 Scraper Contract',
           '20 Single Description (Azure Stub)',
         ],
@@ -333,10 +411,14 @@ async function main() {
         [
           '00 Core Smoke',
           '07 Route Aliases',
+          '08 API Auth Contract',
           '10 Scraper Contract',
           '20 Single Description (Azure Stub)',
         ],
-        ['--insecure'],
+        {
+          envVars: localNewmanEnvVars,
+          extraArgs: ['--insecure'],
+        },
       );
 
       assertTopLevelFoldersExist(
@@ -347,7 +429,10 @@ async function main() {
       await runNewman(
         'routing',
         ['05 Routing & Redirects'],
-        ['--insecure', '--ignore-redirects'],
+        {
+          envVars: localNewmanEnvVars,
+          extraArgs: ['--insecure', '--ignore-redirects'],
+        },
       );
     }
 
@@ -357,6 +442,7 @@ async function main() {
         [
           '00 Core Smoke',
           '07 Route Aliases',
+          '08 API Auth Contract',
           '10 Scraper Contract',
           '20 Single Description (Azure Stub)',
           '30 Page Descriptions (Azure Stub)',
@@ -369,12 +455,16 @@ async function main() {
         [
           '00 Core Smoke',
           '07 Route Aliases',
+          '08 API Auth Contract',
           '10 Scraper Contract',
           '20 Single Description (Azure Stub)',
           '30 Page Descriptions (Azure Stub)',
           '40 Negative Paths',
         ],
-        ['--insecure'],
+        {
+          envVars: localNewmanEnvVars,
+          extraArgs: ['--insecure'],
+        },
       );
 
       assertTopLevelFoldersExist(
@@ -385,7 +475,10 @@ async function main() {
       await runNewman(
         'routing',
         ['05 Routing & Redirects'],
-        ['--insecure', '--ignore-redirects'],
+        {
+          envVars: localNewmanEnvVars,
+          extraArgs: ['--insecure', '--ignore-redirects'],
+        },
       );
     }
 
@@ -421,13 +514,17 @@ async function main() {
       await runNewman(
         'live-provider',
         liveFolders,
-        ['--insecure'],
+        {
+          envVars: localNewmanEnvVars,
+          extraArgs: ['--insecure'],
+        },
       );
     }
   } finally {
     cleanupSignalHandlers();
     terminate(fixtureServer);
     terminate(appServer);
+    terminate(authAppServer);
   }
 }
 

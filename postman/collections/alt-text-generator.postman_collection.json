@@ -604,6 +604,188 @@
       ]
     },
     {
+      "name": "08 API Auth Contract",
+      "item": [
+        {
+          "name": "Protected description rejects missing auth",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{authBaseUrl}}/api/v1/accessibility/description",
+              "host": [
+                "{{authBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accessibility",
+                "description"
+              ],
+              "query": [
+                {
+                  "key": "image_source",
+                  "value": "{{sampleImageAUrl}}"
+                },
+                {
+                  "key": "model",
+                  "value": "{{model}}"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 401', function () {",
+                  "  pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('auth failure matches the public error contract', function () {",
+                  "  pm.expect(body.error).to.eql('Missing or invalid API authentication credentials');",
+                  "  pm.expect(body.code).to.eql('API_AUTHENTICATION_FAILED');",
+                  "  pm.expect(body.requestId).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Protected description accepts X-API-Key",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{apiAuthToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{authBaseUrl}}/api/v1/accessibility/description",
+              "host": [
+                "{{authBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accessibility",
+                "description"
+              ],
+              "query": [
+                {
+                  "key": "image_source",
+                  "value": "{{sampleImageAUrl}}"
+                },
+                {
+                  "key": "model",
+                  "value": "{{model}}"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "const expectedImageUrl = pm.environment.get('sampleImageAUrl');",
+                  "",
+                  "pm.test('x-api-key auth returns the expected stub payload', function () {",
+                  "  pm.expect(body).to.eql([",
+                  "    { description: 'stub caption for asset a', imageUrl: expectedImageUrl }",
+                  "  ]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Protected scraper accepts Bearer token",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{apiAuthToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{authBaseUrl}}/api/v1/scraper/images",
+              "host": [
+                "{{authBaseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "scraper",
+                "images"
+              ],
+              "query": [
+                {
+                  "key": "url",
+                  "value": "{{samplePageUrl}}"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "const expectedA = pm.environment.get('sampleImageAUrl');",
+                  "const expectedB = pm.environment.get('sampleImageBUrl');",
+                  "",
+                  "pm.test('bearer auth returns the expected scraper payload', function () {",
+                  "  pm.expect(body.imageSources).to.eql([",
+                  "    expectedA,",
+                  "    expectedB,",
+                  "    expectedA",
+                  "  ]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "10 Scraper Contract",
       "item": [
         {
@@ -1854,6 +2036,234 @@
                   "    pm.expect(item.description).to.be.a('string');",
                   "    pm.expect(item.description.length).to.be.above(0);",
                   "  });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "95 Deploy Verification",
+      "item": [
+        {
+          "name": "Hosted health",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Max-Response-Time-Ms",
+                "value": "45000"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "health"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('deploy health returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('deploy health payload contains expected fields', function () {",
+                  "  pm.expect(body).to.have.property('message', 'OK');",
+                  "  pm.expect(body).to.have.property('uptime');",
+                  "  pm.expect(body).to.have.property('timestamp');",
+                  "  pm.expect(body.uptime).to.be.a('number');",
+                  "  pm.expect(body.timestamp).to.be.a('number');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Hosted swagger spec",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/javascript"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api-docs/swagger-ui-init.js",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api-docs",
+                "swagger-ui-init.js"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('deploy swagger init returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const body = pm.response.text();",
+                  "const match = body.match(/\\\"servers\\\":\\s*(\\[[\\s\\S]*?\\])/);",
+                  "",
+                  "pm.test('deploy swagger init exposes an embedded servers array', function () {",
+                  "  pm.expect(match, 'servers array not found in swagger-ui-init.js').not.to.eql(null);",
+                  "});",
+                  "",
+                  "const servers = match ? JSON.parse(match[1]) : [];",
+                  "const expectedSwaggerServerUrl = pm.environment.get('expectedSwaggerServerUrl');",
+                  "",
+                  "pm.test('deploy swagger spec includes the expected hosted server', function () {",
+                  "  pm.expect(servers.some((server) => server.url === expectedSwaggerServerUrl)).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test('deploy swagger spec does not reference the retired qcraft.dev domain', function () {",
+                  "  pm.expect(body).not.to.include('wcag.qcraft.dev');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Hosted scraper contract",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/scraper/images",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "scraper",
+                "images"
+              ],
+              "query": [
+                {
+                  "key": "url",
+                  "value": "{{deployScrapePageUrl}}"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('deploy scraper returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('deploy scraper response has an imageSources array', function () {",
+                  "  pm.expect(body).to.have.property('imageSources');",
+                  "  pm.expect(body.imageSources).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('deploy scraper image sources are strings when present', function () {",
+                  "  body.imageSources.forEach((imageUrl) => {",
+                  "    pm.expect(imageUrl).to.be.a('string');",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Hosted azure single description",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Max-Response-Time-Ms",
+                "value": "20000"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/accessibility/description",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "accessibility",
+                "description"
+              ],
+              "query": [
+                {
+                  "key": "image_source",
+                  "value": "{{deployAzureImageUrl}}"
+                },
+                {
+                  "key": "model",
+                  "value": "azure"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('deploy azure description returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('deploy azure description response is a one-item array', function () {",
+                  "  pm.expect(body).to.be.an('array').with.lengthOf(1);",
+                  "});",
+                  "",
+                  "pm.test('deploy azure description is non-empty for the requested image', function () {",
+                  "  pm.expect(body[0].imageUrl).to.eql(pm.environment.get('deployAzureImageUrl'));",
+                  "  pm.expect(body[0].description).to.be.a('string');",
+                  "  pm.expect(body[0].description.length).to.be.above(0);",
                   "});"
                 ]
               }

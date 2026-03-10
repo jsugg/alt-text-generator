@@ -75,14 +75,17 @@ Commands:
 npm run postman:smoke
 npm run postman:harness
 npm run postman:live
+npm run postman:deploy -- --base-url https://wcag.qcraft.com.br
 ```
 
 Notes:
 
 - `postman:smoke` is the fast deterministic gate.
-- `postman:harness` runs the full deterministic suite and writes JSON and JUnit reports under `reports/newman/`.
+- `postman:harness` runs the full deterministic suite, including protected-endpoint auth coverage, and writes JSON and JUnit reports under `reports/newman/`.
 - `postman:live` is optional and reserved for explicit live-provider validation.
+- `postman:deploy` runs the hosted deploy-smoke folder from the same Postman collection against a supplied base URL.
 - CI runs `postman:smoke` on pull requests and `postman:harness` on `main` / `production` pushes.
+- Deploy verification runs `postman:deploy` on `production` pushes so hosted smoke checks stay inside the Newman contract layer.
 - Live mode validates Replicate by default and also validates Azure when `ACV_API_ENDPOINT` and either `ACV_SUBSCRIPTION_KEY` or `ACV_API_KEY` are set.
 - Local harness runs accept self-signed development TLS.
 - The deterministic harness uses a local Azure stub and can boot with a dummy Replicate token or Azure-only configuration.
