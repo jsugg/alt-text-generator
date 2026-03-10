@@ -5,7 +5,6 @@ on:
     branches:
       - main
       - production
-      - housekeeping
     paths-ignore:
       - '**/*.md'
       - '.github/assets/**'
@@ -27,6 +26,30 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  actionlint:
+    name: actionlint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Validate GitHub YAML syntax
+        run: |
+          ruby -e 'require "yaml"; Dir[".github/**/*.yml"].sort.each { |f| YAML.load_file(f); puts "ok #{f}" }'
+
+      - name: Install actionlint
+        run: |
+          ACTIONLINT_VERSION="1.7.11"
+          ACTIONLINT_ARCHIVE="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          ACTIONLINT_URL="https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${ACTIONLINT_ARCHIVE}"
+          curl --fail --silent --show-error --location --output /tmp/actionlint.tar.gz "${ACTIONLINT_URL}"
+          echo "900919a84f2229bac68ca9cd4103ea297abc35e9689ebb842c6e34a3d1b01b0a  /tmp/actionlint.tar.gz" | sha256sum --check --
+          tar -xzf /tmp/actionlint.tar.gz -C /tmp actionlint
+
+      - name: Run actionlint
+        run: /tmp/actionlint -color
+
   lint:
     name: lint
     runs-on: ubuntu-latest
@@ -102,3 +125,24 @@ jobs:
           path: reports/newman/
           if-no-files-found: ignore
           retention-days: 7
+
+  ci-summary:
+    name: ci-summary
+    if: always()
+    needs:
+      - actionlint
+      - lint
+      - test
+      - newman
+    runs-on: ubuntu-latest
+    steps:
+      - name: Write summary
+        run: |
+          {
+            echo "## CI Summary"
+            echo
+            echo "- actionlint: ${{ needs.actionlint.result }}"
+            echo "- lint: ${{ needs.lint.result }}"
+            echo "- test: ${{ needs.test.result }}"
+            echo "- newman: ${{ needs.newman.result }}"
+          } >> "$GITHUB_STEP_SUMMARY"

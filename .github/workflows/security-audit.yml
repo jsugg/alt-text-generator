@@ -1,0 +1,94 @@
+name: Security Audit
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '41 7 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-audit-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  npm-audit:
+    name: npm-audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Setup project
+        uses: ./.github/actions/setup-node-project
+        with:
+          node-version: '20'
+
+      - name: Run production dependency audit
+        id: audit
+        run: |
+          mkdir -p reports/security
+          set +e
+          npm audit --omit=dev --audit-level=high --json > reports/security/npm-audit.json 2> reports/security/npm-audit.stderr.log
+          status=$?
+          set -e
+          echo "status=${status}" >> "$GITHUB_OUTPUT"
+
+          node - <<'NODE'
+          const fs = require('node:fs');
+
+          const reportPath = 'reports/security/npm-audit.json';
+          const fallback = { metadata: { vulnerabilities: {} } };
+          let report = fallback;
+
+          try {
+            const raw = fs.readFileSync(reportPath, 'utf8').trim();
+            report = raw ? JSON.parse(raw) : fallback;
+          } catch (error) {
+            report = {
+              ...fallback,
+              parseError: error.message,
+            };
+            fs.writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`);
+          }
+
+          const vulnerabilities = report.metadata?.vulnerabilities || {};
+          const critical = Number(vulnerabilities.critical || 0);
+          const high = Number(vulnerabilities.high || 0);
+          const moderate = Number(vulnerabilities.moderate || 0);
+          const low = Number(vulnerabilities.low || 0);
+
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `critical=${critical}\n`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `high=${high}\n`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `moderate=${moderate}\n`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `low=${low}\n`);
+          NODE
+
+      - name: Upload audit artifacts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: security-audit-artifacts
+          path: reports/security/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Write summary
+        if: always()
+        run: |
+          {
+            echo "## Security Audit"
+            echo
+            echo "- Critical: ${{ steps.audit.outputs.critical || '0' }}"
+            echo "- High: ${{ steps.audit.outputs.high || '0' }}"
+            echo "- Moderate: ${{ steps.audit.outputs.moderate || '0' }}"
+            echo "- Low: ${{ steps.audit.outputs.low || '0' }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail on high or critical findings
+        if: steps.audit.outputs.status != '0'
+        run: |
+          echo "npm audit reported high or critical production dependency findings."
+          exit 1

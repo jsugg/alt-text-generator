@@ -172,6 +172,8 @@ Use the development guide for:
 
 - complete environment-variable reference
 - Postman/Newman harness usage and report interpretation
+- GitHub Actions workflow and promotion guidance
+- security and operational validation workflow guidance
 - TLS and outbound CA troubleshooting
 - lint, test, and live validation commands
 - real external-integration validation with live providers

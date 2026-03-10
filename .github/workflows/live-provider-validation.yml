@@ -3,11 +3,18 @@ name: Live Provider Validation
 on:
   workflow_dispatch:
     inputs:
+      run_replicate:
+        description: Include Replicate live validation.
+        required: false
+        default: true
+        type: boolean
       run_azure:
         description: Include Azure live validation when Azure secrets are configured.
         required: false
         default: true
         type: boolean
+  schedule:
+    - cron: '23 8 * * 1'
 
 permissions:
   contents: read
@@ -17,7 +24,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  schedule-disabled:
+    if: github.event_name == 'schedule' && vars.ENABLE_SCHEDULED_LIVE_PROVIDER_VALIDATION != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Write summary
+        run: |
+          {
+            echo "## Live Provider Validation"
+            echo
+            echo "- Scheduled run skipped because ENABLE_SCHEDULED_LIVE_PROVIDER_VALIDATION is not set to true."
+          } >> "$GITHUB_STEP_SUMMARY"
+
   live-provider:
+    if: github.event_name != 'schedule' || vars.ENABLE_SCHEDULED_LIVE_PROVIDER_VALIDATION == 'true'
+    name: live-provider
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -29,12 +50,44 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Resolve validation scope
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "RUN_REPLICATE=true" >> "$GITHUB_ENV"
+            if [ "${{ vars.ENABLE_SCHEDULED_AZURE_LIVE_VALIDATION }}" = "true" ]; then
+              echo "RUN_AZURE=true" >> "$GITHUB_ENV"
+            else
+              echo "RUN_AZURE=false" >> "$GITHUB_ENV"
+            fi
+          else
+            echo "RUN_REPLICATE=${{ inputs.run_replicate }}" >> "$GITHUB_ENV"
+            echo "RUN_AZURE=${{ inputs.run_azure }}" >> "$GITHUB_ENV"
+          fi
+
       - name: Validate live-provider secrets
         env:
           REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
+          ACV_API_ENDPOINT: ${{ secrets.ACV_API_ENDPOINT }}
+          ACV_SUBSCRIPTION_KEY: ${{ secrets.ACV_SUBSCRIPTION_KEY }}
+          ACV_API_KEY: ${{ secrets.ACV_API_KEY }}
         run: |
-          if [ -z "${REPLICATE_API_TOKEN}" ]; then
+          if [ "${RUN_REPLICATE}" = "false" ] && [ "${RUN_AZURE}" = "false" ]; then
+            echo "At least one live provider must be enabled."
+            exit 1
+          fi
+
+          if [ "${RUN_REPLICATE}" = "true" ] && [ -z "${REPLICATE_API_TOKEN}" ]; then
             echo "REPLICATE_API_TOKEN secret is required for live provider validation."
+            exit 1
+          fi
+
+          if [ "${RUN_AZURE}" = "true" ] && [ -z "${ACV_API_ENDPOINT}" ]; then
+            echo "ACV_API_ENDPOINT secret is required for Azure live validation."
+            exit 1
+          fi
+
+          if [ "${RUN_AZURE}" = "true" ] && [ -z "${ACV_SUBSCRIPTION_KEY}" ] && [ -z "${ACV_API_KEY}" ]; then
+            echo "ACV_SUBSCRIPTION_KEY or ACV_API_KEY secret is required for Azure live validation."
             exit 1
           fi
 
@@ -42,9 +95,11 @@ jobs:
         run: npm run postman:live
         env:
           REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
-          ACV_API_ENDPOINT: ${{ inputs.run_azure && secrets.ACV_API_ENDPOINT || '' }}
-          ACV_SUBSCRIPTION_KEY: ${{ inputs.run_azure && secrets.ACV_SUBSCRIPTION_KEY || '' }}
-          ACV_API_KEY: ${{ inputs.run_azure && secrets.ACV_API_KEY || '' }}
+          RUN_LIVE_REPLICATE: ${{ env.RUN_REPLICATE }}
+          RUN_LIVE_AZURE: ${{ env.RUN_AZURE }}
+          ACV_API_ENDPOINT: ${{ secrets.ACV_API_ENDPOINT }}
+          ACV_SUBSCRIPTION_KEY: ${{ secrets.ACV_SUBSCRIPTION_KEY }}
+          ACV_API_KEY: ${{ secrets.ACV_API_KEY }}
 
       - name: Upload live validation artifacts
         if: always()
@@ -54,3 +109,14 @@ jobs:
           path: reports/newman/
           if-no-files-found: ignore
           retention-days: 7
+
+      - name: Write summary
+        if: always()
+        run: |
+          {
+            echo "## Live Provider Validation"
+            echo
+            echo "- Event: ${{ github.event_name }}"
+            echo "- Replicate: ${RUN_REPLICATE}"
+            echo "- Azure: ${RUN_AZURE}"
+          } >> "$GITHUB_STEP_SUMMARY"
