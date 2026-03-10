@@ -1,0 +1,61 @@
+name: Deploy Verification
+
+on:
+  push:
+    branches:
+      - production
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: Base URL of the deployed API to verify.
+        required: false
+        default: 'https://wcag.qcraft.com.br'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-verification-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: production-smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DEFAULT_BASE_URL: https://wcag.qcraft.com.br
+    steps:
+      - name: Resolve target URL
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.base_url }}" ]; then
+            echo "BASE_URL=${{ inputs.base_url }}" >> "$GITHUB_ENV"
+          else
+            echo "BASE_URL=${DEFAULT_BASE_URL}" >> "$GITHUB_ENV"
+          fi
+
+      - name: Verify health endpoint
+        run: |
+          curl --retry 3 --retry-all-errors --max-time 30 --fail-with-body --silent --show-error \
+            "${BASE_URL}/api/health" \
+            | jq -e '.message == "OK"'
+
+      - name: Verify Swagger server URL
+        run: |
+          curl --retry 3 --retry-all-errors --max-time 30 --fail-with-body --silent --show-error \
+            "${BASE_URL}/api-docs/swagger-ui-init.js" \
+            | tee /tmp/swagger-ui-init.js \
+            | grep -F "\"url\":\"${BASE_URL}\""
+
+      - name: Verify scraper endpoint
+        run: |
+          curl --retry 3 --retry-all-errors --max-time 45 --fail-with-body --silent --show-error \
+            "${BASE_URL}/api/scraper/images?url=https%3A%2F%2Fdeveloper.mozilla.org%2Fen-US%2F" \
+            | jq -e '.imageSources | type == "array"'
+
+      - name: Verify Azure-backed description endpoint
+        run: |
+          curl --retry 2 --retry-all-errors --max-time 45 --fail-with-body --silent --show-error \
+            "${BASE_URL}/api/accessibility/description?image_source=https%3A%2F%2Fdeveloper.chrome.com%2Fstatic%2Fimages%2Fai-homepage-card.png&model=azure" \
+            | jq -e 'type == "array" and length == 1 and (.[0].description | type == "string" and length > 0)'
