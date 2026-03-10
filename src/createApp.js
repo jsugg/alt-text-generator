@@ -28,6 +28,10 @@ const buildReplicateClient = (config, fetch) => new Replicate({
   userAgent: config.replicate.userAgent,
 });
 
+const hasReplicateProviderConfig = (replicateConfig = {}) => Boolean(
+  replicateConfig.apiToken,
+);
+
 const hasAzureProviderConfig = (azureConfig = {}) => Boolean(
   azureConfig.apiEndpoint && azureConfig.subscriptionKey,
 );
@@ -40,13 +44,15 @@ const buildImageDescriberFactory = ({
   requestOptions,
 }) => {
   const factory = new ImageDescriberFactory();
-  const replicateDescriber = new ReplicateDescriberService({
-    logger,
-    replicateClient,
-    config,
-  });
+  if (hasReplicateProviderConfig(config.replicate)) {
+    const replicateDescriber = new ReplicateDescriberService({
+      logger,
+      replicateClient,
+      config,
+    });
 
-  factory.register('clip', replicateDescriber);
+    factory.register('clip', replicateDescriber);
+  }
 
   if (hasAzureProviderConfig(config.azure)) {
     const azureDescriber = new AzureDescriberService({
@@ -97,8 +103,9 @@ const createApp = ({
         maxRedirects: scraperConfig.maxRedirects,
         maxContentLength: scraperConfig.maxContentLengthBytes,
       },
-      replicateClient: replicateClient
-        ?? buildReplicateClient(config, resolvedOutboundClients.fetch),
+      replicateClient: hasReplicateProviderConfig(config.replicate)
+        ? (replicateClient ?? buildReplicateClient(config, resolvedOutboundClients.fetch))
+        : undefined,
     });
   const resolvedPageDescriptionService = pageDescriptionService
     ?? new PageDescriptionService({

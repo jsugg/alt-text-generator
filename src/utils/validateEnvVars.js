@@ -28,8 +28,8 @@ const envVarsSchema = Joi.object({
   }),
   OUTBOUND_CA_BUNDLE_FILE: Joi.string().optional(),
 
-  // Replicate is required for core functionality
-  REPLICATE_API_TOKEN: Joi.string().required(),
+  // Replicate is optional and only required when the clip provider is enabled
+  REPLICATE_API_TOKEN: Joi.string().optional(),
   REPLICATE_API_ENDPOINT: Joi.string().uri().optional(),
   REPLICATE_USER_AGENT: Joi.string().optional(),
   REPLICATE_MODEL_OWNER: Joi.string().optional(),
@@ -72,6 +72,16 @@ const validateEnvVars = () => {
   const hasAzureCredential = Boolean(
     process.env.ACV_SUBSCRIPTION_KEY || process.env.ACV_API_KEY,
   );
+  const hasReplicateProvider = Boolean(process.env.REPLICATE_API_TOKEN);
+  const hasAzureProvider = hasAzureEndpoint && hasAzureCredential;
+
+  if (!hasReplicateProvider && !hasAzureProvider) {
+    throw new Error(
+      'Config validation error: at least one provider must be configured. '
+        + 'Set REPLICATE_API_TOKEN to enable clip, or set ACV_API_ENDPOINT and '
+        + 'either ACV_SUBSCRIPTION_KEY or ACV_API_KEY to enable azure',
+    );
+  }
 
   if (hasAzureEndpoint !== hasAzureCredential) {
     throw new Error(

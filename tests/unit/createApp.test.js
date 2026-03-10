@@ -112,6 +112,37 @@ describe('createApp', () => {
     }
   });
 
+  it('registers only azure when Replicate is not configured', () => {
+    const config = {
+      replicate: {},
+      azure: {
+        apiEndpoint: 'https://azure.example.com/vision/v3.2/describe',
+        subscriptionKey: 'azure-key',
+        language: 'en',
+        maxCandidates: 4,
+      },
+      scraper: {
+        requestTimeoutMs: 1500,
+        maxRedirects: 4,
+        maxContentLengthBytes: 2048,
+      },
+    };
+    const httpClient = {
+      get: jest.fn(),
+      post: jest.fn(),
+    };
+
+    const { services } = createApp({
+      appLogger: createAppLogger(),
+      requestLogger: createRequestLogger(),
+      httpClient,
+      config,
+    });
+
+    expect(services.imageDescriberFactory.getAvailableModels()).toEqual(['azure']);
+    expect(services.imageDescriberFactory.get('azure').httpClient).toBe(httpClient);
+  });
+
   it('falls back to the default trust proxy setting when config omits proxy', () => {
     const config = {
       replicate: {
@@ -169,5 +200,31 @@ describe('createApp', () => {
     });
 
     expect(services.imageDescriberFactory.getAvailableModels()).toEqual(['clip']);
+  });
+
+  it('does not register clip when the Replicate token is missing', () => {
+    const config = {
+      replicate: {
+        apiEndpoint: 'https://replicate.example.com',
+        userAgent: 'alt-text-generator/test',
+        modelOwner: 'owner',
+        modelName: 'model',
+        modelVersion: 'version',
+      },
+      scraper: {
+        requestTimeoutMs: 1500,
+        maxRedirects: 4,
+        maxContentLengthBytes: 2048,
+      },
+    };
+
+    const { services } = createApp({
+      appLogger: createAppLogger(),
+      requestLogger: createRequestLogger(),
+      httpClient: { get: jest.fn(), post: jest.fn() },
+      config,
+    });
+
+    expect(services.imageDescriberFactory.getAvailableModels()).toEqual([]);
   });
 });

@@ -22,6 +22,37 @@ afterEach(() => {
 });
 
 describe('validateEnvVars', () => {
+  it('accepts a Replicate-only provider configuration', () => {
+    const validateEnvVars = loadValidator({
+      overrides: {
+        REPLICATE_API_TOKEN: 'test-token',
+      },
+      remove: ['ACV_API_ENDPOINT', 'ACV_SUBSCRIPTION_KEY', 'ACV_API_KEY'],
+    });
+
+    expect(() => validateEnvVars()).not.toThrow();
+  });
+
+  it('accepts an Azure-only provider configuration', () => {
+    const validateEnvVars = loadValidator({
+      overrides: {
+        ACV_API_ENDPOINT: 'https://azure.example.com/vision/v3.2/describe',
+        ACV_SUBSCRIPTION_KEY: 'azure-key',
+      },
+      remove: ['REPLICATE_API_TOKEN', 'ACV_API_KEY'],
+    });
+
+    expect(() => validateEnvVars()).not.toThrow();
+  });
+
+  it('rejects startup when no provider is configured', () => {
+    const validateEnvVars = loadValidator({
+      remove: ['REPLICATE_API_TOKEN', 'ACV_API_ENDPOINT', 'ACV_SUBSCRIPTION_KEY', 'ACV_API_KEY'],
+    });
+
+    expect(() => validateEnvVars()).toThrow(/at least one provider must be configured/i);
+  });
+
   it('accepts TLS_* credentials in production', () => {
     const validateEnvVars = loadValidator({
       overrides: {
@@ -111,10 +142,10 @@ describe('validateEnvVars', () => {
   it('accepts Azure provider credentials when endpoint and subscription key are set', () => {
     const validateEnvVars = loadValidator({
       overrides: {
-        REPLICATE_API_TOKEN: 'test-token',
         ACV_API_ENDPOINT: 'https://azure.example.com/vision/v3.2/describe',
         ACV_SUBSCRIPTION_KEY: 'azure-key',
       },
+      remove: ['REPLICATE_API_TOKEN', 'ACV_API_KEY'],
     });
 
     expect(() => validateEnvVars()).not.toThrow();
@@ -123,10 +154,10 @@ describe('validateEnvVars', () => {
   it('accepts the legacy Azure API key alias', () => {
     const validateEnvVars = loadValidator({
       overrides: {
-        REPLICATE_API_TOKEN: 'test-token',
         ACV_API_ENDPOINT: 'https://azure.example.com/vision/v3.2/describe',
         ACV_API_KEY: 'azure-key',
       },
+      remove: ['REPLICATE_API_TOKEN', 'ACV_SUBSCRIPTION_KEY'],
     });
 
     expect(() => validateEnvVars()).not.toThrow();
@@ -135,10 +166,9 @@ describe('validateEnvVars', () => {
   it('rejects an Azure endpoint without credentials', () => {
     const validateEnvVars = loadValidator({
       overrides: {
-        REPLICATE_API_TOKEN: 'test-token',
         ACV_API_ENDPOINT: 'https://azure.example.com/vision/v3.2/describe',
       },
-      remove: ['ACV_API_KEY', 'ACV_SUBSCRIPTION_KEY'],
+      remove: ['REPLICATE_API_TOKEN', 'ACV_API_KEY', 'ACV_SUBSCRIPTION_KEY'],
     });
 
     expect(() => validateEnvVars()).toThrow(/ACV_API_ENDPOINT/);
@@ -147,10 +177,9 @@ describe('validateEnvVars', () => {
   it('rejects Azure credentials without an endpoint', () => {
     const validateEnvVars = loadValidator({
       overrides: {
-        REPLICATE_API_TOKEN: 'test-token',
         ACV_SUBSCRIPTION_KEY: 'azure-key',
       },
-      remove: ['ACV_API_ENDPOINT'],
+      remove: ['REPLICATE_API_TOKEN', 'ACV_API_ENDPOINT'],
     });
 
     expect(() => validateEnvVars()).toThrow(/ACV_API_ENDPOINT/);

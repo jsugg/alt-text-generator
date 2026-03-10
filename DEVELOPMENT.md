@@ -34,7 +34,7 @@ Boot locally:
 
 ```bash
 cp .env.example .env
-# edit .env and set REPLICATE_API_TOKEN (required even to boot)
+# edit .env and configure at least one provider
 npm install
 npm run dev
 ```
@@ -85,7 +85,7 @@ The repository uses a small workflow set with separate responsibilities:
 - `Live Provider Validation` in `.github/workflows/live-provider-validation.yml`
   - manual only
   - runs `npm run postman:live`
-  - requires `REPLICATE_API_TOKEN`
+  - requires `REPLICATE_API_TOKEN` only when Replicate validation is enabled
   - includes Azure validation only when Azure secrets are provided and `run_azure` stays enabled
   - also supports a guarded weekly schedule when the repository variable `ENABLE_SCHEDULED_LIVE_PROVIDER_VALIDATION` is set to `true`
 - scheduled Azure live validation additionally requires `ENABLE_SCHEDULED_AZURE_LIVE_VALIDATION=true`
@@ -208,7 +208,7 @@ Notes:
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
 | `NODE_ENV` | No | `development` | Valid values: `development`, `production`, `test`. |
-| `REPLICATE_API_TOKEN` | Yes | none | Required for boot (env validation) and for real descriptions. |
+| `REPLICATE_API_TOKEN` | No | none | Required only to register the `clip` provider and for real Replicate-backed descriptions. |
 | `ENV_FILE` | No | `.env` | Selects which dotenv file to load at startup. Not validated by Joi. |
 
 ### Network and Inbound TLS (server)
@@ -270,6 +270,7 @@ Development TLS behavior:
 | `ACV_MAX_CANDIDATES` | No | `4` | Maximum Azure caption candidates. |
 
 `ACV_API_ENDPOINT` and one Azure credential must be set together or startup validation fails.
+At least one provider must be configured at startup: `REPLICATE_API_TOKEN`, or Azure endpoint plus credential.
 
 ### Rate Limiting, Logging, and Swagger
 

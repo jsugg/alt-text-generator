@@ -33,7 +33,9 @@ The service exposes these primary capabilities:
 - CI validates Node 20, 22, and 24.
 - `engines.node` is currently pinned to `20.x`; use Node 20 locally for the least friction.
 - npm 10+
-- A Replicate API token (required to boot; must be valid for real alt-text generation)
+- At least one provider configuration:
+  - `REPLICATE_API_TOKEN` for the `clip` model
+  - or `ACV_API_ENDPOINT` plus `ACV_SUBSCRIPTION_KEY` or `ACV_API_KEY` for the `azure` model
 
 ## Quick Start
 
@@ -41,7 +43,7 @@ The service exposes these primary capabilities:
 git clone https://github.com/jsugg/alt-text-generator.git
 cd alt-text-generator
 cp .env.example .env
-# edit .env and set REPLICATE_API_TOKEN
+# edit .env and configure at least one provider
 npm install
 npm run dev
 ```
@@ -81,13 +83,15 @@ Notes:
 - `postman:live` is optional and reserved for explicit live-provider validation.
 - Live mode validates Replicate by default and also validates Azure when `ACV_API_ENDPOINT` and either `ACV_SUBSCRIPTION_KEY` or `ACV_API_KEY` are set.
 - Local harness runs accept self-signed development TLS.
-- The deterministic harness uses a local Azure stub and does not require real vendor credentials beyond a dummy Replicate token at app startup.
+- The deterministic harness uses a local Azure stub and can boot with a dummy Replicate token or Azure-only configuration.
 
 ## Runtime Essentials
 
 Required at startup:
 
-- `REPLICATE_API_TOKEN` (required at startup; a dummy value is OK for stubbed-provider validation)
+- At least one provider configuration:
+  - `REPLICATE_API_TOKEN` to register `clip`
+  - or `ACV_API_ENDPOINT` plus `ACV_SUBSCRIPTION_KEY` or `ACV_API_KEY` to register `azure`
 
 Required for live Azure descriptions:
 
