@@ -88,8 +88,9 @@ The repository uses a small workflow set with separate responsibilities:
 - `Live Provider Validation` in `.github/workflows/live-provider-validation.yml`
   - manual only
   - runs `npm run postman:live`
+  - requires GitHub Actions secrets, not Render env vars
   - requires `REPLICATE_API_TOKEN` only when Replicate validation is enabled
-  - includes Azure validation only when Azure secrets are provided and `run_azure` stays enabled
+  - includes Azure validation only when `ACV_API_ENDPOINT` plus `ACV_SUBSCRIPTION_KEY` or `ACV_API_KEY` secrets are provided and `run_azure` stays enabled
   - also supports a guarded weekly schedule when the repository variable `ENABLE_SCHEDULED_LIVE_PROVIDER_VALIDATION` is set to `true`
 - scheduled Azure live validation additionally requires `ENABLE_SCHEDULED_AZURE_LIVE_VALIDATION=true`
 - `Deploy Verification` in `.github/workflows/deploy-verification.yml`
@@ -97,7 +98,7 @@ The repository uses a small workflow set with separate responsibilities:
   - verifies the deployed service health, Swagger server URL, scraper behavior, and one Azure-backed description endpoint
 - `Promote to Production` in `.github/workflows/promote-to-production.yml`
   - manual only
-  - verifies that `main` has all required checks green
+  - verifies that `main` has the required CI checks green
   - opens or reuses a `main` -> `production` pull request
   - can enable PR auto-merge after required checks pass
 

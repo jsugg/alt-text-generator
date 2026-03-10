@@ -36,6 +36,7 @@ function parseBoolean(value, flag) {
  *   repo: string,
  *   sourceBranch: string,
  *   targetBranch: string,
+ *   requiredChecks: string[]|null,
  *   autoMerge: boolean,
  *   outputFile: string|null,
  *   summaryFile: string|null,
@@ -46,6 +47,7 @@ function parseArgs(argv) {
     autoMerge: false,
     outputFile: null,
     summaryFile: null,
+    requiredChecks: null,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -76,6 +78,12 @@ function parseArgs(argv) {
         break;
       case 'target-branch':
         args.targetBranch = rawValue;
+        break;
+      case 'required-checks':
+        args.requiredChecks = rawValue
+          .split(',')
+          .map((value) => value.trim())
+          .filter(Boolean);
         break;
       case 'auto-merge':
         args.autoMerge = parseBoolean(rawValue, '--auto-merge');
@@ -173,6 +181,24 @@ function getBranchHeadSha(repo, branch) {
 function getRequiredCheckContexts(repo, branch) {
   const payload = runGhJson(['api', `repos/${repo}/branches/${branch}/protection`]);
   return payload.required_status_checks.contexts;
+}
+
+/**
+ * Resolves the required status checks from explicit CLI input or branch protection.
+ *
+ * @param {{
+ *   repo: string,
+ *   sourceBranch: string,
+ *   requiredChecks: string[]|null,
+ * }} options
+ * @returns {string[]}
+ */
+function resolveRequiredChecks(options) {
+  if (options.requiredChecks && options.requiredChecks.length > 0) {
+    return options.requiredChecks;
+  }
+
+  return getRequiredCheckContexts(options.repo, options.sourceBranch);
 }
 
 /**
@@ -317,7 +343,7 @@ function enableAutoMerge(repo, pullRequestNumber) {
 function main() {
   const options = parseArgs(process.argv.slice(2));
   const sourceSha = getBranchHeadSha(options.repo, options.sourceBranch);
-  const requiredChecks = getRequiredCheckContexts(options.repo, options.sourceBranch);
+  const requiredChecks = resolveRequiredChecks(options);
   const checkRuns = getCheckRuns(options.repo, sourceSha);
 
   ensureRequiredChecksGreen(sourceSha, requiredChecks, checkRuns);
@@ -365,9 +391,17 @@ function main() {
   console.log(`Promotion PR ready: ${promotionPr.url}`);
 }
 
-try {
-  main();
-} catch (error) {
-  console.error(error instanceof Error ? error.message : error);
-  process.exit(1);
+if (require.main === module) {
+  try {
+    main();
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : error);
+    process.exit(1);
+  }
 }
+
+module.exports = {
+  ensureRequiredChecksGreen,
+  parseArgs,
+  resolveRequiredChecks,
+};
