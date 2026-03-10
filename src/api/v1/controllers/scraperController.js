@@ -29,7 +29,7 @@ class ScraperController {
    *         required: true
    *         schema:
    *           type: string
-   *           example: https%3A%2F%2Fneymarques.com%2F
+   *           example: https%3A%2F%2Fdeveloper.chrome.com%2F
    *     responses:
    *       200:
    *         description: OK
