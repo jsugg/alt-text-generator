@@ -5,7 +5,7 @@
 # Alt-Text 4 All
 
 [![GitHub license](https://img.shields.io/github/license/jsugg/alt-text-generator)](https://github.com/jsugg/alt-text-generator/blob/main/LICENSE)
-[![CI/CD Pipeline](https://github.com/jsugg/alt-text-generator/actions/workflows/ci-cd.yml/badge.svg?branch=main)](https://github.com/jsugg/alt-text-generator/actions/workflows/ci-cd.yml)
+[![Lint](https://github.com/jsugg/alt-text-generator/actions/workflows/ci-cd.yml/badge.svg?branch=main)](https://github.com/jsugg/alt-text-generator/actions/workflows/ci-cd.yml)
 [![Tests](https://github.com/jsugg/alt-text-generator/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/jsugg/alt-text-generator/actions/workflows/tests.yml)
 ![Node CI 20 | 22 | 24](https://img.shields.io/badge/node%20CI-20%20%7C%2022%20%7C%2024-339933?logo=node.js&logoColor=white)
 
@@ -16,7 +16,7 @@ Alt-Text 4 All is an HTTPS-first API that scrapes website images and generates A
 The service exposes these primary capabilities:
 
 - discover image URLs on a target page
-- generate alt text for a specific image with the `clip` model
+- generate alt text for a specific image with the `clip` model or the `azure` model when Azure is configured
 - generate alt text for all images on a page while preserving duplicate entries
 
 ## Features
@@ -31,6 +31,7 @@ The service exposes these primary capabilities:
 ## Requirements
 
 - CI validates Node 20, 22, and 24.
+- `engines.node` is currently pinned to `20.x`; use Node 20 locally for the least friction.
 - npm 10+
 - A Replicate API token (required to boot; must be valid for real alt-text generation)
 
@@ -77,15 +78,22 @@ Notes:
 
 - `postman:smoke` is the fast deterministic gate.
 - `postman:harness` runs the full deterministic suite and writes JSON and JUnit reports under `reports/newman/`.
-- `postman:live` is optional and reserved for explicit Replicate validation.
+- `postman:live` is optional and reserved for explicit live-provider validation.
+- Live mode validates Replicate by default and also validates Azure when `ACV_API_ENDPOINT` and either `ACV_SUBSCRIPTION_KEY` or `ACV_API_KEY` are set.
 - Local harness runs accept self-signed development TLS.
 - The deterministic harness uses a local Azure stub and does not require real vendor credentials beyond a dummy Replicate token at app startup.
 
 ## Runtime Essentials
 
-Required for real descriptions:
+Required at startup:
 
 - `REPLICATE_API_TOKEN` (required at startup; a dummy value is OK for stubbed-provider validation)
+
+Required for live Azure descriptions:
+
+- `ACV_API_ENDPOINT`
+- `ACV_SUBSCRIPTION_KEY` or `ACV_API_KEY`
+- The `azure` model is only registered when the endpoint and one Azure credential are set together.
 
 Common local settings:
 
@@ -166,7 +174,7 @@ Use the development guide for:
 - Postman/Newman harness usage and report interpretation
 - TLS and outbound CA troubleshooting
 - lint, test, and live validation commands
-- real external-integration validation with Replicate
+- real external-integration validation with live providers
 
 See [DEVELOPMENT.md](./DEVELOPMENT.md).
 

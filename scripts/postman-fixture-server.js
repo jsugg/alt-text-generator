@@ -29,6 +29,11 @@ const ASSET_B_PNG = Buffer.from(
   'base64',
 );
 
+const ASSET_PROVIDER_FAILURE_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADUlEQVR42mNk+M/wHwAEAQH/cetH5QAAAABJRU5ErkJggg==',
+  'base64',
+);
+
 /**
  * Returns a deterministic caption for a given image URL.
  *
@@ -91,14 +96,83 @@ app.get('/fixtures/page-with-images', (_req, res) => {
 </html>`);
 });
 
+app.get('/fixtures/page-with-partial-images', (_req, res) => {
+  res.type('html').send(`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Postman Harness Partial Fixture</title>
+  </head>
+  <body>
+    <h1>Partial Fixture Page</h1>
+
+    <!-- successful image -->
+    <img src="/assets/a.png" alt="" />
+
+    <!-- missing image to exercise page-level best-effort behavior -->
+    <img src="/assets/missing.png" alt="" />
+
+    <!-- duplicate successful image to ensure output order is preserved -->
+    <img src="/assets/a.png" alt="" />
+  </body>
+</html>`);
+});
+
+app.get('/fixtures/page-with-provider-failure', (_req, res) => {
+  res.type('html').send(`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Postman Harness Provider Failure Fixture</title>
+  </head>
+  <body>
+    <h1>Provider Failure Fixture Page</h1>
+
+    <!-- successful image -->
+    <img src="/assets/a.png" alt="" />
+
+    <!-- image that forces the Azure stub to return a non-skippable provider error -->
+    <img src="/assets/provider-error.png" alt="" />
+  </body>
+</html>`);
+});
+
 app.get('/assets/:name', (req, res) => {
-  const asset = req.params.name === 'a.png' ? ASSET_A_PNG : ASSET_B_PNG;
+  let asset = null;
+
+  if (req.params.name === 'a.png') {
+    asset = ASSET_A_PNG;
+  } else if (req.params.name === 'b.png') {
+    asset = ASSET_B_PNG;
+  } else if (req.params.name === 'provider-error.png') {
+    asset = ASSET_PROVIDER_FAILURE_PNG;
+  }
+
+  if (!asset) {
+    res.status(404).type('text/plain').send('asset not found');
+    return;
+  }
+
   res.type('image/png').send(asset);
 });
 
 app.post('/vision/v3.2/describe', express.raw({ type: 'application/octet-stream' }), (req, res) => {
   const imageUrl = typeof req.body?.url === 'string' ? req.body.url : '';
   const imageBuffer = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
+
+  if (
+    imageUrl.endsWith('/assets/provider-error.png')
+    || Buffer.compare(imageBuffer, ASSET_PROVIDER_FAILURE_PNG) === 0
+  ) {
+    res.status(401).json({
+      error: {
+        code: 'PermissionDenied',
+        message: 'stub provider authentication failure',
+      },
+    });
+    return;
+  }
+
   const caption = imageBuffer.length > 0
     ? captionForBuffer(imageBuffer)
     : captionForUrl(imageUrl);
