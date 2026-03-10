@@ -3,9 +3,30 @@ const pino = require('pino');
 const pinoHttp = require('pino-http');
 const config = require('../../config');
 
+const serializeLoggedError = (error) => {
+  const serialized = pinoHttp.stdSerializers.err(error);
+  const serializedCause = error?.cause ? serializeLoggedError(error.cause) : undefined;
+
+  if (!serialized || typeof serialized !== 'object') {
+    return serialized;
+  }
+
+  return {
+    ...(serialized.type ? { type: serialized.type } : {}),
+    ...(serialized.message ? { message: serialized.message } : {}),
+    ...(serialized.stack ? { stack: serialized.stack } : {}),
+    ...(serialized.code ? { code: serialized.code } : {}),
+    ...(serialized.signal ? { signal: serialized.signal } : {}),
+    ...(serializedCause ? { cause: serializedCause } : {}),
+  };
+};
+
 const createAppLogger = () => pino({
   level: config.logging.level,
   name: 'appLogger',
+  serializers: {
+    err: serializeLoggedError,
+  },
 });
 
 const createRequestLogger = (appLogger) => pinoHttp({
@@ -18,7 +39,7 @@ const createRequestLogger = (appLogger) => pinoHttp({
     return id;
   },
   serializers: {
-    err: pinoHttp.stdSerializers.err,
+    err: serializeLoggedError,
     req: pinoHttp.stdSerializers.req,
     res: pinoHttp.stdSerializers.res,
   },

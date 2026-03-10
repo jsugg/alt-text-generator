@@ -1,7 +1,24 @@
 const ORIGINAL_ENV = process.env;
 
 const mockStdSerializers = {
-  err: Symbol('err'),
+  err: jest.fn((error) => ({
+    type: error.name,
+    message: error.message,
+    stack: error.stack,
+    code: error.code,
+    config: error.config,
+    response: error.response,
+    request: error.request,
+    headers: error.headers,
+    cause: error.cause
+      ? {
+        type: error.cause.name,
+        message: error.cause.message,
+        stack: error.cause.stack,
+        config: error.cause.config,
+      }
+      : undefined,
+  })),
   req: Symbol('req'),
   res: Symbol('res'),
 };
@@ -46,6 +63,7 @@ const loadLoggerModule = ({
   const mockRequestLogger = jest.fn();
 
   mockPino.mockReset().mockReturnValue(mockAppLogger);
+  mockStdSerializers.err.mockClear();
   mockPinoHttp.mockReset().mockImplementation((options) => {
     mockRequestLogger.logger = options.logger;
     mockRequestLogger.options = options;
@@ -84,6 +102,9 @@ describe('infrastructure/logger', () => {
     expect(mockPino).toHaveBeenCalledWith({
       level: 'warn',
       name: 'appLogger',
+      serializers: {
+        err: expect.any(Function),
+      },
     });
     expect(mockFs.existsSync).not.toHaveBeenCalled();
     expect(mockFs.mkdirSync).not.toHaveBeenCalled();
@@ -107,13 +128,66 @@ describe('infrastructure/logger', () => {
     expect(mockAppLogger.child).toHaveBeenCalledWith({ name: 'serverLogger' });
     expect(mockPinoHttp).toHaveBeenCalledWith(expect.objectContaining({
       logger: mockChildLogger,
-      serializers: mockStdSerializers,
+      serializers: expect.objectContaining({
+        err: expect.any(Function),
+        req: mockStdSerializers.req,
+        res: mockStdSerializers.res,
+      }),
       wrapSerializers: true,
     }));
     expect(requestLoggerOptions.logger).toBe(mockChildLogger);
-    expect(requestLoggerOptions.serializers).toStrictEqual(mockStdSerializers);
+    expect(requestLoggerOptions.serializers.req).toBe(mockStdSerializers.req);
+    expect(requestLoggerOptions.serializers.res).toBe(mockStdSerializers.res);
+    expect(requestLoggerOptions.serializers.err).toEqual(expect.any(Function));
     expect(loggerModule.requestLogger).toBe(mockRequestLogger);
     expect(loggerModule.serverLogger).toBe(mockRequestLogger);
+  });
+
+  it('sanitizes serialized errors before they reach the logger output', () => {
+    const { requestLoggerOptions } = loadLoggerModule({
+      env: {
+        NODE_ENV: 'production',
+      },
+    });
+
+    const cause = new Error('dns lookup failed');
+    cause.config = { headers: { Authorization: 'hidden' } };
+
+    const error = new Error('upstream request failed');
+    error.code = 'ENOTFOUND';
+    error.config = {
+      headers: {
+        Authorization: 'secret-token',
+      },
+    };
+    error.response = {
+      headers: {
+        'Ocp-Apim-Subscription-Key': 'secret-key',
+      },
+    };
+    error.request = {
+      url: 'https://upstream.example.com',
+    };
+    error.cause = cause;
+
+    const serialized = requestLoggerOptions.serializers.err(error);
+
+    expect(mockStdSerializers.err).toHaveBeenCalledWith(error);
+    expect(serialized).toEqual({
+      type: 'Error',
+      message: 'upstream request failed',
+      stack: error.stack,
+      code: 'ENOTFOUND',
+      cause: {
+        type: 'Error',
+        message: 'dns lookup failed',
+        stack: cause.stack,
+      },
+    });
+    expect(serialized.config).toBeUndefined();
+    expect(serialized.response).toBeUndefined();
+    expect(serialized.request).toBeUndefined();
+    expect(serialized.headers).toBeUndefined();
   });
 
   it('prefers existing request ids before generating a new one', () => {
