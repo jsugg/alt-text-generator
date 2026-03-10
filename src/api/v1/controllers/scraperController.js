@@ -1,4 +1,5 @@
 const { isValidUrl } = require('../../../utils/urlValidator');
+const { ApiError } = require('../../../errors/ApiError');
 
 /**
  * Handles requests to scrape images from a website.
@@ -22,6 +23,9 @@ class ScraperController {
    *   get:
    *     summary: Returns the list of images found in a website
    *     description: Visits the website, selects img elements, and returns their src URLs as JSON.
+   *     security:
+   *       - bearerAuth: []
+   *       - apiKeyAuth: []
    *     parameters:
    *       - name: url
    *         in: query
@@ -44,29 +48,53 @@ class ScraperController {
    *                     type: string
    *       400:
    *         description: Missing or invalid url parameter
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ApiErrorResponse'
+   *       401:
+   *         description: Missing or invalid API authentication credentials
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ApiErrorResponse'
    *       500:
    *         description: Server error
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ApiErrorResponse'
    */
-  async getImages(req, res) {
-    const requestLogger = req.log ?? this.logger;
+  async getImages(req, res, next) {
     const { url } = req.query;
 
     if (!url) {
-      return res.status(400).json({ error: 'Missing required query parameter: url' });
+      return next(ApiError.badRequest({
+        message: 'Missing required query parameter: url',
+        code: 'QUERY_VALIDATION_ERROR',
+        details: [{ field: 'url', issue: 'required' }],
+      }));
     }
 
     const decodedUrl = decodeURIComponent(url);
 
     if (!isValidUrl(decodedUrl)) {
-      return res.status(400).json({ error: 'Invalid URL format' });
+      return next(ApiError.badRequest({
+        message: 'Invalid URL format',
+        code: 'INVALID_PAGE_URL',
+        details: [{ field: 'url', issue: 'invalid_url' }],
+      }));
     }
 
     try {
       const result = await this.scraperService.getImages(decodedUrl);
       return res.json(result);
     } catch (error) {
-      requestLogger.error({ err: error, url: decodedUrl }, 'Error scraping images');
-      return res.status(500).json({ error: 'Error fetching images from the provided URL' });
+      return next(ApiError.internal({
+        message: 'Error fetching images from the provided URL',
+        code: 'SCRAPE_FETCH_FAILED',
+        cause: error,
+      }));
     }
   }
 }

@@ -1,5 +1,16 @@
 const Joi = require('joi');
 
+const parseAuthTokens = (value) => {
+  if (typeof value !== 'string') {
+    return [];
+  }
+
+  return value
+    .split(',')
+    .map((token) => token.trim())
+    .filter(Boolean);
+};
+
 const envVarsSchema = Joi.object({
   NODE_ENV: Joi.string()
     .valid('development', 'production', 'test')
@@ -57,6 +68,9 @@ const envVarsSchema = Joi.object({
   RATE_LIMIT_WINDOW_MS: Joi.number().optional(),
   RATE_LIMIT_MAX: Joi.number().optional(),
 
+  // Optional API access control
+  API_AUTH_TOKENS: Joi.string().optional(),
+
   // Swagger
   SWAGGER_DEV_URL: Joi.string().uri().optional(),
   SWAGGER_PROD_URL: Joi.string().uri().optional(),
@@ -87,6 +101,16 @@ const validateEnvVars = () => {
     throw new Error(
       'Config validation error: ACV_API_ENDPOINT and either ACV_SUBSCRIPTION_KEY '
         + 'or ACV_API_KEY must be set together to enable the Azure provider',
+    );
+  }
+
+  if (
+    process.env.API_AUTH_TOKENS !== undefined
+    && parseAuthTokens(process.env.API_AUTH_TOKENS).length === 0
+  ) {
+    throw new Error(
+      'Config validation error: API_AUTH_TOKENS must contain at least one '
+        + 'non-empty token when set',
     );
   }
 

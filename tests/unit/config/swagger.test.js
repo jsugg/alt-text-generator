@@ -115,4 +115,34 @@ describe('config/swagger', () => {
     expect(serializedSpec).not.toContain('example.com');
     expect(serializedSpec).not.toContain('neymarques.com');
   });
+
+  it('publishes reusable auth schemes and protects non-health endpoints', () => {
+    const swaggerSpec = loadParsedSwaggerSpec({
+      env: 'production',
+      devServerUrl: 'https://localhost:8443',
+      prodServerUrl: 'https://wcag.qcraft.com.br',
+    });
+
+    expect(swaggerSpec.components.securitySchemes).toEqual({
+      bearerAuth: {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'API token',
+      },
+      apiKeyAuth: {
+        type: 'apiKey',
+        in: 'header',
+        name: 'X-API-Key',
+      },
+    });
+    expect(swaggerSpec.paths['/api/health'].get.security).toBeUndefined();
+    expect(swaggerSpec.paths['/api/scraper/images'].get.security).toEqual([
+      { bearerAuth: [] },
+      { apiKeyAuth: [] },
+    ]);
+    expect(swaggerSpec.paths['/api/accessibility/description'].get.responses['401']
+      .content['application/json'].schema).toEqual({
+      $ref: '#/components/schemas/ApiErrorResponse',
+    });
+  });
 });

@@ -37,6 +37,7 @@ describe('config', () => {
         'SCRAPER_MAX_CONTENT_LENGTH_BYTES',
         'RATE_LIMIT_WINDOW_MS',
         'RATE_LIMIT_MAX',
+        'API_AUTH_TOKENS',
       ],
     });
 
@@ -57,6 +58,9 @@ describe('config', () => {
     expect(config.rateLimit).toEqual({
       windowMs: 15 * 60 * 1000,
       max: 100,
+    });
+    expect(config.auth).toEqual({
+      tokens: [],
     });
     expect(config.swagger).toEqual({
       devServerUrl: 'https://localhost:8443',
@@ -79,6 +83,7 @@ describe('config', () => {
         SCRAPER_MAX_CONTENT_LENGTH_BYTES: '4096',
         RATE_LIMIT_WINDOW_MS: '30000',
         RATE_LIMIT_MAX: '50',
+        API_AUTH_TOKENS: ' token-a,token-b , token-c ',
       },
     });
 
@@ -99,6 +104,9 @@ describe('config', () => {
     expect(config.rateLimit).toEqual({
       windowMs: 30000,
       max: 50,
+    });
+    expect(config.auth).toEqual({
+      tokens: ['token-a', 'token-b', 'token-c'],
     });
   });
 

@@ -1,5 +1,11 @@
 const { isValidUrl } = require('../../../utils/urlValidator');
 const { normalizeImageSource } = require('../../../utils/imageSource');
+const { ApiError } = require('../../../errors/ApiError');
+
+const buildRequiredQueryDetails = (fields) => fields.map((field) => ({
+  field,
+  issue: 'required',
+}));
 
 /**
  * Handles requests to generate alt-text descriptions for images.
@@ -26,6 +32,9 @@ class DescriptionController {
    *     summary: Returns a description for a given image
    *     description: Takes an image URL and sends it to the selected AI model
    *       to generate an alt-text description.
+   *     security:
+   *       - bearerAuth: []
+   *       - apiKeyAuth: []
    *     parameters:
    *       - name: image_source
    *         in: query
@@ -59,23 +68,44 @@ class DescriptionController {
    *                     example: https://developer.chrome.com/static/images/ai-homepage-card.png
    *       400:
    *         description: Missing or invalid parameters, or unsupported model
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ApiErrorResponse'
+   *       401:
+   *         description: Missing or invalid API authentication credentials
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ApiErrorResponse'
    *       500:
    *         description: Server error
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ApiErrorResponse'
    */
-  async describe(req, res) {
+  async describe(req, res, next) {
     const requestLogger = req.log ?? this.logger;
     const { image_source: rawImageSource, model } = req.query;
+    const missingFields = ['image_source', 'model'].filter((field) => !req.query[field]);
 
-    if (!rawImageSource || !model) {
-      return res.status(400).json({
-        error: 'Missing required query parameters: image_source and model',
-      });
+    if (missingFields.length > 0) {
+      return next(ApiError.badRequest({
+        message: 'Missing required query parameters: image_source and model',
+        code: 'QUERY_VALIDATION_ERROR',
+        details: buildRequiredQueryDetails(missingFields),
+      }));
     }
 
     const imageSource = normalizeImageSource(rawImageSource);
 
     if (!isValidUrl(imageSource)) {
-      return res.status(400).json({ error: 'Invalid image_source URL' });
+      return next(ApiError.badRequest({
+        message: 'Invalid image_source URL',
+        code: 'INVALID_IMAGE_SOURCE_URL',
+        details: [{ field: 'image_source', issue: 'invalid_url' }],
+      }));
     }
 
     requestLogger.info({ model, imageSource }, 'Description request');
@@ -87,12 +117,18 @@ class DescriptionController {
     } catch (error) {
       // factory.get() throws a user-facing error for unknown models
       if (error.message.startsWith('Unknown model')) {
-        return res.status(400).json({ error: error.message });
+        return next(ApiError.badRequest({
+          message: error.message,
+          code: 'UNKNOWN_MODEL',
+          details: [{ field: 'model', issue: 'unsupported_value' }],
+        }));
       }
-      requestLogger.error({ err: error, model, imageSource }, 'Error generating description');
-      return res.status(500).json({
-        error: 'Error fetching description for the provided image',
-      });
+
+      return next(ApiError.internal({
+        message: 'Error fetching description for the provided image',
+        code: 'DESCRIPTION_FETCH_FAILED',
+        cause: error,
+      }));
     }
   }
 
@@ -103,6 +139,9 @@ class DescriptionController {
    *     summary: Returns descriptions for images found on a page
    *     description: Scrapes a website, preserves duplicate image entries in page
    *       order, and reuses a single prediction per unique image URL.
+   *     security:
+   *       - bearerAuth: []
+   *       - apiKeyAuth: []
    *     parameters:
    *       - name: url
    *         in: query
@@ -123,23 +162,44 @@ class DescriptionController {
    *         description: OK
    *       400:
    *         description: Missing or invalid parameters, or unsupported model
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ApiErrorResponse'
+   *       401:
+   *         description: Missing or invalid API authentication credentials
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ApiErrorResponse'
    *       500:
    *         description: Server error
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ApiErrorResponse'
    */
-  async describePage(req, res) {
+  async describePage(req, res, next) {
     const requestLogger = req.log ?? this.logger;
     const { url: rawPageUrl, model } = req.query;
+    const missingFields = ['url', 'model'].filter((field) => !req.query[field]);
 
-    if (!rawPageUrl || !model) {
-      return res.status(400).json({
-        error: 'Missing required query parameters: url and model',
-      });
+    if (missingFields.length > 0) {
+      return next(ApiError.badRequest({
+        message: 'Missing required query parameters: url and model',
+        code: 'QUERY_VALIDATION_ERROR',
+        details: buildRequiredQueryDetails(missingFields),
+      }));
     }
 
     const pageUrl = decodeURIComponent(rawPageUrl);
 
     if (!isValidUrl(pageUrl)) {
-      return res.status(400).json({ error: 'Invalid url parameter' });
+      return next(ApiError.badRequest({
+        message: 'Invalid url parameter',
+        code: 'INVALID_PAGE_URL',
+        details: [{ field: 'url', issue: 'invalid_url' }],
+      }));
     }
 
     requestLogger.info({ model, pageUrl }, 'Page description request');
@@ -152,13 +212,18 @@ class DescriptionController {
       return res.json(result);
     } catch (error) {
       if (error.message.startsWith('Unknown model')) {
-        return res.status(400).json({ error: error.message });
+        return next(ApiError.badRequest({
+          message: error.message,
+          code: 'UNKNOWN_MODEL',
+          details: [{ field: 'model', issue: 'unsupported_value' }],
+        }));
       }
 
-      requestLogger.error({ err: error, model, pageUrl }, 'Error generating page descriptions');
-      return res.status(500).json({
-        error: 'Error fetching descriptions for the provided page',
-      });
+      return next(ApiError.internal({
+        message: 'Error fetching descriptions for the provided page',
+        code: 'PAGE_DESCRIPTION_FETCH_FAILED',
+        cause: error,
+      }));
     }
   }
 }

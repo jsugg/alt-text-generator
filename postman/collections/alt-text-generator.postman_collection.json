@@ -219,7 +219,7 @@
                   "});",
                   "",
                   "const body = pm.response.text();",
-                  "const match = body.match(/\\\"servers\\\":\\s*(\\[[\\s\\S]*?\\])\\s*,\\s*\\\"paths\\\":/);",
+                  "const match = body.match(/\\\"servers\\\":\\s*(\\[[\\s\\S]*?\\])/);",
                   "",
                   "pm.test('swagger init exposes an embedded servers array', function () {",
                   "  pm.expect(match, 'servers array not found in swagger-ui-init.js').not.to.eql(null);",
@@ -785,9 +785,9 @@
                   "const body = pm.response.json();",
                   "",
                   "pm.test('single description 500 matches the public error contract', function () {",
-                  "  pm.expect(body).to.eql({",
-                  "    error: 'Error fetching description for the provided image'",
-                  "  });",
+                  "  pm.expect(body.error).to.eql('Error fetching description for the provided image');",
+                  "  pm.expect(body.code).to.eql('DESCRIPTION_FETCH_FAILED');",
+                  "  pm.expect(body.requestId).to.be.a('string').and.not.empty;",
                   "});"
                 ]
               }
@@ -845,9 +845,9 @@
                   "const body = pm.response.json();",
                   "",
                   "pm.test('single description provider failure matches the public error contract', function () {",
-                  "  pm.expect(body).to.eql({",
-                  "    error: 'Error fetching description for the provided image'",
-                  "  });",
+                  "  pm.expect(body.error).to.eql('Error fetching description for the provided image');",
+                  "  pm.expect(body.code).to.eql('DESCRIPTION_FETCH_FAILED');",
+                  "  pm.expect(body.requestId).to.be.a('string').and.not.empty;",
                   "});"
                 ]
               }
@@ -1078,9 +1078,9 @@
                   "const body = pm.response.json();",
                   "",
                   "pm.test('page description provider failure matches the public error contract', function () {",
-                  "  pm.expect(body).to.eql({",
-                  "    error: 'Error fetching descriptions for the provided page'",
-                  "  });",
+                  "  pm.expect(body.error).to.eql('Error fetching descriptions for the provided page');",
+                  "  pm.expect(body.code).to.eql('PAGE_DESCRIPTION_FETCH_FAILED');",
+                  "  pm.expect(body.requestId).to.be.a('string').and.not.empty;",
                   "});"
                 ]
               }
@@ -1129,9 +1129,10 @@
                   "const body = pm.response.json();",
                   "",
                   "pm.test('error matches contract', function () {",
-                  "  pm.expect(body).to.eql({",
-                  "    error: 'Missing required query parameter: url'",
-                  "  });",
+                  "  pm.expect(body.error).to.eql('Missing required query parameter: url');",
+                  "  pm.expect(body.code).to.eql('QUERY_VALIDATION_ERROR');",
+                  "  pm.expect(body.requestId).to.be.a('string').and.not.empty;",
+                  "  pm.expect(body.details).to.eql([{ field: 'url', issue: 'required' }]);",
                   "});"
                 ]
               }
@@ -1181,9 +1182,10 @@
                   "const body = pm.response.json();",
                   "",
                   "pm.test('error matches contract', function () {",
-                  "  pm.expect(body).to.eql({",
-                  "    error: 'Invalid URL format'",
-                  "  });",
+                  "  pm.expect(body.error).to.eql('Invalid URL format');",
+                  "  pm.expect(body.code).to.eql('INVALID_PAGE_URL');",
+                  "  pm.expect(body.requestId).to.be.a('string').and.not.empty;",
+                  "  pm.expect(body.details).to.eql([{ field: 'url', issue: 'invalid_url' }]);",
                   "});"
                 ]
               }
@@ -1233,9 +1235,10 @@
                   "const body = pm.response.json();",
                   "",
                   "pm.test('error matches contract', function () {",
-                  "  pm.expect(body).to.eql({",
-                  "    error: 'Missing required query parameters: image_source and model'",
-                  "  });",
+                  "  pm.expect(body.error).to.eql('Missing required query parameters: image_source and model');",
+                  "  pm.expect(body.code).to.eql('QUERY_VALIDATION_ERROR');",
+                  "  pm.expect(body.requestId).to.be.a('string').and.not.empty;",
+                  "  pm.expect(body.details).to.eql([{ field: 'image_source', issue: 'required' }]);",
                   "});"
                 ]
               }
@@ -1289,9 +1292,10 @@
                   "const body = pm.response.json();",
                   "",
                   "pm.test('error matches contract', function () {",
-                  "  pm.expect(body).to.eql({",
-                  "    error: 'Invalid image_source URL'",
-                  "  });",
+                  "  pm.expect(body.error).to.eql('Invalid image_source URL');",
+                  "  pm.expect(body.code).to.eql('INVALID_IMAGE_SOURCE_URL');",
+                  "  pm.expect(body.requestId).to.be.a('string').and.not.empty;",
+                  "  pm.expect(body.details).to.eql([{ field: 'image_source', issue: 'invalid_url' }]);",
                   "});"
                 ]
               }
@@ -1398,9 +1402,10 @@
                   "const body = pm.response.json();",
                   "",
                   "pm.test('error matches contract', function () {",
-                  "  pm.expect(body).to.eql({",
-                  "    error: 'Missing required query parameters: url and model'",
-                  "  });",
+                  "  pm.expect(body.error).to.eql('Missing required query parameters: url and model');",
+                  "  pm.expect(body.code).to.eql('QUERY_VALIDATION_ERROR');",
+                  "  pm.expect(body.requestId).to.be.a('string').and.not.empty;",
+                  "  pm.expect(body.details).to.eql([{ field: 'url', issue: 'required' }]);",
                   "});"
                 ]
               }
@@ -1454,9 +1459,10 @@
                   "const body = pm.response.json();",
                   "",
                   "pm.test('error matches contract', function () {",
-                  "  pm.expect(body).to.eql({",
-                  "    error: 'Invalid url parameter'",
-                  "  });",
+                  "  pm.expect(body.error).to.eql('Invalid url parameter');",
+                  "  pm.expect(body.code).to.eql('INVALID_PAGE_URL');",
+                  "  pm.expect(body.requestId).to.be.a('string').and.not.empty;",
+                  "  pm.expect(body.details).to.eql([{ field: 'url', issue: 'invalid_url' }]);",
                   "});"
                 ]
               }
@@ -1556,9 +1562,9 @@
                   "const body = pm.response.json();",
                   "",
                   "pm.test('404 fallback matches contract', function () {",
-                  "  pm.expect(body).to.eql({",
-                  "    error: 'Endpoint not found'",
-                  "  });",
+                  "  pm.expect(body.error).to.eql('Endpoint not found');",
+                  "  pm.expect(body.code).to.eql('ENDPOINT_NOT_FOUND');",
+                  "  pm.expect(body.requestId).to.be.a('string').and.not.empty;",
                   "});"
                 ]
               }

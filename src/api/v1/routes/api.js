@@ -1,4 +1,8 @@
 const express = require('express');
+const {
+  asyncHandler,
+  notFoundHandler,
+} = require('../middleware/error-handler');
 
 /**
  * Registers all API routes onto an Express router.
@@ -21,23 +25,21 @@ module.exports = ({ health, scraper, description }, logger) => {
 
   apiRouter.get(
     ['/api/scraper/images', '/api/v1/scraper/images'],
-    scraper.getImages,
+    asyncHandler(scraper.getImages),
   );
 
   apiRouter.get(
     ['/api/accessibility/description', '/api/v1/accessibility/description'],
-    description.describe,
+    asyncHandler(description.describe),
   );
 
   apiRouter.get(
     ['/api/accessibility/descriptions', '/api/v1/accessibility/descriptions'],
-    description.describePage,
+    asyncHandler(description.describePage),
   );
 
   // 404 fallback
-  apiRouter.use((req, res) => {
-    res.status(404).json({ error: 'Endpoint not found' });
-  });
+  apiRouter.use(notFoundHandler);
 
   logger.info('API routes loaded');
 

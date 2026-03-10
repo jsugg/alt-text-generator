@@ -17,6 +17,10 @@ const healthController = require('./api/v1/controllers/healthController');
 const ScraperController = require('./api/v1/controllers/scraperController');
 const DescriptionController = require('./api/v1/controllers/descriptionController');
 const { applyMiddlewares } = require('./utils/applyBaseMiddleware');
+const {
+  createAccessControlMiddleware,
+} = require('./api/v1/middleware/access-control');
+const { errorHandler } = require('./api/v1/middleware/error-handler');
 const createRequestFilter = require('./api/v1/middleware/request-filter');
 const { createRouter } = require('./utils/createRouter');
 const buildApiRouter = require('./api/v1/routes/api');
@@ -130,6 +134,7 @@ const createApp = ({
   applyMiddlewares(app, requestLogger);
   const { loadRequestFilter } = createRequestFilter(appLogger);
   loadRequestFilter(app);
+  app.use(createAccessControlMiddleware(config.auth));
 
   const apiRouter = buildApiRouter({
     health,
@@ -138,6 +143,7 @@ const createApp = ({
   }, appLogger);
   const mainRouter = createRouter(appLogger, apiRouter);
   app.use(mainRouter);
+  app.use(errorHandler);
 
   return {
     app,
