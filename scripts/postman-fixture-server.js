@@ -6,7 +6,7 @@
  * It serves:
  * - a health endpoint
  * - a page with duplicate + mixed absolute/relative image references
- * - lightweight SVG assets
+ * - lightweight PNG assets
  * - a stub Azure Computer Vision describe endpoint
  */
 
@@ -19,6 +19,16 @@ const BASE_URL = `http://${HOST}:${PORT}`;
 const app = express();
 app.use(express.json());
 
+const ASSET_A_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR42mP8z/C/HwAF/gL+Nw3vAAAAAElFTkSuQmCC',
+  'base64',
+);
+
+const ASSET_B_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADUlEQVR42mP8/5+hHgAHggJ/P0q/QwAAAABJRU5ErkJggg==',
+  'base64',
+);
+
 /**
  * Returns a deterministic caption for a given image URL.
  *
@@ -26,11 +36,29 @@ app.use(express.json());
  * @returns {string}
  */
 function captionForUrl(imageUrl) {
-  if (imageUrl.endsWith('/assets/a.svg')) {
+  if (imageUrl.endsWith('/assets/a.png')) {
     return 'stub caption for asset a';
   }
 
-  if (imageUrl.endsWith('/assets/b.svg')) {
+  if (imageUrl.endsWith('/assets/b.png')) {
+    return 'stub caption for asset b';
+  }
+
+  return 'stub caption for unknown asset';
+}
+
+/**
+ * Returns a deterministic caption for a known image payload.
+ *
+ * @param {Buffer} imageBuffer
+ * @returns {string}
+ */
+function captionForBuffer(imageBuffer) {
+  if (Buffer.compare(imageBuffer, ASSET_A_PNG) === 0) {
+    return 'stub caption for asset a';
+  }
+
+  if (Buffer.compare(imageBuffer, ASSET_B_PNG) === 0) {
     return 'stub caption for asset b';
   }
 
@@ -52,35 +80,32 @@ app.get('/fixtures/page-with-images', (_req, res) => {
     <h1>Fixture Page</h1>
 
     <!-- relative URL -->
-    <img src="/assets/a.svg" alt="" />
+    <img src="/assets/a.png" alt="" />
 
     <!-- absolute URL -->
-    <img src="${BASE_URL}/assets/b.svg" alt="" />
+    <img src="${BASE_URL}/assets/b.png" alt="" />
 
     <!-- duplicate URL to validate dedupe + preserved order -->
-    <img src="/assets/a.svg" alt="" />
+    <img src="/assets/a.png" alt="" />
   </body>
 </html>`);
 });
 
 app.get('/assets/:name', (req, res) => {
-  const color = req.params.name === 'a.svg' ? '#2563eb' : '#16a34a';
-
-  res.type('image/svg+xml').send(`
-<svg xmlns="http://www.w3.org/2000/svg" width="120" height="80" viewBox="0 0 120 80">
-  <rect width="120" height="80" fill="${color}" />
-  <text x="10" y="45" fill="white" font-family="Arial, sans-serif" font-size="14">
-    ${req.params.name}
-  </text>
-</svg>`.trim());
+  const asset = req.params.name === 'a.png' ? ASSET_A_PNG : ASSET_B_PNG;
+  res.type('image/png').send(asset);
 });
 
-app.post('/vision/v3.2/describe', (req, res) => {
+app.post('/vision/v3.2/describe', express.raw({ type: 'application/octet-stream' }), (req, res) => {
   const imageUrl = typeof req.body?.url === 'string' ? req.body.url : '';
+  const imageBuffer = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
+  const caption = imageBuffer.length > 0
+    ? captionForBuffer(imageBuffer)
+    : captionForUrl(imageUrl);
 
   res.json({
     description: {
-      captions: [{ text: captionForUrl(imageUrl) }],
+      captions: [{ text: caption }],
     },
   });
 });
