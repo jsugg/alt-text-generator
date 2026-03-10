@@ -17,6 +17,8 @@ class PageDescriptionService {
 
   /**
    * Describes the images found on a page while preserving their original order.
+   * Image-specific failures can be skipped when the provider exposes an
+   * explicit skip policy for page-level best-effort processing.
    *
    * @param {object} params
    * @param {string} params.pageUrl
@@ -35,21 +37,52 @@ class PageDescriptionService {
     const filteredImageSources = typeof describer.filterSupportedImageSources === 'function'
       ? describer.filterSupportedImageSources(imageSources)
       : imageSources;
-    const descriptionCache = new Map();
+    const descriptionPromises = new Map();
 
-    const descriptions = await Promise.all(filteredImageSources.map((imageSource) => {
-      if (!descriptionCache.has(imageSource)) {
-        descriptionCache.set(imageSource, describer.describeImage(imageSource));
+    filteredImageSources.forEach((imageSource) => {
+      if (!descriptionPromises.has(imageSource)) {
+        descriptionPromises.set(imageSource, describer.describeImage(imageSource));
+      }
+    });
+
+    const settledDescriptions = new Map(
+      await Promise.all(
+        [...descriptionPromises.entries()].map(async ([imageSource, descriptionPromise]) => {
+          try {
+            return [imageSource, { status: 'fulfilled', value: await descriptionPromise }];
+          } catch (error) {
+            return [imageSource, { status: 'rejected', reason: error }];
+          }
+        }),
+      ),
+    );
+    const successfulImageSources = [];
+    const descriptions = [];
+
+    filteredImageSources.forEach((imageSource) => {
+      const result = settledDescriptions.get(imageSource);
+
+      if (result?.status === 'fulfilled') {
+        successfulImageSources.push(imageSource);
+        descriptions.push(result.value);
+        return;
       }
 
-      return descriptionCache.get(imageSource);
-    }));
+      const shouldSkipDescriptionError = typeof describer.shouldSkipDescriptionError === 'function'
+        && describer.shouldSkipDescriptionError(result?.reason);
+
+      if (shouldSkipDescriptionError) {
+        return;
+      }
+
+      throw result?.reason;
+    });
 
     return {
       pageUrl,
       model,
-      totalImages: filteredImageSources.length,
-      uniqueImages: descriptionCache.size,
+      totalImages: successfulImageSources.length,
+      uniqueImages: new Set(successfulImageSources).size,
       descriptions,
     };
   }
