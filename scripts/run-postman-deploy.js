@@ -30,7 +30,15 @@ const REPORTS_DIR = path.join(ROOT, 'reports', 'newman');
 const PUBLIC_DEPLOY_FOLDER = '95 Deploy Verification';
 const PROTECTED_DEPLOY_FOLDER = '96 Deploy Protected Verification';
 const DEFAULT_BASE_URL = 'https://wcag.qcraft.com.br';
+const DEPLOY_STABILIZATION_POLL_INTERVAL_MS = 3_000;
+const DEPLOY_STABILIZATION_REQUIRED_SUCCESSES = 3;
+const DEPLOY_STABILIZATION_TIMEOUT_MS = 90_000;
+const DEPLOY_STABILIZATION_REQUEST_TIMEOUT_MS = 15_000;
 const NPX = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+
+const sleep = (durationMs) => new Promise((resolve) => {
+  setTimeout(resolve, durationMs);
+});
 
 /**
  * Normalizes a base URL for env-var reuse.
@@ -179,6 +187,282 @@ function buildDeployEnvVars(
 }
 
 /**
+ * Builds the deployed endpoint URLs used during rollout stabilization probes.
+ *
+ * @param {string} baseUrl
+ * @param {{
+ *   deployValidationApiToken: string,
+ *   productionApiAuthEnabled: 'true'|'false',
+ * }} options
+ * @returns {{
+ *   authenticatedProtectedUrl: string,
+ *   healthUrl: string,
+ *   unauthenticatedProtectedUrl: string,
+ * }}
+ */
+function buildDeployProbeUrls(baseUrl, options) {
+  const deployEnvVars = buildDeployEnvVars(baseUrl, options);
+  const protectedUrl = new URL('/api/scraper/images', `${baseUrl}/`);
+  protectedUrl.searchParams.set('url', deployEnvVars.deployScrapePageUrl);
+
+  return {
+    authenticatedProtectedUrl: protectedUrl.toString(),
+    healthUrl: new URL('/api/health', `${baseUrl}/`).toString(),
+    unauthenticatedProtectedUrl: protectedUrl.toString(),
+  };
+}
+
+/**
+ * Checks whether a response exposes the expected rate-limit headers.
+ *
+ * @param {{ get(name: string): string|null, has(name: string): boolean }} headers
+ * @returns {boolean}
+ */
+function hasRequiredRateLimitHeaders(headers) {
+  return ['x-ratelimit-limit', 'x-ratelimit-remaining', 'x-ratelimit-reset']
+    .every((headerName) => headers.has(headerName) || headers.has(headerName.toUpperCase()));
+}
+
+/**
+ * Executes a deploy rollout probe request.
+ *
+ * @param {typeof fetch} fetchFn
+ * @param {string} url
+ * @param {{ headers?: Record<string, string> }} [options]
+ * @returns {Promise<{
+ *   error?: Error,
+ *   headers?: Headers,
+ *   jsonBody?: unknown,
+ *   status?: number,
+ * }>}
+ */
+async function requestDeployProbe(fetchFn, url, options = {}) {
+  try {
+    const response = await fetchFn(url, {
+      headers: options.headers,
+      redirect: 'follow',
+      signal: AbortSignal.timeout(DEPLOY_STABILIZATION_REQUEST_TIMEOUT_MS),
+    });
+    const contentType = response.headers.get('content-type') ?? '';
+    const responseText = await response.text();
+    let jsonBody;
+
+    if (contentType.includes('application/json')) {
+      try {
+        jsonBody = JSON.parse(responseText);
+      } catch (error) {
+        jsonBody = undefined;
+      }
+    }
+
+    return {
+      headers: response.headers,
+      jsonBody,
+      status: response.status,
+    };
+  } catch (error) {
+    return {
+      error,
+    };
+  }
+}
+
+/**
+ * Computes rollout stabilization issues from the latest probe responses.
+ *
+ * @param {{
+ *   authenticatedProtectedProbe?: {
+ *     error?: Error,
+ *     jsonBody?: unknown,
+ *     status?: number,
+ *   }|null,
+ *   healthProbe: {
+ *     error?: Error,
+ *     headers?: Headers,
+ *     status?: number,
+ *   },
+ *   productionApiAuthEnabled: 'true'|'false',
+ *   protectedVerificationEnabled: boolean,
+ *   unauthenticatedProtectedProbe: {
+ *     error?: Error,
+ *     jsonBody?: unknown,
+ *     status?: number,
+ *   },
+ * }} input
+ * @returns {string[]}
+ */
+function collectDeployStabilizationIssues({
+  authenticatedProtectedProbe,
+  healthProbe,
+  productionApiAuthEnabled,
+  protectedVerificationEnabled,
+  unauthenticatedProtectedProbe,
+}) {
+  const issues = [];
+
+  if (healthProbe.error) {
+    issues.push(`health probe failed: ${healthProbe.error.message}`);
+  } else {
+    if (healthProbe.status !== 200) {
+      issues.push(`health probe returned ${healthProbe.status}`);
+    }
+
+    if (!healthProbe.headers || !hasRequiredRateLimitHeaders(healthProbe.headers)) {
+      issues.push('health probe is missing rate-limit headers');
+    }
+  }
+
+  if (unauthenticatedProtectedProbe.error) {
+    issues.push(`protected auth probe failed: ${unauthenticatedProtectedProbe.error.message}`);
+  } else if (productionApiAuthEnabled === 'true') {
+    if (unauthenticatedProtectedProbe.status !== 401) {
+      issues.push(
+        `protected auth probe returned ${unauthenticatedProtectedProbe.status}; expected 401`,
+      );
+    }
+
+    if (unauthenticatedProtectedProbe.jsonBody?.code !== 'API_AUTHENTICATION_FAILED') {
+      issues.push('protected auth probe did not return API_AUTHENTICATION_FAILED');
+    }
+  } else if (unauthenticatedProtectedProbe.status !== 200) {
+    issues.push(
+      `protected auth probe returned ${unauthenticatedProtectedProbe.status}; expected 200`,
+    );
+  }
+
+  if (!protectedVerificationEnabled) {
+    return issues;
+  }
+
+  if (!authenticatedProtectedProbe || authenticatedProtectedProbe.error) {
+    issues.push(
+      authenticatedProtectedProbe?.error
+        ? `authenticated protected probe failed: ${authenticatedProtectedProbe.error.message}`
+        : 'authenticated protected probe did not run',
+    );
+    return issues;
+  }
+
+  if (authenticatedProtectedProbe.status !== 200) {
+    issues.push(
+      `authenticated protected probe returned ${authenticatedProtectedProbe.status}; expected 200`,
+    );
+  }
+
+  return issues;
+}
+
+/**
+ * Waits for deploy probes to stabilize so rollout overlap does not fail Newman prematurely.
+ *
+ * @param {string} baseUrl
+ * @param {{
+ *   deployValidationApiToken: string,
+ *   productionApiAuthEnabled: 'true'|'false',
+ *   protectedVerificationEnabled: boolean,
+ * }} authConfig
+ * @param {{
+ *   fetchFn?: typeof fetch,
+ *   nowFn?: () => number,
+ *   pollIntervalMs?: number,
+ *   requiredConsecutiveSuccesses?: number,
+ *   sleepFn?: (durationMs: number) => Promise<void>,
+ *   timeoutMs?: number,
+ *   writeLog?: (message: string) => void,
+ * }} [options]
+ * @returns {Promise<void>}
+ */
+async function waitForStableDeploy(
+  baseUrl,
+  authConfig,
+  {
+    fetchFn = fetch,
+    nowFn = Date.now,
+    pollIntervalMs = DEPLOY_STABILIZATION_POLL_INTERVAL_MS,
+    requiredConsecutiveSuccesses = DEPLOY_STABILIZATION_REQUIRED_SUCCESSES,
+    sleepFn = sleep,
+    timeoutMs = DEPLOY_STABILIZATION_TIMEOUT_MS,
+    writeLog = (message) => process.stdout.write(`${message}\n`),
+  } = {},
+) {
+  const deadline = nowFn() + timeoutMs;
+  const probeUrls = buildDeployProbeUrls(baseUrl, authConfig);
+  const attempt = async ({
+    attemptCount,
+    consecutiveSuccesses,
+    lastIssues,
+  }) => {
+    if (nowFn() >= deadline) {
+      throw new Error(
+        `Timed out waiting for deploy rollout to stabilize at ${baseUrl}. `
+        + `Last observed issues: ${lastIssues.join('; ')}`,
+      );
+    }
+
+    const nextAttemptCount = attemptCount + 1;
+    const healthProbe = await requestDeployProbe(fetchFn, probeUrls.healthUrl);
+    const unauthenticatedProtectedProbe = await requestDeployProbe(
+      fetchFn,
+      probeUrls.unauthenticatedProtectedUrl,
+      { headers: { Accept: 'application/json' } },
+    );
+    const authenticatedProtectedProbe = authConfig.protectedVerificationEnabled
+      ? await requestDeployProbe(
+        fetchFn,
+        probeUrls.authenticatedProtectedUrl,
+        {
+          headers: {
+            Accept: 'application/json',
+            'X-API-Key': authConfig.deployValidationApiToken,
+          },
+        },
+      )
+      : null;
+    const issues = collectDeployStabilizationIssues({
+      authenticatedProtectedProbe,
+      healthProbe,
+      productionApiAuthEnabled: authConfig.productionApiAuthEnabled,
+      protectedVerificationEnabled: authConfig.protectedVerificationEnabled,
+      unauthenticatedProtectedProbe,
+    });
+
+    if (issues.length === 0) {
+      const nextConsecutiveSuccesses = consecutiveSuccesses + 1;
+      writeLog(
+        `[deploy] rollout probe ${nextAttemptCount} is stable `
+        + `(${nextConsecutiveSuccesses}/${requiredConsecutiveSuccesses})`,
+      );
+
+      if (nextConsecutiveSuccesses >= requiredConsecutiveSuccesses) {
+        return;
+      }
+
+      await sleepFn(pollIntervalMs);
+      await attempt({
+        attemptCount: nextAttemptCount,
+        consecutiveSuccesses: nextConsecutiveSuccesses,
+        lastIssues,
+      });
+      return;
+    }
+
+    writeLog(`[deploy] waiting for stable deploy rollout: ${issues.join('; ')}`);
+    await sleepFn(pollIntervalMs);
+    await attempt({
+      attemptCount: nextAttemptCount,
+      consecutiveSuccesses: 0,
+      lastIssues: issues,
+    });
+  };
+
+  await attempt({
+    attemptCount: 0,
+    consecutiveSuccesses: 0,
+    lastIssues: ['no rollout probes executed'],
+  });
+}
+
+/**
  * Runs the deploy Newman folder.
  *
  * @param {string} baseUrl
@@ -269,6 +553,7 @@ async function main() {
   );
 
   await fs.mkdir(REPORTS_DIR, { recursive: true });
+  await waitForStableDeploy(normalizedBaseUrl, authConfig);
   await runNewman(normalizedBaseUrl, {
     deployValidationApiToken: authConfig.deployValidationApiToken,
     folders: selectedFolders,
@@ -286,8 +571,13 @@ if (require.main === module) {
 
 module.exports = {
   buildDeployEnvVars,
+  buildDeployProbeUrls,
+  collectDeployStabilizationIssues,
+  hasRequiredRateLimitHeaders,
   normalizeBaseUrl,
   normalizeBooleanFlag,
   parseArgs,
+  requestDeployProbe,
   resolveProductionDeployAuthConfig,
+  waitForStableDeploy,
 };

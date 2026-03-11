@@ -100,6 +100,7 @@ The repository uses a small workflow set with separate responsibilities:
 - `Deploy Verification` in `.github/workflows/deploy-verification.yml`
   - runs automatically on `production` pushes
   - runs `npm run postman:deploy -- --base-url <host>`
+  - waits for consecutive stable health/auth probes before starting Newman so Render rollout overlap does not create deploy-smoke false negatives
   - reuses the Postman deploy folders to verify hosted health, Swagger server URL, expected production auth behavior, protected scraper behavior, and one Azure-backed description endpoint
   - reads `PRODUCTION_API_AUTH_ENABLED` and `PRODUCTION_DEPLOY_VALIDATION_API_TOKEN` from the `prod-validation` GitHub Actions environment to match the deployed Render `API_AUTH_ENABLED` / `API_AUTH_TOKENS` state
 - `Promote to Production` in `.github/workflows/promote-to-production.yml`
