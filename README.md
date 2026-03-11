@@ -121,7 +121,7 @@ Notes:
 - The combined report merges one canonical Jest run with the Newman harness so local and CI results follow the same structure.
 - CI uploads the generated HTML as the `allure-report` artifact.
 - The public Pages deployment is `https://jsugg.github.io/alt-text-generator/`; the suites view is `https://jsugg.github.io/alt-text-generator/#suites`.
-- Pushes to `main` publish the latest generated report to GitHub Pages after the `allure-pages` job finishes successfully.
+- Pushes to `main` publish the latest generated report to the `gh-pages` branch after the `allure-pages` job finishes successfully; GitHub Pages serves that branch at the public URL above.
 - CI now keeps separate Allure history streams for `main` (`ci-main`) and same-repository pull requests (`ci-pr-<number>`), while deploy verification keeps its own `deploy-production` stream.
 - GitHub Pages remains the public HTML surface for `main` only; PR and deploy-verification reports are action artifacts.
 - Same-repository PRs restore and persist their own history artifacts, so failure trends follow the PR instead of borrowing `main` history.

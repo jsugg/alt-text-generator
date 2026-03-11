@@ -21,9 +21,6 @@ on:
 permissions:
   contents: read
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
-
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -234,8 +231,6 @@ jobs:
     permissions:
       actions: read
       contents: read
-      pages: write
-      id-token: write
     outputs:
       has-results: ${{ steps.allure-inputs.outputs.has-results }}
       history_artifact_name: ${{ steps.history-policy.outputs.history_artifact_name }}
@@ -364,20 +359,6 @@ jobs:
           if-no-files-found: ignore
           retention-days: ${{ steps.history-policy.outputs.history_retention_days }}
 
-      - name: Configure GitHub Pages
-        if: >-
-          steps.history-policy.outputs.publish_pages == 'true' &&
-          steps.allure-inputs.outputs.has-results == 'true'
-        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
-
-      - name: Upload GitHub Pages artifact
-        if: >-
-          steps.history-policy.outputs.publish_pages == 'true' &&
-          steps.allure-inputs.outputs.has-results == 'true'
-        uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
-        with:
-          path: reports/allure-report
-
       - name: Upload Allure report
         if: always() && steps.allure-inputs.outputs.has-results == 'true'
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
@@ -417,28 +398,71 @@ jobs:
       - allure-report
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      pages: write
-      id-token: write
-    concurrency:
-      group: github-pages
-      cancel-in-progress: false
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      actions: read
+      contents: write
     outputs:
-      page-url: ${{ steps.deployment.outputs.page_url }}
+      page-url: ${{ steps.publish.outputs.page_url }}
     steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
+      - name: Download Allure report artifact
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          name: allure-report
+          path: reports/allure-report
+
+      - name: Publish report to gh-pages
+        id: publish
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          if ! find reports/allure-report -type f ! -name '.gitkeep' -print -quit | grep -q .; then
+            echo "Allure report artifact is empty; cannot publish GitHub Pages content." >&2
+            exit 1
+          fi
+
+          temp_dir="$(mktemp -d)"
+          cleanup() {
+            rm -rf "${temp_dir}"
+          }
+          trap cleanup EXIT
+
+          git init "${temp_dir}"
+          git -C "${temp_dir}" config user.name "github-actions[bot]"
+          git -C "${temp_dir}" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C "${temp_dir}" remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+
+          if git -C "${temp_dir}" fetch --depth=1 origin gh-pages; then
+            git -C "${temp_dir}" checkout -B gh-pages FETCH_HEAD
+            find "${temp_dir}" -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+          else
+            git -C "${temp_dir}" checkout --orphan gh-pages
+            find "${temp_dir}" -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+          fi
+
+          cp -R reports/allure-report/. "${temp_dir}/"
+          touch "${temp_dir}/.nojekyll"
+
+          git -C "${temp_dir}" add --all
+          if git -C "${temp_dir}" diff --cached --quiet; then
+            echo "published=false" >> "${GITHUB_OUTPUT}"
+          else
+            git -C "${temp_dir}" commit -m "Publish Allure report for ${GITHUB_SHA}"
+            git -C "${temp_dir}" push origin HEAD:gh-pages
+            echo "published=true" >> "${GITHUB_OUTPUT}"
+          fi
+
+          repo_name="${GITHUB_REPOSITORY#*/}"
+          echo "page_url=https://${GITHUB_REPOSITORY_OWNER}.github.io/${repo_name}/" >> "${GITHUB_OUTPUT}"
 
       - name: Write GitHub Pages summary
         run: |
           {
             echo "## Allure Pages"
             echo
-            echo "- Published URL: ${{ steps.deployment.outputs.page_url }}"
+            echo "- Published URL: ${{ steps.publish.outputs.page_url }}"
+            echo "- Published via gh-pages branch: ${{ steps.publish.outputs.published || 'false' }}"
           } >> "$GITHUB_STEP_SUMMARY"
 
   ci-summary:
