@@ -11,6 +11,78 @@ function readCollection(collectionPath) {
 }
 
 /**
+ * Returns all request items in a collection, including nested folders.
+ *
+ * @param {object} collection
+ * @returns {{ item: object, topLevelFolderName: string }[]}
+ */
+function listRequestItems(collection) {
+  const requestItems = [];
+
+  const visit = (item, topLevelFolderName) => {
+    if (!item || typeof item !== 'object') {
+      return;
+    }
+
+    if (item.request && typeof item.name === 'string') {
+      requestItems.push({ item, topLevelFolderName });
+    }
+
+    if (Array.isArray(item.item)) {
+      item.item.forEach((child) => visit(child, topLevelFolderName));
+    }
+  };
+
+  (collection.item ?? []).forEach((folder) => {
+    if (!folder || typeof folder.name !== 'string') {
+      return;
+    }
+
+    visit(folder, folder.name);
+  });
+
+  return requestItems;
+}
+
+/**
+ * Returns true when the request item includes an exact status assertion.
+ *
+ * @param {object} item
+ * @returns {boolean}
+ */
+function hasExactStatusAssertion(item) {
+  const exactStatusPattern = /pm\.response\.to\.have\.status\(\s*\d+\s*\)|pm\.expect\(pm\.response\.code[\s\S]*?\)\.to\.(?:eql|equal)\(/;
+  const events = Array.isArray(item?.event) ? item.event : [];
+
+  return events.some((event) => {
+    if (event?.listen !== 'test' || !Array.isArray(event?.script?.exec)) {
+      return false;
+    }
+
+    return exactStatusPattern.test(event.script.exec.join('\n'));
+  });
+}
+
+/**
+ * Throws when one or more requests are missing an exact status assertion.
+ *
+ * @param {object} collection
+ */
+function assertRequestItemsHaveExactStatusAssertions(collection) {
+  const missingAssertions = listRequestItems(collection)
+    .filter(({ item }) => !hasExactStatusAssertion(item))
+    .map(({ item, topLevelFolderName }) => `${topLevelFolderName} > ${item.name}`);
+
+  if (missingAssertions.length === 0) {
+    return;
+  }
+
+  throw new Error(
+    `Missing exact status assertions for Postman requests: ${missingAssertions.join(', ')}`,
+  );
+}
+
+/**
  * Returns the top-level folder names in a Postman collection.
  *
  * @param {object} collection
@@ -83,8 +155,11 @@ function buildItemFolderMap(collection) {
 }
 
 module.exports = {
+  assertRequestItemsHaveExactStatusAssertions,
   assertTopLevelFoldersExist,
   buildItemFolderMap,
+  hasExactStatusAssertion,
   listTopLevelFolderNames,
+  listRequestItems,
   readCollection,
 };

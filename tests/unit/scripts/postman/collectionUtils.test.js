@@ -1,7 +1,13 @@
+const path = require('node:path');
+
 const {
+  assertRequestItemsHaveExactStatusAssertions,
   assertTopLevelFoldersExist,
   buildItemFolderMap,
+  hasExactStatusAssertion,
   listTopLevelFolderNames,
+  listRequestItems,
+  readCollection,
 } = require('../../../../scripts/postman/collection-utils');
 
 describe('scripts/postman/collection-utils', () => {
@@ -65,5 +71,75 @@ describe('scripts/postman/collection-utils', () => {
     expect(itemFolderMap.get('Describe fixture image A')).toBe(
       '20 Single Description (Azure Stub)',
     );
+  });
+
+  it('lists request items across nested folders', () => {
+    expect(listRequestItems(collection).map(({ item }) => item.name)).toEqual([
+      'Ping',
+      'Describe fixture image A',
+    ]);
+  });
+
+  it('detects exact status assertions in request test scripts', () => {
+    expect(hasExactStatusAssertion({
+      name: 'Ping',
+      event: [
+        {
+          listen: 'test',
+          script: {
+            exec: [
+              "pm.test('ping returns 200', function () {",
+              '  pm.response.to.have.status(200);',
+              '});',
+            ],
+          },
+        },
+      ],
+    })).toBe(true);
+
+    expect(hasExactStatusAssertion({
+      name: 'Dynamic status',
+      event: [
+        {
+          listen: 'test',
+          script: {
+            exec: [
+              "pm.test('status matches runtime expectation', function () {",
+              "  pm.expect(pm.response.code, 'message').to.eql(expectedStatus);",
+              '});',
+            ],
+          },
+        },
+      ],
+    })).toBe(true);
+  });
+
+  it('throws when request items are missing exact status assertions', () => {
+    expect(() => assertRequestItemsHaveExactStatusAssertions({
+      item: [
+        {
+          name: '00 Core Smoke',
+          item: [
+            {
+              name: 'Ping',
+              request: { method: 'GET' },
+              event: [],
+            },
+          ],
+        },
+      ],
+    })).toThrow(
+      'Missing exact status assertions for Postman requests: 00 Core Smoke > Ping',
+    );
+  });
+
+  it('enforces exact status assertions across the committed Postman collection', () => {
+    const collectionPath = path.join(
+      __dirname,
+      '../../../../postman/collections/alt-text-generator.postman_collection.json',
+    );
+    const committedCollection = readCollection(collectionPath);
+
+    expect(() => assertRequestItemsHaveExactStatusAssertions(committedCollection)).not.toThrow();
   });
 });
