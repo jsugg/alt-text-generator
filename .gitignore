@@ -107,6 +107,8 @@ dist
 # TernJS port file
 .tern-port
 
+.serena
+
 .DS_Store
 .vscode/
 
@@ -115,3 +117,9 @@ dist
 certs/local-node-extra-ca.pem
 reports/newman/*
 !reports/newman/.gitkeep
+reports/allure-results/*
+!reports/allure-results/.gitkeep
+reports/allure-report/*
+!reports/allure-report/.gitkeep
+
+repotoolingbot.2026-03-10.private-key.pem

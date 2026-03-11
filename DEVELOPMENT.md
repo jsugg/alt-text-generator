@@ -164,6 +164,9 @@ Modes:
   - full deterministic suite
   - includes protected-endpoint auth, page descriptions, and negative-path coverage
   - writes JSON and JUnit reports to `reports/newman/`
+- `npm run postman:harness:allure`
+  - runs the same deterministic harness with the Allure reporter enabled
+  - appends raw Allure result files to `reports/allure-results/`
 - `npm run postman:live`
   - optional live-provider validation
   - intended for explicit live-provider checks, not default CI
@@ -196,8 +199,19 @@ Generated artifacts:
 - `reports/newman/deploy.json`
 - `reports/newman/deploy.xml`
 - `reports/jest/junit.xml`
+- `reports/allure-results/*`
+- `reports/allure-report/*`
 
 Use the deterministic modes for routine validation and CI. Use the live mode only when you deliberately want to validate vendor connectivity and account readiness.
+
+Allure workflow:
+
+- `npm run test:allure` enables the official `allure-jest` adapter only for that run.
+- `npm run postman:harness:allure` enables the official Newman Allure reporter without removing the existing JSON/JUnit exports.
+- `npm run report:allure` mirrors CI by cleaning old results, running Jest, running the deterministic Newman harness, and generating HTML from the merged `reports/allure-results/` directory.
+- GitHub Actions publishes Allure from the canonical Node 20 Jest lane only so matrix lanes 22 and 24 do not duplicate unit tests in the merged report.
+- On pushes to `main`, the CI workflow uploads the generated HTML as both a regular artifact and a GitHub Pages deployment artifact, then deploys the report to `https://jsugg.github.io/alt-text-generator/`.
+- Pull requests do not deploy Pages; they still produce the downloadable `allure-report` artifact for review.
 
 ## Supported Models
 

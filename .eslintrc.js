@@ -5,6 +5,13 @@ module.exports = {
     es2021: true,
   },
   extends: 'airbnb-base',
+  ignorePatterns: [
+    'coverage/',
+    'reports/jest/',
+    'reports/newman/',
+    'reports/allure-results/',
+    'reports/allure-report/',
+  ],
   overrides: [
     {
       env: {
