@@ -1,4 +1,5 @@
 const {
+  buildDeployEnvVars,
   normalizeBooleanFlag,
   normalizeBaseUrl,
   parseArgs,
@@ -27,6 +28,21 @@ describe('scripts/run-postman-deploy', () => {
   describe('normalizeBaseUrl', () => {
     it('strips trailing slashes from the base URL', () => {
       expect(normalizeBaseUrl('https://wcag.qcraft.com.br/')).toBe('https://wcag.qcraft.com.br');
+    });
+  });
+
+  describe('buildDeployEnvVars', () => {
+    it('targets the hosted api-docs page for deploy scraper verification', () => {
+      expect(buildDeployEnvVars('https://wcag.qcraft.com.br', {
+        productionApiAuthEnabled: 'true',
+        deployValidationApiToken: 'deploy-token',
+      })).toEqual({
+        baseUrl: 'https://wcag.qcraft.com.br',
+        deployScrapePageUrl: 'https://wcag.qcraft.com.br/api-docs/',
+        deployValidationApiToken: 'deploy-token',
+        expectedSwaggerServerUrl: 'https://wcag.qcraft.com.br',
+        productionApiAuthEnabled: 'true',
+      });
     });
   });
 

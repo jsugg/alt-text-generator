@@ -147,6 +147,38 @@ function parseArgs(argv) {
 }
 
 /**
+ * Builds the Newman environment variables for deploy verification.
+ *
+ * @param {string} baseUrl
+ * @param {{
+ *   deployValidationApiToken: string,
+ *   productionApiAuthEnabled: 'true'|'false',
+ * }} options
+ * @returns {{
+ *   baseUrl: string,
+ *   deployScrapePageUrl: string,
+ *   deployValidationApiToken: string,
+ *   expectedSwaggerServerUrl: string,
+ *   productionApiAuthEnabled: 'true'|'false',
+ * }}
+ */
+function buildDeployEnvVars(
+  baseUrl,
+  {
+    deployValidationApiToken,
+    productionApiAuthEnabled,
+  },
+) {
+  return {
+    baseUrl,
+    deployScrapePageUrl: new URL('api-docs/', `${baseUrl}/`).toString(),
+    deployValidationApiToken,
+    expectedSwaggerServerUrl: baseUrl,
+    productionApiAuthEnabled,
+  };
+}
+
+/**
  * Runs the deploy Newman folder.
  *
  * @param {string} baseUrl
@@ -166,6 +198,10 @@ function runNewman(
   },
 ) {
   const folderArgs = folders.flatMap((folder) => ['--folder', folder]);
+  const envVarArgs = Object.entries(buildDeployEnvVars(baseUrl, {
+    deployValidationApiToken,
+    productionApiAuthEnabled,
+  })).flatMap(([key, value]) => ['--env-var', `${key}=${value}`]);
   const args = [
     '--no-install',
     'newman',
@@ -173,14 +209,7 @@ function runNewman(
     COLLECTION_PATH,
     '-e',
     ENV_PATH,
-    '--env-var',
-    `baseUrl=${baseUrl}`,
-    '--env-var',
-    `expectedSwaggerServerUrl=${baseUrl}`,
-    '--env-var',
-    `productionApiAuthEnabled=${productionApiAuthEnabled}`,
-    '--env-var',
-    `deployValidationApiToken=${deployValidationApiToken}`,
+    ...envVarArgs,
     '--timeout-request',
     '45000',
     '--timeout-script',
@@ -256,6 +285,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  buildDeployEnvVars,
   normalizeBaseUrl,
   normalizeBooleanFlag,
   parseArgs,
