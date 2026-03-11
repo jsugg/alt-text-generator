@@ -145,18 +145,6 @@ function getBranchHeadSha(repo, branch) {
 }
 
 /**
- * Returns the tree SHA for a commit.
- *
- * @param {string} repo
- * @param {string} sha
- * @returns {string}
- */
-function getCommitTreeSha(repo, sha) {
-  const payload = runGhJson(['api', `repos/${repo}/commits/${sha}`]);
-  return payload.commit.tree.sha;
-}
-
-/**
  * Returns the required status-check contexts for a protected branch.
  *
  * @param {string} repo
@@ -244,12 +232,10 @@ function getAheadBy(repo, sourceBranch, targetBranch) {
  * @param {{
  *   sourceBranch: string,
  *   sourceSha: string,
- *   sourceTreeSha: string,
  *   sourceAheadBy: number,
- *   targetAheadBy: number,
+  *   targetAheadBy: number,
  *   targetBranch: string,
  *   targetSha: string,
- *   targetTreeSha: string,
  * }} options
  * @returns {{
  *   force: boolean,
@@ -261,12 +247,10 @@ function getAheadBy(repo, sourceBranch, targetBranch) {
 function derivePromotionPlan({
   sourceBranch,
   sourceSha,
-  sourceTreeSha,
   sourceAheadBy,
   targetAheadBy,
   targetBranch,
   targetSha,
-  targetTreeSha,
 }) {
   if (sourceSha === targetSha) {
     return {
@@ -277,21 +261,12 @@ function derivePromotionPlan({
     };
   }
 
-  const treesMatch = sourceTreeSha === targetTreeSha;
-
   if (targetAheadBy > 0) {
-    if (!treesMatch) {
-      throw new Error(
-        `${targetBranch} contains commits that are not present in ${sourceBranch} and its tree `
-          + `differs from ${sourceBranch}. Merge those changes back into ${sourceBranch} before promoting.`,
-      );
-    }
-
     return {
       force: true,
       mode: 'history-realignment',
       needsUpdate: true,
-      reason: `${targetBranch} only differs by branch-only history. Resetting it to `
+      reason: `${targetBranch} contains branch-only history. Resetting it to `
         + `${sourceBranch}@${sourceSha} keeps both branches on the exact same commit.`,
     };
   }
@@ -305,20 +280,13 @@ function derivePromotionPlan({
     };
   }
 
-  if (treesMatch) {
-    return {
-      force: true,
-      mode: 'history-realignment',
-      needsUpdate: true,
-      reason: `${targetBranch} has matching content but a different tip commit. Resetting it to `
-        + `${sourceBranch}@${sourceSha} keeps both branches aligned.`,
-    };
-  }
-
-  throw new Error(
-    `Unable to derive a safe promotion plan for ${sourceBranch}@${sourceSha} -> `
-      + `${targetBranch}@${targetSha}.`,
-  );
+  return {
+    force: true,
+    mode: 'history-realignment',
+    needsUpdate: true,
+    reason: `${targetBranch} has a different tip commit. Resetting it to `
+      + `${sourceBranch}@${sourceSha} keeps both branches aligned.`,
+  };
 }
 
 /**
@@ -365,12 +333,10 @@ async function main() {
   const plan = derivePromotionPlan({
     sourceBranch: options.sourceBranch,
     sourceSha,
-    sourceTreeSha: getCommitTreeSha(options.repo, sourceSha),
     sourceAheadBy,
     targetAheadBy,
     targetBranch: options.targetBranch,
     targetSha,
-    targetTreeSha: getCommitTreeSha(options.repo, targetSha),
   });
 
   appendOutput(options.outputFile, 'source_sha', sourceSha);

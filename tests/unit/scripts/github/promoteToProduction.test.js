@@ -87,12 +87,10 @@ describe('scripts/github/promote-to-production', () => {
       expect(derivePromotionPlan({
         sourceBranch: 'main',
         sourceSha: 'abc123',
-        sourceTreeSha: 'tree-1',
         sourceAheadBy: 0,
         targetAheadBy: 0,
         targetBranch: 'production',
         targetSha: 'abc123',
-        targetTreeSha: 'tree-1',
       })).toEqual({
         force: false,
         mode: 'already-aligned',
@@ -105,12 +103,10 @@ describe('scripts/github/promote-to-production', () => {
       expect(derivePromotionPlan({
         sourceBranch: 'main',
         sourceSha: 'abc123',
-        sourceTreeSha: 'tree-2',
         sourceAheadBy: 2,
         targetAheadBy: 0,
         targetBranch: 'production',
         targetSha: 'def456',
-        targetTreeSha: 'tree-1',
       })).toEqual({
         force: false,
         mode: 'fast-forward',
@@ -123,33 +119,32 @@ describe('scripts/github/promote-to-production', () => {
       expect(derivePromotionPlan({
         sourceBranch: 'main',
         sourceSha: 'abc123',
-        sourceTreeSha: 'tree-1',
         sourceAheadBy: 0,
         targetAheadBy: 4,
         targetBranch: 'production',
         targetSha: 'def456',
-        targetTreeSha: 'tree-1',
       })).toEqual({
         force: true,
         mode: 'history-realignment',
         needsUpdate: true,
-        reason: 'production only differs by branch-only history. Resetting it to main@abc123 keeps both branches on the exact same commit.',
+        reason: 'production contains branch-only history. Resetting it to main@abc123 keeps both branches on the exact same commit.',
       });
     });
 
-    it('fails when target has unique content not present in source', () => {
-      expect(() => derivePromotionPlan({
+    it('realigns when both branches diverge but production must track main exactly', () => {
+      expect(derivePromotionPlan({
         sourceBranch: 'main',
         sourceSha: 'abc123',
-        sourceTreeSha: 'tree-1',
-        sourceAheadBy: 0,
+        sourceAheadBy: 3,
         targetAheadBy: 1,
         targetBranch: 'production',
         targetSha: 'def456',
-        targetTreeSha: 'tree-2',
-      })).toThrow(
-        'production contains commits that are not present in main and its tree differs from main. Merge those changes back into main before promoting.',
-      );
+      })).toEqual({
+        force: true,
+        mode: 'history-realignment',
+        needsUpdate: true,
+        reason: 'production contains branch-only history. Resetting it to main@abc123 keeps both branches on the exact same commit.',
+      });
     });
   });
 });

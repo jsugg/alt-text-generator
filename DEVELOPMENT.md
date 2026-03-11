@@ -104,7 +104,7 @@ The repository uses a small workflow set with separate responsibilities:
   - manual only
   - verifies that `main` has the required CI checks green
   - updates the `production` branch ref directly to the validated `main` commit so both branches end on the same tip SHA
-  - refuses to overwrite unique `production` content that is not present on `main`
+  - treats `production` as a tracking branch for `main`; branch-only `production` history is realigned back to the validated `main` commit during promotion
   - prefers a GitHub App installation token when `AUTOMATION_GITHUB_APP_ID` and `AUTOMATION_GITHUB_APP_PRIVATE_KEY` are configured
   - falls back to `github.token` when the GitHub App is not configured; the ref update still works, but GitHub will not emit downstream `production` push workflow runs for that update
 
@@ -120,7 +120,7 @@ Branch protection currently requires these checks on both `main` and `production
 Promotion branch note:
 
 - after a successful promotion, `main` and `production` should point to the exact same commit SHA
-- if `production` contains unique content not present on `main`, the promotion workflow fails and requires those changes to be merged back into `main` first
+- `main` is the canonical source branch; if `production` has branch-only history, promotion resets it back to the validated `main` commit
 
 ## Repository Automation GitHub App
 
