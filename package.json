@@ -28,6 +28,7 @@
     "postman:live": "node scripts/run-postman-harness.js live",
     "postman:deploy": "node scripts/run-postman-deploy.js",
     "test": "jest",
+    "test:ci": "jest --ci --reporters=default --reporters=jest-junit",
     "prod": "NODE_ENV=production node src/app.js",
     "dev": "NODE_ENV=development nodemon src/app.js | pino-pretty -i streams,options"
   },
@@ -58,6 +59,7 @@
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-plugin-import": "^2.28.1",
     "jest": "^29.7.0",
+    "jest-junit": "^16.0.0",
     "newman": "^6.2.2",
     "nodemon": "^3.0.1",
     "supertest": "^6.3.4"

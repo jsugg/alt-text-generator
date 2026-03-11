@@ -82,6 +82,7 @@ Notes:
 
 - `postman:smoke` is the fast deterministic gate.
 - `postman:harness` runs the full deterministic suite, including protected-endpoint auth coverage, and writes JSON and JUnit reports under `reports/newman/`.
+- CI also emits `reports/jest/junit.xml` from the canonical Node 20 Jest lane and publishes one combined GitHub test report that joins Jest and Newman results.
 - `postman:live` is optional and reserved for explicit live-provider validation.
 - `postman:deploy` runs the hosted production-smoke folder from the same Postman collection against a supplied base URL.
 - CI runs `postman:smoke` on pull requests and `postman:harness` on `main` / `production` pushes.

@@ -23,7 +23,7 @@ jobs:
   smoke:
     name: production-smoke
     runs-on: ubuntu-latest
-    environment: pre-prod
+    environment: prod-validation
     timeout-minutes: 10
     env:
       BASE_URL: ${{ github.event_name == 'workflow_dispatch' && inputs.base_url || 'https://wcag.qcraft.com.br' }}

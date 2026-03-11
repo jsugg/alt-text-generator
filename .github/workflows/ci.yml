@@ -87,10 +87,30 @@ jobs:
           node-version: ${{ matrix.node-version }}
 
       - name: Run tests
+        if: matrix.node-version != '20'
         run: npm test -- --ci
         env:
           NODE_ENV: test
           REPLICATE_API_TOKEN: test-token
+
+      - name: Run tests with JUnit reporting
+        if: matrix.node-version == '20'
+        run: npm run test:ci
+        env:
+          NODE_ENV: test
+          REPLICATE_API_TOKEN: test-token
+          JEST_JUNIT_OUTPUT_DIR: reports/jest
+          JEST_JUNIT_OUTPUT_NAME: junit.xml
+          JEST_JUNIT_ADD_FILE_ATTRIBUTE: true
+
+      - name: Upload Jest test results
+        if: always() && matrix.node-version == '20'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: jest-results-node-${{ matrix.node-version }}
+          path: reports/jest/
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Upload Jest coverage
         if: always() && matrix.node-version == '20'
@@ -136,6 +156,40 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  test-report:
+    name: test-report
+    if: always()
+    needs:
+      - test
+      - newman
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
+    steps:
+      - name: Download Jest test results
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          pattern: jest-results-node-*
+          path: reports/jest
+          merge-multiple: true
+
+      - name: Download Newman test results
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          pattern: newman-artifacts-*
+          path: reports/newman
+          merge-multiple: true
+
+      - name: Publish combined test report
+        uses: EnricoMi/publish-unit-test-result-action@c950f6fb443cb5af20a377fd0dfaa78838901040 # v2.23.0
+        with:
+          check_name: Combined Test Report
+          comment_mode: off
+          files: |
+            reports/jest/**/*.xml
+            reports/newman/**/*.xml
+
   ci-summary:
     name: ci-summary
     if: always()
@@ -144,6 +198,7 @@ jobs:
       - lint
       - test
       - newman
+      - test-report
     runs-on: ubuntu-latest
     steps:
       - name: Write summary
@@ -155,5 +210,6 @@ jobs:
             echo "- lint: ${{ needs.lint.result }}"
             echo "- test: ${{ needs.test.result }}"
             echo "- newman: ${{ needs.newman.result }}"
+            echo "- test-report: ${{ needs.test-report.result }}"
             echo "- newman mode: ${{ github.event_name == 'pull_request' && 'smoke' || 'harness' }}"
           } >> "$GITHUB_STEP_SUMMARY"

@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       provider_scope:
-        description: Select the live provider scope. Use auto to defer to the pre-prod LIVE_PROVIDER_SCOPE variable.
+        description: Select the live provider scope. Use auto to defer to the prod-validation LIVE_PROVIDER_SCOPE variable.
         required: false
         default: auto
         type: choice
@@ -40,7 +40,7 @@ jobs:
     if: github.event_name != 'schedule' || vars.ENABLE_SCHEDULED_LIVE_PROVIDER_VALIDATION == 'true'
     name: live-provider
     runs-on: ubuntu-latest
-    environment: pre-prod
+    environment: prod-validation
     timeout-minutes: 20
     steps:
       - name: Checkout

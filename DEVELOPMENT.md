@@ -89,7 +89,7 @@ The repository uses a small workflow set with separate responsibilities:
 - `Live Provider Validation` in `.github/workflows/live-provider-validation.yml`
   - manual only
   - runs `npm run postman:live`
-  - uses the `pre-prod` GitHub Actions variable `LIVE_PROVIDER_SCOPE` with `auto`, `azure`, `replicate`, or `all`
+  - uses the `prod-validation` GitHub Actions variable `LIVE_PROVIDER_SCOPE` with `auto`, `azure`, `replicate`, or `all`
   - requires GitHub Actions secrets, not Render env vars
   - requires `REPLICATE_API_TOKEN` only when the resolved scope includes Replicate
   - requires `ACV_API_ENDPOINT` plus `ACV_SUBSCRIPTION_KEY` only when the resolved scope includes Azure
@@ -99,7 +99,7 @@ The repository uses a small workflow set with separate responsibilities:
   - runs automatically on `production` pushes
   - runs `npm run postman:deploy -- --base-url <host>`
   - reuses the Postman deploy folders to verify hosted health, Swagger server URL, expected production auth behavior, protected scraper behavior, and one Azure-backed description endpoint
-  - reads `PRODUCTION_API_AUTH_ENABLED` and `PRODUCTION_DEPLOY_VALIDATION_API_TOKEN` from the GitHub Actions environment to match the deployed Render `API_AUTH_ENABLED` / `API_AUTH_TOKENS` state
+  - reads `PRODUCTION_API_AUTH_ENABLED` and `PRODUCTION_DEPLOY_VALIDATION_API_TOKEN` from the `prod-validation` GitHub Actions environment to match the deployed Render `API_AUTH_ENABLED` / `API_AUTH_TOKENS` state
 - `Promote to Production` in `.github/workflows/promote-to-production.yml`
   - manual only
   - verifies that `main` has the required CI checks green
@@ -159,6 +159,7 @@ Generated artifacts:
 - `reports/newman/live-provider.xml`
 - `reports/newman/deploy.json`
 - `reports/newman/deploy.xml`
+- `reports/jest/junit.xml`
 
 Use the deterministic modes for routine validation and CI. Use the live mode only when you deliberately want to validate vendor connectivity and account readiness.
 
