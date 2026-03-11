@@ -1,6 +1,7 @@
 const ORIGINAL_ENV = process.env;
 const {
   DEFAULT_RATE_LIMIT_REDIS_PREFIX,
+  DEFAULT_UNIT_LOCAL_REDIS_URL,
 } = require('../../../config/rateLimitStore');
 
 const loadConfig = ({ overrides = {}, remove = [] } = {}) => {
@@ -41,6 +42,7 @@ describe('config', () => {
         'RATE_LIMIT_WINDOW_MS',
         'RATE_LIMIT_MAX',
         'RATE_LIMIT_STORE',
+        'RATE_LIMIT_REDIS_TOPOLOGY',
         'RATE_LIMIT_REDIS_PREFIX',
         'RATE_LIMIT_REDIS_URL',
         'REDIS_URL',
@@ -76,6 +78,7 @@ describe('config', () => {
     expect(config.rateLimitStore).toEqual({
       kind: 'memory',
       mode: 'auto',
+      redisTopology: 'external',
       redisPrefix: DEFAULT_RATE_LIMIT_REDIS_PREFIX,
       redisUrl: undefined,
     });
@@ -105,6 +108,7 @@ describe('config', () => {
         RATE_LIMIT_WINDOW_MS: '30000',
         RATE_LIMIT_MAX: '50',
         RATE_LIMIT_STORE: 'auto',
+        RATE_LIMIT_REDIS_TOPOLOGY: 'external',
         RATE_LIMIT_REDIS_PREFIX: 'redis-rate-limit',
         RATE_LIMIT_REDIS_URL: 'redis://rate-limit.example:6379',
         STATUS_RATE_LIMIT_WINDOW_MS: '45000',
@@ -139,6 +143,7 @@ describe('config', () => {
     expect(config.rateLimitStore).toEqual({
       kind: 'redis',
       mode: 'auto',
+      redisTopology: 'external',
       redisPrefix: 'redis-rate-limit:',
       redisUrl: 'redis://rate-limit.example:6379',
     });
@@ -189,8 +194,26 @@ describe('config', () => {
     expect(config.rateLimitStore).toEqual({
       kind: 'redis',
       mode: 'auto',
+      redisTopology: 'external',
       redisPrefix: DEFAULT_RATE_LIMIT_REDIS_PREFIX,
       redisUrl: 'redis://shared.example:6379',
+    });
+  });
+
+  it('defaults unit-local Redis to localhost when the topology flag is enabled', () => {
+    const config = loadConfig({
+      overrides: {
+        RATE_LIMIT_REDIS_TOPOLOGY: 'unit-local',
+      },
+      remove: ['RATE_LIMIT_REDIS_URL', 'REDIS_URL'],
+    });
+
+    expect(config.rateLimitStore).toEqual({
+      kind: 'redis',
+      mode: 'auto',
+      redisTopology: 'unit-local',
+      redisPrefix: DEFAULT_RATE_LIMIT_REDIS_PREFIX,
+      redisUrl: DEFAULT_UNIT_LOCAL_REDIS_URL,
     });
   });
 });

@@ -125,6 +125,22 @@ describe('validateEnvVars', () => {
     expect(() => validateEnvVars()).not.toThrow();
   });
 
+  it('accepts multi-worker startup when the future unit-local Redis flag is enabled', () => {
+    const validateEnvVars = loadValidator({
+      overrides: {
+        NODE_ENV: 'production',
+        RATE_LIMIT_REDIS_TOPOLOGY: 'unit-local',
+        REPLICATE_API_TOKEN: 'test-token',
+        TLS_KEY: 'tls-key',
+        TLS_CERT: 'tls-cert',
+        WORKER_COUNT: '3',
+      },
+      remove: ['RATE_LIMIT_REDIS_URL', 'REDIS_URL'],
+    });
+
+    expect(() => validateEnvVars()).not.toThrow();
+  });
+
   it('rejects a negative TRUST_PROXY_HOPS override', () => {
     const validateEnvVars = loadValidator({
       overrides: {

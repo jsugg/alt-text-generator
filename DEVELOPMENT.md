@@ -331,6 +331,7 @@ At least one provider must be configured at startup: `REPLICATE_API_TOKEN`, or A
 | `RATE_LIMIT_WINDOW_MS` | No | `900000` | Rate-limit window. |
 | `RATE_LIMIT_MAX` | No | `100` | Max requests per window. |
 | `RATE_LIMIT_STORE` | No | `auto` | Rate-limit storage mode: `auto`, `memory`, or `redis`. `auto` promotes to Redis when `RATE_LIMIT_REDIS_URL` or `REDIS_URL` is set. |
+| `RATE_LIMIT_REDIS_TOPOLOGY` | No | `external` | Redis deployment topology. `external` expects `RATE_LIMIT_REDIS_URL`/`REDIS_URL`; `unit-local` defaults Redis to `redis://127.0.0.1:6379` for future Docker/Pod-local sidecars. |
 | `RATE_LIMIT_REDIS_URL` | No | unset | Explicit Redis URL for the shared rate-limit store. Takes precedence over `REDIS_URL`. |
 | `RATE_LIMIT_REDIS_PREFIX` | No | `alt-text-generator:rate-limit:` | Redis key prefix for rate-limit buckets. |
 | `STATUS_RATE_LIMIT_WINDOW_MS` | No | `60000` | Dedicated rate-limit window for `/api/ping` and `/api/health`. |
@@ -344,8 +345,10 @@ At least one provider must be configured at startup: `REPLICATE_API_TOKEN`, or A
 - `/api/ping` stays a liveness signal and continues returning `200` while the process is draining.
 - `/api/health` is the readiness signal used by Render. It returns `200` while the instance is ready and `503` once graceful shutdown begins.
 - Status routes use their own limiter so health probes are protected without sharing the main API request budget.
-- Clustered mode (`WORKER_COUNT > 1`) requires a shared Redis-backed limiter. Startup validation fails fast if clustered mode is enabled without `RATE_LIMIT_STORE=redis|auto` plus `RATE_LIMIT_REDIS_URL`/`REDIS_URL`.
-- Horizontal instance scaling should also use the shared Redis-backed limiter, and `STATUS_RATE_LIMIT_MAX` should be sized for the aggregate health-probe budget across instances.
+- Clustered mode (`WORKER_COUNT > 1`) requires a Redis-backed limiter. Startup validation fails fast if clustered mode is enabled without `RATE_LIMIT_STORE=redis|auto` and a resolvable Redis endpoint.
+- The current Render deployment keeps `RATE_LIMIT_REDIS_TOPOLOGY=external`, so the future pod-local Redis path is explicitly disabled for now.
+- Horizontal instance scaling should use an external/shared Redis-backed limiter, and `STATUS_RATE_LIMIT_MAX` should be sized for the aggregate health-probe budget across instances.
+- The future `RATE_LIMIT_REDIS_TOPOLOGY=unit-local` mode is meant for a Docker/Kubernetes-style resilient unit where several worker processes intentionally share one pod-local Redis instance.
 - Redis-backed limiter errors fail open at request time to preserve availability, but startup still fails fast when Redis is explicitly required and unreachable during bootstrap.
 - Auth-protected API failures use a structured JSON contract with `error`, `code`, `requestId`, and optional `details`.
 
@@ -536,6 +539,7 @@ It disables certificate validation and is not an acceptable operating mode.
 - Cluster mode is only enabled when `WORKER_COUNT > 1`.
 - Cluster mode now applies restart backoff, crash-budget enforcement, and intentional-shutdown detection.
 - Redis-backed shared rate limiting is the supported production shape for clustered or horizontally scaled deployments.
+- Future pod-local Redis support is feature-flagged through `RATE_LIMIT_REDIS_TOPOLOGY=unit-local`; keep it disabled on the current Render web service until the runtime unit itself owns that Redis process.
 - Express trusts `TRUST_PROXY_HOPS` forwarded proxy hops, which defaults to `1` to match the current Render ingress layout.
 
 ## Keeping This Doc Correct

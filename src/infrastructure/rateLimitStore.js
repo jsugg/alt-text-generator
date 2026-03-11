@@ -53,7 +53,10 @@ const initializeRateLimitStoreProvider = async ({
     logger?.error?.({ err: error }, 'Rate-limit Redis client error');
   });
   await redisClient.connect();
-  logger?.info?.({ store: 'redis' }, 'Rate-limit store connected');
+  logger?.info?.({
+    store: 'redis',
+    topology: rateLimitStoreConfig.redisTopology,
+  }, 'Rate-limit store connected');
 
   let isClosed = false;
 

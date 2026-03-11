@@ -1,6 +1,8 @@
 const {
   buildRateLimitStoreConfig,
   DEFAULT_RATE_LIMIT_REDIS_PREFIX,
+  DEFAULT_UNIT_LOCAL_REDIS_URL,
+  RATE_LIMIT_REDIS_TOPOLOGIES,
   RATE_LIMIT_STORE_MODES,
   resolveEffectiveRateLimitStoreKind,
 } = require('../../../config/rateLimitStore');
@@ -10,6 +12,7 @@ describe('rateLimitStore config helpers', () => {
     expect(buildRateLimitStoreConfig({})).toEqual({
       kind: RATE_LIMIT_STORE_MODES.MEMORY,
       mode: RATE_LIMIT_STORE_MODES.AUTO,
+      redisTopology: RATE_LIMIT_REDIS_TOPOLOGIES.EXTERNAL,
       redisPrefix: DEFAULT_RATE_LIMIT_REDIS_PREFIX,
       redisUrl: undefined,
     });
@@ -24,6 +27,7 @@ describe('rateLimitStore config helpers', () => {
     })).toEqual({
       kind: RATE_LIMIT_STORE_MODES.REDIS,
       mode: RATE_LIMIT_STORE_MODES.AUTO,
+      redisTopology: RATE_LIMIT_REDIS_TOPOLOGIES.EXTERNAL,
       redisPrefix: 'custom-prefix:',
       redisUrl: 'redis://rate-limit.example:6379',
     });
@@ -36,8 +40,22 @@ describe('rateLimitStore config helpers', () => {
     })).toEqual({
       kind: RATE_LIMIT_STORE_MODES.MEMORY,
       mode: RATE_LIMIT_STORE_MODES.MEMORY,
+      redisTopology: RATE_LIMIT_REDIS_TOPOLOGIES.EXTERNAL,
       redisPrefix: DEFAULT_RATE_LIMIT_REDIS_PREFIX,
       redisUrl: 'redis://shared.example:6379',
+    });
+  });
+
+  it('supports a future unit-local Redis topology behind an explicit flag', () => {
+    expect(buildRateLimitStoreConfig({
+      RATE_LIMIT_REDIS_TOPOLOGY: 'unit-local',
+      RATE_LIMIT_STORE: 'auto',
+    })).toEqual({
+      kind: RATE_LIMIT_STORE_MODES.REDIS,
+      mode: RATE_LIMIT_STORE_MODES.AUTO,
+      redisTopology: RATE_LIMIT_REDIS_TOPOLOGIES.UNIT_LOCAL,
+      redisPrefix: DEFAULT_RATE_LIMIT_REDIS_PREFIX,
+      redisUrl: DEFAULT_UNIT_LOCAL_REDIS_URL,
     });
   });
 

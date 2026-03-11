@@ -2,6 +2,7 @@ const Joi = require('joi');
 
 const {
   buildRateLimitStoreConfig,
+  RATE_LIMIT_REDIS_TOPOLOGIES,
   RATE_LIMIT_STORE_MODES,
 } = require('../../config/rateLimitStore');
 
@@ -74,6 +75,9 @@ const envVarsSchema = Joi.object({
   RATE_LIMIT_MAX: Joi.number().optional(),
   RATE_LIMIT_STORE: Joi.string()
     .valid(...Object.values(RATE_LIMIT_STORE_MODES))
+    .optional(),
+  RATE_LIMIT_REDIS_TOPOLOGY: Joi.string()
+    .valid(...Object.values(RATE_LIMIT_REDIS_TOPOLOGIES))
     .optional(),
   RATE_LIMIT_REDIS_URL: Joi.string().pattern(/^rediss?:\/\//).optional(),
   RATE_LIMIT_REDIS_PREFIX: Joi.string().min(1).optional(),

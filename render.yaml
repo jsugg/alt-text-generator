@@ -19,6 +19,8 @@ services:
         value: 1
       - key: RATE_LIMIT_STORE
         value: auto
+      - key: RATE_LIMIT_REDIS_TOPOLOGY
+        value: external
       - key: TRUST_PROXY_HOPS
         value: 1
       - key: TLS_PORT

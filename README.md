@@ -134,7 +134,7 @@ Common local settings:
 
 Advanced runtime settings such as worker count, scraper timeouts, rate limits, logging, Swagger URLs, and stubbed provider endpoints are documented in [DEVELOPMENT.md](./DEVELOPMENT.md).
 `WORKER_COUNT=1` runs the app as a single process; cluster management is only enabled when `WORKER_COUNT > 1`.
-When `WORKER_COUNT > 1`, configure a shared Redis-backed rate-limit store through `RATE_LIMIT_STORE=redis` (or `auto`) plus `REDIS_URL`/`RATE_LIMIT_REDIS_URL`; startup validation now blocks clustered mode without it.
+When `WORKER_COUNT > 1`, configure a Redis-backed rate-limit store through `RATE_LIMIT_STORE=redis` (or `auto`). The default topology is external Redis via `REDIS_URL`/`RATE_LIMIT_REDIS_URL`, and a future-ready `RATE_LIMIT_REDIS_TOPOLOGY=unit-local` mode can default to `redis://127.0.0.1:6379` for a pod-local/sidecar Redis design. Startup validation blocks clustered mode without Redis.
 Clustered mode applies bounded restart backoff and a crash budget so persistent worker faults do not spin forever inside the app process.
 Production logs stay on the process stream so platforms such as Render can collect them directly.
 The Render deployment shape is versioned in [render.yaml](./render.yaml), while the Node runtime pin remains in [`package.json`](./package.json) under `engines.node`.

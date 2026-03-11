@@ -5,7 +5,15 @@ const RATE_LIMIT_STORE_MODES = Object.freeze({
 });
 
 const DEFAULT_RATE_LIMIT_REDIS_PREFIX = 'alt-text-generator:rate-limit:';
+const DEFAULT_UNIT_LOCAL_REDIS_URL = 'redis://127.0.0.1:6379';
+const RATE_LIMIT_REDIS_TOPOLOGIES = Object.freeze({
+  EXTERNAL: 'external',
+  UNIT_LOCAL: 'unit-local',
+});
 const VALID_RATE_LIMIT_STORE_MODES = new Set(Object.values(RATE_LIMIT_STORE_MODES));
+const VALID_RATE_LIMIT_REDIS_TOPOLOGIES = new Set(
+  Object.values(RATE_LIMIT_REDIS_TOPOLOGIES),
+);
 
 const toNonEmptyString = (value) => {
   if (typeof value !== 'string') {
@@ -25,9 +33,23 @@ const normalizeRedisPrefix = (value) => {
   return trimmedValue.endsWith(':') ? trimmedValue : `${trimmedValue}:`;
 };
 
-const resolveRateLimitRedisUrl = (envLike = {}) => (
+const resolveRateLimitRedisTopology = (value) => (
+  VALID_RATE_LIMIT_REDIS_TOPOLOGIES.has(value)
+    ? value
+    : RATE_LIMIT_REDIS_TOPOLOGIES.EXTERNAL
+);
+
+const resolveRateLimitRedisUrl = (
+  envLike = {},
+  redisTopology = RATE_LIMIT_REDIS_TOPOLOGIES.EXTERNAL,
+) => (
   toNonEmptyString(envLike.RATE_LIMIT_REDIS_URL)
   ?? toNonEmptyString(envLike.REDIS_URL)
+  ?? (
+    redisTopology === RATE_LIMIT_REDIS_TOPOLOGIES.UNIT_LOCAL
+      ? DEFAULT_UNIT_LOCAL_REDIS_URL
+      : undefined
+  )
 );
 
 const resolveRateLimitStoreMode = (value) => (
@@ -49,11 +71,15 @@ const resolveEffectiveRateLimitStoreKind = ({
 
 const buildRateLimitStoreConfig = (envLike = process.env) => {
   const mode = resolveRateLimitStoreMode(toNonEmptyString(envLike.RATE_LIMIT_STORE));
-  const redisUrl = resolveRateLimitRedisUrl(envLike);
+  const redisTopology = resolveRateLimitRedisTopology(
+    toNonEmptyString(envLike.RATE_LIMIT_REDIS_TOPOLOGY),
+  );
+  const redisUrl = resolveRateLimitRedisUrl(envLike, redisTopology);
 
   return {
     kind: resolveEffectiveRateLimitStoreKind({ mode, redisUrl }),
     mode,
+    redisTopology,
     redisPrefix: normalizeRedisPrefix(envLike.RATE_LIMIT_REDIS_PREFIX),
     redisUrl,
   };
@@ -62,8 +88,11 @@ const buildRateLimitStoreConfig = (envLike = process.env) => {
 module.exports = {
   buildRateLimitStoreConfig,
   DEFAULT_RATE_LIMIT_REDIS_PREFIX,
+  DEFAULT_UNIT_LOCAL_REDIS_URL,
+  RATE_LIMIT_REDIS_TOPOLOGIES,
   RATE_LIMIT_STORE_MODES,
   resolveEffectiveRateLimitStoreKind,
+  resolveRateLimitRedisTopology,
   resolveRateLimitRedisUrl,
   resolveRateLimitStoreMode,
 };
