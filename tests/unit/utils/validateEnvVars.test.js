@@ -110,6 +110,21 @@ describe('validateEnvVars', () => {
     expect(() => validateEnvVars()).not.toThrow();
   });
 
+  it('accepts multi-worker startup when Redis-backed rate limiting is configured', () => {
+    const validateEnvVars = loadValidator({
+      overrides: {
+        NODE_ENV: 'production',
+        REPLICATE_API_TOKEN: 'test-token',
+        TLS_KEY: 'tls-key',
+        TLS_CERT: 'tls-cert',
+        WORKER_COUNT: '4',
+        REDIS_URL: 'redis://shared.example:6379',
+      },
+    });
+
+    expect(() => validateEnvVars()).not.toThrow();
+  });
+
   it('rejects a negative TRUST_PROXY_HOPS override', () => {
     const validateEnvVars = loadValidator({
       overrides: {
@@ -137,6 +152,33 @@ describe('validateEnvVars', () => {
     });
 
     expect(() => validateEnvVars()).toThrow(/CLUSTER_RESTART_MAX_BACKOFF_MS/);
+  });
+
+  it('rejects Redis-backed rate limiting without a Redis URL', () => {
+    const validateEnvVars = loadValidator({
+      overrides: {
+        REPLICATE_API_TOKEN: 'test-token',
+        RATE_LIMIT_STORE: 'redis',
+      },
+      remove: ['RATE_LIMIT_REDIS_URL', 'REDIS_URL'],
+    });
+
+    expect(() => validateEnvVars()).toThrow(/RATE_LIMIT_STORE=redis/i);
+  });
+
+  it('rejects multi-worker startup without a shared Redis-backed store', () => {
+    const validateEnvVars = loadValidator({
+      overrides: {
+        NODE_ENV: 'production',
+        REPLICATE_API_TOKEN: 'test-token',
+        TLS_KEY: 'tls-key',
+        TLS_CERT: 'tls-cert',
+        WORKER_COUNT: '2',
+      },
+      remove: ['RATE_LIMIT_REDIS_URL', 'REDIS_URL'],
+    });
+
+    expect(() => validateEnvVars()).toThrow(/WORKER_COUNT greater than 1/i);
   });
 
   it('accepts Azure provider credentials when endpoint and subscription key are set', () => {

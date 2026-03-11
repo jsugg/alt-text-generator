@@ -83,6 +83,7 @@ const createApp = ({
   pageDescriptionService,
   health,
   outboundClients,
+  rateLimitStoreProvider,
   replicateClient,
   runtimeState,
 } = {}) => {
@@ -119,7 +120,7 @@ const createApp = ({
       imageDescriberFactory: resolvedImageDescriberFactory,
     });
   const resolvedHealthController = health ?? createHealthController({ runtimeState });
-  const statusRateLimiter = createStatusRateLimiter(config);
+  const statusRateLimiter = createStatusRateLimiter(config, rateLimitStoreProvider);
 
   const scraperController = new ScraperController({
     scraperService: resolvedScraperService,
@@ -135,7 +136,7 @@ const createApp = ({
   app.disable('x-powered-by');
   app.set('trust proxy', proxyConfig.trustProxyHops);
 
-  applyMiddlewares(app, requestLogger, config);
+  applyMiddlewares(app, requestLogger, config, rateLimitStoreProvider);
   const { loadRequestFilter } = createRequestFilter(appLogger);
   loadRequestFilter(app);
   app.use(createAccessControlMiddleware(config.auth));

@@ -37,6 +37,11 @@ const forceCloseServerConnections = (server) => {
   });
 };
 
+const normalizeCleanupTasks = (cleanupTasks) => (
+  (Array.isArray(cleanupTasks) ? cleanupTasks : [cleanupTasks])
+    .filter((cleanupTask) => typeof cleanupTask === 'function')
+);
+
 module.exports.createHttpServer = (app) => configureServer(http.createServer(app));
 
 /**
@@ -123,6 +128,7 @@ module.exports.closeServers = async (servers) => {
  * @param {object} logger - pino logger instance
  * @param {NodeJS.Process} [processRef] - process-like object for testing
  * @param {object} [runtimeState] - mutable runtime readiness state
+ * @param {Function[]|Function} [cleanupTasks] - async cleanup callbacks
  * @returns {Function}
  */
 module.exports.gracefulShutdown = (
@@ -130,8 +136,10 @@ module.exports.gracefulShutdown = (
   logger,
   runtimeState,
   processRef,
+  cleanupTasks = [],
 ) => {
   const resolvedProcessRef = processRef ?? process;
+  const resolvedCleanupTasks = normalizeCleanupTasks(cleanupTasks);
   let shutdownPromise;
 
   const shutdown = ({
@@ -162,6 +170,16 @@ module.exports.gracefulShutdown = (
           logger.info('No servers registered for shutdown');
         }
       } finally {
+        await Promise.all(
+          resolvedCleanupTasks.map(async (cleanupTask) => {
+            try {
+              await cleanupTask();
+            } catch (error) {
+              resolvedExitCode = 1;
+              logger.error({ err: error }, 'Error during shutdown cleanup');
+            }
+          }),
+        );
         resolvedProcessRef.exit(resolvedExitCode);
       }
     })();

@@ -1,6 +1,9 @@
 const serverConfig = require('../../config/serverConfig');
 const { createApp } = require('../createApp');
 const { loadTlsCredentials } = require('../infrastructure/loadTlsCredentials');
+const {
+  initializeRateLimitStoreProvider,
+} = require('../infrastructure/rateLimitStore');
 const { registerFatalHandlers } = require('./registerFatalHandlers');
 const { createRuntimeState } = require('./runtimeState');
 const {
@@ -34,11 +37,13 @@ const startApplicationRuntime = async ({
   createHttpServerFn = createHttpServer,
   createHttpsServerFn = createHttpsServer,
   gracefulShutdownFn = gracefulShutdown,
+  initializeRateLimitStoreProviderFn = initializeRateLimitStoreProvider,
   loadTlsCredentialsFn = loadTlsCredentials,
   serverPorts = serverConfig,
   startServerFn = startServer,
 } = {}) => {
   let shutdown;
+  let rateLimitStoreProvider;
   const cleanupFatalHandlers = registerFatalHandlers({
     getShutdownHandler: () => shutdown,
     logger: appLogger,
@@ -47,7 +52,16 @@ const startApplicationRuntime = async ({
 
   try {
     const runtimeState = createRuntimeState();
-    const { app } = createAppFn({ config, appLogger, runtimeState });
+    rateLimitStoreProvider = await initializeRateLimitStoreProviderFn({
+      config,
+      logger: appLogger,
+    });
+    const { app } = createAppFn({
+      config,
+      appLogger,
+      rateLimitStoreProvider,
+      runtimeState,
+    });
     const tlsCredentials = await loadTlsCredentialsFn();
     const httpServer = createHttpServerFn(app);
     const httpsServer = createHttpsServerFn(app, () => tlsCredentials);
@@ -58,16 +72,28 @@ const startApplicationRuntime = async ({
     ]);
     runtimeState.markReady();
 
-    shutdown = gracefulShutdownFn([httpServer, httpsServer], appLogger, runtimeState, processRef);
+    shutdown = gracefulShutdownFn(
+      [httpServer, httpsServer],
+      appLogger,
+      runtimeState,
+      processRef,
+      [() => rateLimitStoreProvider?.close?.()],
+    );
 
     return {
       cleanupFatalHandlers,
+      rateLimitStoreProvider,
       runtimeState,
       servers: [httpServer, httpsServer],
       shutdown,
     };
   } catch (error) {
     cleanupFatalHandlers();
+    try {
+      await rateLimitStoreProvider?.close?.();
+    } catch (closeError) {
+      appLogger?.error?.({ err: closeError }, 'Failed to close rate-limit store during bootstrap cleanup');
+    }
     throw error;
   }
 };

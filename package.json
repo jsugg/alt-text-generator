@@ -49,6 +49,8 @@
     "pino": "^8.11.0",
     "pino-http": "^8.3.3",
     "pino-pretty": "^10.0.0",
+    "rate-limit-redis": "^4.3.1",
+    "redis": "^5.11.0",
     "replicate": "^0.25.2",
     "selfsigned": "^5.5.0",
     "swagger-jsdoc": "^6.2.8",

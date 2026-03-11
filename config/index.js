@@ -2,6 +2,8 @@
 // Single source of truth for all configuration.
 // All other modules read from here instead of process.env directly.
 
+const { buildRateLimitStoreConfig } = require('./rateLimitStore');
+
 const toNumber = (value, fallback) => {
   const parsedValue = Number(value);
   return Number.isFinite(parsedValue) ? parsedValue : fallback;
@@ -45,6 +47,7 @@ const toList = (value) => {
 
 const authTokens = toList(process.env.API_AUTH_TOKENS);
 const explicitApiAuthEnabled = toOptionalBoolean(process.env.API_AUTH_ENABLED);
+const rateLimitStore = buildRateLimitStoreConfig(process.env);
 
 module.exports = {
   env: process.env.NODE_ENV || 'development',
@@ -120,6 +123,8 @@ module.exports = {
     windowMs: toNumber(process.env.STATUS_RATE_LIMIT_WINDOW_MS, 60 * 1000),
     max: toNumber(process.env.STATUS_RATE_LIMIT_MAX, 60),
   },
+
+  rateLimitStore,
 
   auth: {
     enabled: explicitApiAuthEnabled ?? authTokens.length > 0,

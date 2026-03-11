@@ -1,5 +1,10 @@
 const Joi = require('joi');
 
+const {
+  buildRateLimitStoreConfig,
+  RATE_LIMIT_STORE_MODES,
+} = require('../../config/rateLimitStore');
+
 const parseAuthTokens = (value) => {
   if (typeof value !== 'string') {
     return [];
@@ -25,6 +30,7 @@ const envVarsSchema = Joi.object({
   CLUSTER_CRASH_WINDOW_MS: Joi.number().integer().min(1).optional(),
   CLUSTER_MAX_CRASHES: Joi.number().integer().min(1).optional(),
   CLUSTER_SHUTDOWN_TIMEOUT_MS: Joi.number().integer().min(1).optional(),
+  REDIS_URL: Joi.string().pattern(/^rediss?:\/\//).optional(),
 
   // TLS certs are required in production
   TLS_KEY: Joi.string().when('NODE_ENV', {
@@ -66,6 +72,11 @@ const envVarsSchema = Joi.object({
   // Rate limiting
   RATE_LIMIT_WINDOW_MS: Joi.number().optional(),
   RATE_LIMIT_MAX: Joi.number().optional(),
+  RATE_LIMIT_STORE: Joi.string()
+    .valid(...Object.values(RATE_LIMIT_STORE_MODES))
+    .optional(),
+  RATE_LIMIT_REDIS_URL: Joi.string().pattern(/^rediss?:\/\//).optional(),
+  RATE_LIMIT_REDIS_PREFIX: Joi.string().min(1).optional(),
   STATUS_RATE_LIMIT_WINDOW_MS: Joi.number().integer().min(1).optional(),
   STATUS_RATE_LIMIT_MAX: Joi.number().integer().min(1).optional(),
 
@@ -89,6 +100,8 @@ const validateEnvVars = () => {
   const hasReplicateProvider = Boolean(process.env.REPLICATE_API_TOKEN);
   const hasAzureProvider = hasAzureEndpoint && hasAzureCredential;
   const authTokens = parseAuthTokens(process.env.API_AUTH_TOKENS);
+  const workerCount = Number(process.env.WORKER_COUNT ?? 1);
+  const rateLimitStore = buildRateLimitStoreConfig(process.env);
 
   if (!hasReplicateProvider && !hasAzureProvider) {
     throw new Error(
@@ -135,6 +148,27 @@ const validateEnvVars = () => {
     throw new Error(
       'Config validation error: CLUSTER_RESTART_MAX_BACKOFF_MS must be greater '
         + 'than or equal to CLUSTER_RESTART_BACKOFF_MS',
+    );
+  }
+
+  if (
+    rateLimitStore.mode === RATE_LIMIT_STORE_MODES.REDIS
+    && !rateLimitStore.redisUrl
+  ) {
+    throw new Error(
+      'Config validation error: RATE_LIMIT_STORE=redis requires RATE_LIMIT_REDIS_URL '
+        + 'or REDIS_URL to be configured',
+    );
+  }
+
+  if (
+    workerCount > 1
+    && rateLimitStore.kind !== RATE_LIMIT_STORE_MODES.REDIS
+  ) {
+    throw new Error(
+      'Config validation error: WORKER_COUNT greater than 1 requires a shared '
+        + 'Redis-backed rate-limit store. Set RATE_LIMIT_STORE=redis or auto and '
+        + 'configure RATE_LIMIT_REDIS_URL or REDIS_URL',
     );
   }
 };

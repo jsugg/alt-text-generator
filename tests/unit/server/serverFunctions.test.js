@@ -69,6 +69,7 @@ describe('serverFunctions', () => {
       info: jest.fn(),
     };
     const processRef = createProcessRef();
+    const cleanupTask = jest.fn().mockResolvedValue(undefined);
     const runtimeState = {
       markDraining: jest.fn(),
     };
@@ -77,11 +78,12 @@ describe('serverFunctions', () => {
       closeIdleConnections: jest.fn(),
     };
 
-    const shutdown = gracefulShutdown([server], logger, runtimeState, processRef);
+    const shutdown = gracefulShutdown([server], logger, runtimeState, processRef, [cleanupTask]);
     processRef.emit('SIGTERM');
     await shutdown({ exitCode: 0, reason: 'signal', signal: 'SIGTERM' });
 
     expect(server.close).toHaveBeenCalledTimes(1);
+    expect(cleanupTask).toHaveBeenCalledTimes(1);
     expect(runtimeState.markDraining).toHaveBeenCalledTimes(1);
     expect(logger.info).toHaveBeenCalledWith(
       { exitCode: 0, reason: 'signal', signal: 'SIGTERM' },
@@ -97,19 +99,24 @@ describe('serverFunctions', () => {
       info: jest.fn(),
     };
     const processRef = createProcessRef();
+    const cleanupTask = jest.fn().mockRejectedValue(new Error('cleanup failed'));
     const closeError = new Error('close failed');
     const server = {
       close: jest.fn((callback) => callback(closeError)),
       closeIdleConnections: jest.fn(),
     };
 
-    const shutdown = gracefulShutdown([server], logger, undefined, processRef);
+    const shutdown = gracefulShutdown([server], logger, undefined, processRef, cleanupTask);
     processRef.emit('SIGINT');
     await shutdown({ exitCode: 1, reason: 'signal', signal: 'SIGINT' });
 
     expect(logger.error).toHaveBeenCalledWith(
       { err: closeError },
       'Error during graceful shutdown',
+    );
+    expect(logger.error).toHaveBeenCalledWith(
+      { err: new Error('cleanup failed') },
+      'Error during shutdown cleanup',
     );
     expect(processRef.exit).toHaveBeenCalledWith(1);
   });

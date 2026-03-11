@@ -17,6 +17,8 @@ services:
         value: production
       - key: WORKER_COUNT
         value: 1
+      - key: RATE_LIMIT_STORE
+        value: auto
       - key: TRUST_PROXY_HOPS
         value: 1
       - key: TLS_PORT

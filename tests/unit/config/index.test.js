@@ -1,4 +1,7 @@
 const ORIGINAL_ENV = process.env;
+const {
+  DEFAULT_RATE_LIMIT_REDIS_PREFIX,
+} = require('../../../config/rateLimitStore');
 
 const loadConfig = ({ overrides = {}, remove = [] } = {}) => {
   jest.resetModules();
@@ -37,6 +40,10 @@ describe('config', () => {
         'SCRAPER_MAX_CONTENT_LENGTH_BYTES',
         'RATE_LIMIT_WINDOW_MS',
         'RATE_LIMIT_MAX',
+        'RATE_LIMIT_STORE',
+        'RATE_LIMIT_REDIS_PREFIX',
+        'RATE_LIMIT_REDIS_URL',
+        'REDIS_URL',
         'STATUS_RATE_LIMIT_WINDOW_MS',
         'STATUS_RATE_LIMIT_MAX',
         'API_AUTH_ENABLED',
@@ -66,6 +73,12 @@ describe('config', () => {
       windowMs: 60 * 1000,
       max: 60,
     });
+    expect(config.rateLimitStore).toEqual({
+      kind: 'memory',
+      mode: 'auto',
+      redisPrefix: DEFAULT_RATE_LIMIT_REDIS_PREFIX,
+      redisUrl: undefined,
+    });
     expect(config.auth).toEqual({
       enabled: false,
       tokens: [],
@@ -91,6 +104,9 @@ describe('config', () => {
         SCRAPER_MAX_CONTENT_LENGTH_BYTES: '4096',
         RATE_LIMIT_WINDOW_MS: '30000',
         RATE_LIMIT_MAX: '50',
+        RATE_LIMIT_STORE: 'auto',
+        RATE_LIMIT_REDIS_PREFIX: 'redis-rate-limit',
+        RATE_LIMIT_REDIS_URL: 'redis://rate-limit.example:6379',
         STATUS_RATE_LIMIT_WINDOW_MS: '45000',
         STATUS_RATE_LIMIT_MAX: '15',
         API_AUTH_ENABLED: 'true',
@@ -119,6 +135,12 @@ describe('config', () => {
     expect(config.statusRateLimit).toEqual({
       windowMs: 45000,
       max: 15,
+    });
+    expect(config.rateLimitStore).toEqual({
+      kind: 'redis',
+      mode: 'auto',
+      redisPrefix: 'redis-rate-limit:',
+      redisUrl: 'redis://rate-limit.example:6379',
     });
     expect(config.auth).toEqual({
       enabled: true,
@@ -153,6 +175,22 @@ describe('config', () => {
     expect(config.auth).toEqual({
       enabled: false,
       tokens: ['token-a', 'token-b'],
+    });
+  });
+
+  it('allows the shared REDIS_URL to back rate limiting automatically', () => {
+    const config = loadConfig({
+      overrides: {
+        REDIS_URL: 'redis://shared.example:6379',
+      },
+      remove: ['RATE_LIMIT_REDIS_URL'],
+    });
+
+    expect(config.rateLimitStore).toEqual({
+      kind: 'redis',
+      mode: 'auto',
+      redisPrefix: DEFAULT_RATE_LIMIT_REDIS_PREFIX,
+      redisUrl: 'redis://shared.example:6379',
     });
   });
 });
