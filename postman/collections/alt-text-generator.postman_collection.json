@@ -160,6 +160,74 @@
           ]
         },
         {
+          "name": "Root Service Index",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": []
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('root service index returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "const requestId =",
+                  "  pm.response.headers.get('X-Request-Id') ||",
+                  "  pm.response.headers.get('x-request-id') ||",
+                  "  '';",
+                  "",
+                  "pm.test('root service index exposes the expected top-level shape', function () {",
+                  "  pm.expect(Object.keys(body).sort()).to.eql(['auth', 'links', 'name', 'requestId', 'status', 'version']);",
+                  "  pm.expect(body).to.have.property('name', 'alt-text-generator');",
+                  "  pm.expect(body).to.have.property('version').that.is.a('string').and.match(/^\\d+\\.\\d+\\.\\d+/);",
+                  "  pm.expect(body).to.have.property('status', 'ok');",
+                  "  pm.expect(body).to.have.property('requestId').that.is.a('string').and.not.empty;",
+                  "});",
+                  "",
+                  "pm.test('root service index publishes stable discovery links', function () {",
+                  "  pm.expect(body).to.have.property('links');",
+                  "  pm.expect(Object.keys(body.links).sort()).to.eql(['api', 'docs', 'health', 'ping']);",
+                  "  pm.expect(body.links).to.deep.equal({",
+                  "    api: '/api/v1',",
+                  "    docs: '/api-docs/',",
+                  "    health: '/api/health',",
+                  "    ping: '/api/ping',",
+                  "  });",
+                  "});",
+                  "",
+                  "pm.test('root service index documents supported auth schemes', function () {",
+                  "  pm.expect(body).to.have.nested.property('auth.schemes');",
+                  "  pm.expect(body.auth.schemes).to.be.an('array').with.lengthOf(2);",
+                  "  pm.expect(body.auth.schemes).to.have.members(['X-API-Key', 'Bearer']);",
+                  "});",
+                  "",
+                  "pm.test('root service index requestId matches the response header', function () {",
+                  "  pm.expect(body.requestId).to.eql(requestId);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Health",
           "request": {
             "method": "GET",

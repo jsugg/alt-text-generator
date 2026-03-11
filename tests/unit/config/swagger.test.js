@@ -146,6 +146,33 @@ describe('config/swagger', () => {
     });
   });
 
+  it('documents a public root service index', () => {
+    const swaggerSpec = loadParsedSwaggerSpec({
+      servers: [
+        {
+          url: 'https://wcag.qcraft.com.br',
+          description: 'Production server',
+        },
+      ],
+    });
+
+    expect(swaggerSpec.paths['/'].get.security).toBeUndefined();
+    expect(swaggerSpec.paths['/'].get.responses['200'].content['application/json'].schema)
+      .toMatchObject({
+        required: ['name', 'version', 'status', 'links', 'auth', 'requestId'],
+        properties: {
+          name: { type: 'string', example: 'alt-text-generator' },
+          version: { type: 'string', example: '1.0.0' },
+          status: { type: 'string', example: 'ok' },
+          requestId: { type: 'string' },
+        },
+      });
+    expect(swaggerSpec.paths['/'].get.responses['200'].content['application/json'].schema
+      .properties.links.required).toEqual(['api', 'docs', 'health', 'ping']);
+    expect(swaggerSpec.paths['/'].get.responses['200'].content['application/json'].schema
+      .properties.auth.properties.schemes.example).toEqual(['X-API-Key', 'Bearer']);
+  });
+
   it('prefers the generated OpenAPI artifact over runtime swagger-jsdoc parsing', () => {
     jest.resetModules();
 

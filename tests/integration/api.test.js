@@ -1,5 +1,6 @@
 const request = require('supertest');
 
+const packageMetadata = require('../../package.json');
 const { createApp } = require('../../src/createApp');
 const ImageDescriberFactory = require('../../src/services/ImageDescriberFactory');
 const config = require('../../config');
@@ -103,6 +104,41 @@ describe('GET /api/ping', () => {
     expect(res.status).toBe(200);
     expect(res.text).toBe('pong');
     expect(requestLogger).toHaveBeenCalled();
+  });
+});
+
+describe('GET /', () => {
+  it('responds with a stable public service index', async () => {
+    const { app } = buildTestApp();
+
+    const res = await secureGet(app, '/');
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toContain('application/json');
+    expect(res.headers['x-request-id']).toBe(TEST_REQUEST_ID);
+    expect(Object.keys(res.body).sort()).toEqual([
+      'auth',
+      'links',
+      'name',
+      'requestId',
+      'status',
+      'version',
+    ]);
+    expect(res.body).toEqual({
+      name: packageMetadata.name,
+      version: packageMetadata.version,
+      status: 'ok',
+      links: {
+        api: '/api/v1',
+        docs: '/api-docs/',
+        health: '/api/health',
+        ping: '/api/ping',
+      },
+      auth: {
+        schemes: ['X-API-Key', 'Bearer'],
+      },
+      requestId: TEST_REQUEST_ID,
+    });
   });
 });
 
@@ -463,7 +499,7 @@ describe('unknown routes', () => {
 });
 
 describe('API access control', () => {
-  const authConfig = {
+  const buildAuthConfig = () => ({
     auth: {
       enabled: true,
       tokens: ['dummy-1', 'dummy-2'],
@@ -475,18 +511,31 @@ describe('API access control', () => {
       maxRedirects: 4,
       maxContentLengthBytes: 2048,
     },
-  };
+  });
 
   it('allows public health endpoints without authentication', async () => {
-    const { app } = buildTestApp({ config: authConfig });
+    const { app } = buildTestApp({ config: buildAuthConfig() });
 
     const res = await secureGet(app, '/api/health');
 
     expect(res.status).toBe(200);
   });
 
+  it('keeps the root service index public without authentication', async () => {
+    const { app } = buildTestApp({ config: buildAuthConfig() });
+
+    const res = await secureGet(app, '/');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      name: packageMetadata.name,
+      status: 'ok',
+      requestId: TEST_REQUEST_ID,
+    });
+  });
+
   it('rejects protected endpoints without authentication', async () => {
-    const { app } = buildTestApp({ config: authConfig });
+    const { app } = buildTestApp({ config: buildAuthConfig() });
 
     const res = await secureGet(
       app,
@@ -511,7 +560,7 @@ describe('API access control', () => {
       }),
     });
     const { app } = buildTestApp({
-      config: authConfig,
+      config: buildAuthConfig(),
       imageDescriberFactory: factory,
     });
 
@@ -536,7 +585,7 @@ describe('API access control', () => {
       }),
     };
     const { app } = buildTestApp({
-      config: authConfig,
+      config: buildAuthConfig(),
       scraperService,
     });
 
@@ -552,7 +601,7 @@ describe('API access control', () => {
   });
 
   it('rejects protected endpoints when the token is not in API_AUTH_TOKENS', async () => {
-    const { app } = buildTestApp({ config: authConfig });
+    const { app } = buildTestApp({ config: buildAuthConfig() });
 
     const res = await secureGet(
       app,
@@ -575,7 +624,7 @@ describe('API access control', () => {
     };
     const { app } = buildTestApp({
       config: {
-        ...authConfig,
+        ...buildAuthConfig(),
         auth: {
           enabled: false,
           tokens: ['dummy-1', 'dummy-2'],

@@ -225,6 +225,97 @@
         }
       }
     },
+    "/": {
+      "get": {
+        "summary": "Get the public service index",
+        "description": "Returns a stable discovery document for the public API surface.",
+        "responses": {
+          "200": {
+            "description": "Public service metadata and discovery links",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "name",
+                    "version",
+                    "status",
+                    "links",
+                    "auth",
+                    "requestId"
+                  ],
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "example": "alt-text-generator"
+                    },
+                    "version": {
+                      "type": "string",
+                      "example": "1.0.0"
+                    },
+                    "status": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "links": {
+                      "type": "object",
+                      "required": [
+                        "api",
+                        "docs",
+                        "health",
+                        "ping"
+                      ],
+                      "properties": {
+                        "api": {
+                          "type": "string",
+                          "example": "/api/v1"
+                        },
+                        "docs": {
+                          "type": "string",
+                          "example": "/api-docs/"
+                        },
+                        "health": {
+                          "type": "string",
+                          "example": "/api/health"
+                        },
+                        "ping": {
+                          "type": "string",
+                          "example": "/api/ping"
+                        }
+                      }
+                    },
+                    "auth": {
+                      "type": "object",
+                      "required": [
+                        "schemes"
+                      ],
+                      "properties": {
+                        "schemes": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "example": [
+                            "X-API-Key",
+                            "Bearer"
+                          ]
+                        }
+                      }
+                    },
+                    "requestId": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
     "/api/ping": {
       "get": {
         "summary": "Check if the API is available",

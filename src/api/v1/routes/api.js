@@ -20,6 +20,7 @@ const {
 module.exports = ({ health, scraper, description }, logger) => {
   const apiRouter = express.Router();
 
+  apiRouter.get('/', health.index);
   apiRouter.get(['/api/ping', '/api/v1/ping'], health.ping);
   apiRouter.get(['/api/health', '/api/v1/health'], health.health);
 
