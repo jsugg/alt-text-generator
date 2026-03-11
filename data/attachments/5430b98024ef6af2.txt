@@ -1,0 +1,1 @@
+{"pageUrl":"http://127.0.0.1:19090/fixtures/page-with-partial-images","model":"azure","totalImages":2,"uniqueImages":1,"descriptions":[{"description":"stub caption for asset a","imageUrl":"http://127.0.0.1:19090/assets/a.png"},{"description":"stub caption for asset a","imageUrl":"http://127.0.0.1:19090/assets/a.png"}]}
