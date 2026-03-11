@@ -18,21 +18,11 @@
           ");",
           "",
           "const expectedStatusCodeRaw = pm.request.headers.get('X-Expected-Status-Code') || '';",
-          "const expectedStatusClass = pm.request.headers.get('X-Expected-Status-Class') || '';",
           "",
           "if (/^\\d+$/.test(expectedStatusCodeRaw)) {",
           "  const expectedStatusCode = Number(expectedStatusCodeRaw);",
           "  pm.test(`response status is exactly ${expectedStatusCode}`, function () {",
           "    pm.expect(pm.response.code, `unexpected status ${pm.response.code}`).to.eql(expectedStatusCode);",
-          "  });",
-          "} else if (expectedStatusClass === '5xx') {",
-          "  pm.test('response is an expected 5xx', function () {",
-          "    pm.expect(pm.response.code, `unexpected status ${pm.response.code}`).to.be.at.least(500);",
-          "    pm.expect(pm.response.code, `unexpected status ${pm.response.code}`).to.be.below(600);",
-          "  });",
-          "} else {",
-          "  pm.test('response is not 5xx', function () {",
-          "    pm.expect(pm.response.code, `unexpected status ${pm.response.code}`).to.be.below(500);",
           "  });",
           "}",
           "",
@@ -127,6 +117,10 @@
               {
                 "key": "Accept",
                 "value": "text/plain"
+              },
+              {
+                "key": "X-Expected-Status-Code",
+                "value": "200"
               }
             ],
             "url": {
@@ -167,6 +161,10 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "X-Expected-Status-Code",
+                "value": "200"
               }
             ],
             "url": {
@@ -235,6 +233,10 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "X-Expected-Status-Code",
+                "value": "200"
               }
             ],
             "url": {
@@ -282,6 +284,10 @@
               {
                 "key": "Accept",
                 "value": "text/html"
+              },
+              {
+                "key": "X-Expected-Status-Code",
+                "value": "200"
               }
             ],
             "url": {
@@ -330,6 +336,10 @@
               {
                 "key": "Accept",
                 "value": "application/javascript"
+              },
+              {
+                "key": "X-Expected-Status-Code",
+                "value": "200"
               }
             ],
             "url": {
@@ -394,6 +404,10 @@
               {
                 "key": "Accept",
                 "value": "text/html"
+              },
+              {
+                "key": "X-Expected-Status-Code",
+                "value": "302"
               }
             ],
             "url": {
@@ -438,6 +452,10 @@
               {
                 "key": "Accept",
                 "value": "text/plain"
+              },
+              {
+                "key": "X-Expected-Status-Code",
+                "value": "302"
               }
             ],
             "url": {
@@ -487,6 +505,10 @@
               {
                 "key": "Accept",
                 "value": "text/plain"
+              },
+              {
+                "key": "X-Expected-Status-Code",
+                "value": "200"
               }
             ],
             "url": {
@@ -528,6 +550,10 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "X-Expected-Status-Code",
+                "value": "200"
               }
             ],
             "url": {
@@ -575,6 +601,10 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "X-Expected-Status-Code",
+                "value": "200"
               }
             ],
             "url": {
@@ -630,6 +660,10 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "X-Expected-Status-Code",
+                "value": "200"
               }
             ],
             "url": {
@@ -686,6 +720,10 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "X-Expected-Status-Code",
+                "value": "200"
               }
             ],
             "url": {
@@ -750,6 +788,10 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "X-Expected-Status-Code",
+                "value": "401"
               }
             ],
             "url": {
@@ -806,6 +848,10 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "X-Expected-Status-Code",
+                "value": "200"
               },
               {
                 "key": "X-API-Key",
@@ -867,6 +913,10 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "X-Expected-Status-Code",
+                "value": "200"
               },
               {
                 "key": "Authorization",
@@ -932,6 +982,10 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "X-Expected-Status-Code",
+                "value": "200"
               }
             ],
             "url": {
@@ -998,6 +1052,10 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "X-Expected-Status-Code",
+                "value": "200"
               }
             ],
             "url": {
@@ -1062,8 +1120,8 @@
                 "value": "application/json"
               },
               {
-                "key": "X-Expected-Status-Class",
-                "value": "5xx"
+                "key": "X-Expected-Status-Code",
+                "value": "500"
               }
             ],
             "url": {
@@ -1122,8 +1180,8 @@
                 "value": "application/json"
               },
               {
-                "key": "X-Expected-Status-Class",
-                "value": "5xx"
+                "key": "X-Expected-Status-Code",
+                "value": "500"
               }
             ],
             "url": {
@@ -1185,6 +1243,10 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "X-Expected-Status-Code",
+                "value": "200"
               }
             ],
             "url": {
@@ -1287,6 +1349,10 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "X-Expected-Status-Code",
+                "value": "200"
               }
             ],
             "url": {
@@ -1355,8 +1421,8 @@
                 "value": "application/json"
               },
               {
-                "key": "X-Expected-Status-Class",
-                "value": "5xx"
+                "key": "X-Expected-Status-Code",
+                "value": "500"
               }
             ],
             "url": {
@@ -1418,6 +1484,10 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "X-Expected-Status-Code",
+                "value": "400"
               }
             ],
             "url": {
@@ -1465,6 +1535,10 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "X-Expected-Status-Code",
+                "value": "400"
               }
             ],
             "url": {
@@ -1518,6 +1592,10 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "X-Expected-Status-Code",
+                "value": "400"
               }
             ],
             "url": {
@@ -1571,6 +1649,10 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "X-Expected-Status-Code",
+                "value": "400"
               }
             ],
             "url": {
@@ -1628,6 +1710,10 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "X-Expected-Status-Code",
+                "value": "400"
               }
             ],
             "url": {
@@ -1685,6 +1771,10 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "X-Expected-Status-Code",
+                "value": "400"
               }
             ],
             "url": {
@@ -1738,6 +1828,10 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "X-Expected-Status-Code",
+                "value": "400"
               }
             ],
             "url": {
@@ -1795,6 +1889,10 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "X-Expected-Status-Code",
+                "value": "400"
               }
             ],
             "url": {
@@ -1852,6 +1950,10 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "X-Expected-Status-Code",
+                "value": "404"
               }
             ],
             "url": {
@@ -1902,6 +2004,10 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "X-Expected-Status-Code",
+                "value": "200"
               },
               {
                 "key": "X-Max-Response-Time-Ms",
@@ -1966,6 +2072,10 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "X-Expected-Status-Code",
+                "value": "200"
               },
               {
                 "key": "X-Max-Response-Time-Ms",
@@ -2048,6 +2158,10 @@
                 "value": "application/json"
               },
               {
+                "key": "X-Expected-Status-Code",
+                "value": "200"
+              },
+              {
                 "key": "X-Max-Response-Time-Ms",
                 "value": "15000"
               }
@@ -2110,6 +2224,10 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "X-Expected-Status-Code",
+                "value": "200"
               },
               {
                 "key": "X-Max-Response-Time-Ms",
@@ -2193,6 +2311,10 @@
                 "value": "application/json"
               },
               {
+                "key": "X-Expected-Status-Code",
+                "value": "200"
+              },
+              {
                 "key": "X-Max-Response-Time-Ms",
                 "value": "45000"
               }
@@ -2241,6 +2363,10 @@
               {
                 "key": "Accept",
                 "value": "application/javascript"
+              },
+              {
+                "key": "X-Expected-Status-Code",
+                "value": "200"
               }
             ],
             "url": {
@@ -2354,137 +2480,145 @@
       ]
     },
     {
-          "name": "96 Deploy Protected Verification",
-          "item": [
-            {
-              "name": "Hosted scraper contract",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{deployValidationApiToken}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/api/scraper/images",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "api",
-                    "scraper",
-                    "images"
-                  ],
-                  "query": [
-                    {
-                      "key": "url",
-                      "value": "{{deployScrapePageUrl}}"
-                    }
-                  ]
-                }
+      "name": "96 Deploy Protected Verification",
+      "item": [
+        {
+          "name": "Hosted scraper contract",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
               },
-              "response": [],
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('deploy scraper returns 200', function () {",
-                      "  pm.expect(pm.response.code, 'Expected deploy scraper request to succeed. Verify PRODUCTION_DEPLOY_VALIDATION_API_TOKEN matches a token in Render API_AUTH_TOKENS when Render API_AUTH_ENABLED=true.').to.eql(200);",
-                      "});",
-                      "",
-                      "const body = pm.response.json();",
-                      "",
-                      "pm.test('deploy scraper response has an imageSources array', function () {",
-                      "  pm.expect(body).to.have.property('imageSources');",
-                      "  pm.expect(body.imageSources).to.be.an('array');",
-                      "});",
-                      "",
-                      "pm.test('deploy scraper image sources are strings when present', function () {",
-                      "  body.imageSources.forEach((imageUrl) => {",
-                      "    pm.expect(imageUrl).to.be.a('string');",
-                      "  });",
-                      "});"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Hosted azure single description",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "X-Max-Response-Time-Ms",
-                    "value": "20000"
-                  },
-                  {
-                    "key": "X-API-Key",
-                    "value": "{{deployValidationApiToken}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/api/accessibility/description",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "api",
-                    "accessibility",
-                    "description"
-                  ],
-                  "query": [
-                    {
-                      "key": "image_source",
-                      "value": "{{deployAzureImageUrl}}"
-                    },
-                    {
-                      "key": "model",
-                      "value": "azure"
-                    }
-                  ]
-                }
+              {
+                "key": "X-Expected-Status-Code",
+                "value": "200"
               },
-              "response": [],
-              "event": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{deployValidationApiToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/scraper/images",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "scraper",
+                "images"
+              ],
+              "query": [
                 {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test('deploy azure description returns 200', function () {",
-                      "  pm.expect(pm.response.code, 'Expected deploy azure description request to succeed. Verify PRODUCTION_DEPLOY_VALIDATION_API_TOKEN matches a token in Render API_AUTH_TOKENS when Render API_AUTH_ENABLED=true.').to.eql(200);",
-                      "});",
-                      "",
-                      "const body = pm.response.json();",
-                      "",
-                      "pm.test('deploy azure description response is a one-item array', function () {",
-                      "  pm.expect(body).to.be.an('array').with.lengthOf(1);",
-                      "});",
-                      "",
-                      "pm.test('deploy azure description is non-empty for the requested image', function () {",
-                      "  pm.expect(body[0].imageUrl).to.eql(pm.environment.get('deployAzureImageUrl'));",
-                      "  pm.expect(body[0].description).to.be.a('string');",
-                      "  pm.expect(body[0].description.length).to.be.above(0);",
-                      "});"
-                    ]
-                  }
+                  "key": "url",
+                  "value": "{{deployScrapePageUrl}}"
                 }
               ]
             }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('deploy scraper returns 200', function () {",
+                  "  pm.expect(pm.response.code, 'Expected deploy scraper request to succeed. Verify PRODUCTION_DEPLOY_VALIDATION_API_TOKEN matches a token in Render API_AUTH_TOKENS when Render API_AUTH_ENABLED=true.').to.eql(200);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('deploy scraper response has an imageSources array', function () {",
+                  "  pm.expect(body).to.have.property('imageSources');",
+                  "  pm.expect(body.imageSources).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('deploy scraper image sources are strings when present', function () {",
+                  "  body.imageSources.forEach((imageUrl) => {",
+                  "    pm.expect(imageUrl).to.be.a('string');",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Hosted azure single description",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Expected-Status-Code",
+                "value": "200"
+              },
+              {
+                "key": "X-Max-Response-Time-Ms",
+                "value": "20000"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{deployValidationApiToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/accessibility/description",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "accessibility",
+                "description"
+              ],
+              "query": [
+                {
+                  "key": "image_source",
+                  "value": "{{deployAzureImageUrl}}"
+                },
+                {
+                  "key": "model",
+                  "value": "azure"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('deploy azure description returns 200', function () {",
+                  "  pm.expect(pm.response.code, 'Expected deploy azure description request to succeed. Verify PRODUCTION_DEPLOY_VALIDATION_API_TOKEN matches a token in Render API_AUTH_TOKENS when Render API_AUTH_ENABLED=true.').to.eql(200);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('deploy azure description response is a one-item array', function () {",
+                  "  pm.expect(body).to.be.an('array').with.lengthOf(1);",
+                  "});",
+                  "",
+                  "pm.test('deploy azure description is non-empty for the requested image', function () {",
+                  "  pm.expect(body[0].imageUrl).to.eql(pm.environment.get('deployAzureImageUrl'));",
+                  "  pm.expect(body[0].description).to.be.a('string');",
+                  "  pm.expect(body[0].description.length).to.be.above(0);",
+                  "});"
+                ]
+              }
+            }
           ]
         }
+      ]
+    }
   ],
   "variable": [
     {

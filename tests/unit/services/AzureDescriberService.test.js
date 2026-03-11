@@ -15,7 +15,7 @@ const mockConfig = {
   },
 };
 
-describe('AzureDescriberService.describeImage', () => {
+describe('Unit | Services | Azure Describer Service', () => {
   it('returns joined captions as description', async () => {
     const mockHttpClient = {
       get: jest.fn().mockResolvedValue({

@@ -25,7 +25,7 @@ const createRequestLogger = () => {
   return requestLogger;
 };
 
-describe('createApp', () => {
+describe('Unit | Application Composition', () => {
   it('builds the default services when overrides are not supplied', () => {
     const appLogger = createAppLogger();
     const requestLogger = createRequestLogger();

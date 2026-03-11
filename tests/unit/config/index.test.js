@@ -25,7 +25,7 @@ afterEach(() => {
   jest.resetModules();
 });
 
-describe('config', () => {
+describe('Unit | Config | Index', () => {
   it('uses the documented defaults when optional env vars are unset', () => {
     const config = loadConfig({
       remove: [

@@ -5,7 +5,7 @@ const {
   resolveProviderScope,
 } = require('../../../../scripts/postman/live-provider-scope');
 
-describe('scripts/postman/live-provider-scope', () => {
+describe('Unit | Scripts | Postman | Live Provider Scope', () => {
   describe('normalizeProviderScope', () => {
     it('falls back to auto when the value is empty', () => {
       expect(normalizeProviderScope(undefined)).toBe('auto');

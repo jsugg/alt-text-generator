@@ -14,7 +14,7 @@ const createProcessRef = () => {
   return processRef;
 };
 
-describe('runtimeBootstrap', () => {
+describe('Unit | Server | Runtime Bootstrap', () => {
   it('derives worker count and cluster mode from config', () => {
     expect(resolveWorkerCount({ cluster: { workers: 1 } })).toBe(1);
     expect(resolveWorkerCount({ cluster: { workers: 4 } })).toBe(4);

@@ -1,4 +1,4 @@
-describe('config/swagger', () => {
+describe('Unit | Config | Swagger', () => {
   const loadSwaggerDefinition = ({ env, devServerUrl, prodServerUrl }) => {
     jest.resetModules();
     jest.doMock('../../../config', () => ({

@@ -24,7 +24,7 @@ const logger = {
   debug: jest.fn(),
 };
 
-describe('createRouter', () => {
+describe('Unit | Utils | Create Router', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     swaggerModuleLoaded = false;

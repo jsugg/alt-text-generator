@@ -20,7 +20,7 @@ function loadJestConfig(allureResultsDir) {
   return config;
 }
 
-describe('jest.config.cjs', () => {
+describe('Unit | Jest Configuration', () => {
   const originalAllureResultsDir = process.env.ALLURE_RESULTS_DIR;
 
   afterEach(() => {

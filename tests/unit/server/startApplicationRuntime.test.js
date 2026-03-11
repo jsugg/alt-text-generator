@@ -8,7 +8,7 @@ const createProcessRef = () => {
   return processRef;
 };
 
-describe('startApplicationRuntime', () => {
+describe('Unit | Server | Start Application Runtime', () => {
   it('starts both servers and registers graceful shutdown', async () => {
     const app = { name: 'express-app' };
     const httpServer = { kind: 'http' };

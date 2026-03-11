@@ -210,7 +210,8 @@ Allure workflow:
 - `npm run postman:harness:allure` enables the official Newman Allure reporter without removing the existing JSON/JUnit exports.
 - `npm run report:allure` mirrors CI by cleaning old results, running Jest, running the deterministic Newman harness, and generating HTML from the merged `reports/allure-results/` directory.
 - GitHub Actions publishes Allure from the canonical Node 20 Jest lane only so matrix lanes 22 and 24 do not duplicate unit tests in the merged report.
-- On pushes to `main`, the CI workflow uploads the generated HTML as both a regular artifact and a GitHub Pages deployment artifact, then deploys the report to `https://jsugg.github.io/alt-text-generator/`.
+- The public GitHub Pages deployment is `https://jsugg.github.io/alt-text-generator/`; the suites view is `https://jsugg.github.io/alt-text-generator/#suites`.
+- On pushes to `main`, the CI workflow uploads the generated HTML as both a regular artifact and a GitHub Pages deployment artifact, then deploys the latest report once the `allure-pages` job succeeds.
 - Pull requests do not deploy Pages; they still produce the downloadable `allure-report` artifact for review.
 
 ## Supported Models

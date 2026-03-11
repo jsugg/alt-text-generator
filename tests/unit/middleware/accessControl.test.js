@@ -14,7 +14,7 @@ const makeRequest = ({
   get: (name) => headers[name.toLowerCase()] ?? null,
 });
 
-describe('access-control middleware', () => {
+describe('Unit | Middleware | Access Control', () => {
   it('treats docs and health endpoints as public', () => {
     expect(isApiPath('/')).toBe(false);
     expect(isApiPath('/api/v1/accessibility/description')).toBe(true);

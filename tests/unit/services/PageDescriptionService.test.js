@@ -1,7 +1,7 @@
 const PageDescriptionService = require('../../../src/services/PageDescriptionService');
 const ImageDescriberFactory = require('../../../src/services/ImageDescriberFactory');
 
-describe('PageDescriptionService', () => {
+describe('Unit | Services | Page Description Service', () => {
   it('preserves duplicate image entries while deduping provider work', async () => {
     const scraperService = {
       getImages: jest.fn().mockResolvedValue({

@@ -91,7 +91,7 @@ const buildRedisConfig = ({
   },
 });
 
-describeIfRedis('Redis-backed rate limiting', () => {
+describeIfRedis('Integration | Redis Rate Limiting', () => {
   let redisServer;
 
   beforeAll(async () => {

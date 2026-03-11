@@ -12,7 +12,7 @@ const createTempDir = () => fs.mkdtempSync(
   path.join(os.tmpdir(), 'newman-summary-test-'),
 );
 
-describe('scripts/github/write-newman-summary', () => {
+describe('Unit | Scripts | GitHub | Write Newman Summary', () => {
   it('parses supported CLI arguments', () => {
     expect(parseArgs([
       '--reports-dir',

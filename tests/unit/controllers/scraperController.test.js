@@ -11,7 +11,7 @@ const makeResMock = () => ({
   json: jest.fn(),
 });
 
-describe('ScraperController.getImages', () => {
+describe('Unit | Controllers | Scraper Controller', () => {
   it('forwards a validation error when url is missing', async () => {
     const controller = new ScraperController({
       scraperService: {},

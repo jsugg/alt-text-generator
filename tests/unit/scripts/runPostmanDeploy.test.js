@@ -31,7 +31,7 @@ const createJsonResponse = (status, jsonBody, headers = {}) => ({
   text: jest.fn().mockResolvedValue(JSON.stringify(jsonBody)),
 });
 
-describe('scripts/run-postman-deploy', () => {
+describe('Unit | Scripts | Run Postman Deploy', () => {
   describe('parseArgs', () => {
     it('uses the production base URL by default', () => {
       expect(parseArgs([])).toEqual({
