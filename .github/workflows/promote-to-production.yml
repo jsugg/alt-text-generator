@@ -28,10 +28,10 @@ jobs:
       - name: Resolve promotion auth strategy
         id: promotion-auth
         env:
-          REPO_TOOLING_APP_ID: ${{ vars.REPO_TOOLING_APP_ID }}
+          REPO_TOOLING_GITHUB_APP_ID: ${{ vars.REPO_TOOLING_GITHUB_APP_ID }}
           REPO_TOOLING_GITHUB_APP_PRIVATE_KEY: ${{ secrets.REPO_TOOLING_GITHUB_APP_PRIVATE_KEY }}
         run: |
-          if [ -n "${REPO_TOOLING_APP_ID}" ] && [ -n "${REPO_TOOLING_GITHUB_APP_PRIVATE_KEY}" ]; then
+          if [ -n "${REPO_TOOLING_GITHUB_APP_ID}" ] && [ -n "${REPO_TOOLING_GITHUB_APP_PRIVATE_KEY}" ]; then
             echo "use_github_app=true" >> "${GITHUB_OUTPUT}"
             echo "token_source=github_app" >> "${GITHUB_OUTPUT}"
           else
@@ -44,7 +44,7 @@ jobs:
         if: steps.promotion-auth.outputs.use_github_app == 'true'
         uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2.2.1
         with:
-          app-id: ${{ vars.REPO_TOOLING_APP_ID }}
+          app-id: ${{ vars.REPO_TOOLING_GITHUB_APP_ID }}
           private-key: ${{ secrets.REPO_TOOLING_GITHUB_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
           repositories: ${{ github.event.repository.name }}
@@ -54,7 +54,7 @@ jobs:
         run: |
           {
             echo "Exact-SHA promotion to production is blocked."
-            echo "Configure vars.REPO_TOOLING_APP_ID and secrets.REPO_TOOLING_GITHUB_APP_PRIVATE_KEY."
+            echo "Configure vars.REPO_TOOLING_GITHUB_APP_ID and secrets.REPO_TOOLING_GITHUB_APP_PRIVATE_KEY."
             echo "Then add that GitHub App to the protected production branch bypass list before retrying."
           } >&2
           exit 1
@@ -84,7 +84,7 @@ jobs:
             else
               echo "- Token source: GitHub App not configured"
               echo "- Exact-SHA promotion is blocked until the repository automation app is configured."
-              echo "- To restore automatic production push workflows, configure vars.REPO_TOOLING_APP_ID and secrets.REPO_TOOLING_GITHUB_APP_PRIVATE_KEY."
+              echo "- To restore automatic production push workflows, configure vars.REPO_TOOLING_GITHUB_APP_ID and secrets.REPO_TOOLING_GITHUB_APP_PRIVATE_KEY."
               echo "- The app must also be allowed to update the protected production branch ref."
             fi
           } >> "${GITHUB_STEP_SUMMARY}"

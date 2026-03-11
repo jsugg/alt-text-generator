@@ -105,7 +105,7 @@ The repository uses a small workflow set with separate responsibilities:
   - verifies that `main` has the required CI checks green
   - updates the `production` branch ref directly to the validated `main` commit so both branches end on the same tip SHA
   - treats `production` as a tracking branch for `main`; branch-only `production` history is realigned back to the validated `main` commit during promotion
-  - requires a GitHub App installation token configured through `REPO_TOOLING_APP_ID` and `REPO_TOOLING_GITHUB_APP_PRIVATE_KEY`
+  - requires a GitHub App installation token configured through `REPO_TOOLING_GITHUB_APP_ID` and `REPO_TOOLING_GITHUB_APP_PRIVATE_KEY`
   - also requires that GitHub App to be allowed to update the protected `production` branch ref
 
 Branch protection currently requires these checks on both `main` and `production`:
@@ -137,7 +137,7 @@ Recommended configuration:
 
 Store the app credentials at the repository level:
 
-- variable: `REPO_TOOLING_APP_ID`
+- variable: `REPO_TOOLING_GITHUB_APP_ID`
 - secret: `REPO_TOOLING_GITHUB_APP_PRIVATE_KEY`
 
 Planned responsibilities for `RepoToolingBot`:
