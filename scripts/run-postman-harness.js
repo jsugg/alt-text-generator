@@ -15,6 +15,11 @@ const {
   listTopLevelFolderNames,
   readCollection,
 } = require('./postman/collection-utils');
+const {
+  detectAvailableProviders,
+  getSelectedProviders,
+  resolveProviderScope,
+} = require('./postman/live-provider-scope');
 
 const ROOT = path.resolve(__dirname, '..');
 const COLLECTION_PATH = path.join(
@@ -27,7 +32,7 @@ const ENV_PATH = path.join(
   ROOT,
   'postman',
   'environments',
-  'alt-text-generator.local.stub.postman_environment.json',
+  'alt-text-generator.local.fixture.postman_environment.json',
 );
 const REPORTS_DIR = path.join(ROOT, 'reports', 'newman');
 
@@ -146,9 +151,9 @@ function spawnLogged(label, command, args, env = {}) {
  * @param {{
  *   httpPort: string,
  *   httpsPort: string,
- *   liveModeEnabled: boolean,
- *   hasLiveAzureConfig: boolean,
- *   azureSubscriptionKey: string | null,
+ *   replicateApiToken?: string | null,
+ *   azureApiEndpoint?: string | null,
+ *   azureSubscriptionKey?: string | null,
  *   apiAuthTokens?: string | null,
  * }} options
  * @returns {Record<string, string>}
@@ -156,9 +161,9 @@ function spawnLogged(label, command, args, env = {}) {
 function buildAppServerEnv({
   httpPort,
   httpsPort,
-  liveModeEnabled,
-  hasLiveAzureConfig,
-  azureSubscriptionKey,
+  replicateApiToken = null,
+  azureApiEndpoint = null,
+  azureSubscriptionKey = null,
   apiAuthTokens = null,
 }) {
   const env = {
@@ -168,18 +173,24 @@ function buildAppServerEnv({
     WORKER_COUNT: '1',
     LOG_LEVEL: 'info',
     SWAGGER_DEV_URL: `https://localhost:${httpsPort}`,
-    REPLICATE_API_TOKEN: process.env.REPLICATE_API_TOKEN || 'test-token',
-    ACV_API_ENDPOINT: liveModeEnabled && hasLiveAzureConfig
-      ? process.env.ACV_API_ENDPOINT
-      : `http://${HOST}:${FIXTURE_PORT}/vision/v3.2/describe`,
-    ACV_SUBSCRIPTION_KEY: liveModeEnabled && hasLiveAzureConfig
-      ? azureSubscriptionKey
-      : 'stub-key',
     ACV_LANGUAGE: 'en',
     ACV_MAX_CANDIDATES: '4',
   };
 
+  if (replicateApiToken) {
+    env.REPLICATE_API_TOKEN = replicateApiToken;
+  }
+
+  if (azureApiEndpoint) {
+    env.ACV_API_ENDPOINT = azureApiEndpoint;
+  }
+
+  if (azureSubscriptionKey) {
+    env.ACV_SUBSCRIPTION_KEY = azureSubscriptionKey;
+  }
+
   if (apiAuthTokens) {
+    env.API_AUTH_ENABLED = 'true';
     env.API_AUTH_TOKENS = apiAuthTokens;
   }
 
@@ -321,12 +332,40 @@ function installSignalCleanup(children) {
  */
 async function main() {
   const mode = process.argv[2] || 'full';
-  const liveModeEnabled = mode === 'live' || process.env.RUN_LIVE_PROVIDER === 'true';
+  const liveModeEnabled = mode === 'live';
   const requiresAuthHarness = mode === 'smoke' || mode === 'full';
-  const runLiveReplicate = process.env.RUN_LIVE_REPLICATE !== 'false';
-  const runLiveAzure = process.env.RUN_LIVE_AZURE !== 'false';
-  const azureSubscriptionKey = process.env.ACV_SUBSCRIPTION_KEY || process.env.ACV_API_KEY || null;
-  const hasLiveAzureConfig = Boolean(process.env.ACV_API_ENDPOINT && azureSubscriptionKey);
+  const liveProviderScopeInput = process.env.LIVE_PROVIDER_SCOPE || 'auto';
+  const liveAzureSubscriptionKey = process.env.ACV_SUBSCRIPTION_KEY || null;
+  const availableLiveProviders = detectAvailableProviders({
+    replicateApiToken: process.env.REPLICATE_API_TOKEN,
+    azureApiEndpoint: process.env.ACV_API_ENDPOINT,
+    azureSubscriptionKey: process.env.ACV_SUBSCRIPTION_KEY,
+  });
+  const liveProviderScope = liveModeEnabled
+    ? resolveProviderScope({
+      requestedScope: liveProviderScopeInput,
+      hasAzureProvider: availableLiveProviders.hasAzureProvider,
+      hasReplicateProvider: availableLiveProviders.hasReplicateProvider,
+    })
+    : null;
+  const selectedLiveProviders = liveProviderScope
+    ? getSelectedProviders(liveProviderScope)
+    : { runAzure: false, runReplicate: false };
+  let appReplicateApiToken = 'test-token';
+  let appAzureApiEndpoint = `http://${HOST}:${FIXTURE_PORT}/vision/v3.2/describe`;
+  let appAzureSubscriptionKey = 'stub-key';
+
+  if (liveModeEnabled) {
+    appReplicateApiToken = selectedLiveProviders.runReplicate
+      ? process.env.REPLICATE_API_TOKEN
+      : null;
+    appAzureApiEndpoint = selectedLiveProviders.runAzure
+      ? process.env.ACV_API_ENDPOINT
+      : null;
+    appAzureSubscriptionKey = selectedLiveProviders.runAzure
+      ? liveAzureSubscriptionKey
+      : null;
+  }
   const managedChildren = new Set();
   const collection = readCollection(COLLECTION_PATH);
   const availableFolders = listTopLevelFolderNames(collection);
@@ -355,9 +394,9 @@ async function main() {
     buildAppServerEnv({
       httpPort: APP_HTTP_PORT,
       httpsPort: APP_HTTPS_PORT,
-      liveModeEnabled,
-      hasLiveAzureConfig,
-      azureSubscriptionKey,
+      replicateApiToken: appReplicateApiToken,
+      azureApiEndpoint: appAzureApiEndpoint,
+      azureSubscriptionKey: appAzureSubscriptionKey,
     }),
   );
   managedChildren.add(appServer);
@@ -372,9 +411,9 @@ async function main() {
       buildAppServerEnv({
         httpPort: AUTH_APP_HTTP_PORT,
         httpsPort: AUTH_APP_HTTPS_PORT,
-        liveModeEnabled: false,
-        hasLiveAzureConfig: false,
-        azureSubscriptionKey: null,
+        replicateApiToken: 'test-token',
+        azureApiEndpoint: `http://${HOST}:${FIXTURE_PORT}/vision/v3.2/describe`,
+        azureSubscriptionKey: 'stub-key',
         apiAuthTokens: API_AUTH_TOKEN,
       }),
     );
@@ -485,25 +524,22 @@ async function main() {
     if (liveModeEnabled) {
       const liveFolders = [];
 
-      if (runLiveReplicate) {
+      if (selectedLiveProviders.runReplicate) {
         liveFolders.push('90 Live Provider Validation');
       } else {
         // eslint-disable-next-line no-console
-        console.log('Skipping 90 Live Provider Validation: RUN_LIVE_REPLICATE=false');
+        console.log(`Skipping 90 Live Provider Validation: LIVE_PROVIDER_SCOPE=${liveProviderScope}`);
       }
 
-      if (runLiveAzure && hasLiveAzureConfig) {
+      if (selectedLiveProviders.runAzure) {
         liveFolders.push('91 Live Azure Validation');
-      } else if (runLiveAzure) {
-        // eslint-disable-next-line no-console
-        console.log('Skipping 91 Live Azure Validation: ACV_API_ENDPOINT/ACV_SUBSCRIPTION_KEY not set');
       } else {
         // eslint-disable-next-line no-console
-        console.log('Skipping 91 Live Azure Validation: RUN_LIVE_AZURE=false');
+        console.log(`Skipping 91 Live Azure Validation: LIVE_PROVIDER_SCOPE=${liveProviderScope}`);
       }
 
       if (liveFolders.length === 0) {
-        throw new Error('Live mode enabled but no live validation folders were selected');
+        throw new Error(`Live mode enabled but provider scope "${liveProviderScope}" selected no folders`);
       }
 
       assertTopLevelFoldersExist(

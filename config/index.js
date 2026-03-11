@@ -16,6 +16,22 @@ const toOptionalNumber = (value) => {
   return Number.isFinite(parsedValue) ? parsedValue : undefined;
 };
 
+const toOptionalBoolean = (value) => {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (value === true || value === 'true') {
+    return true;
+  }
+
+  if (value === false || value === 'false') {
+    return false;
+  }
+
+  return undefined;
+};
+
 const toList = (value) => {
   if (typeof value !== 'string') {
     return [];
@@ -26,6 +42,9 @@ const toList = (value) => {
     .map((item) => item.trim())
     .filter(Boolean);
 };
+
+const authTokens = toList(process.env.API_AUTH_TOKENS);
+const explicitApiAuthEnabled = toOptionalBoolean(process.env.API_AUTH_ENABLED);
 
 module.exports = {
   env: process.env.NODE_ENV || 'development',
@@ -87,9 +106,7 @@ module.exports = {
 
   azure: {
     apiEndpoint: process.env.ACV_API_ENDPOINT,
-    subscriptionKey:
-      process.env.ACV_SUBSCRIPTION_KEY
-      || process.env.ACV_API_KEY,
+    subscriptionKey: process.env.ACV_SUBSCRIPTION_KEY,
     language: process.env.ACV_LANGUAGE || 'en',
     maxCandidates: toNumber(process.env.ACV_MAX_CANDIDATES, 4),
   },
@@ -100,7 +117,8 @@ module.exports = {
   },
 
   auth: {
-    tokens: toList(process.env.API_AUTH_TOKENS),
+    enabled: explicitApiAuthEnabled ?? authTokens.length > 0,
+    tokens: authTokens,
   },
 
   swagger: {

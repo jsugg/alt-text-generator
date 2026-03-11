@@ -89,15 +89,17 @@ The repository uses a small workflow set with separate responsibilities:
 - `Live Provider Validation` in `.github/workflows/live-provider-validation.yml`
   - manual only
   - runs `npm run postman:live`
+  - uses the `pre-prod` GitHub Actions variable `LIVE_PROVIDER_SCOPE` with `auto`, `azure`, `replicate`, or `all`
   - requires GitHub Actions secrets, not Render env vars
-  - requires `REPLICATE_API_TOKEN` only when Replicate validation is enabled
-  - includes Azure validation only when `ACV_API_ENDPOINT` plus `ACV_SUBSCRIPTION_KEY` or `ACV_API_KEY` secrets are provided and `run_azure` stays enabled
+  - requires `REPLICATE_API_TOKEN` only when the resolved scope includes Replicate
+  - requires `ACV_API_ENDPOINT` plus `ACV_SUBSCRIPTION_KEY` only when the resolved scope includes Azure
   - also supports a guarded weekly schedule when the repository variable `ENABLE_SCHEDULED_LIVE_PROVIDER_VALIDATION` is set to `true`
-- scheduled Azure live validation additionally requires `ENABLE_SCHEDULED_AZURE_LIVE_VALIDATION=true`
+  - uploads Newman artifacts and writes request, assertion, failure, and response-time metrics into the workflow summary
 - `Deploy Verification` in `.github/workflows/deploy-verification.yml`
   - runs automatically on `production` pushes
   - runs `npm run postman:deploy -- --base-url <host>`
-  - reuses the Postman deploy folder to verify hosted health, Swagger server URL, scraper behavior, and one Azure-backed description endpoint
+  - reuses the Postman deploy folders to verify hosted health, Swagger server URL, expected production auth behavior, protected scraper behavior, and one Azure-backed description endpoint
+  - reads `PRODUCTION_API_AUTH_ENABLED` and `PRODUCTION_DEPLOY_VALIDATION_API_TOKEN` from the GitHub Actions environment to match the deployed Render `API_AUTH_ENABLED` / `API_AUTH_TOKENS` state
 - `Promote to Production` in `.github/workflows/promote-to-production.yml`
   - manual only
   - verifies that `main` has the required CI checks green
@@ -166,7 +168,7 @@ API routes that generate descriptions require a `model` query parameter. Today t
 
 - `clip` (Replicate-backed)
 - `azure` (Azure Computer Vision-backed, registered only when `ACV_API_ENDPOINT` and
-  `ACV_SUBSCRIPTION_KEY` or legacy `ACV_API_KEY` are set)
+  `ACV_SUBSCRIPTION_KEY` are set)
 
 ## Configuration and Profiles
 
@@ -223,7 +225,8 @@ Notes:
 | --- | --- | --- | --- |
 | `NODE_ENV` | No | `development` | Valid values: `development`, `production`, `test`. |
 | `REPLICATE_API_TOKEN` | No | none | Required only to register the `clip` provider and for real Replicate-backed descriptions. |
-| `API_AUTH_TOKENS` | No | unset | Optional comma-separated API tokens. When set, scraper and description endpoints require either `Authorization: Bearer <token>` or `X-API-Key: <token>`. |
+| `API_AUTH_ENABLED` | No | derived from `API_AUTH_TOKENS` | Explicitly enables or disables API auth. Defaults to `true` when `API_AUTH_TOKENS` contains at least one token, otherwise `false`. |
+| `API_AUTH_TOKENS` | No | unset | Optional comma-separated API tokens. When API auth is enabled, scraper and description endpoints require either `Authorization: Bearer <token>` or `X-API-Key: <token>`. |
 | `ENV_FILE` | No | `.env` | Selects which dotenv file to load at startup. Not validated by Joi. |
 
 ### Network and Inbound TLS (server)
@@ -280,12 +283,11 @@ Development TLS behavior:
 | --- | --- | --- | --- |
 | `ACV_API_ENDPOINT` | Yes, for Azure | unset | Azure Computer Vision describe endpoint. |
 | `ACV_SUBSCRIPTION_KEY` | Yes, for Azure | unset | Preferred Azure subscription key. |
-| `ACV_API_KEY` | No | unset | Legacy alias for `ACV_SUBSCRIPTION_KEY`. |
 | `ACV_LANGUAGE` | No | `en` | Azure response language. |
 | `ACV_MAX_CANDIDATES` | No | `4` | Maximum Azure caption candidates. |
 
-`ACV_API_ENDPOINT` and one Azure credential must be set together or startup validation fails.
-At least one provider must be configured at startup: `REPLICATE_API_TOKEN`, or Azure endpoint plus credential.
+`ACV_API_ENDPOINT` and `ACV_SUBSCRIPTION_KEY` must be set together or startup validation fails.
+At least one provider must be configured at startup: `REPLICATE_API_TOKEN`, or Azure endpoint plus subscription key.
 
 ### Rate Limiting, Logging, and Swagger
 
@@ -298,7 +300,7 @@ At least one provider must be configured at startup: `REPLICATE_API_TOKEN`, or A
 | `SWAGGER_PROD_URL` | No | `https://wcag.qcraft.com.br` | Swagger server URL for production docs. |
 
 - Logging stays on stdout so container platforms can collect it without relying on local files.
-- Public endpoints remain `ping`, `health`, and `api-docs` even when `API_AUTH_TOKENS` is set.
+- Public endpoints remain `ping`, `health`, and `api-docs` even when API auth is enabled.
 - Auth-protected API failures use a structured JSON contract with `error`, `code`, `requestId`, and optional `details`.
 
 ## Render Deployment Contract
@@ -406,7 +408,7 @@ Expected properties:
 
 ### Deterministic validation without vendor spend
 
-For deterministic local testing or CI-like validation, point the app at a local stub:
+For deterministic local testing or CI-like validation, point the app at a local fixture-backed provider:
 
 ```bash
 REPLICATE_API_ENDPOINT=http://127.0.0.1:19091 REPLICATE_API_TOKEN=test-token node src/app.js

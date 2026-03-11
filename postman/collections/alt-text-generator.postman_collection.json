@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "e379638e-f74f-4aa6-813c-6073da2cfab1",
     "name": "alt-text-generator API Contract Harness",
-    "description": "Deterministic Postman/Newman contract harness for the alt-text-generator API. Use the local stub environment for CI/local runs, and keep live-provider validation separate.",
+    "description": "Deterministic Postman/Newman contract harness for the alt-text-generator API. Use the local fixture environment for CI/local runs, and keep live-provider validation separate.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "event": [
@@ -2152,7 +2152,7 @@
           ]
         },
         {
-          "name": "Hosted scraper contract",
+          "name": "Hosted protected auth expectation",
           "request": {
             "method": "GET",
             "header": [
@@ -2186,92 +2186,169 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('deploy scraper returns 200', function () {",
-                  "  pm.response.to.have.status(200);",
+                  "const productionApiAuthEnabled = pm.environment.get('productionApiAuthEnabled') === 'true';",
+                  "const expectedStatus = productionApiAuthEnabled ? 401 : 200;",
+                  "const failureMessage = productionApiAuthEnabled",
+                  "  ? 'Expected unauthenticated protected deploy request to return 401 because PRODUCTION_API_AUTH_ENABLED=true. Production appears to allow anonymous access. Verify Render API_AUTH_ENABLED=true, Render API_AUTH_TOKENS is configured, and the GitHub pre-prod variable matches reality.'",
+                  "  : 'Expected unauthenticated protected deploy request to return 200 because PRODUCTION_API_AUTH_ENABLED=false. Production appears to require auth. Verify Render API_AUTH_ENABLED=false, or if it is unset verify API_AUTH_TOKENS is empty, or update the GitHub pre-prod variable.';",
+                  "",
+                  "pm.test('deploy protected auth expectation matches configured production auth state', function () {",
+                  "  pm.expect(pm.response.code, failureMessage).to.eql(expectedStatus);",
                   "});",
                   "",
                   "const body = pm.response.json();",
                   "",
-                  "pm.test('deploy scraper response has an imageSources array', function () {",
-                  "  pm.expect(body).to.have.property('imageSources');",
-                  "  pm.expect(body.imageSources).to.be.an('array');",
-                  "});",
-                  "",
-                  "pm.test('deploy scraper image sources are strings when present', function () {",
-                  "  body.imageSources.forEach((imageUrl) => {",
-                  "    pm.expect(imageUrl).to.be.a('string');",
+                  "if (productionApiAuthEnabled) {",
+                  "  pm.test('deploy unauthorized response matches the public error contract', function () {",
+                  "    pm.expect(body).to.have.property('code', 'API_AUTHENTICATION_FAILED');",
+                  "    pm.expect(body).to.have.property('error', 'Missing or invalid API authentication credentials');",
+                  "    pm.expect(body).to.have.property('requestId');",
                   "  });",
-                  "});"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Hosted azure single description",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "X-Max-Response-Time-Ms",
-                "value": "20000"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/accessibility/description",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "accessibility",
-                "description"
-              ],
-              "query": [
-                {
-                  "key": "image_source",
-                  "value": "{{deployAzureImageUrl}}"
-                },
-                {
-                  "key": "model",
-                  "value": "azure"
-                }
-              ]
-            }
-          },
-          "response": [],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('deploy azure description returns 200', function () {",
-                  "  pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "const body = pm.response.json();",
-                  "",
-                  "pm.test('deploy azure description response is a one-item array', function () {",
-                  "  pm.expect(body).to.be.an('array').with.lengthOf(1);",
-                  "});",
-                  "",
-                  "pm.test('deploy azure description is non-empty for the requested image', function () {",
-                  "  pm.expect(body[0].imageUrl).to.eql(pm.environment.get('deployAzureImageUrl'));",
-                  "  pm.expect(body[0].description).to.be.a('string');",
-                  "  pm.expect(body[0].description.length).to.be.above(0);",
-                  "});"
+                  "} else {",
+                  "  pm.test('deploy unauthenticated protected request succeeds when auth is disabled', function () {",
+                  "    pm.expect(body).to.have.property('imageSources');",
+                  "    pm.expect(body.imageSources).to.be.an('array');",
+                  "  });",
+                  "}"
                 ]
               }
             }
           ]
         }
       ]
-    }
+    },
+    {
+          "name": "96 Deploy Protected Verification",
+          "item": [
+            {
+              "name": "Hosted scraper contract",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{deployValidationApiToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/scraper/images",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "scraper",
+                    "images"
+                  ],
+                  "query": [
+                    {
+                      "key": "url",
+                      "value": "{{deployScrapePageUrl}}"
+                    }
+                  ]
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('deploy scraper returns 200', function () {",
+                      "  pm.expect(pm.response.code, 'Expected deploy scraper request to succeed. Verify PRODUCTION_DEPLOY_VALIDATION_API_TOKEN matches a token in Render API_AUTH_TOKENS when Render API_AUTH_ENABLED=true.').to.eql(200);",
+                      "});",
+                      "",
+                      "const body = pm.response.json();",
+                      "",
+                      "pm.test('deploy scraper response has an imageSources array', function () {",
+                      "  pm.expect(body).to.have.property('imageSources');",
+                      "  pm.expect(body.imageSources).to.be.an('array');",
+                      "});",
+                      "",
+                      "pm.test('deploy scraper image sources are strings when present', function () {",
+                      "  body.imageSources.forEach((imageUrl) => {",
+                      "    pm.expect(imageUrl).to.be.a('string');",
+                      "  });",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Hosted azure single description",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "X-Max-Response-Time-Ms",
+                    "value": "20000"
+                  },
+                  {
+                    "key": "X-API-Key",
+                    "value": "{{deployValidationApiToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/accessibility/description",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "accessibility",
+                    "description"
+                  ],
+                  "query": [
+                    {
+                      "key": "image_source",
+                      "value": "{{deployAzureImageUrl}}"
+                    },
+                    {
+                      "key": "model",
+                      "value": "azure"
+                    }
+                  ]
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('deploy azure description returns 200', function () {",
+                      "  pm.expect(pm.response.code, 'Expected deploy azure description request to succeed. Verify PRODUCTION_DEPLOY_VALIDATION_API_TOKEN matches a token in Render API_AUTH_TOKENS when Render API_AUTH_ENABLED=true.').to.eql(200);",
+                      "});",
+                      "",
+                      "const body = pm.response.json();",
+                      "",
+                      "pm.test('deploy azure description response is a one-item array', function () {",
+                      "  pm.expect(body).to.be.an('array').with.lengthOf(1);",
+                      "});",
+                      "",
+                      "pm.test('deploy azure description is non-empty for the requested image', function () {",
+                      "  pm.expect(body[0].imageUrl).to.eql(pm.environment.get('deployAzureImageUrl'));",
+                      "  pm.expect(body[0].description).to.be.a('string');",
+                      "  pm.expect(body[0].description.length).to.be.above(0);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
   ],
   "variable": [
     {

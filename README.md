@@ -26,7 +26,7 @@ The service exposes these primary capabilities:
 - HTTPS-first local runtime with automatic HTTP -> HTTPS redirect
 - Swagger UI for interactive API exploration
 - Lint and test automation in CI
-- Deterministic Postman/Newman API contract harness with local stubs
+- Deterministic Postman/Newman API contract harness with local fixtures
 - Optional token-based API access control for cost-bearing endpoints
 
 ## Requirements
@@ -36,7 +36,7 @@ The service exposes these primary capabilities:
 - npm 10+
 - At least one provider configuration:
   - `REPLICATE_API_TOKEN` for the `clip` model
-  - or `ACV_API_ENDPOINT` plus `ACV_SUBSCRIPTION_KEY` or `ACV_API_KEY` for the `azure` model
+  - or `ACV_API_ENDPOINT` plus `ACV_SUBSCRIPTION_KEY` for the `azure` model
 
 ## Quick Start
 
@@ -83,10 +83,13 @@ Notes:
 - `postman:smoke` is the fast deterministic gate.
 - `postman:harness` runs the full deterministic suite, including protected-endpoint auth coverage, and writes JSON and JUnit reports under `reports/newman/`.
 - `postman:live` is optional and reserved for explicit live-provider validation.
-- `postman:deploy` runs the hosted deploy-smoke folder from the same Postman collection against a supplied base URL.
+- `postman:deploy` runs the hosted production-smoke folder from the same Postman collection against a supplied base URL.
 - CI runs `postman:smoke` on pull requests and `postman:harness` on `main` / `production` pushes.
 - Deploy verification runs `postman:deploy` on `production` pushes so hosted smoke checks stay inside the Newman contract layer.
-- Live mode is opt-in, prefers Azure when Azure credentials are configured, and only runs Replicate when it is explicitly enabled or it is the only configured live provider.
+- Deploy verification also reads `PRODUCTION_API_AUTH_ENABLED` and `PRODUCTION_DEPLOY_VALIDATION_API_TOKEN` from the GitHub Actions environment so hosted protected-endpoint checks can verify the expected Render `API_AUTH_ENABLED` / `API_AUTH_TOKENS` state.
+- Live mode uses a single `LIVE_PROVIDER_SCOPE` enum: `auto`, `azure`, `replicate`, or `all`.
+- `LIVE_PROVIDER_SCOPE=auto` prefers Azure when Azure credentials are configured and otherwise falls back to Replicate when a Replicate token exists.
+- Live-provider runs upload Newman artifacts and append request, assertion, failure, and response-time metrics to the GitHub Actions step summary.
 - Local harness runs accept self-signed development TLS.
 - The deterministic harness uses a local Azure stub and can boot with a dummy Replicate token or Azure-only configuration.
 
@@ -98,20 +101,24 @@ Required at startup:
 
 - At least one provider configuration:
   - `REPLICATE_API_TOKEN` to register `clip`
-  - or `ACV_API_ENDPOINT` plus `ACV_SUBSCRIPTION_KEY` or `ACV_API_KEY` to register `azure`
+  - or `ACV_API_ENDPOINT` plus `ACV_SUBSCRIPTION_KEY` to register `azure`
 
 Required for live Azure descriptions:
 
 - `ACV_API_ENDPOINT`
-- `ACV_SUBSCRIPTION_KEY` or `ACV_API_KEY`
-- The `azure` model is only registered when the endpoint and one Azure credential are set together.
+- `ACV_SUBSCRIPTION_KEY`
+- The `azure` model is only registered when the endpoint and subscription key are set together.
 
 Common local settings:
 
+- `API_AUTH_ENABLED`
+  - Optional boolean flag
+  - Defaults to `true` when `API_AUTH_TOKENS` contains at least one token, otherwise `false`
+  - When `true`, `API_AUTH_TOKENS` must contain at least one non-empty token
 - `PORT` and `TLS_PORT`
 - `API_AUTH_TOKENS`
   - Optional comma-separated tokens
-  - When set, scraper and description endpoints require `Authorization: Bearer <token>` or `X-API-Key: <token>`
+  - When API auth is enabled, scraper and description endpoints require `Authorization: Bearer <token>` or `X-API-Key: <token>`
   - `ping`, `health`, and `api-docs` stay public
 - `TRUST_PROXY_HOPS`
   - Defaults to `1`
@@ -145,7 +152,7 @@ Error responses keep the existing top-level `error` message and add stable metad
 
 Interactive documentation: `/api-docs`
 
-When `API_AUTH_TOKENS` is configured, use Swagger UI's `Authorize` flow with either a Bearer token or `X-API-Key`.
+When API auth is enabled, use Swagger UI's `Authorize` flow with either a Bearer token or `X-API-Key`.
 
 ### Images
 

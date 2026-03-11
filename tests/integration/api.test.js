@@ -465,7 +465,8 @@ describe('unknown routes', () => {
 describe('API access control', () => {
   const authConfig = {
     auth: {
-      tokens: ['test-api-token'],
+      enabled: true,
+      tokens: ['dummy-1', 'dummy-2'],
     },
     replicate: {},
     azure: {},
@@ -519,7 +520,7 @@ describe('API access control', () => {
       `/api/accessibility/description?image_source=${
         encodeURIComponent('https://example.com/img.jpg')
       }&model=clip`,
-    ).set('X-API-Key', 'test-api-token');
+    ).set('X-API-Key', 'dummy-2');
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual([{
@@ -542,7 +543,51 @@ describe('API access control', () => {
     const res = await secureGet(
       app,
       `/api/scraper/images?url=${encodeURIComponent('https://example.com')}`,
-    ).set('Authorization', 'Bearer test-api-token');
+    ).set('Authorization', 'Bearer dummy-1');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      imageSources: ['https://example.com/a.jpg'],
+    });
+  });
+
+  it('rejects protected endpoints when the token is not in API_AUTH_TOKENS', async () => {
+    const { app } = buildTestApp({ config: authConfig });
+
+    const res = await secureGet(
+      app,
+      `/api/scraper/images?url=${encodeURIComponent('https://example.com')}`,
+    ).set('Authorization', 'Bearer invalid-token');
+
+    expect(res.status).toBe(401);
+    expect(res.body).toMatchObject({
+      error: 'Missing or invalid API authentication credentials',
+      code: 'API_AUTHENTICATION_FAILED',
+      requestId: TEST_REQUEST_ID,
+    });
+  });
+
+  it('allows protected endpoints through when auth is explicitly disabled', async () => {
+    const scraperService = {
+      getImages: jest.fn().mockResolvedValue({
+        imageSources: ['https://example.com/a.jpg'],
+      }),
+    };
+    const { app } = buildTestApp({
+      config: {
+        ...authConfig,
+        auth: {
+          enabled: false,
+          tokens: ['dummy-1', 'dummy-2'],
+        },
+      },
+      scraperService,
+    });
+
+    const res = await secureGet(
+      app,
+      `/api/scraper/images?url=${encodeURIComponent('https://example.com')}`,
+    );
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual({

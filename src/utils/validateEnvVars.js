@@ -58,7 +58,6 @@ const envVarsSchema = Joi.object({
     .optional(),
 
   // Azure Computer Vision (optional provider)
-  ACV_API_KEY: Joi.string().optional(),
   ACV_API_ENDPOINT: Joi.string().uri().optional(),
   ACV_SUBSCRIPTION_KEY: Joi.string().optional(),
   ACV_LANGUAGE: Joi.string().optional(),
@@ -69,6 +68,7 @@ const envVarsSchema = Joi.object({
   RATE_LIMIT_MAX: Joi.number().optional(),
 
   // Optional API access control
+  API_AUTH_ENABLED: Joi.string().valid('true', 'false').optional(),
   API_AUTH_TOKENS: Joi.string().optional(),
 
   // Swagger
@@ -83,34 +83,44 @@ const validateEnvVars = () => {
   }
 
   const hasAzureEndpoint = Boolean(process.env.ACV_API_ENDPOINT);
-  const hasAzureCredential = Boolean(
-    process.env.ACV_SUBSCRIPTION_KEY || process.env.ACV_API_KEY,
-  );
+  const hasAzureCredential = Boolean(process.env.ACV_SUBSCRIPTION_KEY);
   const hasReplicateProvider = Boolean(process.env.REPLICATE_API_TOKEN);
   const hasAzureProvider = hasAzureEndpoint && hasAzureCredential;
+  const authTokens = parseAuthTokens(process.env.API_AUTH_TOKENS);
 
   if (!hasReplicateProvider && !hasAzureProvider) {
     throw new Error(
       'Config validation error: at least one provider must be configured. '
         + 'Set REPLICATE_API_TOKEN to enable clip, or set ACV_API_ENDPOINT and '
-        + 'either ACV_SUBSCRIPTION_KEY or ACV_API_KEY to enable azure',
+        + 'ACV_SUBSCRIPTION_KEY to enable azure',
     );
   }
 
   if (hasAzureEndpoint !== hasAzureCredential) {
     throw new Error(
-      'Config validation error: ACV_API_ENDPOINT and either ACV_SUBSCRIPTION_KEY '
-        + 'or ACV_API_KEY must be set together to enable the Azure provider',
+      'Config validation error: ACV_API_ENDPOINT and ACV_SUBSCRIPTION_KEY '
+        + 'must be set together to enable the Azure provider',
     );
   }
 
   if (
-    process.env.API_AUTH_TOKENS !== undefined
-    && parseAuthTokens(process.env.API_AUTH_TOKENS).length === 0
+    process.env.API_AUTH_ENABLED === 'true'
+    && authTokens.length === 0
+  ) {
+    throw new Error(
+      'Config validation error: API_AUTH_ENABLED=true requires API_AUTH_TOKENS '
+        + 'to contain at least one non-empty token',
+    );
+  }
+
+  if (
+    process.env.API_AUTH_ENABLED !== 'false'
+    && process.env.API_AUTH_TOKENS !== undefined
+    && authTokens.length === 0
   ) {
     throw new Error(
       'Config validation error: API_AUTH_TOKENS must contain at least one '
-        + 'non-empty token when set',
+        + 'non-empty token when auth is enabled',
     );
   }
 

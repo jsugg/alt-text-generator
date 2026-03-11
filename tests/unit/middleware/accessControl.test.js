@@ -57,7 +57,7 @@ describe('access-control middleware', () => {
   });
 
   it('allows public requests through when auth is configured', () => {
-    const middleware = createAccessControlMiddleware({ tokens: ['token-a'] });
+    const middleware = createAccessControlMiddleware({ enabled: true, tokens: ['token-a'] });
     const req = makeRequest({ path: '/api/health' });
     const next = jest.fn();
 
@@ -67,7 +67,7 @@ describe('access-control middleware', () => {
   });
 
   it('rejects protected requests without a valid token', () => {
-    const middleware = createAccessControlMiddleware({ tokens: ['token-a'] });
+    const middleware = createAccessControlMiddleware({ enabled: true, tokens: ['token-a'] });
     const req = makeRequest();
     const next = jest.fn();
 
@@ -82,10 +82,13 @@ describe('access-control middleware', () => {
   });
 
   it('allows protected requests with a matching token', () => {
-    const middleware = createAccessControlMiddleware({ tokens: ['token-a'] });
+    const middleware = createAccessControlMiddleware({
+      enabled: true,
+      tokens: ['dummy-1', 'dummy-2'],
+    });
     const req = makeRequest({
       headers: {
-        authorization: 'Bearer token-a',
+        authorization: 'Bearer dummy-2',
       },
     });
     const next = jest.fn();
@@ -93,5 +96,46 @@ describe('access-control middleware', () => {
     middleware(req, {}, next);
 
     expect(next).toHaveBeenCalledWith();
+  });
+
+  it('rejects protected requests with an invalid configured header token', () => {
+    const middleware = createAccessControlMiddleware({
+      enabled: true,
+      tokens: ['dummy-1', 'dummy-2'],
+    });
+    const req = makeRequest({
+      headers: {
+        'x-api-key': 'bogus-token',
+      },
+    });
+    const next = jest.fn();
+
+    middleware(req, {}, next);
+
+    expect(next).toHaveBeenCalledWith(expect.any(ApiError));
+    expect(next.mock.calls[0][0]).toMatchObject({
+      statusCode: 401,
+      code: 'API_AUTHENTICATION_FAILED',
+    });
+  });
+
+  it('allows protected requests through when auth is explicitly disabled', () => {
+    const middleware = createAccessControlMiddleware({
+      enabled: false,
+      tokens: ['dummy-1', 'dummy-2'],
+    });
+    const req = makeRequest();
+    const next = jest.fn();
+
+    middleware(req, {}, next);
+
+    expect(next).toHaveBeenCalledWith();
+  });
+
+  it('throws when auth is enabled without any configured tokens', () => {
+    expect(() => createAccessControlMiddleware({
+      enabled: true,
+      tokens: [],
+    })).toThrow('API auth is enabled but no API_AUTH_TOKENS were configured');
   });
 });

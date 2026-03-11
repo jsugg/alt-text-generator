@@ -27,7 +27,7 @@ describe('validateEnvVars', () => {
       overrides: {
         REPLICATE_API_TOKEN: 'test-token',
       },
-      remove: ['ACV_API_ENDPOINT', 'ACV_SUBSCRIPTION_KEY', 'ACV_API_KEY'],
+      remove: ['ACV_API_ENDPOINT', 'ACV_SUBSCRIPTION_KEY'],
     });
 
     expect(() => validateEnvVars()).not.toThrow();
@@ -39,7 +39,7 @@ describe('validateEnvVars', () => {
         ACV_API_ENDPOINT: 'https://azure.example.com/vision/v3.2/describe',
         ACV_SUBSCRIPTION_KEY: 'azure-key',
       },
-      remove: ['REPLICATE_API_TOKEN', 'ACV_API_KEY'],
+      remove: ['REPLICATE_API_TOKEN'],
     });
 
     expect(() => validateEnvVars()).not.toThrow();
@@ -47,7 +47,7 @@ describe('validateEnvVars', () => {
 
   it('rejects startup when no provider is configured', () => {
     const validateEnvVars = loadValidator({
-      remove: ['REPLICATE_API_TOKEN', 'ACV_API_ENDPOINT', 'ACV_SUBSCRIPTION_KEY', 'ACV_API_KEY'],
+      remove: ['REPLICATE_API_TOKEN', 'ACV_API_ENDPOINT', 'ACV_SUBSCRIPTION_KEY'],
     });
 
     expect(() => validateEnvVars()).toThrow(/at least one provider must be configured/i);
@@ -145,19 +145,7 @@ describe('validateEnvVars', () => {
         ACV_API_ENDPOINT: 'https://azure.example.com/vision/v3.2/describe',
         ACV_SUBSCRIPTION_KEY: 'azure-key',
       },
-      remove: ['REPLICATE_API_TOKEN', 'ACV_API_KEY'],
-    });
-
-    expect(() => validateEnvVars()).not.toThrow();
-  });
-
-  it('accepts the legacy Azure API key alias', () => {
-    const validateEnvVars = loadValidator({
-      overrides: {
-        ACV_API_ENDPOINT: 'https://azure.example.com/vision/v3.2/describe',
-        ACV_API_KEY: 'azure-key',
-      },
-      remove: ['REPLICATE_API_TOKEN', 'ACV_SUBSCRIPTION_KEY'],
+      remove: ['REPLICATE_API_TOKEN'],
     });
 
     expect(() => validateEnvVars()).not.toThrow();
@@ -168,7 +156,7 @@ describe('validateEnvVars', () => {
       overrides: {
         ACV_API_ENDPOINT: 'https://azure.example.com/vision/v3.2/describe',
       },
-      remove: ['REPLICATE_API_TOKEN', 'ACV_API_KEY', 'ACV_SUBSCRIPTION_KEY'],
+      remove: ['REPLICATE_API_TOKEN', 'ACV_SUBSCRIPTION_KEY'],
     });
 
     expect(() => validateEnvVars()).toThrow(/ACV_API_ENDPOINT/);
@@ -189,6 +177,7 @@ describe('validateEnvVars', () => {
     const validateEnvVars = loadValidator({
       overrides: {
         REPLICATE_API_TOKEN: 'test-token',
+        API_AUTH_ENABLED: 'true',
         API_AUTH_TOKENS: 'token-a, token-b',
       },
     });
@@ -205,5 +194,29 @@ describe('validateEnvVars', () => {
     });
 
     expect(() => validateEnvVars()).toThrow(/API_AUTH_TOKENS/);
+  });
+
+  it('rejects API auth enablement without any configured tokens', () => {
+    const validateEnvVars = loadValidator({
+      overrides: {
+        REPLICATE_API_TOKEN: 'test-token',
+        API_AUTH_ENABLED: 'true',
+      },
+      remove: ['API_AUTH_TOKENS'],
+    });
+
+    expect(() => validateEnvVars()).toThrow(/API_AUTH_ENABLED=true requires API_AUTH_TOKENS/);
+  });
+
+  it('accepts explicitly disabled API auth without configured tokens', () => {
+    const validateEnvVars = loadValidator({
+      overrides: {
+        REPLICATE_API_TOKEN: 'test-token',
+        API_AUTH_ENABLED: 'false',
+      },
+      remove: ['API_AUTH_TOKENS'],
+    });
+
+    expect(() => validateEnvVars()).not.toThrow();
   });
 });

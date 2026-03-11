@@ -23,9 +23,13 @@ jobs:
   smoke:
     name: production-smoke
     runs-on: ubuntu-latest
+    environment: pre-prod
     timeout-minutes: 10
     env:
       BASE_URL: ${{ github.event_name == 'workflow_dispatch' && inputs.base_url || 'https://wcag.qcraft.com.br' }}
+      PRODUCTION_API_AUTH_ENABLED: ${{ vars.PRODUCTION_API_AUTH_ENABLED }}
+      PRODUCTION_DEPLOY_VALIDATION_API_TOKEN: ${{ secrets.PRODUCTION_DEPLOY_VALIDATION_API_TOKEN }}
+      PRODUCTION_DEPLOY_VALIDATION_API_TOKEN_CONFIGURED: ${{ secrets.PRODUCTION_DEPLOY_VALIDATION_API_TOKEN != '' && 'true' || 'false' }}
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -46,6 +50,11 @@ jobs:
             echo
             echo "- Event: ${{ github.event_name }}"
             echo "- Base URL: ${BASE_URL}"
+            echo "- Production API auth expected: ${PRODUCTION_API_AUTH_ENABLED:-false}"
+            echo "- Production deploy validation token configured: ${PRODUCTION_DEPLOY_VALIDATION_API_TOKEN_CONFIGURED}"
+            if [ "${PRODUCTION_API_AUTH_ENABLED:-false}" = "true" ] && [ "${PRODUCTION_DEPLOY_VALIDATION_API_TOKEN_CONFIGURED}" != "true" ]; then
+              echo "- Protected deploy verification skipped because PRODUCTION_API_AUTH_ENABLED=true but PRODUCTION_DEPLOY_VALIDATION_API_TOKEN is not configured. Render API_AUTH_ENABLED must be true and API_AUTH_TOKENS must include the same token."
+            fi
             echo
           } >> "$GITHUB_STEP_SUMMARY"
           node scripts/github/write-newman-summary.js \

@@ -39,14 +39,22 @@ const isPublicPath = (path = '') => path.startsWith('/api-docs')
 
 /**
  * @param {object} authConfig
+ * @param {boolean} [authConfig.enabled]
  * @param {string[]} [authConfig.tokens]
  * @returns {Function}
  */
 const createAccessControlMiddleware = (authConfig = {}) => {
   const allowedTokens = new Set(authConfig.tokens ?? []);
+  const authEnabled = typeof authConfig.enabled === 'boolean'
+    ? authConfig.enabled
+    : allowedTokens.size > 0;
+
+  if (authEnabled && allowedTokens.size === 0) {
+    throw new Error('API auth is enabled but no API_AUTH_TOKENS were configured');
+  }
 
   return (req, res, next) => {
-    if (allowedTokens.size === 0 || !isApiPath(req.path) || isPublicPath(req.path)) {
+    if (!authEnabled || !isApiPath(req.path) || isPublicPath(req.path)) {
       return next();
     }
 

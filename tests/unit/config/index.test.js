@@ -37,6 +37,7 @@ describe('config', () => {
         'SCRAPER_MAX_CONTENT_LENGTH_BYTES',
         'RATE_LIMIT_WINDOW_MS',
         'RATE_LIMIT_MAX',
+        'API_AUTH_ENABLED',
         'API_AUTH_TOKENS',
       ],
     });
@@ -60,6 +61,7 @@ describe('config', () => {
       max: 100,
     });
     expect(config.auth).toEqual({
+      enabled: false,
       tokens: [],
     });
     expect(config.swagger).toEqual({
@@ -83,6 +85,7 @@ describe('config', () => {
         SCRAPER_MAX_CONTENT_LENGTH_BYTES: '4096',
         RATE_LIMIT_WINDOW_MS: '30000',
         RATE_LIMIT_MAX: '50',
+        API_AUTH_ENABLED: 'true',
         API_AUTH_TOKENS: ' token-a,token-b , token-c ',
       },
     });
@@ -106,6 +109,7 @@ describe('config', () => {
       max: 50,
     });
     expect(config.auth).toEqual({
+      enabled: true,
       tokens: ['token-a', 'token-b', 'token-c'],
     });
   });
@@ -123,6 +127,20 @@ describe('config', () => {
       port: 9443,
       keyPath: 'tls-key',
       certPath: 'tls-cert',
+    });
+  });
+
+  it('allows auth tokens to stay configured while auth is explicitly disabled', () => {
+    const config = loadConfig({
+      overrides: {
+        API_AUTH_ENABLED: 'false',
+        API_AUTH_TOKENS: 'token-a, token-b',
+      },
+    });
+
+    expect(config.auth).toEqual({
+      enabled: false,
+      tokens: ['token-a', 'token-b'],
     });
   });
 });
