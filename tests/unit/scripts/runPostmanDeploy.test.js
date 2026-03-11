@@ -1,5 +1,6 @@
 const {
   buildDeployEnvVars,
+  buildDeployNewmanArgs,
   buildDeployProbeUrls,
   collectDeployStabilizationIssues,
   hasRequiredRateLimitHeaders,
@@ -68,6 +69,37 @@ describe('Unit | Scripts | Run Postman Deploy', () => {
         expectedSwaggerServerUrl: 'https://wcag.qcraft.com.br',
         productionApiAuthEnabled: 'true',
       });
+    });
+  });
+
+  describe('buildDeployNewmanArgs', () => {
+    it('keeps the deploy JSON and JUnit reporters by default', () => {
+      expect(buildDeployNewmanArgs('https://wcag.qcraft.com.br', {
+        deployValidationApiToken: 'deploy-token',
+        folders: ['95 Deploy Verification'],
+        productionApiAuthEnabled: 'true',
+      })).toEqual(expect.arrayContaining([
+        '-r',
+        'cli,json,junit',
+        '--reporter-json-export',
+        expect.stringMatching(/reports\/newman\/deploy\.json$/),
+        '--reporter-junit-export',
+        expect.stringMatching(/reports\/newman\/deploy\.xml$/),
+      ]));
+    });
+
+    it('adds the Allure reporter when a results directory is configured', () => {
+      expect(buildDeployNewmanArgs('https://wcag.qcraft.com.br', {
+        allureResultsDir: '/tmp/allure-results',
+        deployValidationApiToken: 'deploy-token',
+        folders: ['95 Deploy Verification'],
+        productionApiAuthEnabled: 'true',
+      })).toEqual(expect.arrayContaining([
+        '-r',
+        'cli,json,junit,allure',
+        '--reporter-allure-resultsDir',
+        '/tmp/allure-results',
+      ]));
     });
   });
 

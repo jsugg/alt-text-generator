@@ -12,6 +12,10 @@ const {
   listTopLevelFolderNames,
   readCollection,
 } = require('./postman/collection-utils');
+const {
+  buildNewmanReporterArgs,
+  resolveAllureResultsDir,
+} = require('./postman/newman-reporting');
 
 const ROOT = path.resolve(__dirname, '..');
 const COLLECTION_PATH = path.join(
@@ -463,19 +467,21 @@ async function waitForStableDeploy(
 }
 
 /**
- * Runs the deploy Newman folder.
+ * Builds the Newman CLI arguments for deploy verification.
  *
  * @param {string} baseUrl
  * @param {{
+ *   allureResultsDir?: string | null,
  *   deployValidationApiToken: string,
  *   folders: string[],
  *   productionApiAuthEnabled: 'true'|'false',
  * }} options
- * @returns {Promise<void>}
+ * @returns {string[]}
  */
-function runNewman(
+function buildDeployNewmanArgs(
   baseUrl,
   {
+    allureResultsDir = null,
     deployValidationApiToken,
     folders,
     productionApiAuthEnabled,
@@ -486,7 +492,7 @@ function runNewman(
     deployValidationApiToken,
     productionApiAuthEnabled,
   })).flatMap(([key, value]) => ['--env-var', `${key}=${value}`]);
-  const args = [
+  return [
     '--no-install',
     'newman',
     'run',
@@ -498,14 +504,42 @@ function runNewman(
     '45000',
     '--timeout-script',
     '10000',
-    '-r',
-    'cli,json,junit',
-    '--reporter-json-export',
-    path.join(REPORTS_DIR, 'deploy.json'),
-    '--reporter-junit-export',
-    path.join(REPORTS_DIR, 'deploy.xml'),
+    ...buildNewmanReporterArgs({
+      label: 'deploy',
+      reportsDir: REPORTS_DIR,
+      allureResultsDir,
+    }),
     ...folderArgs,
   ];
+}
+
+/**
+ * Runs the deploy Newman folder.
+ *
+ * @param {string} baseUrl
+ * @param {{
+ *   allureResultsDir?: string | null,
+ *   deployValidationApiToken: string,
+ *   folders: string[],
+ *   productionApiAuthEnabled: 'true'|'false',
+ * }} options
+ * @returns {Promise<void>}
+ */
+function runNewman(
+  baseUrl,
+  {
+    allureResultsDir = null,
+    deployValidationApiToken,
+    folders,
+    productionApiAuthEnabled,
+  },
+) {
+  const args = buildDeployNewmanArgs(baseUrl, {
+    allureResultsDir,
+    deployValidationApiToken,
+    folders,
+    productionApiAuthEnabled,
+  });
 
   return new Promise((resolve, reject) => {
     const child = spawn(NPX, args, {
@@ -535,6 +569,7 @@ function runNewman(
 async function main() {
   const { baseUrl } = parseArgs(process.argv.slice(2));
   const normalizedBaseUrl = normalizeBaseUrl(baseUrl);
+  const allureResultsDir = resolveAllureResultsDir(process.env, ROOT);
   const authConfig = resolveProductionDeployAuthConfig(process.env);
   const collection = readCollection(COLLECTION_PATH);
   const availableFolders = listTopLevelFolderNames(collection);
@@ -553,8 +588,12 @@ async function main() {
   );
 
   await fs.mkdir(REPORTS_DIR, { recursive: true });
+  if (allureResultsDir) {
+    await fs.mkdir(allureResultsDir, { recursive: true });
+  }
   await waitForStableDeploy(normalizedBaseUrl, authConfig);
   await runNewman(normalizedBaseUrl, {
+    allureResultsDir,
     deployValidationApiToken: authConfig.deployValidationApiToken,
     folders: selectedFolders,
     productionApiAuthEnabled: authConfig.productionApiAuthEnabled,
@@ -571,6 +610,7 @@ if (require.main === module) {
 
 module.exports = {
   buildDeployEnvVars,
+  buildDeployNewmanArgs,
   buildDeployProbeUrls,
   collectDeployStabilizationIssues,
   hasRequiredRateLimitHeaders,

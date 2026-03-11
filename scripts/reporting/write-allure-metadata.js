@@ -55,7 +55,7 @@ function toPropertiesFile(values) {
  * @returns {Record<string, string>}
  */
 function buildEnvironmentProperties({ env = process.env, rootDir = ROOT } = {}) {
-  return {
+  const environmentProperties = {
     node_version: process.version,
     jest_version: getInstalledPackageVersion('jest', rootDir),
     newman_version: getInstalledPackageVersion('newman', rootDir),
@@ -63,6 +63,36 @@ function buildEnvironmentProperties({ env = process.env, rootDir = ROOT } = {}) 
     branch: env.GITHUB_REF_NAME || 'local',
     commit_sha: env.GITHUB_SHA || 'local',
   };
+
+  if (env.ALLURE_HISTORY_KEY) {
+    environmentProperties.history_stream = env.ALLURE_HISTORY_KEY;
+  }
+
+  if (env.ALLURE_REPORT_KIND) {
+    environmentProperties.report_kind = env.ALLURE_REPORT_KIND;
+  }
+
+  if (env.GITHUB_EVENT_NAME) {
+    environmentProperties.github_event_name = env.GITHUB_EVENT_NAME;
+  }
+
+  if (env.ALLURE_PR_NUMBER) {
+    environmentProperties.pr_number = env.ALLURE_PR_NUMBER;
+  }
+
+  if (env.ALLURE_NEWMAN_MODE) {
+    environmentProperties.newman_mode = env.ALLURE_NEWMAN_MODE;
+  }
+
+  if (env.ALLURE_WORKFLOW_KIND) {
+    environmentProperties.workflow_kind = env.ALLURE_WORKFLOW_KIND;
+  }
+
+  if (env.ALLURE_BASE_URL) {
+    environmentProperties.base_url = env.ALLURE_BASE_URL;
+  }
+
+  return environmentProperties;
 }
 
 /**

@@ -122,7 +122,11 @@ Notes:
 - CI uploads the generated HTML as the `allure-report` artifact.
 - The public Pages deployment is `https://jsugg.github.io/alt-text-generator/`; the suites view is `https://jsugg.github.io/alt-text-generator/#suites`.
 - Pushes to `main` publish the latest generated report to GitHub Pages after the `allure-pages` job finishes successfully.
-- Each generated Allure report first restores the currently published Pages `history/` payload, so trend data carries forward into PR artifacts and the next `main` publication.
+- CI now keeps separate Allure history streams for `main` (`ci-main`) and same-repository pull requests (`ci-pr-<number>`), while deploy verification keeps its own `deploy-production` stream.
+- GitHub Pages remains the public HTML surface for `main` only; PR and deploy-verification reports are action artifacts.
+- Same-repository PRs restore and persist their own history artifacts, so failure trends follow the PR instead of borrowing `main` history.
+- Fork pull requests and custom deploy-verification URLs stay ephemeral and do not restore or persist history artifacts.
+- Manual deploy verification against the canonical production URL only persists history when `persist_history=true` is selected in the workflow dispatch form.
 - CI only emits Jest Allure results from the Node 20 lane so unit tests do not appear three times in the merged report.
 - The Allure CLI requires Java when you generate the HTML report locally or in CI.
 

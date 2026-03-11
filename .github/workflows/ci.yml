@@ -229,11 +229,17 @@ jobs:
       - test
       - newman
     permissions:
+      actions: read
       contents: read
       pages: write
       id-token: write
     outputs:
       has-results: ${{ steps.allure-inputs.outputs.has-results }}
+      history_artifact_name: ${{ steps.history-policy.outputs.history_artifact_name }}
+      history_key: ${{ steps.history-policy.outputs.history_key }}
+      persist_history: ${{ steps.history-policy.outputs.persist_history }}
+      publish_pages: ${{ steps.history-policy.outputs.publish_pages }}
+      report_kind: ${{ steps.history-policy.outputs.report_kind }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -274,34 +280,96 @@ jobs:
             echo "has-results=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Restore published Allure history
-        if: steps.allure-inputs.outputs.has-results == 'true'
+      - name: Resolve Allure history policy
+        id: history-policy
         run: >-
-          node scripts/reporting/fetch-allure-history.js
+          node scripts/reporting/resolve-allure-history-policy.js
+          --workflow-kind ci
+          --github-output "${GITHUB_OUTPUT}"
+
+      - name: Restore Allure history from artifact
+        id: history-restore
+        if: >-
+          steps.allure-inputs.outputs.has-results == 'true' &&
+          steps.history-policy.outputs.restore_history == 'true'
+        run: >-
+          node scripts/reporting/restore-allure-history-from-artifact.js
+          --artifact-name "${{ steps.history-policy.outputs.history_artifact_name }}"
+          --history-key "${{ steps.history-policy.outputs.history_key }}"
           --results-dir reports/allure-results
-          --report-url https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
+          --github-output "${GITHUB_OUTPUT}"
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Restore Allure history from GitHub Pages fallback
+        if: >-
+          steps.allure-inputs.outputs.has-results == 'true' &&
+          steps.history-policy.outputs.restore_history == 'true' &&
+          steps.history-policy.outputs.history_fallback_report_url != ''
+        shell: bash
+        run: |
+          if [ -d reports/allure-results/history ] && find reports/allure-results/history -type f ! -name '.gitkeep' -print -quit | grep -q .; then
+            exit 0
+          fi
+
+          node scripts/reporting/fetch-allure-history.js \
+            --results-dir reports/allure-results \
+            --report-url "${{ steps.history-policy.outputs.history_fallback_report_url }}"
 
       - name: Write Allure metadata
         if: steps.allure-inputs.outputs.has-results == 'true'
         run: node scripts/reporting/write-allure-metadata.js --results-dir reports/allure-results
         env:
+          ALLURE_HISTORY_KEY: ${{ steps.history-policy.outputs.history_key }}
+          ALLURE_NEWMAN_MODE: ${{ github.event_name == 'pull_request' && 'smoke' || 'harness' }}
+          ALLURE_REPORT_KIND: ${{ steps.history-policy.outputs.report_kind }}
+          ALLURE_WORKFLOW_KIND: ci
           GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          ALLURE_PR_NUMBER: ${{ github.event.pull_request.number || '' }}
 
       - name: Generate Allure report
         if: steps.allure-inputs.outputs.has-results == 'true'
         run: npx --no-install allure generate reports/allure-results --clean -o reports/allure-report
 
+      - name: Package Allure history artifact
+        if: >-
+          always() &&
+          steps.allure-inputs.outputs.has-results == 'true' &&
+          steps.history-policy.outputs.persist_history == 'true'
+        run: >-
+          node scripts/reporting/package-allure-history-artifact.js
+          --report-dir reports/allure-report
+          --output-dir reports/allure-history-artifact
+          --history-key "${{ steps.history-policy.outputs.history_key }}"
+          --report-kind "${{ steps.history-policy.outputs.report_kind }}"
+        env:
+          ALLURE_NEWMAN_MODE: ${{ github.event_name == 'pull_request' && 'smoke' || 'harness' }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          ALLURE_PR_NUMBER: ${{ github.event.pull_request.number || '' }}
+
+      - name: Upload Allure history artifact
+        if: >-
+          always() &&
+          steps.allure-inputs.outputs.has-results == 'true' &&
+          steps.history-policy.outputs.persist_history == 'true'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: ${{ steps.history-policy.outputs.history_artifact_name }}
+          path: reports/allure-history-artifact/
+          if-no-files-found: ignore
+          retention-days: ${{ steps.history-policy.outputs.history_retention_days }}
+
       - name: Configure GitHub Pages
         if: >-
-          github.event_name == 'push' &&
-          github.ref == 'refs/heads/main' &&
+          steps.history-policy.outputs.publish_pages == 'true' &&
           steps.allure-inputs.outputs.has-results == 'true'
         uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
 
       - name: Upload GitHub Pages artifact
         if: >-
-          github.event_name == 'push' &&
-          github.ref == 'refs/heads/main' &&
+          steps.history-policy.outputs.publish_pages == 'true' &&
           steps.allure-inputs.outputs.has-results == 'true'
         uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
         with:
@@ -325,7 +393,11 @@ jobs:
             if [[ "${{ steps.allure-inputs.outputs.has-results }}" == "true" ]]; then
               echo "- HTML report uploaded as the \`allure-report\` artifact."
               echo "- Raw results merged from the canonical Node 20 Jest lane and the \`${{ github.event_name == 'pull_request' && 'smoke' || 'harness' }}\` Newman run."
-              echo "- The report generator restores the currently published Allure \`history/\` payload before building the next report."
+              echo "- Report kind: \`${{ steps.history-policy.outputs.report_kind }}\`."
+              echo "- History stream: \`${{ steps.history-policy.outputs.history_key || 'none' }}\`."
+              echo "- History restored from artifact: \`${{ steps.history-restore.outputs.restored || 'false' }}\`."
+              echo "- History persisted as artifact: \`${{ steps.history-policy.outputs.persist_history }}\`."
+              echo "- GitHub Pages published: \`${{ steps.history-policy.outputs.publish_pages }}\`."
             else
               echo "- No Allure raw results were available to merge."
             fi
