@@ -2,16 +2,9 @@ name: Promote to Production
 
 on:
   workflow_dispatch:
-    inputs:
-      auto_merge:
-        description: Enable PR auto-merge after required checks pass.
-        required: false
-        default: true
-        type: boolean
 
 permissions:
   contents: write
-  pull-requests: write
 
 concurrency:
   group: promote-to-production
@@ -34,10 +27,10 @@ jobs:
       - name: Resolve promotion auth strategy
         id: promotion-auth
         env:
-          PROMOTION_GITHUB_APP_ID: ${{ vars.PROMOTION_GITHUB_APP_ID }}
-          PROMOTION_GITHUB_APP_PRIVATE_KEY: ${{ secrets.PROMOTION_GITHUB_APP_PRIVATE_KEY }}
+          AUTOMATION_GITHUB_APP_ID: ${{ vars.AUTOMATION_GITHUB_APP_ID }}
+          AUTOMATION_GITHUB_APP_PRIVATE_KEY: ${{ secrets.AUTOMATION_GITHUB_APP_PRIVATE_KEY }}
         run: |
-          if [ -n "${PROMOTION_GITHUB_APP_ID}" ] && [ -n "${PROMOTION_GITHUB_APP_PRIVATE_KEY}" ]; then
+          if [ -n "${AUTOMATION_GITHUB_APP_ID}" ] && [ -n "${AUTOMATION_GITHUB_APP_PRIVATE_KEY}" ]; then
             echo "use_github_app=true" >> "${GITHUB_OUTPUT}"
             echo "token_source=github_app" >> "${GITHUB_OUTPUT}"
           else
@@ -50,8 +43,8 @@ jobs:
         if: steps.promotion-auth.outputs.use_github_app == 'true'
         uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2.2.1
         with:
-          app-id: ${{ vars.PROMOTION_GITHUB_APP_ID }}
-          private-key: ${{ secrets.PROMOTION_GITHUB_APP_PRIVATE_KEY }}
+          app-id: ${{ vars.AUTOMATION_GITHUB_APP_ID }}
+          private-key: ${{ secrets.AUTOMATION_GITHUB_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
           repositories: ${{ github.event.repository.name }}
 
@@ -65,7 +58,6 @@ jobs:
             --source-branch "main" \
             --target-branch "production" \
             --required-checks "actionlint,lint,newman,test (20),test (22),test (24)" \
-            --auto-merge "${{ inputs.auto_merge }}" \
             --output-file "${GITHUB_OUTPUT}" \
             --summary-file "${GITHUB_STEP_SUMMARY}"
 
@@ -79,7 +71,6 @@ jobs:
             --source-branch "main" \
             --target-branch "production" \
             --required-checks "actionlint,lint,newman,test (20),test (22),test (24)" \
-            --auto-merge "${{ inputs.auto_merge }}" \
             --output-file "${GITHUB_OUTPUT}" \
             --summary-file "${GITHUB_STEP_SUMMARY}"
 
@@ -91,10 +82,10 @@ jobs:
             echo
             if [ "${{ steps.promotion-auth.outputs.token_source }}" = "github_app" ]; then
               echo "- Token source: GitHub App installation token"
-              echo "- Expected behavior: the merge commit on production should emit downstream push workflow runs."
+              echo "- Expected behavior: the production ref update should emit downstream push workflow runs."
             else
               echo "- Token source: github.token fallback"
-              echo "- Limitation: merges created with github.token do not emit downstream push workflow runs."
-              echo "- To restore automatic production push workflows, configure vars.PROMOTION_GITHUB_APP_ID and secrets.PROMOTION_GITHUB_APP_PRIVATE_KEY."
+              echo "- Limitation: ref updates created with github.token do not emit downstream push workflow runs."
+              echo "- To restore automatic production push workflows, configure vars.AUTOMATION_GITHUB_APP_ID and secrets.AUTOMATION_GITHUB_APP_PRIVATE_KEY."
             fi
           } >> "${GITHUB_STEP_SUMMARY}"

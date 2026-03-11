@@ -1,35 +1,10 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
 
-/**
- * Creates or reuses a promotion PR from a validated source branch into a target
- * production branch after confirming all required source-branch checks passed.
- */
+/** Syncs a validated source branch to a target branch by updating the target ref. */
 
 const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
-const { setTimeout: sleep } = require('node:timers/promises');
-
-const RETRYABLE_AUTO_MERGE_ERROR_FRAGMENT = 'pull request is in unstable status';
-
-/**
- * Parses a CLI boolean flag value.
- *
- * @param {string} value
- * @param {string} flag
- * @returns {boolean}
- */
-function parseBoolean(value, flag) {
-  if (value === 'true') {
-    return true;
-  }
-
-  if (value === 'false') {
-    return false;
-  }
-
-  throw new Error(`${flag} must be "true" or "false"`);
-}
 
 /**
  * Parses command-line arguments into a key/value object.
@@ -40,14 +15,12 @@ function parseBoolean(value, flag) {
  *   sourceBranch: string,
  *   targetBranch: string,
  *   requiredChecks: string[]|null,
- *   autoMerge: boolean,
  *   outputFile: string|null,
  *   summaryFile: string|null,
  * }}
  */
 function parseArgs(argv) {
   const args = {
-    autoMerge: false,
     outputFile: null,
     summaryFile: null,
     requiredChecks: null,
@@ -87,9 +60,6 @@ function parseArgs(argv) {
           .split(',')
           .map((value) => value.trim())
           .filter(Boolean);
-        break;
-      case 'auto-merge':
-        args.autoMerge = parseBoolean(rawValue, '--auto-merge');
         break;
       case 'output-file':
         args.outputFile = rawValue;
@@ -175,6 +145,18 @@ function getBranchHeadSha(repo, branch) {
 }
 
 /**
+ * Returns the tree SHA for a commit.
+ *
+ * @param {string} repo
+ * @param {string} sha
+ * @returns {string}
+ */
+function getCommitTreeSha(repo, sha) {
+  const payload = runGhJson(['api', `repos/${repo}/commits/${sha}`]);
+  return payload.commit.tree.sha;
+}
+
+/**
  * Returns the required status-check contexts for a protected branch.
  *
  * @param {string} repo
@@ -257,118 +239,112 @@ function getAheadBy(repo, sourceBranch, targetBranch) {
 }
 
 /**
- * Returns the first open promotion PR from source to target, if one exists.
+ * Derives a safe promotion plan from branch state.
  *
- * @param {string} repo
- * @param {string} sourceBranch
- * @param {string} targetBranch
- * @returns {{ number: number, url: string }|null}
+ * @param {{
+ *   sourceBranch: string,
+ *   sourceSha: string,
+ *   sourceTreeSha: string,
+ *   sourceAheadBy: number,
+ *   targetAheadBy: number,
+ *   targetBranch: string,
+ *   targetSha: string,
+ *   targetTreeSha: string,
+ * }} options
+ * @returns {{
+ *   force: boolean,
+ *   mode: 'already-aligned'|'fast-forward'|'history-realignment',
+ *   needsUpdate: boolean,
+ *   reason: string,
+ * }}
  */
-function findExistingPromotionPr(repo, sourceBranch, targetBranch) {
-  const pullRequests = runGhJson([
-    'pr',
-    'list',
-    '--repo',
-    repo,
-    '--base',
-    targetBranch,
-    '--head',
-    sourceBranch,
-    '--state',
-    'open',
-    '--json',
-    'number,url',
-  ]);
-
-  return pullRequests[0] || null;
-}
-
-/**
- * Creates a promotion PR and returns its number and URL.
- *
- * @param {string} repo
- * @param {string} sourceBranch
- * @param {string} targetBranch
- * @returns {{ number: number, url: string }}
- */
-function createPromotionPr(repo, sourceBranch, targetBranch) {
-  const body = [
-    `Promote the current \`${sourceBranch}\` branch into \`${targetBranch}\`.`,
-    '',
-    'This PR was created by the `Promote to Production` workflow after verifying that the source branch had all required checks green.',
-  ].join('\n');
-
-  const url = runGh([
-    'pr',
-    'create',
-    '--repo',
-    repo,
-    '--base',
-    targetBranch,
-    '--head',
-    sourceBranch,
-    '--title',
-    `Promote ${sourceBranch} to ${targetBranch}`,
-    '--body',
-    body,
-  ]);
-
-  const number = Number(url.split('/').pop());
-
-  if (!number) {
-    throw new Error(`Unable to parse PR number from URL: ${url}`);
+function derivePromotionPlan({
+  sourceBranch,
+  sourceSha,
+  sourceTreeSha,
+  sourceAheadBy,
+  targetAheadBy,
+  targetBranch,
+  targetSha,
+  targetTreeSha,
+}) {
+  if (sourceSha === targetSha) {
+    return {
+      force: false,
+      mode: 'already-aligned',
+      needsUpdate: false,
+      reason: `${targetBranch} already points to ${sourceBranch}@${sourceSha}.`,
+    };
   }
 
-  return { number, url };
-}
+  const treesMatch = sourceTreeSha === targetTreeSha;
 
-/**
- * @param {unknown} error
- * @returns {boolean}
- */
-function isRetryableAutoMergeError(error) {
-  const message = error instanceof Error ? error.message : String(error);
-  return message.toLowerCase().includes(RETRYABLE_AUTO_MERGE_ERROR_FRAGMENT);
-}
-
-/**
- * Enables auto-merge for a PR.
- *
- * @param {string} repo
- * @param {number} pullRequestNumber
- * @param {{ maxAttempts?: number, retryDelayMs?: number }} [options]
- */
-async function enableAutoMerge(
-  repo,
-  pullRequestNumber,
-  { maxAttempts = 5, retryDelayMs = 2000 } = {},
-) {
-  async function attemptEnable(attempt) {
-    try {
-      runGh([
-        'pr',
-        'merge',
-        String(pullRequestNumber),
-        '--repo',
-        repo,
-        '--merge',
-        '--auto',
-      ]);
-    } catch (error) {
-      if (!isRetryableAutoMergeError(error) || attempt >= maxAttempts) {
-        throw error;
-      }
-
-      console.warn(
-        `Auto-merge enable attempt ${attempt} hit a transient unstable PR status. `
-          + `Retrying in ${retryDelayMs}ms...`,
+  if (targetAheadBy > 0) {
+    if (!treesMatch) {
+      throw new Error(
+        `${targetBranch} contains commits that are not present in ${sourceBranch} and its tree `
+          + `differs from ${sourceBranch}. Merge those changes back into ${sourceBranch} before promoting.`,
       );
-      await sleep(retryDelayMs);
-      await attemptEnable(attempt + 1);
     }
+
+    return {
+      force: true,
+      mode: 'history-realignment',
+      needsUpdate: true,
+      reason: `${targetBranch} only differs by branch-only history. Resetting it to `
+        + `${sourceBranch}@${sourceSha} keeps both branches on the exact same commit.`,
+    };
   }
 
-  await attemptEnable(1);
+  if (sourceAheadBy > 0) {
+    return {
+      force: false,
+      mode: 'fast-forward',
+      needsUpdate: true,
+      reason: `Advancing ${targetBranch} to ${sourceBranch}@${sourceSha}.`,
+    };
+  }
+
+  if (treesMatch) {
+    return {
+      force: true,
+      mode: 'history-realignment',
+      needsUpdate: true,
+      reason: `${targetBranch} has matching content but a different tip commit. Resetting it to `
+        + `${sourceBranch}@${sourceSha} keeps both branches aligned.`,
+    };
+  }
+
+  throw new Error(
+    `Unable to derive a safe promotion plan for ${sourceBranch}@${sourceSha} -> `
+      + `${targetBranch}@${targetSha}.`,
+  );
+}
+
+/**
+ * Updates a branch ref to the requested commit SHA.
+ *
+ * @param {string} repo
+ * @param {string} branch
+ * @param {string} sha
+ * @param {{ force?: boolean }} [options]
+ */
+function updateBranchRef(
+  repo,
+  branch,
+  sha,
+  { force = false } = {},
+) {
+  runGh([
+    'api',
+    '--method',
+    'PATCH',
+    `repos/${repo}/git/refs/heads/${branch}`,
+    '-f',
+    `sha=${sha}`,
+    '-F',
+    `force=${force}`,
+  ]);
 }
 
 /**
@@ -377,52 +353,70 @@ async function enableAutoMerge(
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   const sourceSha = getBranchHeadSha(options.repo, options.sourceBranch);
+  const targetSha = getBranchHeadSha(options.repo, options.targetBranch);
   const requiredChecks = resolveRequiredChecks(options);
   const checkRuns = getCheckRuns(options.repo, sourceSha);
 
   ensureRequiredChecksGreen(sourceSha, requiredChecks, checkRuns);
   console.log(`Verified ${options.sourceBranch}@${sourceSha} required checks.`);
 
-  const aheadBy = getAheadBy(options.repo, options.sourceBranch, options.targetBranch);
-  appendOutput(options.outputFile, 'ahead_by', aheadBy);
+  const sourceAheadBy = getAheadBy(options.repo, options.sourceBranch, options.targetBranch);
+  const targetAheadBy = getAheadBy(options.repo, options.targetBranch, options.sourceBranch);
+  const plan = derivePromotionPlan({
+    sourceBranch: options.sourceBranch,
+    sourceSha,
+    sourceTreeSha: getCommitTreeSha(options.repo, sourceSha),
+    sourceAheadBy,
+    targetAheadBy,
+    targetBranch: options.targetBranch,
+    targetSha,
+    targetTreeSha: getCommitTreeSha(options.repo, targetSha),
+  });
 
-  if (aheadBy === 0) {
+  appendOutput(options.outputFile, 'source_sha', sourceSha);
+  appendOutput(options.outputFile, 'target_sha_before', targetSha);
+  appendOutput(options.outputFile, 'promotion_mode', plan.mode);
+  appendOutput(options.outputFile, 'source_ahead_by', sourceAheadBy);
+  appendOutput(options.outputFile, 'target_ahead_by', targetAheadBy);
+
+  if (!plan.needsUpdate) {
     appendOutput(options.outputFile, 'up_to_date', true);
     appendSummary(options.summaryFile, [
       '## Promote to Production',
       '',
-      `- ${options.targetBranch} is already up to date with ${options.sourceBranch}.`,
+      `- ${plan.reason}`,
     ]);
-    console.log(`${options.targetBranch} is already up to date with ${options.sourceBranch}.`);
+    console.log(plan.reason);
     return;
   }
 
-  const existingPr = findExistingPromotionPr(
-    options.repo,
-    options.sourceBranch,
-    options.targetBranch,
-  );
-  const promotionPr = existingPr || createPromotionPr(
-    options.repo,
-    options.sourceBranch,
-    options.targetBranch,
-  );
-
-  if (options.autoMerge) {
-    await enableAutoMerge(options.repo, promotionPr.number);
+  updateBranchRef(options.repo, options.targetBranch, sourceSha, { force: plan.force });
+  const targetShaAfter = getBranchHeadSha(options.repo, options.targetBranch);
+  if (targetShaAfter !== sourceSha) {
+    throw new Error(
+      `Promotion verification failed: expected ${options.targetBranch} to point to ${sourceSha}, `
+        + `but found ${targetShaAfter}.`,
+    );
   }
 
   appendOutput(options.outputFile, 'up_to_date', false);
-  appendOutput(options.outputFile, 'pr_number', promotionPr.number);
-  appendOutput(options.outputFile, 'pr_url', promotionPr.url);
+  appendOutput(options.outputFile, 'target_sha_after', targetShaAfter);
   appendSummary(options.summaryFile, [
     '## Promote to Production',
     '',
-    `- Promotion PR: ${promotionPr.url}`,
-    `- Auto-merge: ${options.autoMerge ? 'enabled' : 'disabled'}`,
+    `- Source branch: ${options.sourceBranch}`,
+    `- Target branch: ${options.targetBranch}`,
+    `- Source SHA: ${sourceSha}`,
+    `- Target SHA before: ${targetSha}`,
+    `- Target SHA after: ${targetShaAfter}`,
+    `- Mode: ${plan.mode}`,
+    `- ${plan.reason}`,
   ]);
 
-  console.log(`Promotion PR ready: ${promotionPr.url}`);
+  console.log(
+    `Promoted ${options.sourceBranch}@${sourceSha} to ${options.targetBranch} `
+      + `using ${plan.mode}.`,
+  );
 }
 
 if (require.main === module) {
@@ -433,9 +427,8 @@ if (require.main === module) {
 }
 
 module.exports = {
-  enableAutoMerge,
+  derivePromotionPlan,
   ensureRequiredChecksGreen,
-  isRetryableAutoMergeError,
   parseArgs,
   resolveRequiredChecks,
 };

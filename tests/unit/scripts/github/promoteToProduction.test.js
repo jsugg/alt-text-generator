@@ -1,6 +1,6 @@
 const {
+  derivePromotionPlan,
   ensureRequiredChecksGreen,
-  isRetryableAutoMergeError,
   parseArgs,
   resolveRequiredChecks,
 } = require('../../../../scripts/github/promote-to-production');
@@ -17,8 +17,6 @@ describe('scripts/github/promote-to-production', () => {
         'production',
         '--required-checks',
         'actionlint, lint, newman',
-        '--auto-merge',
-        'true',
         '--output-file',
         '/tmp/output.txt',
         '--summary-file',
@@ -28,7 +26,6 @@ describe('scripts/github/promote-to-production', () => {
         sourceBranch: 'main',
         targetBranch: 'production',
         requiredChecks: ['actionlint', 'lint', 'newman'],
-        autoMerge: true,
         outputFile: '/tmp/output.txt',
         summaryFile: '/tmp/summary.md',
       });
@@ -85,17 +82,74 @@ describe('scripts/github/promote-to-production', () => {
     });
   });
 
-  describe('isRetryableAutoMergeError', () => {
-    it('recognizes GitHub unstable-status auto-merge failures', () => {
-      expect(isRetryableAutoMergeError(
-        new Error('GraphQL: Pull request Pull request is in unstable status (enablePullRequestAutoMerge)'),
-      )).toBe(true);
+  describe('derivePromotionPlan', () => {
+    it('returns no-op when both branches already share the same tip SHA', () => {
+      expect(derivePromotionPlan({
+        sourceBranch: 'main',
+        sourceSha: 'abc123',
+        sourceTreeSha: 'tree-1',
+        sourceAheadBy: 0,
+        targetAheadBy: 0,
+        targetBranch: 'production',
+        targetSha: 'abc123',
+        targetTreeSha: 'tree-1',
+      })).toEqual({
+        force: false,
+        mode: 'already-aligned',
+        needsUpdate: false,
+        reason: 'production already points to main@abc123.',
+      });
     });
 
-    it('does not retry unrelated merge failures', () => {
-      expect(isRetryableAutoMergeError(
-        new Error('GraphQL: Base branch was modified. Review and try again.'),
-      )).toBe(false);
+    it('uses a fast-forward update when target has no unique commits', () => {
+      expect(derivePromotionPlan({
+        sourceBranch: 'main',
+        sourceSha: 'abc123',
+        sourceTreeSha: 'tree-2',
+        sourceAheadBy: 2,
+        targetAheadBy: 0,
+        targetBranch: 'production',
+        targetSha: 'def456',
+        targetTreeSha: 'tree-1',
+      })).toEqual({
+        force: false,
+        mode: 'fast-forward',
+        needsUpdate: true,
+        reason: 'Advancing production to main@abc123.',
+      });
+    });
+
+    it('uses a force realignment when only branch-only history differs', () => {
+      expect(derivePromotionPlan({
+        sourceBranch: 'main',
+        sourceSha: 'abc123',
+        sourceTreeSha: 'tree-1',
+        sourceAheadBy: 0,
+        targetAheadBy: 4,
+        targetBranch: 'production',
+        targetSha: 'def456',
+        targetTreeSha: 'tree-1',
+      })).toEqual({
+        force: true,
+        mode: 'history-realignment',
+        needsUpdate: true,
+        reason: 'production only differs by branch-only history. Resetting it to main@abc123 keeps both branches on the exact same commit.',
+      });
+    });
+
+    it('fails when target has unique content not present in source', () => {
+      expect(() => derivePromotionPlan({
+        sourceBranch: 'main',
+        sourceSha: 'abc123',
+        sourceTreeSha: 'tree-1',
+        sourceAheadBy: 0,
+        targetAheadBy: 1,
+        targetBranch: 'production',
+        targetSha: 'def456',
+        targetTreeSha: 'tree-2',
+      })).toThrow(
+        'production contains commits that are not present in main and its tree differs from main. Merge those changes back into main before promoting.',
+      );
     });
   });
 });

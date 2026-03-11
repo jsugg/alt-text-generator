@@ -103,10 +103,10 @@ The repository uses a small workflow set with separate responsibilities:
 - `Promote to Production` in `.github/workflows/promote-to-production.yml`
   - manual only
   - verifies that `main` has the required CI checks green
-  - opens or reuses a `main` -> `production` pull request
-  - can enable PR auto-merge after required checks pass
-  - prefers a GitHub App installation token when `PROMOTION_GITHUB_APP_ID` and `PROMOTION_GITHUB_APP_PRIVATE_KEY` are configured
-  - falls back to `github.token` when the GitHub App is not configured; the merge still works, but GitHub will not emit downstream `production` push workflow runs for that merge
+  - updates the `production` branch ref directly to the validated `main` commit so both branches end on the same tip SHA
+  - refuses to overwrite unique `production` content that is not present on `main`
+  - prefers a GitHub App installation token when `AUTOMATION_GITHUB_APP_ID` and `AUTOMATION_GITHUB_APP_PRIVATE_KEY` are configured
+  - falls back to `github.token` when the GitHub App is not configured; the ref update still works, but GitHub will not emit downstream `production` push workflow runs for that update
 
 Branch protection currently requires these checks on both `main` and `production`:
 
@@ -119,27 +119,32 @@ Branch protection currently requires these checks on both `main` and `production
 
 Promotion branch note:
 
-- `main` and `production` are expected to have different tip SHAs because production promotion uses merge commits
-- content parity should be checked by tree hash or `git diff`, not by comparing branch tip SHAs alone
+- after a successful promotion, `main` and `production` should point to the exact same commit SHA
+- if `production` contains unique content not present on `main`, the promotion workflow fails and requires those changes to be merged back into `main` first
 
-## Promotion GitHub App
+## Repository Automation GitHub App
 
 Recommended configuration:
 
-- name: `alt-text-generator-promotion-bot`
+- name: `alt-text-generator-control-plane`
 - install only on the `jsugg/alt-text-generator` repository
 - repository permissions:
   - `Administration`: `Read-only`
   - `Checks`: `Read-only`
   - `Contents`: `Read and write`
-  - `Pull requests`: `Read and write`
   - `Metadata`: `Read-only` (default)
 - webhook subscription: none required for the current workflow
 
 Store the app credentials at the repository level:
 
-- variable: `PROMOTION_GITHUB_APP_ID`
-- secret: `PROMOTION_GITHUB_APP_PRIVATE_KEY`
+- variable: `AUTOMATION_GITHUB_APP_ID`
+- secret: `AUTOMATION_GITHUB_APP_PRIVATE_KEY`
+
+Planned responsibilities for this app:
+
+- production branch promotion and ref alignment
+- post-promotion workflow dispatch and release verification
+- repository quality/report automation that should run under a stable bot identity
 
 The promotion workflow uses the app token when both values are present. This is the preferred setup because GitHub documents that events created with `github.token` do not trigger downstream workflow runs, while a separate GitHub App installation token can be used for that purpose.
 

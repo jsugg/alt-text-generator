@@ -50,7 +50,7 @@ function resolveScopeFromEnv(env = process.env) {
 
   return resolveProviderScope({
     requestedScope: env.INPUT_PROVIDER_SCOPE,
-    configuredScope: env.ENV_LIVE_PROVIDER_SCOPE,
+    configuredScope: env.LIVE_PROVIDER_SCOPE,
     hasAzureProvider: availableProviders.hasAzureProvider,
     hasReplicateProvider: availableProviders.hasReplicateProvider,
   });

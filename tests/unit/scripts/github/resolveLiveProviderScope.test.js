@@ -12,7 +12,7 @@ describe('scripts/github/resolve-live-provider-scope', () => {
     it('respects an explicit manual scope override', () => {
       expect(resolveScopeFromEnv({
         INPUT_PROVIDER_SCOPE: 'replicate',
-        ENV_LIVE_PROVIDER_SCOPE: 'azure',
+        LIVE_PROVIDER_SCOPE: 'azure',
         REPLICATE_API_TOKEN: 'replicate-token',
         ACV_API_ENDPOINT: 'https://azure.example.com',
         ACV_SUBSCRIPTION_KEY: 'azure-key',
@@ -22,7 +22,7 @@ describe('scripts/github/resolve-live-provider-scope', () => {
     it('uses the configured environment scope when the manual input is auto', () => {
       expect(resolveScopeFromEnv({
         INPUT_PROVIDER_SCOPE: 'auto',
-        ENV_LIVE_PROVIDER_SCOPE: 'all',
+        LIVE_PROVIDER_SCOPE: 'all',
         REPLICATE_API_TOKEN: 'replicate-token',
         ACV_API_ENDPOINT: 'https://azure.example.com',
         ACV_SUBSCRIPTION_KEY: 'azure-key',
