@@ -131,7 +131,7 @@ const createApp = ({
   app.disable('x-powered-by');
   app.set('trust proxy', proxyConfig.trustProxyHops);
 
-  applyMiddlewares(app, requestLogger);
+  applyMiddlewares(app, requestLogger, config);
   const { loadRequestFilter } = createRequestFilter(appLogger);
   loadRequestFilter(app);
   app.use(createAccessControlMiddleware(config.auth));

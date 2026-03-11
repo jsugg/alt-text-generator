@@ -155,6 +155,37 @@ describe('GET /api/health', () => {
   });
 });
 
+describe('rate limiting', () => {
+  const rateLimitedConfig = {
+    rateLimit: {
+      windowMs: 60 * 1000,
+      max: 1,
+    },
+  };
+
+  it('does not rate limit repeated health checks', async () => {
+    const { app } = buildTestApp({ config: rateLimitedConfig });
+
+    const first = await secureGet(app, '/api/health');
+    const second = await secureGet(app, '/api/health');
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(second.body).toHaveProperty('message', 'OK');
+  });
+
+  it('continues to rate limit normal API traffic', async () => {
+    const { app } = buildTestApp({ config: rateLimitedConfig });
+
+    const first = await secureGet(app, '/api/v1/does-not-exist');
+    const second = await secureGet(app, '/api/v1/does-not-exist');
+
+    expect(first.status).toBe(404);
+    expect(second.status).toBe(429);
+    expect(second.text).toContain('Too many requests');
+  });
+});
+
 describe('GET /api/scraper/images', () => {
   it('returns 400 when url is missing', async () => {
     const { app } = buildTestApp();
