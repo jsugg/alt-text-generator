@@ -21,6 +21,9 @@ on:
 permissions:
   contents: read
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -241,8 +244,6 @@ jobs:
       publish_pages: ${{ steps.history-policy.outputs.publish_pages }}
       report_kind: ${{ steps.history-policy.outputs.report_kind }}
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -427,8 +428,6 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     outputs:
       page-url: ${{ steps.deployment.outputs.page_url }}
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
