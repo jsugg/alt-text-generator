@@ -14,6 +14,7 @@ jobs:
   promote:
     name: promote
     runs-on: ubuntu-latest
+    environment: prod-validation
     timeout-minutes: 15
     steps:
       - name: Checkout
