@@ -105,6 +105,8 @@ The repository uses a small workflow set with separate responsibilities:
   - verifies that `main` has the required CI checks green
   - opens or reuses a `main` -> `production` pull request
   - can enable PR auto-merge after required checks pass
+  - prefers a GitHub App installation token when `PROMOTION_GITHUB_APP_ID` and `PROMOTION_GITHUB_APP_PRIVATE_KEY` are configured
+  - falls back to `github.token` when the GitHub App is not configured; the merge still works, but GitHub will not emit downstream `production` push workflow runs for that merge
 
 Branch protection currently requires these checks on both `main` and `production`:
 
@@ -114,6 +116,32 @@ Branch protection currently requires these checks on both `main` and `production
 - `test (20)`
 - `test (22)`
 - `test (24)`
+
+Promotion branch note:
+
+- `main` and `production` are expected to have different tip SHAs because production promotion uses merge commits
+- content parity should be checked by tree hash or `git diff`, not by comparing branch tip SHAs alone
+
+## Promotion GitHub App
+
+Recommended configuration:
+
+- name: `alt-text-generator-promotion-bot`
+- install only on the `jsugg/alt-text-generator` repository
+- repository permissions:
+  - `Administration`: `Read-only`
+  - `Checks`: `Read-only`
+  - `Contents`: `Read and write`
+  - `Pull requests`: `Read and write`
+  - `Metadata`: `Read-only` (default)
+- webhook subscription: none required for the current workflow
+
+Store the app credentials at the repository level:
+
+- variable: `PROMOTION_GITHUB_APP_ID`
+- secret: `PROMOTION_GITHUB_APP_PRIVATE_KEY`
+
+The promotion workflow uses the app token when both values are present. This is the preferred setup because GitHub documents that events created with `github.token` do not trigger downstream workflow runs, while a separate GitHub App installation token can be used for that purpose.
 
 ## Postman/Newman Harness
 
