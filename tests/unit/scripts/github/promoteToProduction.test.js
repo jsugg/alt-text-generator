@@ -1,6 +1,7 @@
 const {
   derivePromotionPlan,
   ensureRequiredChecksGreen,
+  isProtectedBranchRefUpdateError,
   parseArgs,
   resolveRequiredChecks,
 } = require('../../../../scripts/github/promote-to-production');
@@ -145,6 +146,20 @@ describe('scripts/github/promote-to-production', () => {
         needsUpdate: true,
         reason: 'production contains branch-only history. Resetting it to main@abc123 keeps both branches on the exact same commit.',
       });
+    });
+  });
+
+  describe('isProtectedBranchRefUpdateError', () => {
+    it('recognizes protected-branch ref update rejections', () => {
+      expect(isProtectedBranchRefUpdateError(
+        new Error('gh: Changes must be made through a pull request. Cannot force-push to this branch (HTTP 422)'),
+      )).toBe(true);
+    });
+
+    it('ignores unrelated GitHub API failures', () => {
+      expect(isProtectedBranchRefUpdateError(
+        new Error('gh: Not Found (HTTP 404)'),
+      )).toBe(false);
     });
   });
 });

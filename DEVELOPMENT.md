@@ -105,8 +105,8 @@ The repository uses a small workflow set with separate responsibilities:
   - verifies that `main` has the required CI checks green
   - updates the `production` branch ref directly to the validated `main` commit so both branches end on the same tip SHA
   - treats `production` as a tracking branch for `main`; branch-only `production` history is realigned back to the validated `main` commit during promotion
-  - prefers a GitHub App installation token when `AUTOMATION_GITHUB_APP_ID` and `AUTOMATION_GITHUB_APP_PRIVATE_KEY` are configured
-  - falls back to `github.token` when the GitHub App is not configured; the ref update still works, but GitHub will not emit downstream `production` push workflow runs for that update
+  - requires a GitHub App installation token configured through `AUTOMATION_GITHUB_APP_ID` and `AUTOMATION_GITHUB_APP_PRIVATE_KEY`
+  - also requires that GitHub App to be allowed to update the protected `production` branch ref
 
 Branch protection currently requires these checks on both `main` and `production`:
 
@@ -146,7 +146,7 @@ Planned responsibilities for this app:
 - post-promotion workflow dispatch and release verification
 - repository quality/report automation that should run under a stable bot identity
 
-The promotion workflow uses the app token when both values are present. This is the preferred setup because GitHub documents that events created with `github.token` do not trigger downstream workflow runs, while a separate GitHub App installation token can be used for that purpose.
+The promotion workflow uses the app token when both values are present. This is required for exact-SHA promotion because `github.token` cannot update the protected `production` ref in this repository. Add the app to the protected-branch or ruleset bypass list for `production` so the workflow can move that ref directly, and keep using the app token so the resulting update can emit downstream workflow runs.
 
 ## Postman/Newman Harness
 

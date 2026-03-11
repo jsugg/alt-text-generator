@@ -48,23 +48,20 @@ jobs:
           owner: ${{ github.repository_owner }}
           repositories: ${{ github.event.repository.name }}
 
+      - name: Require repository automation GitHub App
+        if: steps.promotion-auth.outputs.use_github_app != 'true'
+        run: |
+          {
+            echo "Exact-SHA promotion to production is blocked."
+            echo "Configure vars.AUTOMATION_GITHUB_APP_ID and secrets.AUTOMATION_GITHUB_APP_PRIVATE_KEY."
+            echo "Then add that GitHub App to the protected production branch bypass list before retrying."
+          } >&2
+          exit 1
+
       - name: Promote main into production with GitHub App token
         if: steps.promotion-auth.outputs.use_github_app == 'true'
         env:
           GH_TOKEN: ${{ steps.promotion-app-token.outputs.token }}
-        run: |
-          node scripts/github/promote-to-production.js \
-            --repo "${{ github.repository }}" \
-            --source-branch "main" \
-            --target-branch "production" \
-            --required-checks "actionlint,lint,newman,test (20),test (22),test (24)" \
-            --output-file "${GITHUB_OUTPUT}" \
-            --summary-file "${GITHUB_STEP_SUMMARY}"
-
-      - name: Promote main into production with github.token fallback
-        if: steps.promotion-auth.outputs.use_github_app != 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           node scripts/github/promote-to-production.js \
             --repo "${{ github.repository }}" \
@@ -84,8 +81,9 @@ jobs:
               echo "- Token source: GitHub App installation token"
               echo "- Expected behavior: the production ref update should emit downstream push workflow runs."
             else
-              echo "- Token source: github.token fallback"
-              echo "- Limitation: ref updates created with github.token do not emit downstream push workflow runs."
+              echo "- Token source: GitHub App not configured"
+              echo "- Exact-SHA promotion is blocked until the repository automation app is configured."
               echo "- To restore automatic production push workflows, configure vars.AUTOMATION_GITHUB_APP_ID and secrets.AUTOMATION_GITHUB_APP_PRIVATE_KEY."
+              echo "- The app must also be allowed to update the protected production branch ref."
             fi
           } >> "${GITHUB_STEP_SUMMARY}"

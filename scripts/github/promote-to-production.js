@@ -104,6 +104,17 @@ function runGhJson(args) {
 }
 
 /**
+ * @param {unknown} error
+ * @returns {boolean}
+ */
+function isProtectedBranchRefUpdateError(error) {
+  const message = error instanceof Error ? error.message : String(error);
+  const normalized = message.toLowerCase();
+  return normalized.includes('changes must be made through a pull request')
+    || normalized.includes('cannot force-push to this branch');
+}
+
+/**
  * Appends a single-line output to a GitHub Actions output file.
  *
  * @param {string|null} outputFile
@@ -303,16 +314,29 @@ function updateBranchRef(
   sha,
   { force = false } = {},
 ) {
-  runGh([
-    'api',
-    '--method',
-    'PATCH',
-    `repos/${repo}/git/refs/heads/${branch}`,
-    '-f',
-    `sha=${sha}`,
-    '-F',
-    `force=${force}`,
-  ]);
+  try {
+    runGh([
+      'api',
+      '--method',
+      'PATCH',
+      `repos/${repo}/git/refs/heads/${branch}`,
+      '-f',
+      `sha=${sha}`,
+      '-F',
+      `force=${force}`,
+    ]);
+  } catch (error) {
+    if (!isProtectedBranchRefUpdateError(error)) {
+      throw error;
+    }
+
+    throw new Error(
+      `Protected branch update rejected for ${branch}. Exact-SHA promotion requires the `
+        + 'repository automation GitHub App to be configured and allowed to update the '
+        + `protected ${branch} ref. Add the app to the ${branch} branch protection or `
+        + 'ruleset bypass list and retry.',
+    );
+  }
 }
 
 /**
@@ -395,6 +419,7 @@ if (require.main === module) {
 module.exports = {
   derivePromotionPlan,
   ensureRequiredChecksGreen,
+  isProtectedBranchRefUpdateError,
   parseArgs,
   resolveRequiredChecks,
 };
