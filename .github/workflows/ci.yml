@@ -274,6 +274,13 @@ jobs:
             echo "has-results=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Restore published Allure history
+        if: steps.allure-inputs.outputs.has-results == 'true'
+        run: >-
+          node scripts/reporting/fetch-allure-history.js
+          --results-dir reports/allure-results
+          --report-url https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
+
       - name: Write Allure metadata
         if: steps.allure-inputs.outputs.has-results == 'true'
         run: node scripts/reporting/write-allure-metadata.js --results-dir reports/allure-results
@@ -318,6 +325,7 @@ jobs:
             if [[ "${{ steps.allure-inputs.outputs.has-results }}" == "true" ]]; then
               echo "- HTML report uploaded as the \`allure-report\` artifact."
               echo "- Raw results merged from the canonical Node 20 Jest lane and the \`${{ github.event_name == 'pull_request' && 'smoke' || 'harness' }}\` Newman run."
+              echo "- The report generator restores the currently published Allure \`history/\` payload before building the next report."
             else
               echo "- No Allure raw results were available to merge."
             fi

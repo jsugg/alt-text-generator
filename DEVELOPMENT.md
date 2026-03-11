@@ -212,6 +212,7 @@ Allure workflow:
 - GitHub Actions publishes Allure from the canonical Node 20 Jest lane only so matrix lanes 22 and 24 do not duplicate unit tests in the merged report.
 - The public GitHub Pages deployment is `https://jsugg.github.io/alt-text-generator/`; the suites view is `https://jsugg.github.io/alt-text-generator/#suites`.
 - On pushes to `main`, the CI workflow uploads the generated HTML as both a regular artifact and a GitHub Pages deployment artifact, then deploys the latest report once the `allure-pages` job succeeds.
+- The `allure-report` job restores the currently published Pages `history/` files into `reports/allure-results/history` before `allure generate`, so PR artifacts and `main` deployments both keep Allure trend history.
 - Pull requests do not deploy Pages; they still produce the downloadable `allure-report` artifact for review.
 
 ## Supported Models
