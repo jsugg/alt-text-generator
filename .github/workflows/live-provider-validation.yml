@@ -44,7 +44,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Setup project
         uses: ./.github/actions/setup-node-project
@@ -70,7 +70,7 @@ jobs:
 
       - name: Upload live validation artifacts
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: live-provider-artifacts
           path: reports/newman/
@@ -88,10 +88,17 @@ jobs:
             echo
           } >> "$GITHUB_STEP_SUMMARY"
           if [ -d reports/newman ]; then
-            node scripts/github/write-newman-summary.js \
+            if ! node scripts/github/write-newman-summary.js \
               --reports-dir reports/newman \
               --collection-path postman/collections/alt-text-generator.postman_collection.json \
-              --summary-file "$GITHUB_STEP_SUMMARY"
+              --summary-file "$GITHUB_STEP_SUMMARY"; then
+              {
+                echo "## Newman Summary"
+                echo
+                echo "- Summary generation failed unexpectedly."
+                echo "- Inspect the Newman CLI logs above and the uploaded Newman artifacts for raw failure details."
+              } >> "$GITHUB_STEP_SUMMARY"
+            fi
           else
             echo "- No Newman reports were produced." >> "$GITHUB_STEP_SUMMARY"
           fi

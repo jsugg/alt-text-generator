@@ -17,6 +17,7 @@ const DEFAULT_COLLECTION_PATH = path.resolve(
   'collections',
   'alt-text-generator.postman_collection.json',
 );
+const NO_REPORTS_MESSAGE = 'No Newman JSON reports were available. The Newman run may have exited before reporter output was written.';
 
 /**
  * @param {string[]} argv
@@ -81,6 +82,26 @@ function listReportPaths(reportsDir) {
     .filter((name) => name.endsWith('.json'))
     .sort()
     .map((name) => path.join(reportsDir, name));
+}
+
+/**
+ * @param {string} collectionPath
+ * @returns {{ itemFolderMap: Map<string, string>, issues: string[] }}
+ */
+function loadItemFolderMap(collectionPath) {
+  try {
+    return {
+      itemFolderMap: buildItemFolderMap(readCollection(collectionPath)),
+      issues: [],
+    };
+  } catch (error) {
+    return {
+      itemFolderMap: new Map(),
+      issues: [
+        `Unable to read collection metadata from ${collectionPath}: ${error.message}`,
+      ],
+    };
+  }
 }
 
 /**
@@ -200,34 +221,52 @@ function aggregateSummaries(reports) {
 
 /**
  * @param {object} aggregate
+ * @param {string[]} [issues]
+ * @param {number} [reportDiscoveryCount]
  * @returns {string[]}
  */
-function formatSummaryLines(aggregate) {
+function formatSummaryLines(
+  aggregate,
+  issues = [],
+  reportDiscoveryCount = aggregate.reportCount,
+) {
   const lines = [
     '## Newman Summary',
     '',
+    `- Reports discovered: ${reportDiscoveryCount}`,
     `- Reports parsed: ${aggregate.reportCount}`,
     `- Requests: ${aggregate.requestTotal}`,
     `- Assertions: ${aggregate.assertionTotal}`,
     `- Failed assertions: ${aggregate.assertionFailed}`,
-    '',
-    '### Report Breakdown',
   ];
 
-  aggregate.reports.forEach((report) => {
-    lines.push(
-      `- ${report.label}: ${report.requestTotal} requests, `
-        + `${report.assertionTotal} assertions, `
-        + `${report.assertionFailed} failed, `
-        + `${report.durationMs}ms`,
-    );
-  });
+  if (issues.length > 0) {
+    lines.push(`- Summary issues: ${issues.length}`);
+  }
+
+  lines.push('', '### Report Breakdown');
+
+  if (aggregate.reports.length === 0) {
+    lines.push('- none');
+  } else {
+    aggregate.reports.forEach((report) => {
+      lines.push(
+        `- ${report.label}: ${report.requestTotal} requests, `
+          + `${report.assertionTotal} assertions, `
+          + `${report.assertionFailed} failed, `
+          + `${report.durationMs}ms`,
+      );
+    });
+  }
 
   lines.push('', '### Folder Breakdown');
 
-  Array.from(aggregate.folders.values())
-    .sort((left, right) => left.folder.localeCompare(right.folder))
-    .forEach((folder) => {
+  const folders = Array.from(aggregate.folders.values())
+    .sort((left, right) => left.folder.localeCompare(right.folder));
+  if (folders.length === 0) {
+    lines.push('- none');
+  } else {
+    folders.forEach((folder) => {
       const avgResponseTimeMs = folder.requestTotal === 0
         ? 0
         : Math.round(folder.totalResponseTimeMs / folder.requestTotal);
@@ -238,40 +277,64 @@ function formatSummaryLines(aggregate) {
           + `avg ${avgResponseTimeMs}ms, max ${folder.maxResponseTimeMs}ms`,
       );
     });
+  }
 
   lines.push('', '### Top Failing Requests');
 
   if (aggregate.failures.length === 0) {
     lines.push('- none');
-    return lines;
+  } else {
+    aggregate.failures.slice(0, 10).forEach((failure) => {
+      lines.push(
+        `- [${failure.source}] ${failure.folder} / ${failure.requestName}: ${failure.message}`,
+      );
+    });
   }
 
-  aggregate.failures.slice(0, 10).forEach((failure) => {
-    lines.push(
-      `- [${failure.source}] ${failure.folder} / ${failure.requestName}: ${failure.message}`,
-    );
-  });
+  if (issues.length > 0) {
+    lines.push('', '### Summary Issues');
+    issues.forEach((issue) => {
+      lines.push(`- ${issue}`);
+    });
+  }
 
   return lines;
 }
 
 /**
  * @param {{ collectionPath: string, reportsDir: string }} args
- * @returns {{ lines: string[], aggregate: object }}
+ * @returns {{ lines: string[], aggregate: object, issues: string[] }}
  */
 function buildSummary(args) {
-  const collection = readCollection(args.collectionPath);
-  const itemFolderMap = buildItemFolderMap(collection);
-  const reports = listReportPaths(args.reportsDir).map((reportPath) => {
-    const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
-    report.reportPath = reportPath;
-    return summarizeReport(report, itemFolderMap);
+  const { itemFolderMap, issues } = loadItemFolderMap(args.collectionPath);
+  let reportPaths = [];
+
+  try {
+    reportPaths = listReportPaths(args.reportsDir);
+  } catch (error) {
+    issues.push(`Unable to read Newman reports from ${args.reportsDir}: ${error.message}`);
+  }
+
+  if (reportPaths.length === 0) {
+    issues.push(NO_REPORTS_MESSAGE);
+  }
+
+  const reports = [];
+  reportPaths.forEach((reportPath) => {
+    try {
+      const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+      report.reportPath = reportPath;
+      reports.push(summarizeReport(report, itemFolderMap));
+    } catch (error) {
+      issues.push(`Unable to parse Newman JSON report ${path.basename(reportPath)}: ${error.message}`);
+    }
   });
 
   const aggregate = aggregateSummaries(reports);
   return {
-    lines: formatSummaryLines(aggregate),
+    lines: formatSummaryLines(aggregate, issues, reportPaths.length),
     aggregate,
+    issues,
   };
 }
 

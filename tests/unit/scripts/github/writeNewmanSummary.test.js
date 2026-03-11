@@ -153,6 +153,7 @@ describe('scripts/github/write-newman-summary', () => {
         maxResponseTimeMs: 12,
       },
     ]);
+    expect(lines).toContain('- Reports discovered: 2');
     expect(lines).toContain('- Reports parsed: 2');
     expect(lines).toContain('- smoke: 1 requests, 4 assertions, 0 failed, 120ms');
     expect(lines).toContain('- 00 Core Smoke: 1 requests, 4 assertions, 0 failed, avg 90ms, max 90ms');
@@ -268,8 +269,84 @@ describe('scripts/github/write-newman-summary', () => {
           durationMs: 150,
         },
       ],
-    });
+    }, [], 1);
 
     expect(lines.slice(-1)[0]).toBe('- none');
+  });
+
+  it('builds a fallback summary when no Newman reports are present', () => {
+    const tempDir = createTempDir();
+    const collectionPath = path.join(tempDir, 'collection.json');
+    fs.writeFileSync(collectionPath, JSON.stringify({ item: [] }), 'utf8');
+
+    const { aggregate, issues, lines } = buildSummary({
+      reportsDir: path.join(tempDir, 'missing-reports'),
+      collectionPath,
+    });
+
+    expect(aggregate.reportCount).toBe(0);
+    expect(issues).toEqual([
+      expect.stringContaining('Unable to read Newman reports from'),
+      'No Newman JSON reports were available. The Newman run may have exited before reporter output was written.',
+    ]);
+    expect(lines).toContain('- Reports discovered: 0');
+    expect(lines).toContain('- Reports parsed: 0');
+    expect(lines).toContain('- Summary issues: 2');
+    expect(lines).toContain('### Summary Issues');
+  });
+
+  it('keeps summarizing valid reports when one report is malformed', () => {
+    const tempDir = createTempDir();
+    const reportsDir = path.join(tempDir, 'reports');
+    fs.mkdirSync(reportsDir, { recursive: true });
+
+    const collectionPath = path.join(tempDir, 'collection.json');
+    fs.writeFileSync(collectionPath, JSON.stringify({
+      item: [
+        {
+          name: '00 Core Smoke',
+          item: [
+            { id: 'ping-id', name: 'Ping' },
+          ],
+        },
+      ],
+    }), 'utf8');
+
+    fs.writeFileSync(path.join(reportsDir, 'good.json'), JSON.stringify({
+      run: {
+        stats: {
+          requests: { total: 1 },
+          assertions: { total: 1, failed: 0 },
+        },
+        timings: {
+          started: 1,
+          completed: 10,
+        },
+        executions: [
+          {
+            item: { id: 'ping-id', name: 'Ping' },
+            assertions: [{ assertion: 'returns 200' }],
+            response: { responseTime: 8 },
+          },
+        ],
+        failures: [],
+      },
+    }), 'utf8');
+    fs.writeFileSync(path.join(reportsDir, 'broken.json'), '{not-json', 'utf8');
+
+    const { aggregate, issues, lines } = buildSummary({
+      reportsDir,
+      collectionPath,
+    });
+
+    expect(aggregate.reportCount).toBe(1);
+    expect(aggregate.requestTotal).toBe(1);
+    expect(issues).toEqual([
+      expect.stringContaining('Unable to parse Newman JSON report broken.json'),
+    ]);
+    expect(lines).toContain('- Reports discovered: 2');
+    expect(lines).toContain('- Reports parsed: 1');
+    expect(lines).toContain('- Summary issues: 1');
+    expect(lines).toContain('- good: 1 requests, 1 assertions, 0 failed, 9ms');
   });
 });

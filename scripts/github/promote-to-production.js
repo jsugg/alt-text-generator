@@ -8,6 +8,9 @@
 
 const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
+const { setTimeout: sleep } = require('node:timers/promises');
+
+const RETRYABLE_AUTO_MERGE_ERROR_FRAGMENT = 'pull request is in unstable status';
 
 /**
  * Parses a CLI boolean flag value.
@@ -320,27 +323,58 @@ function createPromotionPr(repo, sourceBranch, targetBranch) {
 }
 
 /**
+ * @param {unknown} error
+ * @returns {boolean}
+ */
+function isRetryableAutoMergeError(error) {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.toLowerCase().includes(RETRYABLE_AUTO_MERGE_ERROR_FRAGMENT);
+}
+
+/**
  * Enables auto-merge for a PR.
  *
  * @param {string} repo
  * @param {number} pullRequestNumber
+ * @param {{ maxAttempts?: number, retryDelayMs?: number }} [options]
  */
-function enableAutoMerge(repo, pullRequestNumber) {
-  runGh([
-    'pr',
-    'merge',
-    String(pullRequestNumber),
-    '--repo',
-    repo,
-    '--merge',
-    '--auto',
-  ]);
+async function enableAutoMerge(
+  repo,
+  pullRequestNumber,
+  { maxAttempts = 5, retryDelayMs = 2000 } = {},
+) {
+  async function attemptEnable(attempt) {
+    try {
+      runGh([
+        'pr',
+        'merge',
+        String(pullRequestNumber),
+        '--repo',
+        repo,
+        '--merge',
+        '--auto',
+      ]);
+    } catch (error) {
+      if (!isRetryableAutoMergeError(error) || attempt >= maxAttempts) {
+        throw error;
+      }
+
+      console.warn(
+        `Auto-merge enable attempt ${attempt} hit a transient unstable PR status. `
+          + `Retrying in ${retryDelayMs}ms...`,
+      );
+      await sleep(retryDelayMs);
+      await attemptEnable(attempt + 1);
+    }
+  }
+
+  await attemptEnable(1);
 }
 
 /**
  * Main entry point.
  */
-function main() {
+async function main() {
   const options = parseArgs(process.argv.slice(2));
   const sourceSha = getBranchHeadSha(options.repo, options.sourceBranch);
   const requiredChecks = resolveRequiredChecks(options);
@@ -375,7 +409,7 @@ function main() {
   );
 
   if (options.autoMerge) {
-    enableAutoMerge(options.repo, promotionPr.number);
+    await enableAutoMerge(options.repo, promotionPr.number);
   }
 
   appendOutput(options.outputFile, 'up_to_date', false);
@@ -392,16 +426,16 @@ function main() {
 }
 
 if (require.main === module) {
-  try {
-    main();
-  } catch (error) {
+  main().catch((error) => {
     console.error(error instanceof Error ? error.message : error);
     process.exit(1);
-  }
+  });
 }
 
 module.exports = {
+  enableAutoMerge,
   ensureRequiredChecksGreen,
+  isRetryableAutoMergeError,
   parseArgs,
   resolveRequiredChecks,
 };

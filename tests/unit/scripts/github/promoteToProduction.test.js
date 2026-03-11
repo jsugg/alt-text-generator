@@ -1,5 +1,6 @@
 const {
   ensureRequiredChecksGreen,
+  isRetryableAutoMergeError,
   parseArgs,
   resolveRequiredChecks,
 } = require('../../../../scripts/github/promote-to-production');
@@ -81,6 +82,20 @@ describe('scripts/github/promote-to-production', () => {
       )).toThrow(
         'Source commit abc123 is missing successful required checks: newman',
       );
+    });
+  });
+
+  describe('isRetryableAutoMergeError', () => {
+    it('recognizes GitHub unstable-status auto-merge failures', () => {
+      expect(isRetryableAutoMergeError(
+        new Error('GraphQL: Pull request Pull request is in unstable status (enablePullRequestAutoMerge)'),
+      )).toBe(true);
+    });
+
+    it('does not retry unrelated merge failures', () => {
+      expect(isRetryableAutoMergeError(
+        new Error('GraphQL: Base branch was modified. Review and try again.'),
+      )).toBe(false);
     });
   });
 });
