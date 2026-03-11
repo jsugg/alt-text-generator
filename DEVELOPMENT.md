@@ -201,6 +201,7 @@ Generated artifacts:
 - `reports/jest/junit.xml`
 - `reports/allure-results/*`
 - `reports/allure-report/*`
+- `reports/allure-history-artifact/*`
 
 Use the deterministic modes for routine validation and CI. Use the live mode only when you deliberately want to validate vendor connectivity and account readiness.
 
@@ -211,9 +212,12 @@ Allure workflow:
 - `npm run report:allure` mirrors CI by cleaning old results, running Jest, running the deterministic Newman harness, and generating HTML from the merged `reports/allure-results/` directory.
 - GitHub Actions publishes Allure from the canonical Node 20 Jest lane only so matrix lanes 22 and 24 do not duplicate unit tests in the merged report.
 - The public GitHub Pages deployment is `https://jsugg.github.io/alt-text-generator/`; the suites view is `https://jsugg.github.io/alt-text-generator/#suites`.
-- On pushes to `main`, the CI workflow uploads the generated HTML as both a regular artifact and a GitHub Pages deployment artifact, then deploys the latest report once the `allure-pages` job succeeds.
-- The `allure-report` job restores the currently published Pages `history/` files into `reports/allure-results/history` before `allure generate`, so PR artifacts and `main` deployments both keep Allure trend history.
-- Pull requests do not deploy Pages; they still produce the downloadable `allure-report` artifact for review.
+- The CI workflow resolves a stream-specific history policy before report generation. `main` uses `ci-main`, same-repository pull requests use `ci-pr-<number>`, and pushes to `production` do not persist CI branch history.
+- The `allure-report` job now restores Allure history from the most recent matching history artifact for that stream. `ci-main` keeps a one-time GitHub Pages fallback so the public trend line carries forward through the artifact migration.
+- After generating the report, CI packages `reports/allure-report/history` into a dedicated `allure-history-*` artifact instead of reusing the full HTML bundle as the restore source.
+- Pull requests from forks remain ephemeral: they generate the downloadable `allure-report` artifact but do not restore or persist history.
+- The public GitHub Pages deployment still publishes only `main`; PR reports remain downloadable artifacts.
+- Deploy verification now emits Allure output as well. Pushes to `production` persist a `deploy-production` history stream, while manual deploy verification runs only persist that stream when the workflow dispatch input `persist_history=true` is selected for the canonical production URL.
 
 ## Supported Models
 

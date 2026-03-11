@@ -121,5 +121,7 @@ reports/allure-results/*
 !reports/allure-results/.gitkeep
 reports/allure-report/*
 !reports/allure-report/.gitkeep
+reports/allure-history-artifact/*
+!reports/allure-history-artifact/.gitkeep
 
 repotoolingbot.2026-03-10.private-key.pem

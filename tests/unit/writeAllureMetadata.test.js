@@ -20,6 +20,13 @@ describe('Unit | Allure Metadata Writer', () => {
   it('builds environment properties from the current runtime and CI env', () => {
     const properties = buildEnvironmentProperties({
       env: {
+        ALLURE_BASE_URL: 'https://wcag.qcraft.com.br',
+        ALLURE_HISTORY_KEY: 'ci-main',
+        ALLURE_NEWMAN_MODE: 'harness',
+        ALLURE_PR_NUMBER: '123',
+        ALLURE_REPORT_KIND: 'ci-main',
+        ALLURE_WORKFLOW_KIND: 'ci',
+        GITHUB_EVENT_NAME: 'push',
         GITHUB_WORKFLOW: 'CI',
         GITHUB_REF_NAME: 'main',
         GITHUB_SHA: 'abc123',
@@ -32,6 +39,13 @@ describe('Unit | Allure Metadata Writer', () => {
       workflow: 'CI',
       branch: 'main',
       commit_sha: 'abc123',
+      history_stream: 'ci-main',
+      report_kind: 'ci-main',
+      github_event_name: 'push',
+      pr_number: '123',
+      newman_mode: 'harness',
+      workflow_kind: 'ci',
+      base_url: 'https://wcag.qcraft.com.br',
       jest_version: require('jest/package.json').version,
       newman_version: require('newman/package.json').version,
     });
@@ -65,7 +79,12 @@ describe('Unit | Allure Metadata Writer', () => {
       await writeAllureMetadata({
         resultsDir,
         env: {
+          ALLURE_HISTORY_KEY: 'ci-main',
+          ALLURE_REPORT_KIND: 'ci-main',
+          ALLURE_NEWMAN_MODE: 'harness',
+          ALLURE_WORKFLOW_KIND: 'ci',
           GITHUB_WORKFLOW: 'CI',
+          GITHUB_EVENT_NAME: 'push',
           GITHUB_REF_NAME: 'main',
           GITHUB_SHA: 'abc123',
           GITHUB_SERVER_URL: 'https://github.com',
@@ -87,6 +106,9 @@ describe('Unit | Allure Metadata Writer', () => {
       expect(environmentProperties).toContain('workflow=CI');
       expect(environmentProperties).toContain('branch=main');
       expect(environmentProperties).toContain('commit_sha=abc123');
+      expect(environmentProperties).toContain('history_stream=ci-main');
+      expect(environmentProperties).toContain('report_kind=ci-main');
+      expect(environmentProperties).toContain('newman_mode=harness');
       expect(executor.buildUrl).toBe(
         'https://github.com/jsugg/alt-text-generator/actions/runs/12345',
       );
