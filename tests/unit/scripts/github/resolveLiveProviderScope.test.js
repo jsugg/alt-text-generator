@@ -7,7 +7,7 @@ const {
   resolveScopeFromEnv,
 } = require('../../../../scripts/github/resolve-live-provider-scope');
 
-describe('scripts/github/resolve-live-provider-scope', () => {
+describe('Unit | Scripts | GitHub | Resolve Live Provider Scope', () => {
   describe('resolveScopeFromEnv', () => {
     it('respects an explicit manual scope override', () => {
       expect(resolveScopeFromEnv({

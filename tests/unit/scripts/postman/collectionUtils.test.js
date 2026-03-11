@@ -1,16 +1,18 @@
 const path = require('node:path');
 
 const {
-  assertRequestItemsHaveExactStatusAssertions,
+  assertRequestItemsHaveSpecificStatusExpectations,
   assertTopLevelFoldersExist,
   buildItemFolderMap,
   hasExactStatusAssertion,
+  hasExpectedStatusCodeHeader,
+  hasSpecificStatusExpectation,
   listTopLevelFolderNames,
   listRequestItems,
   readCollection,
 } = require('../../../../scripts/postman/collection-utils');
 
-describe('scripts/postman/collection-utils', () => {
+describe('Unit | Scripts | Postman | Collection Utils', () => {
   const collection = {
     item: [
       {
@@ -114,8 +116,64 @@ describe('scripts/postman/collection-utils', () => {
     })).toBe(true);
   });
 
-  it('throws when request items are missing exact status assertions', () => {
-    expect(() => assertRequestItemsHaveExactStatusAssertions({
+  it('detects exact status-code headers on request items', () => {
+    expect(hasExpectedStatusCodeHeader({
+      request: {
+        header: [
+          {
+            key: 'X-Expected-Status-Code',
+            value: '429',
+          },
+        ],
+      },
+    })).toBe(true);
+
+    expect(hasExpectedStatusCodeHeader({
+      request: {
+        header: [
+          {
+            key: 'X-Expected-Status-Code',
+            value: 'not-a-number',
+          },
+        ],
+      },
+    })).toBe(false);
+  });
+
+  it('treats either a header or an exact assertion as a specific status expectation', () => {
+    expect(hasSpecificStatusExpectation({
+      request: {
+        header: [
+          {
+            key: 'X-Expected-Status-Code',
+            value: '200',
+          },
+        ],
+      },
+      event: [],
+    })).toBe(true);
+
+    expect(hasSpecificStatusExpectation({
+      request: {
+        header: [],
+      },
+      event: [
+        {
+          listen: 'test',
+          script: {
+            exec: [
+              "pm.test('root service index returns 200', function () {",
+              '  pm.response.to.have.status(200);',
+              '});',
+            ],
+          },
+        },
+      ],
+    })).toBe(true);
+  });
+
+  it('throws when request items are missing a specific status expectation', () => {
+    expect(() => assertRequestItemsHaveSpecificStatusExpectations({
       item: [
         {
           name: '00 Core Smoke',
@@ -129,17 +187,19 @@ describe('scripts/postman/collection-utils', () => {
         },
       ],
     })).toThrow(
-      'Missing exact status assertions for Postman requests: 00 Core Smoke > Ping',
+      'Missing specific status expectations for Postman requests: 00 Core Smoke > Ping',
     );
   });
 
-  it('enforces exact status assertions across the committed Postman collection', () => {
+  it('enforces specific status expectations across the committed Postman collection', () => {
     const collectionPath = path.join(
       __dirname,
       '../../../../postman/collections/alt-text-generator.postman_collection.json',
     );
     const committedCollection = readCollection(collectionPath);
 
-    expect(() => assertRequestItemsHaveExactStatusAssertions(committedCollection)).not.toThrow();
+    expect(() => assertRequestItemsHaveSpecificStatusExpectations(
+      committedCollection,
+    )).not.toThrow();
   });
 });

@@ -13,7 +13,7 @@ const createProcessRef = () => {
   return processRef;
 };
 
-describe('serverFunctions', () => {
+describe('Unit | Server | Server Functions', () => {
   it('configures created HTTP servers with conservative timeout defaults', () => {
     const server = createHttpServer(jest.fn());
 

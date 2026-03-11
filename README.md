@@ -120,7 +120,8 @@ Notes:
 - Raw Allure files accumulate under `reports/allure-results/`; generated HTML is written to `reports/allure-report/`.
 - The combined report merges one canonical Jest run with the Newman harness so local and CI results follow the same structure.
 - CI uploads the generated HTML as the `allure-report` artifact.
-- Pushes to `main` also publish the generated report to GitHub Pages at `https://jsugg.github.io/alt-text-generator/` once GitHub Pages is enabled for the repository with GitHub Actions as the source.
+- The public Pages deployment is `https://jsugg.github.io/alt-text-generator/`; the suites view is `https://jsugg.github.io/alt-text-generator/#suites`.
+- Pushes to `main` publish the latest generated report to GitHub Pages after the `allure-pages` job finishes successfully.
 - CI only emits Jest Allure results from the Node 20 lane so unit tests do not appear three times in the merged report.
 - The Allure CLI requires Java when you generate the HTML report locally or in CI.
 

@@ -89,7 +89,7 @@ afterEach(() => {
   jest.resetModules();
 });
 
-describe('infrastructure/logger', () => {
+describe('Unit | Infrastructure | Logger', () => {
   it('uses process-stream logging in production without touching the filesystem', () => {
     const { loggerModule, mockAppLogger } = loadLoggerModule({
       env: {

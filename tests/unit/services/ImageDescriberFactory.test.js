@@ -3,7 +3,7 @@ const ImageDescriberFactory = require('../../../src/services/ImageDescriberFacto
 const mockDescriber = { describeImage: jest.fn() };
 const mockAzureDescriber = { describeImage: jest.fn() };
 
-describe('ImageDescriberFactory', () => {
+describe('Unit | Services | Image Describer Factory', () => {
   it('returns a registered describer by name', () => {
     const factory = new ImageDescriberFactory().register('clip', mockDescriber);
     expect(factory.get('clip')).toBe(mockDescriber);

@@ -1,6 +1,6 @@
 const { getUpstreamErrorSummary } = require('../../../src/utils/getUpstreamErrorSummary');
 
-describe('getUpstreamErrorSummary', () => {
+describe('Unit | Utils | Get Upstream Error Summary', () => {
   it('extracts request and response details from fetch-style errors', () => {
     const error = new Error('Request failed');
     error.request = {

@@ -14,7 +14,7 @@ const mockConfig = {
   },
 };
 
-describe('ReplicateDescriberService.describeImage', () => {
+describe('Unit | Services | Replicate Describer Service', () => {
   it('returns description and imageUrl on success', async () => {
     const mockReplicate = {
       run: jest.fn().mockResolvedValue('a cat sitting on a mat'),

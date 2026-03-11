@@ -7,7 +7,7 @@ const {
   resolveEffectiveRateLimitStoreKind,
 } = require('../../../config/rateLimitStore');
 
-describe('rateLimitStore config helpers', () => {
+describe('Unit | Config | Rate Limit Store', () => {
   it('defaults to auto mode with in-memory storage when no Redis URL is configured', () => {
     expect(buildRateLimitStoreConfig({})).toEqual({
       kind: RATE_LIMIT_STORE_MODES.MEMORY,

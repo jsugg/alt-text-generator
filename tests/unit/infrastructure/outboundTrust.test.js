@@ -9,7 +9,7 @@ const {
   resolveOptionalFile,
 } = require('../../../src/infrastructure/outboundTrust');
 
-describe('outboundTrust', () => {
+describe('Unit | Infrastructure | Outbound Trust', () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'outbound-trust-'));
 
   afterAll(() => {

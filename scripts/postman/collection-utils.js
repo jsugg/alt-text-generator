@@ -45,7 +45,20 @@ function listRequestItems(collection) {
 }
 
 /**
- * Returns true when the request item includes an exact status assertion.
+ * Returns true when the request item includes a numeric X-Expected-Status-Code header.
+ *
+ * @param {object} item
+ * @returns {boolean}
+ */
+function hasExpectedStatusCodeHeader(item) {
+  return Boolean((item?.request?.header ?? []).some((header) => (
+    header?.key === 'X-Expected-Status-Code'
+      && /^\d+$/u.test(String(header.value ?? '').trim())
+  )));
+}
+
+/**
+ * Returns true when the request item includes an exact status assertion in its own tests.
  *
  * @param {object} item
  * @returns {boolean}
@@ -64,13 +77,23 @@ function hasExactStatusAssertion(item) {
 }
 
 /**
- * Throws when one or more requests are missing an exact status assertion.
+ * Returns true when the request item includes a specific status contract.
+ *
+ * @param {object} item
+ * @returns {boolean}
+ */
+function hasSpecificStatusExpectation(item) {
+  return hasExpectedStatusCodeHeader(item) || hasExactStatusAssertion(item);
+}
+
+/**
+ * Throws when one or more requests are missing a specific status expectation.
  *
  * @param {object} collection
  */
-function assertRequestItemsHaveExactStatusAssertions(collection) {
+function assertRequestItemsHaveSpecificStatusExpectations(collection) {
   const missingAssertions = listRequestItems(collection)
-    .filter(({ item }) => !hasExactStatusAssertion(item))
+    .filter(({ item }) => !hasSpecificStatusExpectation(item))
     .map(({ item, topLevelFolderName }) => `${topLevelFolderName} > ${item.name}`);
 
   if (missingAssertions.length === 0) {
@@ -78,7 +101,7 @@ function assertRequestItemsHaveExactStatusAssertions(collection) {
   }
 
   throw new Error(
-    `Missing exact status assertions for Postman requests: ${missingAssertions.join(', ')}`,
+    `Missing specific status expectations for Postman requests: ${missingAssertions.join(', ')}`,
   );
 }
 
@@ -155,10 +178,12 @@ function buildItemFolderMap(collection) {
 }
 
 module.exports = {
-  assertRequestItemsHaveExactStatusAssertions,
+  assertRequestItemsHaveSpecificStatusExpectations,
   assertTopLevelFoldersExist,
   buildItemFolderMap,
   hasExactStatusAssertion,
+  hasExpectedStatusCodeHeader,
+  hasSpecificStatusExpectation,
   listTopLevelFolderNames,
   listRequestItems,
   readCollection,

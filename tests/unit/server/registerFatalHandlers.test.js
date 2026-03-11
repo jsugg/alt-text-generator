@@ -11,7 +11,7 @@ const createProcessRef = () => {
   return processRef;
 };
 
-describe('registerFatalHandlers', () => {
+describe('Unit | Server | Register Fatal Handlers', () => {
   it('normalizes non-error unhandled rejections into structured fatal logs', () => {
     const normalized = normalizeUnhandledRejection({ status: 'bad-gateway' });
 

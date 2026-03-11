@@ -1,6 +1,6 @@
 const { createRuntimeState } = require('../../../src/server/runtimeState');
 
-describe('runtimeState', () => {
+describe('Unit | Server | Runtime State', () => {
   it('starts not ready by default', () => {
     const runtimeState = createRuntimeState();
 

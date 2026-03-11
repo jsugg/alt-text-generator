@@ -10,7 +10,7 @@ const {
   writeAllureMetadata,
 } = require('../../scripts/reporting/write-allure-metadata');
 
-describe('write-allure-metadata', () => {
+describe('Unit | Allure Metadata Writer', () => {
   it('parses the required results directory argument', () => {
     const { resultsDir } = parseArgs(['--results-dir', 'reports/allure-results']);
 

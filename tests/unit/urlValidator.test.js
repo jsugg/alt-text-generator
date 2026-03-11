@@ -1,6 +1,6 @@
 const { isValidUrl } = require('../../src/utils/urlValidator');
 
-describe('isValidUrl', () => {
+describe('Unit | URL Validator', () => {
   it('returns true for a valid http URL', () => {
     expect(isValidUrl('http://example.com')).toBe(true);
   });

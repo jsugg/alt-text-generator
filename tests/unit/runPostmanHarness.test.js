@@ -5,7 +5,7 @@ const {
   resolveAllureResultsDir,
 } = require('../../scripts/postman/newman-reporting');
 
-describe('run-postman-harness reporting helpers', () => {
+describe('Unit | Postman Harness Reporting', () => {
   it('keeps the existing CLI, JSON, and JUnit reporters by default', () => {
     const args = buildNewmanReporterArgs({
       label: 'smoke',

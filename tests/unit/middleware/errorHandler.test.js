@@ -5,7 +5,7 @@ const {
 } = require('../../../src/api/v1/middleware/error-handler');
 const { ApiError } = require('../../../src/errors/ApiError');
 
-describe('error-handler middleware', () => {
+describe('Unit | Middleware | Error Handler', () => {
   it('wraps async handlers and forwards rejected promises', async () => {
     const error = new Error('boom');
     const handler = asyncHandler(async () => {

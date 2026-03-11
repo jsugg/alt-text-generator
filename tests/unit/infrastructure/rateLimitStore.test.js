@@ -7,7 +7,7 @@ const {
   RATE_LIMIT_STORE_SCOPES,
 } = require('../../../src/infrastructure/rateLimitStore');
 
-describe('rateLimitStore infrastructure', () => {
+describe('Unit | Infrastructure | Rate Limit Store', () => {
   it('builds prefixed Redis store namespaces per limiter scope', () => {
     expect(buildRedisStorePrefix({
       redisPrefix: 'alt-text-generator:rate-limit:',

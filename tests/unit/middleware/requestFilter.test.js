@@ -57,7 +57,7 @@ const invokeMiddleware = ({
   };
 };
 
-describe('request-filter', () => {
+describe('Unit | Middleware | Request Filter', () => {
   it('redirects direct HTTP requests to HTTPS using the validated host header', () => {
     const { next, res } = invokeMiddleware();
 

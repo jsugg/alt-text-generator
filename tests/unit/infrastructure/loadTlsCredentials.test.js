@@ -2,7 +2,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-describe('loadTlsCredentials', () => {
+describe('Unit | Infrastructure | Load TLS Credentials', () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tls-creds-'));
 
   afterEach(() => {

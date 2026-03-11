@@ -6,7 +6,7 @@ const {
   resolveRequiredChecks,
 } = require('../../../../scripts/github/promote-to-production');
 
-describe('scripts/github/promote-to-production', () => {
+describe('Unit | Scripts | GitHub | Promote To Production', () => {
   describe('parseArgs', () => {
     it('parses supported CLI arguments including required checks', () => {
       expect(parseArgs([

@@ -63,737 +63,739 @@ const buildTestApp = ({
   return { app, appLogger, requestLogger };
 };
 
-describe('request filter', () => {
-  it('redirects direct HTTP traffic to HTTPS', async () => {
-    const { app } = buildTestApp();
+describe('Integration | API', () => {
+  describe('request filter', () => {
+    it('redirects direct HTTP traffic to HTTPS', async () => {
+      const { app } = buildTestApp();
 
-    const res = await request(app)
-      .get('/api/ping')
-      .set('Host', 'localhost:8080');
+      const res = await request(app)
+        .get('/api/ping')
+        .set('Host', 'localhost:8080');
 
-    expect(res.status).toBe(302);
-    const expectedHost = config.https.port === 443
-      ? 'localhost'
-      : `localhost:${config.https.port}`;
-    expect(res.headers.location).toBe(`https://${expectedHost}/api/ping`);
-  });
-
-  it('redirects proxy-forwarded HTTP traffic to HTTPS', async () => {
-    const { app } = buildTestApp();
-
-    const res = await request(app)
-      .get('/api/ping')
-      .set('Host', 'localhost:8080')
-      .set('X-Forwarded-Proto', 'http');
-
-    expect(res.status).toBe(302);
-    const expectedHost = config.https.port === 443
-      ? 'localhost'
-      : `localhost:${config.https.port}`;
-    expect(res.headers.location).toBe(`https://${expectedHost}/api/ping`);
-  });
-
-  it('redirects /api/ to the versioned route for secure requests', async () => {
-    const { app } = buildTestApp();
-
-    const res = await secureGet(app, '/api/');
-
-    expect(res.status).toBe(302);
-    expect(res.headers.location).toMatch(/\/api\/v1\/$/);
-  });
-});
-
-describe('GET /api/ping', () => {
-  it('responds with pong and mounts the request logger middleware', async () => {
-    const { app, requestLogger } = buildTestApp();
-
-    const res = await secureGet(app, '/api/ping');
-
-    expect(res.status).toBe(200);
-    expect(res.text).toBe('pong');
-    expect(requestLogger).toHaveBeenCalled();
-  });
-
-  it('stays available while the instance is draining', async () => {
-    const runtimeState = createRuntimeState({ initialReady: true });
-    runtimeState.markDraining();
-    const { app } = buildTestApp({ runtimeState });
-
-    const res = await secureGet(app, '/api/ping');
-
-    expect(res.status).toBe(200);
-    expect(res.text).toBe('pong');
-  });
-});
-
-describe('GET /', () => {
-  it('responds with a stable public service index', async () => {
-    const { app } = buildTestApp();
-
-    const res = await secureGet(app, '/');
-
-    expect(res.status).toBe(200);
-    expect(res.headers['content-type']).toContain('application/json');
-    expect(res.headers['x-request-id']).toBe(TEST_REQUEST_ID);
-    expect(Object.keys(res.body).sort()).toEqual([
-      'auth',
-      'links',
-      'name',
-      'requestId',
-      'status',
-      'version',
-    ]);
-    expect(res.body).toEqual({
-      name: packageMetadata.name,
-      version: packageMetadata.version,
-      status: 'ok',
-      links: {
-        api: '/api/v1',
-        docs: '/api-docs/',
-        health: '/api/health',
-        ping: '/api/ping',
-      },
-      auth: {
-        schemes: ['X-API-Key', 'Bearer'],
-      },
-      requestId: TEST_REQUEST_ID,
+      expect(res.status).toBe(302);
+      const expectedHost = config.https.port === 443
+        ? 'localhost'
+        : `localhost:${config.https.port}`;
+      expect(res.headers.location).toBe(`https://${expectedHost}/api/ping`);
     });
-  });
-});
 
-describe('GET /api/health', () => {
-  it('responds with health info', async () => {
-    const { app } = buildTestApp();
+    it('redirects proxy-forwarded HTTP traffic to HTTPS', async () => {
+      const { app } = buildTestApp();
 
-    const res = await secureGet(app, '/api/health');
+      const res = await request(app)
+        .get('/api/ping')
+        .set('Host', 'localhost:8080')
+        .set('X-Forwarded-Proto', 'http');
 
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty('message', 'OK');
-    expect(res.body).toHaveProperty('ready', true);
-    expect(res.body).toHaveProperty('uptime');
-    expect(res.body).toHaveProperty('timestamp');
-  });
-
-  it('returns 503 while the instance is draining', async () => {
-    const runtimeState = createRuntimeState({ initialReady: true });
-    runtimeState.markDraining();
-    const { app } = buildTestApp({ runtimeState });
-
-    const res = await secureGet(app, '/api/health');
-
-    expect(res.status).toBe(503);
-    expect(res.body).toMatchObject({
-      message: 'DRAINING',
-      ready: false,
+      expect(res.status).toBe(302);
+      const expectedHost = config.https.port === 443
+        ? 'localhost'
+        : `localhost:${config.https.port}`;
+      expect(res.headers.location).toBe(`https://${expectedHost}/api/ping`);
     });
-  });
-});
 
-describe('rate limiting', () => {
-  const rateLimitedConfig = {
-    rateLimit: {
-      windowMs: 60 * 1000,
-      max: 1,
-    },
-    statusRateLimit: {
-      windowMs: 60 * 1000,
-      max: 2,
-    },
-  };
+    it('redirects /api/ to the versioned route for secure requests', async () => {
+      const { app } = buildTestApp();
 
-  it('keeps health checks available when the default API limiter is exhausted', async () => {
-    const { app } = buildTestApp({ config: rateLimitedConfig });
+      const res = await secureGet(app, '/api/');
 
-    const firstApiCall = await secureGet(app, '/api/v1/does-not-exist');
-    const secondApiCall = await secureGet(app, '/api/v1/does-not-exist');
-    const healthCheck = await secureGet(app, '/api/health');
-
-    expect(firstApiCall.status).toBe(404);
-    expect(secondApiCall.status).toBe(429);
-    expect(healthCheck.status).toBe(200);
-    expect(healthCheck.body).toMatchObject({
-      message: 'OK',
-      ready: true,
+      expect(res.status).toBe(302);
+      expect(res.headers.location).toMatch(/\/api\/v1\/$/);
     });
   });
 
-  it('applies the dedicated status limiter to repeated health checks', async () => {
-    const { app } = buildTestApp({ config: rateLimitedConfig });
+  describe('GET /api/ping', () => {
+    it('responds with pong and mounts the request logger middleware', async () => {
+      const { app, requestLogger } = buildTestApp();
 
-    const first = await secureGet(app, '/api/health');
-    const second = await secureGet(app, '/api/health');
-    const third = await secureGet(app, '/api/health');
+      const res = await secureGet(app, '/api/ping');
 
-    expect(first.status).toBe(200);
-    expect(second.status).toBe(200);
-    expect(third.status).toBe(429);
-    expect(third.text).toContain('Too many status requests');
+      expect(res.status).toBe(200);
+      expect(res.text).toBe('pong');
+      expect(requestLogger).toHaveBeenCalled();
+    });
+
+    it('stays available while the instance is draining', async () => {
+      const runtimeState = createRuntimeState({ initialReady: true });
+      runtimeState.markDraining();
+      const { app } = buildTestApp({ runtimeState });
+
+      const res = await secureGet(app, '/api/ping');
+
+      expect(res.status).toBe(200);
+      expect(res.text).toBe('pong');
+    });
   });
 
-  it('continues to rate limit normal API traffic', async () => {
-    const { app } = buildTestApp({ config: rateLimitedConfig });
+  describe('GET /', () => {
+    it('responds with a stable public service index', async () => {
+      const { app } = buildTestApp();
 
-    const first = await secureGet(app, '/api/v1/does-not-exist');
-    const second = await secureGet(app, '/api/v1/does-not-exist');
+      const res = await secureGet(app, '/');
 
-    expect(first.status).toBe(404);
-    expect(second.status).toBe(429);
-    expect(second.text).toContain('Too many requests');
+      expect(res.status).toBe(200);
+      expect(res.headers['content-type']).toContain('application/json');
+      expect(res.headers['x-request-id']).toBe(TEST_REQUEST_ID);
+      expect(Object.keys(res.body).sort()).toEqual([
+        'auth',
+        'links',
+        'name',
+        'requestId',
+        'status',
+        'version',
+      ]);
+      expect(res.body).toEqual({
+        name: packageMetadata.name,
+        version: packageMetadata.version,
+        status: 'ok',
+        links: {
+          api: '/api/v1',
+          docs: '/api-docs/',
+          health: '/api/health',
+          ping: '/api/ping',
+        },
+        auth: {
+          schemes: ['X-API-Key', 'Bearer'],
+        },
+        requestId: TEST_REQUEST_ID,
+      });
+    });
   });
 
-  it('fails open when the Redis-backed limiter store errors during a request', async () => {
-    const appLogger = createAppLogger();
-    const requestLogger = createRequestLogger();
-    const appConfig = {
-      ...rateLimitedConfig,
-      auth: {
-        enabled: false,
-        tokens: [],
+  describe('GET /api/health', () => {
+    it('responds with health info', async () => {
+      const { app } = buildTestApp();
+
+      const res = await secureGet(app, '/api/health');
+
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveProperty('message', 'OK');
+      expect(res.body).toHaveProperty('ready', true);
+      expect(res.body).toHaveProperty('uptime');
+      expect(res.body).toHaveProperty('timestamp');
+    });
+
+    it('returns 503 while the instance is draining', async () => {
+      const runtimeState = createRuntimeState({ initialReady: true });
+      runtimeState.markDraining();
+      const { app } = buildTestApp({ runtimeState });
+
+      const res = await secureGet(app, '/api/health');
+
+      expect(res.status).toBe(503);
+      expect(res.body).toMatchObject({
+        message: 'DRAINING',
+        ready: false,
+      });
+    });
+  });
+
+  describe('rate limiting', () => {
+    const rateLimitedConfig = {
+      rateLimit: {
+        windowMs: 60 * 1000,
+        max: 1,
       },
-      proxy: {
-        trustProxyHops: 1,
-      },
-      rateLimitStore: {
-        kind: 'redis',
-        mode: 'redis',
-        redisPrefix: 'jest:fail-open:',
-        redisTopology: 'external',
-        redisUrl: 'redis://rate-limit.example:6379',
+      statusRateLimit: {
+        windowMs: 60 * 1000,
+        max: 2,
       },
     };
-    const redisClient = {
-      connect: jest.fn().mockResolvedValue(undefined),
-      isOpen: true,
-      on: jest.fn(),
-      quit: jest.fn().mockResolvedValue(undefined),
-      sendCommand: jest.fn().mockResolvedValue('PONG'),
-    };
 
-    class FailingRedisStore {
-      constructor(options) {
-        this.decrement = jest.fn().mockResolvedValue(undefined);
-        this.increment = jest.fn().mockRejectedValue(new Error('rate-limit store unavailable'));
-        this.init = jest.fn();
-        this.prefix = options.prefix;
-        this.resetKey = jest.fn().mockResolvedValue(undefined);
+    it('keeps health checks available when the default API limiter is exhausted', async () => {
+      const { app } = buildTestApp({ config: rateLimitedConfig });
+
+      const firstApiCall = await secureGet(app, '/api/v1/does-not-exist');
+      const secondApiCall = await secureGet(app, '/api/v1/does-not-exist');
+      const healthCheck = await secureGet(app, '/api/health');
+
+      expect(firstApiCall.status).toBe(404);
+      expect(secondApiCall.status).toBe(429);
+      expect(healthCheck.status).toBe(200);
+      expect(healthCheck.body).toMatchObject({
+        message: 'OK',
+        ready: true,
+      });
+    });
+
+    it('applies the dedicated status limiter to repeated health checks', async () => {
+      const { app } = buildTestApp({ config: rateLimitedConfig });
+
+      const first = await secureGet(app, '/api/health');
+      const second = await secureGet(app, '/api/health');
+      const third = await secureGet(app, '/api/health');
+
+      expect(first.status).toBe(200);
+      expect(second.status).toBe(200);
+      expect(third.status).toBe(429);
+      expect(third.text).toContain('Too many status requests');
+    });
+
+    it('continues to rate limit normal API traffic', async () => {
+      const { app } = buildTestApp({ config: rateLimitedConfig });
+
+      const first = await secureGet(app, '/api/v1/does-not-exist');
+      const second = await secureGet(app, '/api/v1/does-not-exist');
+
+      expect(first.status).toBe(404);
+      expect(second.status).toBe(429);
+      expect(second.text).toContain('Too many requests');
+    });
+
+    it('fails open when the Redis-backed limiter store errors during a request', async () => {
+      const appLogger = createAppLogger();
+      const requestLogger = createRequestLogger();
+      const appConfig = {
+        ...rateLimitedConfig,
+        auth: {
+          enabled: false,
+          tokens: [],
+        },
+        proxy: {
+          trustProxyHops: 1,
+        },
+        rateLimitStore: {
+          kind: 'redis',
+          mode: 'redis',
+          redisPrefix: 'jest:fail-open:',
+          redisTopology: 'external',
+          redisUrl: 'redis://rate-limit.example:6379',
+        },
+      };
+      const redisClient = {
+        connect: jest.fn().mockResolvedValue(undefined),
+        isOpen: true,
+        on: jest.fn(),
+        quit: jest.fn().mockResolvedValue(undefined),
+        sendCommand: jest.fn().mockResolvedValue('PONG'),
+      };
+
+      class FailingRedisStore {
+        constructor(options) {
+          this.decrement = jest.fn().mockResolvedValue(undefined);
+          this.increment = jest.fn().mockRejectedValue(new Error('rate-limit store unavailable'));
+          this.init = jest.fn();
+          this.prefix = options.prefix;
+          this.resetKey = jest.fn().mockResolvedValue(undefined);
+        }
       }
-    }
 
-    const rateLimitStoreProvider = await initializeRateLimitStoreProvider({
-      config: appConfig,
-      createClientFn: jest.fn(() => redisClient),
-      logger: appLogger,
-      RedisStoreClass: FailingRedisStore,
-    });
-
-    try {
-      const { app } = createApp({
-        appLogger,
-        requestLogger,
+      const rateLimitStoreProvider = await initializeRateLimitStoreProvider({
         config: appConfig,
-        rateLimitStoreProvider,
+        createClientFn: jest.fn(() => redisClient),
+        logger: appLogger,
+        RedisStoreClass: FailingRedisStore,
       });
 
-      const response = await secureGet(app, '/api/v1/does-not-exist');
+      try {
+        const { app } = createApp({
+          appLogger,
+          requestLogger,
+          config: appConfig,
+          rateLimitStoreProvider,
+        });
 
-      expect(response.status).toBe(404);
-      expect(appLogger.warn).toHaveBeenCalledWith(expect.objectContaining({
-        operation: 'increment',
-        scope: 'api',
-        store: 'rate-limit',
-      }), 'Rate-limit store operation failed; allowing request to proceed');
-    } finally {
-      await rateLimitStoreProvider.close();
-    }
-  });
-});
+        const response = await secureGet(app, '/api/v1/does-not-exist');
 
-describe('GET /api/scraper/images', () => {
-  it('returns 400 when url is missing', async () => {
-    const { app } = buildTestApp();
-
-    const res = await secureGet(app, '/api/scraper/images');
-
-    expect(res.status).toBe(400);
-    expect(res.body).toMatchObject({
-      error: 'Missing required query parameter: url',
-      code: 'QUERY_VALIDATION_ERROR',
-      requestId: TEST_REQUEST_ID,
-      details: [{ field: 'url', issue: 'required' }],
+        expect(response.status).toBe(404);
+        expect(appLogger.warn).toHaveBeenCalledWith(expect.objectContaining({
+          operation: 'increment',
+          scope: 'api',
+          store: 'rate-limit',
+        }), 'Rate-limit store operation failed; allowing request to proceed');
+      } finally {
+        await rateLimitStoreProvider.close();
+      }
     });
   });
 
-  it('returns image list on success', async () => {
-    const scraperService = {
-      getImages: jest.fn().mockResolvedValue({
-        imageSources: ['https://example.com/a.jpg'],
-      }),
-    };
-    const { app } = buildTestApp({ scraperService });
+  describe('GET /api/scraper/images', () => {
+    it('returns 400 when url is missing', async () => {
+      const { app } = buildTestApp();
 
-    const res = await secureGet(
-      app,
-      `/api/scraper/images?url=${encodeURIComponent('https://example.com')}`,
-    );
+      const res = await secureGet(app, '/api/scraper/images');
 
-    expect(res.status).toBe(200);
-    expect(res.body.imageSources).toContain('https://example.com/a.jpg');
-  });
-
-  it('returns 500 on scraper failure', async () => {
-    const scraperService = {
-      getImages: jest.fn().mockRejectedValue(new Error('network error')),
-    };
-    const { app } = buildTestApp({ scraperService });
-
-    const res = await secureGet(
-      app,
-      `/api/scraper/images?url=${encodeURIComponent('https://example.com')}`,
-    );
-
-    expect(res.status).toBe(500);
-    expect(res.body).toMatchObject({
-      error: 'Error fetching images from the provided URL',
-      code: 'SCRAPE_FETCH_FAILED',
-      requestId: TEST_REQUEST_ID,
+      expect(res.status).toBe(400);
+      expect(res.body).toMatchObject({
+        error: 'Missing required query parameter: url',
+        code: 'QUERY_VALIDATION_ERROR',
+        requestId: TEST_REQUEST_ID,
+        details: [{ field: 'url', issue: 'required' }],
+      });
     });
-  });
-});
 
-describe('GET /api/accessibility/description', () => {
-  it('returns 400 when image_source is missing', async () => {
-    const { app } = buildTestApp();
+    it('returns image list on success', async () => {
+      const scraperService = {
+        getImages: jest.fn().mockResolvedValue({
+          imageSources: ['https://example.com/a.jpg'],
+        }),
+      };
+      const { app } = buildTestApp({ scraperService });
 
-    const res = await secureGet(
-      app,
-      '/api/accessibility/description?model=clip',
-    );
+      const res = await secureGet(
+        app,
+        `/api/scraper/images?url=${encodeURIComponent('https://example.com')}`,
+      );
 
-    expect(res.status).toBe(400);
-    expect(res.body).toMatchObject({
-      error: 'Missing required query parameters: image_source and model',
-      code: 'QUERY_VALIDATION_ERROR',
-      requestId: TEST_REQUEST_ID,
-      details: [{ field: 'image_source', issue: 'required' }],
+      expect(res.status).toBe(200);
+      expect(res.body.imageSources).toContain('https://example.com/a.jpg');
+    });
+
+    it('returns 500 on scraper failure', async () => {
+      const scraperService = {
+        getImages: jest.fn().mockRejectedValue(new Error('network error')),
+      };
+      const { app } = buildTestApp({ scraperService });
+
+      const res = await secureGet(
+        app,
+        `/api/scraper/images?url=${encodeURIComponent('https://example.com')}`,
+      );
+
+      expect(res.status).toBe(500);
+      expect(res.body).toMatchObject({
+        error: 'Error fetching images from the provided URL',
+        code: 'SCRAPE_FETCH_FAILED',
+        requestId: TEST_REQUEST_ID,
+      });
     });
   });
 
-  it('returns 400 for an unknown model', async () => {
-    const factory = new ImageDescriberFactory().register('clip', {
-      describeImage: jest.fn(),
+  describe('GET /api/accessibility/description', () => {
+    it('returns 400 when image_source is missing', async () => {
+      const { app } = buildTestApp();
+
+      const res = await secureGet(
+        app,
+        '/api/accessibility/description?model=clip',
+      );
+
+      expect(res.status).toBe(400);
+      expect(res.body).toMatchObject({
+        error: 'Missing required query parameters: image_source and model',
+        code: 'QUERY_VALIDATION_ERROR',
+        requestId: TEST_REQUEST_ID,
+        details: [{ field: 'image_source', issue: 'required' }],
+      });
     });
-    const { app } = buildTestApp({ imageDescriberFactory: factory });
 
-    const res = await secureGet(
-      app,
-      `/api/accessibility/description?image_source=${
-        encodeURIComponent('https://example.com/img.jpg')
-      }&model=unknownmodel`,
-    );
+    it('returns 400 for an unknown model', async () => {
+      const factory = new ImageDescriberFactory().register('clip', {
+        describeImage: jest.fn(),
+      });
+      const { app } = buildTestApp({ imageDescriberFactory: factory });
 
-    expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/Unknown model/);
-    expect(res.body.code).toBe('UNKNOWN_MODEL');
-    expect(res.body.requestId).toBe(TEST_REQUEST_ID);
-  });
+      const res = await secureGet(
+        app,
+        `/api/accessibility/description?image_source=${
+          encodeURIComponent('https://example.com/img.jpg')
+        }&model=unknownmodel`,
+      );
 
-  it('returns description array on success', async () => {
-    const mockDescriber = {
-      describeImage: jest.fn().mockResolvedValue({
+      expect(res.status).toBe(400);
+      expect(res.body.error).toMatch(/Unknown model/);
+      expect(res.body.code).toBe('UNKNOWN_MODEL');
+      expect(res.body.requestId).toBe(TEST_REQUEST_ID);
+    });
+
+    it('returns description array on success', async () => {
+      const mockDescriber = {
+        describeImage: jest.fn().mockResolvedValue({
+          description: 'a cat on a mat',
+          imageUrl: 'https://example.com/img.jpg',
+        }),
+      };
+      const factory = new ImageDescriberFactory().register('clip', mockDescriber);
+      const { app } = buildTestApp({ imageDescriberFactory: factory });
+
+      const res = await secureGet(
+        app,
+        `/api/accessibility/description?image_source=${
+          encodeURIComponent('https://example.com/img.jpg')
+        }&model=clip`,
+      );
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual([{
         description: 'a cat on a mat',
         imageUrl: 'https://example.com/img.jpg',
-      }),
-    };
-    const factory = new ImageDescriberFactory().register('clip', mockDescriber);
-    const { app } = buildTestApp({ imageDescriberFactory: factory });
+      }]);
+    });
 
-    const res = await secureGet(
-      app,
-      `/api/accessibility/description?image_source=${
-        encodeURIComponent('https://example.com/img.jpg')
-      }&model=clip`,
-    );
-
-    expect(res.status).toBe(200);
-    expect(res.body).toEqual([{
-      description: 'a cat on a mat',
-      imageUrl: 'https://example.com/img.jpg',
-    }]);
-  });
-
-  it('serves Azure descriptions through the default runtime composition when configured', async () => {
-    const appLogger = createAppLogger();
-    const requestLogger = createRequestLogger();
-    const httpClient = {
-      get: jest.fn().mockResolvedValue({
-        data: Buffer.from('azure-image-bytes'),
-        headers: {
-          'content-type': 'image/jpeg',
+    it('serves Azure descriptions through the default runtime composition when configured', async () => {
+      const appLogger = createAppLogger();
+      const requestLogger = createRequestLogger();
+      const httpClient = {
+        get: jest.fn().mockResolvedValue({
+          data: Buffer.from('azure-image-bytes'),
+          headers: {
+            'content-type': 'image/jpeg',
+          },
+        }),
+        post: jest.fn().mockResolvedValue({
+          data: {
+            description: {
+              captions: [
+                { text: 'an azure-generated caption' },
+              ],
+            },
+          },
+        }),
+      };
+      const replicateClient = { run: jest.fn() };
+      const runtimeConfig = {
+        replicate: {
+          apiToken: 'test-token',
+          apiEndpoint: 'https://replicate.example.com',
+          userAgent: 'alt-text-generator/test',
+          modelOwner: 'owner',
+          modelName: 'model',
+          modelVersion: 'version',
         },
-      }),
-      post: jest.fn().mockResolvedValue({
-        data: {
-          description: {
-            captions: [
-              { text: 'an azure-generated caption' },
-            ],
+        azure: {
+          apiEndpoint: 'https://azure.example.com/vision/v3.2/describe',
+          subscriptionKey: 'azure-key',
+          language: 'en',
+          maxCandidates: 4,
+        },
+        scraper: {
+          requestTimeoutMs: 1500,
+          maxRedirects: 4,
+          maxContentLengthBytes: 2048,
+        },
+        proxy: {
+          trustProxyHops: 1,
+        },
+      };
+      const { app, services } = createApp({
+        appLogger,
+        requestLogger,
+        httpClient,
+        replicateClient,
+        config: runtimeConfig,
+      });
+
+      expect(services.imageDescriberFactory.getAvailableModels()).toEqual(['clip', 'azure']);
+
+      const res = await secureGet(
+        app,
+        `/api/accessibility/description?image_source=${
+          encodeURIComponent('https://example.com/azure-image.jpg')
+        }&model=azure`,
+      );
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual([{
+        description: 'an azure-generated caption',
+        imageUrl: 'https://example.com/azure-image.jpg',
+      }]);
+      expect(httpClient.get).toHaveBeenCalledWith('https://example.com/azure-image.jpg', {
+        timeout: 1500,
+        maxRedirects: 4,
+        maxContentLength: 2048,
+        maxBodyLength: 2048,
+        responseType: 'arraybuffer',
+      });
+      expect(httpClient.post).toHaveBeenCalledWith(
+        'https://azure.example.com/vision/v3.2/describe?maxCandidates=4&language=en&model-version=latest&overload=stream',
+        Buffer.from('azure-image-bytes'),
+        {
+          headers: {
+            'Content-Type': 'application/octet-stream',
+            'Ocp-Apim-Subscription-Key': 'azure-key',
           },
         },
-      }),
-    };
-    const replicateClient = { run: jest.fn() };
-    const runtimeConfig = {
-      replicate: {
-        apiToken: 'test-token',
-        apiEndpoint: 'https://replicate.example.com',
-        userAgent: 'alt-text-generator/test',
-        modelOwner: 'owner',
-        modelName: 'model',
-        modelVersion: 'version',
+      );
+    });
+  });
+
+  describe('GET /api/accessibility/descriptions', () => {
+    it('returns 400 when url is missing', async () => {
+      const { app } = buildTestApp();
+
+      const res = await secureGet(
+        app,
+        '/api/accessibility/descriptions?model=clip',
+      );
+
+      expect(res.status).toBe(400);
+      expect(res.body).toMatchObject({
+        error: 'Missing required query parameters: url and model',
+        code: 'QUERY_VALIDATION_ERROR',
+        requestId: TEST_REQUEST_ID,
+        details: [{ field: 'url', issue: 'required' }],
+      });
+    });
+
+    it('preserves duplicate entries while reusing one prediction per unique URL', async () => {
+      const scraperService = {
+        getImages: jest.fn().mockResolvedValue({
+          imageSources: [
+            'https://example.com/a.jpg',
+            'https://example.com/b.jpg',
+            'https://example.com/a.jpg',
+          ],
+        }),
+      };
+      const mockDescriber = {
+        describeImage: jest
+          .fn()
+          .mockImplementation(async (imageUrl) => ({
+            description: `description for ${imageUrl}`,
+            imageUrl,
+          })),
+      };
+      const factory = new ImageDescriberFactory().register('clip', mockDescriber);
+      const { app } = buildTestApp({
+        scraperService,
+        imageDescriberFactory: factory,
+      });
+
+      const res = await secureGet(
+        app,
+        `/api/accessibility/descriptions?url=${
+          encodeURIComponent('https://example.com/page')
+        }&model=clip`,
+      );
+
+      expect(res.status).toBe(200);
+      expect(mockDescriber.describeImage).toHaveBeenCalledTimes(2);
+      expect(res.body).toEqual({
+        pageUrl: 'https://example.com/page',
+        model: 'clip',
+        totalImages: 3,
+        uniqueImages: 2,
+        descriptions: [
+          {
+            description: 'description for https://example.com/a.jpg',
+            imageUrl: 'https://example.com/a.jpg',
+          },
+          {
+            description: 'description for https://example.com/b.jpg',
+            imageUrl: 'https://example.com/b.jpg',
+          },
+          {
+            description: 'description for https://example.com/a.jpg',
+            imageUrl: 'https://example.com/a.jpg',
+          },
+        ],
+      });
+    });
+
+    it('returns partial page descriptions when image-specific Azure failures are skippable', async () => {
+      const scraperService = {
+        getImages: jest.fn().mockResolvedValue({
+          imageSources: [
+            'https://example.com/a.jpg',
+            'https://example.com/missing.jpg',
+            'https://example.com/a.jpg',
+          ],
+        }),
+      };
+      const imageError = new Error('image timeout');
+      const mockDescriber = {
+        describeImage: jest.fn().mockImplementation(async (imageUrl) => {
+          if (imageUrl === 'https://example.com/missing.jpg') {
+            throw imageError;
+          }
+
+          return {
+            description: `description for ${imageUrl}`,
+            imageUrl,
+          };
+        }),
+        shouldSkipDescriptionError: jest.fn((error) => error === imageError),
+      };
+      const factory = new ImageDescriberFactory().register('azure', mockDescriber);
+      const { app } = buildTestApp({
+        scraperService,
+        imageDescriberFactory: factory,
+      });
+
+      const res = await secureGet(
+        app,
+        `/api/accessibility/descriptions?url=${
+          encodeURIComponent('https://example.com/page')
+        }&model=azure`,
+      );
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({
+        pageUrl: 'https://example.com/page',
+        model: 'azure',
+        totalImages: 2,
+        uniqueImages: 1,
+        descriptions: [
+          {
+            description: 'description for https://example.com/a.jpg',
+            imageUrl: 'https://example.com/a.jpg',
+          },
+          {
+            description: 'description for https://example.com/a.jpg',
+            imageUrl: 'https://example.com/a.jpg',
+          },
+        ],
+      });
+    });
+  });
+
+  describe('unknown routes', () => {
+    it('returns 404 for unregistered paths', async () => {
+      const { app } = buildTestApp();
+
+      const res = await secureGet(app, '/api/v1/does-not-exist');
+
+      expect(res.status).toBe(404);
+      expect(res.body.error).toBe('Endpoint not found');
+      expect(res.body.code).toBe('ENDPOINT_NOT_FOUND');
+      expect(res.body.requestId).toBe(TEST_REQUEST_ID);
+    });
+  });
+
+  describe('API access control', () => {
+    const buildAuthConfig = () => ({
+      auth: {
+        enabled: true,
+        tokens: ['dummy-1', 'dummy-2'],
       },
-      azure: {
-        apiEndpoint: 'https://azure.example.com/vision/v3.2/describe',
-        subscriptionKey: 'azure-key',
-        language: 'en',
-        maxCandidates: 4,
-      },
+      replicate: {},
+      azure: {},
       scraper: {
         requestTimeoutMs: 1500,
         maxRedirects: 4,
         maxContentLengthBytes: 2048,
       },
-      proxy: {
-        trustProxyHops: 1,
-      },
-    };
-    const { app, services } = createApp({
-      appLogger,
-      requestLogger,
-      httpClient,
-      replicateClient,
-      config: runtimeConfig,
     });
 
-    expect(services.imageDescriberFactory.getAvailableModels()).toEqual(['clip', 'azure']);
+    it('allows public health endpoints without authentication', async () => {
+      const { app } = buildTestApp({ config: buildAuthConfig() });
 
-    const res = await secureGet(
-      app,
-      `/api/accessibility/description?image_source=${
-        encodeURIComponent('https://example.com/azure-image.jpg')
-      }&model=azure`,
-    );
+      const res = await secureGet(app, '/api/health');
 
-    expect(res.status).toBe(200);
-    expect(res.body).toEqual([{
-      description: 'an azure-generated caption',
-      imageUrl: 'https://example.com/azure-image.jpg',
-    }]);
-    expect(httpClient.get).toHaveBeenCalledWith('https://example.com/azure-image.jpg', {
-      timeout: 1500,
-      maxRedirects: 4,
-      maxContentLength: 2048,
-      maxBodyLength: 2048,
-      responseType: 'arraybuffer',
-    });
-    expect(httpClient.post).toHaveBeenCalledWith(
-      'https://azure.example.com/vision/v3.2/describe?maxCandidates=4&language=en&model-version=latest&overload=stream',
-      Buffer.from('azure-image-bytes'),
-      {
-        headers: {
-          'Content-Type': 'application/octet-stream',
-          'Ocp-Apim-Subscription-Key': 'azure-key',
-        },
-      },
-    );
-  });
-});
-
-describe('GET /api/accessibility/descriptions', () => {
-  it('returns 400 when url is missing', async () => {
-    const { app } = buildTestApp();
-
-    const res = await secureGet(
-      app,
-      '/api/accessibility/descriptions?model=clip',
-    );
-
-    expect(res.status).toBe(400);
-    expect(res.body).toMatchObject({
-      error: 'Missing required query parameters: url and model',
-      code: 'QUERY_VALIDATION_ERROR',
-      requestId: TEST_REQUEST_ID,
-      details: [{ field: 'url', issue: 'required' }],
-    });
-  });
-
-  it('preserves duplicate entries while reusing one prediction per unique URL', async () => {
-    const scraperService = {
-      getImages: jest.fn().mockResolvedValue({
-        imageSources: [
-          'https://example.com/a.jpg',
-          'https://example.com/b.jpg',
-          'https://example.com/a.jpg',
-        ],
-      }),
-    };
-    const mockDescriber = {
-      describeImage: jest
-        .fn()
-        .mockImplementation(async (imageUrl) => ({
-          description: `description for ${imageUrl}`,
-          imageUrl,
-        })),
-    };
-    const factory = new ImageDescriberFactory().register('clip', mockDescriber);
-    const { app } = buildTestApp({
-      scraperService,
-      imageDescriberFactory: factory,
+      expect(res.status).toBe(200);
     });
 
-    const res = await secureGet(
-      app,
-      `/api/accessibility/descriptions?url=${
-        encodeURIComponent('https://example.com/page')
-      }&model=clip`,
-    );
+    it('keeps the root service index public without authentication', async () => {
+      const { app } = buildTestApp({ config: buildAuthConfig() });
 
-    expect(res.status).toBe(200);
-    expect(mockDescriber.describeImage).toHaveBeenCalledTimes(2);
-    expect(res.body).toEqual({
-      pageUrl: 'https://example.com/page',
-      model: 'clip',
-      totalImages: 3,
-      uniqueImages: 2,
-      descriptions: [
-        {
-          description: 'description for https://example.com/a.jpg',
-          imageUrl: 'https://example.com/a.jpg',
-        },
-        {
-          description: 'description for https://example.com/b.jpg',
-          imageUrl: 'https://example.com/b.jpg',
-        },
-        {
-          description: 'description for https://example.com/a.jpg',
-          imageUrl: 'https://example.com/a.jpg',
-        },
-      ],
-    });
-  });
+      const res = await secureGet(app, '/');
 
-  it('returns partial page descriptions when image-specific Azure failures are skippable', async () => {
-    const scraperService = {
-      getImages: jest.fn().mockResolvedValue({
-        imageSources: [
-          'https://example.com/a.jpg',
-          'https://example.com/missing.jpg',
-          'https://example.com/a.jpg',
-        ],
-      }),
-    };
-    const imageError = new Error('image timeout');
-    const mockDescriber = {
-      describeImage: jest.fn().mockImplementation(async (imageUrl) => {
-        if (imageUrl === 'https://example.com/missing.jpg') {
-          throw imageError;
-        }
-
-        return {
-          description: `description for ${imageUrl}`,
-          imageUrl,
-        };
-      }),
-      shouldSkipDescriptionError: jest.fn((error) => error === imageError),
-    };
-    const factory = new ImageDescriberFactory().register('azure', mockDescriber);
-    const { app } = buildTestApp({
-      scraperService,
-      imageDescriberFactory: factory,
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({
+        name: packageMetadata.name,
+        status: 'ok',
+        requestId: TEST_REQUEST_ID,
+      });
     });
 
-    const res = await secureGet(
-      app,
-      `/api/accessibility/descriptions?url=${
-        encodeURIComponent('https://example.com/page')
-      }&model=azure`,
-    );
+    it('rejects protected endpoints without authentication', async () => {
+      const { app } = buildTestApp({ config: buildAuthConfig() });
 
-    expect(res.status).toBe(200);
-    expect(res.body).toEqual({
-      pageUrl: 'https://example.com/page',
-      model: 'azure',
-      totalImages: 2,
-      uniqueImages: 1,
-      descriptions: [
-        {
-          description: 'description for https://example.com/a.jpg',
-          imageUrl: 'https://example.com/a.jpg',
-        },
-        {
-          description: 'description for https://example.com/a.jpg',
-          imageUrl: 'https://example.com/a.jpg',
-        },
-      ],
+      const res = await secureGet(
+        app,
+        `/api/accessibility/description?image_source=${
+          encodeURIComponent('https://example.com/img.jpg')
+        }&model=clip`,
+      );
+
+      expect(res.status).toBe(401);
+      expect(res.body).toMatchObject({
+        error: 'Missing or invalid API authentication credentials',
+        code: 'API_AUTHENTICATION_FAILED',
+        requestId: TEST_REQUEST_ID,
+      });
     });
-  });
-});
 
-describe('unknown routes', () => {
-  it('returns 404 for unregistered paths', async () => {
-    const { app } = buildTestApp();
+    it('accepts X-API-Key authentication on protected endpoints', async () => {
+      const factory = new ImageDescriberFactory().register('clip', {
+        describeImage: jest.fn().mockResolvedValue({
+          description: 'authenticated description',
+          imageUrl: 'https://example.com/img.jpg',
+        }),
+      });
+      const { app } = buildTestApp({
+        config: buildAuthConfig(),
+        imageDescriberFactory: factory,
+      });
 
-    const res = await secureGet(app, '/api/v1/does-not-exist');
+      const res = await secureGet(
+        app,
+        `/api/accessibility/description?image_source=${
+          encodeURIComponent('https://example.com/img.jpg')
+        }&model=clip`,
+      ).set('X-API-Key', 'dummy-2');
 
-    expect(res.status).toBe(404);
-    expect(res.body.error).toBe('Endpoint not found');
-    expect(res.body.code).toBe('ENDPOINT_NOT_FOUND');
-    expect(res.body.requestId).toBe(TEST_REQUEST_ID);
-  });
-});
-
-describe('API access control', () => {
-  const buildAuthConfig = () => ({
-    auth: {
-      enabled: true,
-      tokens: ['dummy-1', 'dummy-2'],
-    },
-    replicate: {},
-    azure: {},
-    scraper: {
-      requestTimeoutMs: 1500,
-      maxRedirects: 4,
-      maxContentLengthBytes: 2048,
-    },
-  });
-
-  it('allows public health endpoints without authentication', async () => {
-    const { app } = buildTestApp({ config: buildAuthConfig() });
-
-    const res = await secureGet(app, '/api/health');
-
-    expect(res.status).toBe(200);
-  });
-
-  it('keeps the root service index public without authentication', async () => {
-    const { app } = buildTestApp({ config: buildAuthConfig() });
-
-    const res = await secureGet(app, '/');
-
-    expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({
-      name: packageMetadata.name,
-      status: 'ok',
-      requestId: TEST_REQUEST_ID,
-    });
-  });
-
-  it('rejects protected endpoints without authentication', async () => {
-    const { app } = buildTestApp({ config: buildAuthConfig() });
-
-    const res = await secureGet(
-      app,
-      `/api/accessibility/description?image_source=${
-        encodeURIComponent('https://example.com/img.jpg')
-      }&model=clip`,
-    );
-
-    expect(res.status).toBe(401);
-    expect(res.body).toMatchObject({
-      error: 'Missing or invalid API authentication credentials',
-      code: 'API_AUTHENTICATION_FAILED',
-      requestId: TEST_REQUEST_ID,
-    });
-  });
-
-  it('accepts X-API-Key authentication on protected endpoints', async () => {
-    const factory = new ImageDescriberFactory().register('clip', {
-      describeImage: jest.fn().mockResolvedValue({
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual([{
         description: 'authenticated description',
         imageUrl: 'https://example.com/img.jpg',
-      }),
-    });
-    const { app } = buildTestApp({
-      config: buildAuthConfig(),
-      imageDescriberFactory: factory,
+      }]);
     });
 
-    const res = await secureGet(
-      app,
-      `/api/accessibility/description?image_source=${
-        encodeURIComponent('https://example.com/img.jpg')
-      }&model=clip`,
-    ).set('X-API-Key', 'dummy-2');
+    it('accepts Bearer authentication on protected endpoints', async () => {
+      const scraperService = {
+        getImages: jest.fn().mockResolvedValue({
+          imageSources: ['https://example.com/a.jpg'],
+        }),
+      };
+      const { app } = buildTestApp({
+        config: buildAuthConfig(),
+        scraperService,
+      });
 
-    expect(res.status).toBe(200);
-    expect(res.body).toEqual([{
-      description: 'authenticated description',
-      imageUrl: 'https://example.com/img.jpg',
-    }]);
-  });
+      const res = await secureGet(
+        app,
+        `/api/scraper/images?url=${encodeURIComponent('https://example.com')}`,
+      ).set('Authorization', 'Bearer dummy-1');
 
-  it('accepts Bearer authentication on protected endpoints', async () => {
-    const scraperService = {
-      getImages: jest.fn().mockResolvedValue({
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({
         imageSources: ['https://example.com/a.jpg'],
-      }),
-    };
-    const { app } = buildTestApp({
-      config: buildAuthConfig(),
-      scraperService,
+      });
     });
 
-    const res = await secureGet(
-      app,
-      `/api/scraper/images?url=${encodeURIComponent('https://example.com')}`,
-    ).set('Authorization', 'Bearer dummy-1');
+    it('rejects protected endpoints when the token is not in API_AUTH_TOKENS', async () => {
+      const { app } = buildTestApp({ config: buildAuthConfig() });
 
-    expect(res.status).toBe(200);
-    expect(res.body).toEqual({
-      imageSources: ['https://example.com/a.jpg'],
+      const res = await secureGet(
+        app,
+        `/api/scraper/images?url=${encodeURIComponent('https://example.com')}`,
+      ).set('Authorization', 'Bearer invalid-token');
+
+      expect(res.status).toBe(401);
+      expect(res.body).toMatchObject({
+        error: 'Missing or invalid API authentication credentials',
+        code: 'API_AUTHENTICATION_FAILED',
+        requestId: TEST_REQUEST_ID,
+      });
     });
-  });
 
-  it('rejects protected endpoints when the token is not in API_AUTH_TOKENS', async () => {
-    const { app } = buildTestApp({ config: buildAuthConfig() });
-
-    const res = await secureGet(
-      app,
-      `/api/scraper/images?url=${encodeURIComponent('https://example.com')}`,
-    ).set('Authorization', 'Bearer invalid-token');
-
-    expect(res.status).toBe(401);
-    expect(res.body).toMatchObject({
-      error: 'Missing or invalid API authentication credentials',
-      code: 'API_AUTHENTICATION_FAILED',
-      requestId: TEST_REQUEST_ID,
-    });
-  });
-
-  it('allows protected endpoints through when auth is explicitly disabled', async () => {
-    const scraperService = {
-      getImages: jest.fn().mockResolvedValue({
-        imageSources: ['https://example.com/a.jpg'],
-      }),
-    };
-    const { app } = buildTestApp({
-      config: {
-        ...buildAuthConfig(),
-        auth: {
-          enabled: false,
-          tokens: ['dummy-1', 'dummy-2'],
+    it('allows protected endpoints through when auth is explicitly disabled', async () => {
+      const scraperService = {
+        getImages: jest.fn().mockResolvedValue({
+          imageSources: ['https://example.com/a.jpg'],
+        }),
+      };
+      const { app } = buildTestApp({
+        config: {
+          ...buildAuthConfig(),
+          auth: {
+            enabled: false,
+            tokens: ['dummy-1', 'dummy-2'],
+          },
         },
-      },
-      scraperService,
-    });
+        scraperService,
+      });
 
-    const res = await secureGet(
-      app,
-      `/api/scraper/images?url=${encodeURIComponent('https://example.com')}`,
-    );
+      const res = await secureGet(
+        app,
+        `/api/scraper/images?url=${encodeURIComponent('https://example.com')}`,
+      );
 
-    expect(res.status).toBe(200);
-    expect(res.body).toEqual({
-      imageSources: ['https://example.com/a.jpg'],
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({
+        imageSources: ['https://example.com/a.jpg'],
+      });
     });
   });
 });

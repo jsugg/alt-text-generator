@@ -21,7 +21,7 @@ afterEach(() => {
   jest.resetModules();
 });
 
-describe('validateEnvVars', () => {
+describe('Unit | Utils | Validate Env Vars', () => {
   it('accepts a Replicate-only provider configuration', () => {
     const validateEnvVars = loadValidator({
       overrides: {

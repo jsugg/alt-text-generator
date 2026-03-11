@@ -33,7 +33,7 @@ const createWorker = (pid, overrides = {}) => ({
   ...overrides,
 });
 
-describe('clusterManager', () => {
+describe('Unit | Server | Cluster Manager', () => {
   beforeEach(() => {
     jest.useFakeTimers();
     jest.setSystemTime(new Date('2026-03-07T12:00:00.000Z'));
