@@ -66,6 +66,8 @@ npm run doctor:tls -- https://example.com
 npm run doctor:tls -- https://example.com --fix --write-env --env-file .env.test
 ```
 
+`npm test` now includes a real Redis-backed integration suite. Install `redis-server` locally to exercise the full rate-limit concurrency path; CI installs it explicitly on the Jest matrix.
+
 ## GitHub Workflows
 
 The repository uses a small workflow set with separate responsibilities:

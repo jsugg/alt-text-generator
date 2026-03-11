@@ -1,5 +1,7 @@
 const {
+  buildFailOpenRateLimitResponse,
   buildRedisStorePrefix,
+  createFailOpenStore,
   createMemoryRateLimitStoreProvider,
   initializeRateLimitStoreProvider,
   RATE_LIMIT_STORE_SCOPES,
@@ -36,7 +38,14 @@ describe('rateLimitStore infrastructure', () => {
 
     class FakeRedisStore {
       constructor(options) {
+        this.increment = jest.fn(async () => {
+          await options.sendCommand('PING');
+          return buildFailOpenRateLimitResponse(60_000);
+        });
+        this.decrement = jest.fn().mockResolvedValue(undefined);
         this.options = options;
+        this.prefix = options.prefix;
+        this.resetKey = jest.fn().mockResolvedValue(undefined);
       }
     }
 
@@ -64,14 +73,52 @@ describe('rateLimitStore infrastructure', () => {
       url: 'redis://shared.example:6379',
     });
     expect(redisClient.connect).toHaveBeenCalledTimes(1);
-    expect(apiStore.options.prefix).toBe('alt-text-generator:rate-limit:api:');
-    expect(statusStore.options.prefix).toBe('alt-text-generator:rate-limit:status:');
+    expect(apiStore.prefix).toBe('alt-text-generator:rate-limit:api:');
+    expect(statusStore.prefix).toBe('alt-text-generator:rate-limit:status:');
 
-    await apiStore.options.sendCommand('PING');
+    await apiStore.increment('client-ip');
     expect(redisClient.sendCommand).toHaveBeenCalledWith(['PING']);
 
     await provider.close();
     expect(redisClient.quit).toHaveBeenCalledTimes(1);
+  });
+
+  it('wraps store operations so request-time store errors fail open', async () => {
+    const failingStore = {
+      decrement: jest.fn().mockRejectedValue(new Error('decrement failed')),
+      get: jest.fn().mockRejectedValue(new Error('get failed')),
+      increment: jest.fn().mockRejectedValue(new Error('increment failed')),
+      init: jest.fn(),
+      prefix: 'alt-text-generator:rate-limit:api:',
+      resetAll: jest.fn().mockRejectedValue(new Error('resetAll failed')),
+      resetKey: jest.fn().mockRejectedValue(new Error('resetKey failed')),
+    };
+    const logger = {
+      warn: jest.fn(),
+    };
+    const store = createFailOpenStore({
+      logger,
+      scope: RATE_LIMIT_STORE_SCOPES.API,
+      store: failingStore,
+    });
+
+    store.init({ windowMs: 5_000 });
+
+    await expect(store.increment('client-ip')).resolves.toEqual({
+      resetTime: expect.any(Date),
+      totalHits: 1,
+    });
+    await expect(store.get('client-ip')).resolves.toBeUndefined();
+    await expect(store.decrement('client-ip')).resolves.toBeUndefined();
+    await expect(store.resetKey('client-ip')).resolves.toBeUndefined();
+    await expect(store.resetAll()).resolves.toBeUndefined();
+    expect(store.prefix).toBe('alt-text-generator:rate-limit:api:');
+    expect(logger.warn).toHaveBeenCalledTimes(5);
+    expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({
+      operation: 'increment',
+      scope: RATE_LIMIT_STORE_SCOPES.API,
+      store: 'rate-limit',
+    }), 'Rate-limit store operation failed; allowing request to proceed');
   });
 
   it('fails fast when Redis mode is selected without a Redis URL', async () => {

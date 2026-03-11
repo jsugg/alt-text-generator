@@ -25,7 +25,6 @@ const buildRateLimiter = ({
   return rateLimit({
     max: limiterConfig.max,
     message: buildLimiterMessage(message),
-    passOnStoreError: true,
     skip,
     store,
     windowMs: limiterConfig.windowMs,

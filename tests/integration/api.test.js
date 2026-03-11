@@ -2,6 +2,9 @@ const request = require('supertest');
 
 const packageMetadata = require('../../package.json');
 const { createApp } = require('../../src/createApp');
+const {
+  initializeRateLimitStoreProvider,
+} = require('../../src/infrastructure/rateLimitStore');
 const { createRuntimeState } = require('../../src/server/runtimeState');
 const ImageDescriberFactory = require('../../src/services/ImageDescriberFactory');
 const config = require('../../config');
@@ -42,6 +45,7 @@ const buildTestApp = ({
   scraperService = {},
   imageDescriberFactory = new ImageDescriberFactory(),
   config: appConfig,
+  rateLimitStoreProvider,
   runtimeState,
 } = {}) => {
   const appLogger = createAppLogger();
@@ -52,6 +56,7 @@ const buildTestApp = ({
     scraperService,
     imageDescriberFactory,
     config: appConfig,
+    rateLimitStoreProvider,
     runtimeState,
   });
 
@@ -234,6 +239,72 @@ describe('rate limiting', () => {
     expect(first.status).toBe(404);
     expect(second.status).toBe(429);
     expect(second.text).toContain('Too many requests');
+  });
+
+  it('fails open when the Redis-backed limiter store errors during a request', async () => {
+    const appLogger = createAppLogger();
+    const requestLogger = createRequestLogger();
+    const appConfig = {
+      ...rateLimitedConfig,
+      auth: {
+        enabled: false,
+        tokens: [],
+      },
+      proxy: {
+        trustProxyHops: 1,
+      },
+      rateLimitStore: {
+        kind: 'redis',
+        mode: 'redis',
+        redisPrefix: 'jest:fail-open:',
+        redisTopology: 'external',
+        redisUrl: 'redis://rate-limit.example:6379',
+      },
+    };
+    const redisClient = {
+      connect: jest.fn().mockResolvedValue(undefined),
+      isOpen: true,
+      on: jest.fn(),
+      quit: jest.fn().mockResolvedValue(undefined),
+      sendCommand: jest.fn().mockResolvedValue('PONG'),
+    };
+
+    class FailingRedisStore {
+      constructor(options) {
+        this.decrement = jest.fn().mockResolvedValue(undefined);
+        this.increment = jest.fn().mockRejectedValue(new Error('rate-limit store unavailable'));
+        this.init = jest.fn();
+        this.prefix = options.prefix;
+        this.resetKey = jest.fn().mockResolvedValue(undefined);
+      }
+    }
+
+    const rateLimitStoreProvider = await initializeRateLimitStoreProvider({
+      config: appConfig,
+      createClientFn: jest.fn(() => redisClient),
+      logger: appLogger,
+      RedisStoreClass: FailingRedisStore,
+    });
+
+    try {
+      const { app } = createApp({
+        appLogger,
+        requestLogger,
+        config: appConfig,
+        rateLimitStoreProvider,
+      });
+
+      const response = await secureGet(app, '/api/v1/does-not-exist');
+
+      expect(response.status).toBe(404);
+      expect(appLogger.warn).toHaveBeenCalledWith(expect.objectContaining({
+        operation: 'increment',
+        scope: 'api',
+        store: 'rate-limit',
+      }), 'Rate-limit store operation failed; allowing request to proceed');
+    } finally {
+      await rateLimitStoreProvider.close();
+    }
   });
 });
 

@@ -12,12 +12,100 @@ const RATE_LIMIT_STORE_SCOPES = Object.freeze({
   STATUS: 'status',
 });
 
+const FALLBACK_RATE_LIMIT_WINDOW_MS = 1_000;
+
 const buildRedisStorePrefix = (rateLimitStoreConfig, scope) => {
   if (!Object.values(RATE_LIMIT_STORE_SCOPES).includes(scope)) {
     throw new Error(`Unknown rate-limit store scope: ${scope}`);
   }
 
   return `${rateLimitStoreConfig.redisPrefix}${scope}:`;
+};
+
+const buildFailOpenRateLimitResponse = (windowMs) => ({
+  resetTime: new Date(
+    Date.now() + (Number.isFinite(windowMs) && windowMs > 0
+      ? windowMs
+      : FALLBACK_RATE_LIMIT_WINDOW_MS),
+  ),
+  totalHits: 1,
+});
+
+const createFailOpenStore = ({
+  logger,
+  scope,
+  store,
+}) => {
+  let windowMs;
+
+  const logStoreError = (operation, error) => {
+    logger?.warn?.({
+      err: error,
+      operation,
+      scope,
+      store: 'rate-limit',
+    }, 'Rate-limit store operation failed; allowing request to proceed');
+  };
+
+  const failOpenStore = {
+    decrement: async (key) => {
+      try {
+        await store.decrement(key);
+      } catch (error) {
+        logStoreError('decrement', error);
+      }
+    },
+    increment: async (key) => {
+      try {
+        return await store.increment(key);
+      } catch (error) {
+        logStoreError('increment', error);
+        return buildFailOpenRateLimitResponse(windowMs);
+      }
+    },
+    init: (options) => {
+      windowMs = options?.windowMs;
+      store.init?.(options);
+    },
+    resetKey: async (key) => {
+      try {
+        await store.resetKey(key);
+      } catch (error) {
+        logStoreError('resetKey', error);
+      }
+    },
+  };
+
+  if (typeof store.get === 'function') {
+    failOpenStore.get = async (key) => {
+      try {
+        return await store.get(key);
+      } catch (error) {
+        logStoreError('get', error);
+        return undefined;
+      }
+    };
+  }
+
+  if (typeof store.resetAll === 'function') {
+    failOpenStore.resetAll = async () => {
+      try {
+        await store.resetAll();
+      } catch (error) {
+        logStoreError('resetAll', error);
+      }
+    };
+  }
+
+  if (typeof store.localKeys !== 'undefined') {
+    failOpenStore.localKeys = store.localKeys;
+  }
+
+  if (typeof store.prefix !== 'undefined') {
+    failOpenStore.prefix = store.prefix;
+  }
+
+  return failOpenStore;
 };
 
 const createMemoryRateLimitStoreProvider = (
@@ -69,17 +157,23 @@ const initializeRateLimitStoreProvider = async ({
       isClosed = true;
       await redisClient.quit();
     },
-    createStore: (scope) => new RedisStoreClass({
-      prefix: buildRedisStorePrefix(rateLimitStoreConfig, scope),
-      sendCommand: (...args) => redisClient.sendCommand(args),
+    createStore: (scope) => createFailOpenStore({
+      logger,
+      scope,
+      store: new RedisStoreClass({
+        prefix: buildRedisStorePrefix(rateLimitStoreConfig, scope),
+        sendCommand: (...args) => redisClient.sendCommand(args),
+      }),
     }),
     kind: RATE_LIMIT_STORE_MODES.REDIS,
   };
 };
 
 module.exports = {
+  buildFailOpenRateLimitResponse,
   buildRedisStorePrefix,
   createMemoryRateLimitStoreProvider,
+  createFailOpenStore,
   initializeRateLimitStoreProvider,
   RATE_LIMIT_STORE_SCOPES,
 };
