@@ -1,0 +1,359 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "AI-Powered Alternative Text Provider API",
+    "version": "1.0.0",
+    "description": "This API provides descriptions to images, to contribute to the world-wide accessibility efforts."
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "API token"
+      },
+      "apiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key"
+      }
+    },
+    "schemas": {
+      "ApiErrorResponse": {
+        "type": "object",
+        "required": [
+          "error",
+          "code"
+        ],
+        "properties": {
+          "error": {
+            "type": "string",
+            "example": "Invalid image_source URL"
+          },
+          "code": {
+            "type": "string",
+            "example": "INVALID_IMAGE_SOURCE_URL"
+          },
+          "requestId": {
+            "type": "string",
+            "example": "d5c9fca2-bef2-4ff6-92ff-0227d219d67e"
+          },
+          "details": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "field",
+                "issue"
+              ],
+              "properties": {
+                "field": {
+                  "type": "string",
+                  "example": "image_source"
+                },
+                "issue": {
+                  "type": "string",
+                  "example": "invalid_url"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/api/accessibility/description": {
+      "get": {
+        "summary": "Returns a description for a given image",
+        "description": "Takes an image URL and sends it to the selected AI model to generate an alt-text description.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "image_source",
+            "in": "query",
+            "description": "URLEncoded address of the image.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "https%3A%2F%2Fdeveloper.chrome.com%2Fstatic%2Fimages%2Fai-homepage-card.png"
+            }
+          },
+          {
+            "name": "model",
+            "in": "query",
+            "description": "The AI model to use, for example `clip` or `azure`.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "clip"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "description": {
+                        "type": "string",
+                        "example": "A man with glasses is playing a violin."
+                      },
+                      "imageUrl": {
+                        "type": "string",
+                        "example": "https://developer.chrome.com/static/images/ai-homepage-card.png"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or invalid parameters, or unsupported model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid API authentication credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/accessibility/descriptions": {
+      "get": {
+        "summary": "Returns descriptions for images found on a page",
+        "description": "Scrapes a website, preserves duplicate image entries in page order, and reuses a single prediction per unique image URL.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "url",
+            "in": "query",
+            "description": "URLEncoded address of the target website.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "https%3A%2F%2Fdeveloper.chrome.com%2F"
+            }
+          },
+          {
+            "name": "model",
+            "in": "query",
+            "description": "The AI model to use, for example `clip` or `azure`.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "clip"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Missing or invalid parameters, or unsupported model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid API authentication credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ping": {
+      "get": {
+        "summary": "Check if the API is available",
+        "responses": {
+          "200": {
+            "description": "API is online and listening",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string",
+                  "example": "pong"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/health": {
+      "get": {
+        "summary": "Check if the API is healthy",
+        "responses": {
+          "200": {
+            "description": "API is online and healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "uptime": {
+                      "type": "number"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "OK"
+                    },
+                    "timestamp": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/api/scraper/images": {
+      "get": {
+        "summary": "Returns the list of images found in a website",
+        "description": "Visits the website, selects img elements, and returns their src URLs as JSON.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "url",
+            "in": "query",
+            "description": "URLEncoded address of the target website.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "https%3A%2F%2Fdeveloper.chrome.com%2F"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "imageSources": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or invalid url parameter",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid API authentication credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "tags": []
+}

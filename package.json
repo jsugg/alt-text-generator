@@ -23,6 +23,7 @@
     "doctor:tls": "node scripts/doctor-tls.js",
     "dev:test-env": "ENV_FILE=.env.test NODE_ENV=development nodemon src/app.js | pino-pretty -i streams,options",
     "lint": "eslint .",
+    "openapi:generate": "node scripts/generate-openapi-spec.js",
     "postman:smoke": "node scripts/run-postman-harness.js smoke",
     "postman:harness": "node scripts/run-postman-harness.js full",
     "postman:live": "node scripts/run-postman-harness.js live",

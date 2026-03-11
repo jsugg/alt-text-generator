@@ -1,91 +1,35 @@
-const swaggerJSDoc = require('swagger-jsdoc');
-const config = require('./index');
+const fs = require('node:fs');
+const path = require('node:path');
 
-const buildServers = () => {
-  if (config.env === 'production') {
-    return [
-      {
-        url: config.swagger.prodServerUrl,
-        description: 'Production server',
-      },
-    ];
+const { buildServers, getSwaggerJSDocOptions } = require('./swagger-base');
+
+const generatedSpecPath = path.join(__dirname, '..', 'docs', 'openapi.base.json');
+
+const cloneJsonValue = (value) => JSON.parse(JSON.stringify(value));
+
+const loadGeneratedSpec = () => {
+  if (!fs.existsSync(generatedSpecPath)) {
+    return null;
   }
 
-  return [
-    {
-      url: config.swagger.devServerUrl,
-      description: 'Development server',
-    },
-  ];
+  return JSON.parse(fs.readFileSync(generatedSpecPath, 'utf8'));
 };
 
-const swaggerDefinition = {
-  openapi: '3.0.0',
-  info: {
-    title: 'AI-Powered Alternative Text Provider API',
-    version: '1.0.0',
-    description:
-      'This API provides descriptions to images, to contribute to the world-wide accessibility efforts.',
-  },
-  servers: buildServers(),
-  components: {
-    securitySchemes: {
-      bearerAuth: {
-        type: 'http',
-        scheme: 'bearer',
-        bearerFormat: 'API token',
-      },
-      apiKeyAuth: {
-        type: 'apiKey',
-        in: 'header',
-        name: 'X-API-Key',
-      },
-    },
-    schemas: {
-      ApiErrorResponse: {
-        type: 'object',
-        required: ['error', 'code'],
-        properties: {
-          error: {
-            type: 'string',
-            example: 'Invalid image_source URL',
-          },
-          code: {
-            type: 'string',
-            example: 'INVALID_IMAGE_SOURCE_URL',
-          },
-          requestId: {
-            type: 'string',
-            example: 'd5c9fca2-bef2-4ff6-92ff-0227d219d67e',
-          },
-          details: {
-            type: 'array',
-            items: {
-              type: 'object',
-              required: ['field', 'issue'],
-              properties: {
-                field: {
-                  type: 'string',
-                  example: 'image_source',
-                },
-                issue: {
-                  type: 'string',
-                  example: 'invalid_url',
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-  },
+const loadSwaggerSpec = () => {
+  const generatedSpec = loadGeneratedSpec();
+
+  if (generatedSpec) {
+    return {
+      ...cloneJsonValue(generatedSpec),
+      servers: buildServers(),
+    };
+  }
+
+  // NOTE: Dynamic generation is retained as a development fallback when the
+  // generated spec artifact is missing locally.
+  // eslint-disable-next-line global-require
+  const swaggerJSDoc = require('swagger-jsdoc');
+  return swaggerJSDoc(getSwaggerJSDocOptions());
 };
 
-const options = {
-  swaggerDefinition,
-  apis: ['src/api/v1/**/*.js'],
-};
-
-const swaggerSpec = swaggerJSDoc(options);
-
-module.exports = swaggerSpec;
+module.exports = loadSwaggerSpec();

@@ -1,8 +1,6 @@
 describe('config/swagger', () => {
   const loadSwaggerDefinition = ({ env, devServerUrl, prodServerUrl }) => {
     jest.resetModules();
-
-    jest.doMock('swagger-jsdoc', () => jest.fn((options) => options.swaggerDefinition));
     jest.doMock('../../../config', () => ({
       env,
       swagger: {
@@ -15,24 +13,20 @@ describe('config/swagger', () => {
 
     jest.isolateModules(() => {
       // eslint-disable-next-line global-require
-      swaggerDefinition = require('../../../config/swagger');
+      swaggerDefinition = require('../../../config/swagger-base').createSwaggerDefinition();
     });
 
-    jest.dontMock('swagger-jsdoc');
     jest.dontMock('../../../config');
 
     return swaggerDefinition;
   };
 
-  const loadParsedSwaggerSpec = ({ env, devServerUrl, prodServerUrl }) => {
+  const loadParsedSwaggerSpec = ({ servers }) => {
     jest.resetModules();
 
-    jest.doMock('../../../config', () => ({
-      env,
-      swagger: {
-        devServerUrl,
-        prodServerUrl,
-      },
+    jest.doMock('../../../config/swagger-base', () => ({
+      buildServers: () => servers,
+      getSwaggerJSDocOptions: jest.fn(),
     }));
 
     let swaggerSpec;
@@ -42,7 +36,7 @@ describe('config/swagger', () => {
       swaggerSpec = require('../../../config/swagger');
     });
 
-    jest.dontMock('../../../config');
+    jest.dontMock('../../../config/swagger-base');
 
     return swaggerSpec;
   };
@@ -84,9 +78,12 @@ describe('config/swagger', () => {
 
   it('publishes runnable encoded examples for image and page endpoints', () => {
     const swaggerSpec = loadParsedSwaggerSpec({
-      env: 'production',
-      devServerUrl: 'https://localhost:8443',
-      prodServerUrl: 'https://wcag.qcraft.com.br',
+      servers: [
+        {
+          url: 'https://wcag.qcraft.com.br',
+          description: 'Production server',
+        },
+      ],
     });
 
     const descriptionParameters = swaggerSpec.paths['/api/accessibility/description'].get.parameters;
@@ -118,9 +115,12 @@ describe('config/swagger', () => {
 
   it('publishes reusable auth schemes and protects non-health endpoints', () => {
     const swaggerSpec = loadParsedSwaggerSpec({
-      env: 'production',
-      devServerUrl: 'https://localhost:8443',
-      prodServerUrl: 'https://wcag.qcraft.com.br',
+      servers: [
+        {
+          url: 'https://wcag.qcraft.com.br',
+          description: 'Production server',
+        },
+      ],
     });
 
     expect(swaggerSpec.components.securitySchemes).toEqual({
@@ -144,5 +144,93 @@ describe('config/swagger', () => {
       .content['application/json'].schema).toEqual({
       $ref: '#/components/schemas/ApiErrorResponse',
     });
+  });
+
+  it('prefers the generated OpenAPI artifact over runtime swagger-jsdoc parsing', () => {
+    jest.resetModules();
+
+    const swaggerJsdoc = jest.fn(() => {
+      throw new Error('runtime swagger-jsdoc should not run when a generated spec exists');
+    });
+
+    jest.doMock('swagger-jsdoc', () => swaggerJsdoc);
+    jest.doMock('../../../config/swagger-base', () => ({
+      buildServers: () => [
+        {
+          url: 'https://wcag.qcraft.com.br',
+          description: 'Production server',
+        },
+      ],
+      getSwaggerJSDocOptions: jest.fn(),
+    }));
+
+    let swaggerSpec;
+
+    jest.isolateModules(() => {
+      // eslint-disable-next-line global-require
+      swaggerSpec = require('../../../config/swagger');
+    });
+
+    expect(swaggerSpec.openapi).toBe('3.0.0');
+    expect(swaggerSpec.servers).toEqual([
+      {
+        url: 'https://wcag.qcraft.com.br',
+        description: 'Production server',
+      },
+    ]);
+    expect(swaggerJsdoc).not.toHaveBeenCalled();
+
+    jest.dontMock('swagger-jsdoc');
+    jest.dontMock('../../../config/swagger-base');
+  });
+
+  it('falls back to runtime generation when the generated spec artifact is missing', () => {
+    jest.resetModules();
+
+    const swaggerJsdoc = jest.fn((options) => options.swaggerDefinition);
+
+    jest.doMock('node:fs', () => ({
+      existsSync: jest.fn(() => false),
+      readFileSync: jest.fn(),
+    }));
+    jest.doMock('swagger-jsdoc', () => swaggerJsdoc);
+    jest.doMock('../../../config/swagger-base', () => ({
+      buildServers: () => [
+        {
+          url: 'https://wcag.qcraft.com.br',
+          description: 'Production server',
+        },
+      ],
+      getSwaggerJSDocOptions: () => ({
+        swaggerDefinition: {
+          openapi: '3.0.0',
+          servers: [
+            {
+              url: 'https://wcag.qcraft.com.br',
+              description: 'Production server',
+            },
+          ],
+        },
+      }),
+    }));
+
+    let swaggerSpec;
+
+    jest.isolateModules(() => {
+      // eslint-disable-next-line global-require
+      swaggerSpec = require('../../../config/swagger');
+    });
+
+    expect(swaggerJsdoc).toHaveBeenCalledTimes(1);
+    expect(swaggerSpec.servers).toEqual([
+      {
+        url: 'https://wcag.qcraft.com.br',
+        description: 'Production server',
+      },
+    ]);
+
+    jest.dontMock('node:fs');
+    jest.dontMock('swagger-jsdoc');
+    jest.dontMock('../../../config/swagger-base');
   });
 });

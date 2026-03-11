@@ -1,17 +1,27 @@
 name: Dependency Review
 
 on:
+  workflow_dispatch:
+    inputs:
+      base_ref:
+        description: Base ref to compare against for a manual dependency review run.
+        required: true
+        type: string
+      head_ref:
+        description: Head ref to compare for a manual dependency review run.
+        required: true
+        type: string
+  push:
+    branches:
+      - main
+      - production
   pull_request:
     branches:
       - main
       - production
-    paths:
-      - 'package.json'
-      - 'package-lock.json'
 
 permissions:
   contents: read
-  pull-requests: write
 
 concurrency:
   group: dependency-review-${{ github.ref }}
@@ -26,5 +36,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-      - name: Review dependency changes
+      - name: Review dependency changes for pull requests
+        if: github.event_name == 'pull_request'
         uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
+
+      - name: Review dependency changes for pushes and manual runs
+        if: github.event_name != 'pull_request'
+        uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
+        with:
+          base-ref: ${{ github.event_name == 'workflow_dispatch' && inputs.base_ref || github.event.before }}
+          head-ref: ${{ github.event_name == 'workflow_dispatch' && inputs.head_ref || github.sha }}

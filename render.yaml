@@ -9,6 +9,7 @@ services:
     plan: free
     region: oregon
     numInstances: 1
+    healthCheckPath: /api/health
     buildCommand: npm install
     startCommand: npm run prod
     envVars:
