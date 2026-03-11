@@ -98,10 +98,11 @@ jobs:
           NODE_ENV: test
           REPLICATE_API_TOKEN: test-token
 
-      - name: Run tests with JUnit reporting
+      - name: Run tests with JUnit and Allure reporting
         if: matrix.node-version == '20'
         run: npm run test:ci
         env:
+          ALLURE_RESULTS_DIR: reports/allure-results
           NODE_ENV: test
           REPLICATE_API_TOKEN: test-token
           JEST_JUNIT_OUTPUT_DIR: reports/jest
@@ -126,11 +127,21 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+      - name: Upload Jest Allure results
+        if: always() && matrix.node-version == '20'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: jest-allure-results-node-${{ matrix.node-version }}
+          path: reports/allure-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
   newman:
     name: newman
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
+      ALLURE_RESULTS_DIR: reports/allure-results
       NEWMAN_MODE: ${{ github.event_name == 'pull_request' && 'smoke' || 'harness' }}
     steps:
       - name: Checkout
@@ -168,6 +179,15 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+      - name: Upload Newman Allure results
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: newman-allure-results-${{ env.NEWMAN_MODE }}
+          path: reports/allure-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
   test-report:
     name: test-report
     if: always()
@@ -202,6 +222,142 @@ jobs:
             reports/jest/**/*.xml
             reports/newman/**/*.xml
 
+  allure-report:
+    name: allure-report
+    if: always()
+    needs:
+      - test
+      - newman
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    outputs:
+      has-results: ${{ steps.allure-inputs.outputs.has-results }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Java
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Setup project
+        uses: ./.github/actions/setup-node-project
+        with:
+          node-version: '20'
+
+      - name: Download Jest Allure results
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          pattern: jest-allure-results-node-*
+          path: reports/allure-results
+          merge-multiple: true
+
+      - name: Download Newman Allure results
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          pattern: newman-allure-results-*
+          path: reports/allure-results
+          merge-multiple: true
+
+      - name: Detect Allure raw results
+        id: allure-inputs
+        shell: bash
+        run: |
+          if find reports/allure-results -type f ! -name '.gitkeep' -print -quit | grep -q .; then
+            echo "has-results=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has-results=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Write Allure metadata
+        if: steps.allure-inputs.outputs.has-results == 'true'
+        run: node scripts/reporting/write-allure-metadata.js --results-dir reports/allure-results
+        env:
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+
+      - name: Generate Allure report
+        if: steps.allure-inputs.outputs.has-results == 'true'
+        run: npx --no-install allure generate reports/allure-results --clean -o reports/allure-report
+
+      - name: Configure GitHub Pages
+        if: >-
+          github.event_name == 'push' &&
+          github.ref == 'refs/heads/main' &&
+          steps.allure-inputs.outputs.has-results == 'true'
+        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
+
+      - name: Upload GitHub Pages artifact
+        if: >-
+          github.event_name == 'push' &&
+          github.ref == 'refs/heads/main' &&
+          steps.allure-inputs.outputs.has-results == 'true'
+        uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
+        with:
+          path: reports/allure-report
+
+      - name: Upload Allure report
+        if: always() && steps.allure-inputs.outputs.has-results == 'true'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: allure-report
+          path: reports/allure-report/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Write Allure summary
+        shell: bash
+        run: |
+          {
+            echo "## Allure Report"
+            echo
+            if [[ "${{ steps.allure-inputs.outputs.has-results }}" == "true" ]]; then
+              echo "- HTML report uploaded as the \`allure-report\` artifact."
+              echo "- Raw results merged from the canonical Node 20 Jest lane and the \`${{ github.event_name == 'pull_request' && 'smoke' || 'harness' }}\` Newman run."
+            else
+              echo "- No Allure raw results were available to merge."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  allure-pages:
+    name: allure-pages
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      needs.allure-report.result == 'success' &&
+      needs.allure-report.outputs.has-results == 'true'
+    needs:
+      - allure-report
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    concurrency:
+      group: github-pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      page-url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
+
+      - name: Write GitHub Pages summary
+        run: |
+          {
+            echo "## Allure Pages"
+            echo
+            echo "- Published URL: ${{ steps.deployment.outputs.page_url }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   ci-summary:
     name: ci-summary
     if: always()
@@ -211,6 +367,8 @@ jobs:
       - test
       - newman
       - test-report
+      - allure-report
+      - allure-pages
     runs-on: ubuntu-latest
     steps:
       - name: Write summary
@@ -223,5 +381,8 @@ jobs:
             echo "- test: ${{ needs.test.result }}"
             echo "- newman: ${{ needs.newman.result }}"
             echo "- test-report: ${{ needs.test-report.result }}"
+            echo "- allure-report: ${{ needs.allure-report.result }}"
+            echo "- allure-pages: ${{ needs.allure-pages.result }}"
+            echo "- allure-pages-url: ${{ needs.allure-pages.outputs.page-url || 'not-published' }}"
             echo "- newman mode: ${{ github.event_name == 'pull_request' && 'smoke' || 'harness' }}"
           } >> "$GITHUB_STEP_SUMMARY"

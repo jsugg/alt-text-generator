@@ -20,6 +20,10 @@ const {
   getSelectedProviders,
   resolveProviderScope,
 } = require('./postman/live-provider-scope');
+const {
+  buildNewmanReporterArgs,
+  resolveAllureResultsDir,
+} = require('./postman/newman-reporting');
 
 const ROOT = path.resolve(__dirname, '..');
 const COLLECTION_PATH = path.join(
@@ -202,13 +206,19 @@ function buildAppServerEnv({
  *
  * @param {string} label
  * @param {string[]} folders
- * @param {{ envPath?: string, envVars?: string[], extraArgs?: string[] }} options
+ * @param {{
+ *   allureResultsDir?: string | null,
+ *   envPath?: string,
+ *   envVars?: string[],
+ *   extraArgs?: string[],
+ * }} options
  * @returns {Promise<void>}
  */
 function runNewman(
   label,
   folders,
   {
+    allureResultsDir = null,
     envPath = ENV_PATH,
     envVars = [],
     extraArgs = [],
@@ -258,12 +268,11 @@ function runNewman(
     '10000',
     '--timeout-script',
     '10000',
-    '-r',
-    'cli,json,junit',
-    '--reporter-json-export',
-    path.join(REPORTS_DIR, `${label}.json`),
-    '--reporter-junit-export',
-    path.join(REPORTS_DIR, `${label}.xml`),
+    ...buildNewmanReporterArgs({
+      label,
+      reportsDir: REPORTS_DIR,
+      allureResultsDir,
+    }),
     ...folderArgs,
     ...extraArgs,
   ];
@@ -332,6 +341,7 @@ function installSignalCleanup(children) {
  */
 async function main() {
   const mode = process.argv[2] || 'full';
+  const allureResultsDir = resolveAllureResultsDir(process.env, ROOT);
   const liveModeEnabled = mode === 'live';
   const requiresAuthHarness = mode === 'smoke' || mode === 'full';
   const liveProviderScopeInput = process.env.LIVE_PROVIDER_SCOPE || 'auto';
@@ -375,6 +385,9 @@ async function main() {
   ];
 
   await fs.mkdir(REPORTS_DIR, { recursive: true });
+  if (allureResultsDir) {
+    await fs.mkdir(allureResultsDir, { recursive: true });
+  }
 
   const fixtureServer = spawnLogged(
     'fixture',
@@ -455,6 +468,7 @@ async function main() {
           '20 Single Description (Azure Stub)',
         ],
         {
+          allureResultsDir,
           envVars: localNewmanEnvVars,
           extraArgs: ['--insecure'],
         },
@@ -469,6 +483,7 @@ async function main() {
         'routing',
         ['05 Routing & Redirects'],
         {
+          allureResultsDir,
           envVars: localNewmanEnvVars,
           extraArgs: ['--insecure', '--ignore-redirects'],
         },
@@ -501,6 +516,7 @@ async function main() {
           '40 Negative Paths',
         ],
         {
+          allureResultsDir,
           envVars: localNewmanEnvVars,
           extraArgs: ['--insecure'],
         },
@@ -515,6 +531,7 @@ async function main() {
         'routing',
         ['05 Routing & Redirects'],
         {
+          allureResultsDir,
           envVars: localNewmanEnvVars,
           extraArgs: ['--insecure', '--ignore-redirects'],
         },
@@ -551,6 +568,7 @@ async function main() {
         'live-provider',
         liveFolders,
         {
+          allureResultsDir,
           envVars: localNewmanEnvVars,
           extraArgs: ['--insecure'],
         },
@@ -564,8 +582,10 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  // eslint-disable-next-line no-console
-  console.error(error);
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch((error) => {
+    // eslint-disable-next-line no-console
+    console.error(error);
+    process.exit(1);
+  });
+}

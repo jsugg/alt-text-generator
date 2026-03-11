@@ -97,6 +97,33 @@ Notes:
 
 Contribution standards for the contract suite live in [docs/postman-standards.md](./docs/postman-standards.md).
 
+## Allure Reports
+
+Use these commands for local Allure generation:
+
+```bash
+npm run allure:clean
+npm run test:allure
+npm run postman:harness:allure
+npm run allure:generate
+npm run allure:open
+```
+
+Or run the combined local flow:
+
+```bash
+npm run report:allure
+```
+
+Notes:
+
+- Raw Allure files accumulate under `reports/allure-results/`; generated HTML is written to `reports/allure-report/`.
+- The combined report merges one canonical Jest run with the Newman harness so local and CI results follow the same structure.
+- CI uploads the generated HTML as the `allure-report` artifact.
+- Pushes to `main` also publish the generated report to GitHub Pages at `https://jsugg.github.io/alt-text-generator/` once GitHub Pages is enabled for the repository with GitHub Actions as the source.
+- CI only emits Jest Allure results from the Node 20 lane so unit tests do not appear three times in the merged report.
+- The Allure CLI requires Java when you generate the HTML report locally or in CI.
+
 ## Runtime Essentials
 
 Required at startup:

@@ -20,15 +20,21 @@
     "node": ">=20 <25"
   },
   "scripts": {
+    "allure:clean": "node -e \"const fs=require('node:fs'); for (const dir of ['reports/allure-results','reports/allure-report']) { fs.rmSync(dir,{recursive:true,force:true}); fs.mkdirSync(dir,{recursive:true}); fs.writeFileSync(dir + '/.gitkeep', ''); }\"",
+    "allure:generate": "allure generate reports/allure-results --clean -o reports/allure-report",
+    "allure:open": "allure open reports/allure-report",
     "doctor:tls": "node scripts/doctor-tls.js",
     "dev:test-env": "ENV_FILE=.env.test NODE_ENV=development nodemon src/app.js | pino-pretty -i streams,options",
     "lint": "eslint .",
     "openapi:generate": "node scripts/generate-openapi-spec.js",
+    "postman:harness:allure": "ALLURE_RESULTS_DIR=reports/allure-results node scripts/run-postman-harness.js full",
     "postman:smoke": "node scripts/run-postman-harness.js smoke",
     "postman:harness": "node scripts/run-postman-harness.js full",
     "postman:live": "node scripts/run-postman-harness.js live",
     "postman:deploy": "node scripts/run-postman-deploy.js",
+    "report:allure": "npm run allure:clean && npm run test:allure && npm run postman:harness:allure && npm run allure:generate",
     "test": "jest",
+    "test:allure": "ALLURE_RESULTS_DIR=reports/allure-results jest",
     "test:ci": "jest --ci --reporters=default --reporters=jest-junit",
     "prod": "NODE_ENV=production node src/app.js",
     "dev": "NODE_ENV=development nodemon src/app.js | pino-pretty -i streams,options"
@@ -58,29 +64,18 @@
     "undici": "^6.23.0"
   },
   "devDependencies": {
+    "allure-commandline": "^2.37.0",
+    "allure-jest": "^3.6.0",
     "eslint": "^8.49.0",
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-plugin-import": "^2.28.1",
     "jest": "^29.7.0",
+    "jest-environment-node": "^29.7.0",
     "jest-junit": "^16.0.0",
     "newman": "^6.2.2",
+    "newman-reporter-allure": "^3.6.0",
     "nodemon": "^3.0.1",
     "supertest": "^6.3.4"
-  },
-  "jest": {
-    "testEnvironment": "node",
-    "collectCoverage": true,
-    "coverageDirectory": "coverage",
-    "coverageThreshold": {
-      "global": {
-        "lines": 80,
-        "functions": 80,
-        "branches": 70
-      }
-    },
-    "testMatch": [
-      "**/tests/**/*.test.js"
-    ]
   },
   "nodemonConfig": {
     "ignore": [
