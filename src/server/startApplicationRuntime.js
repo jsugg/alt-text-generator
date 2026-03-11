@@ -2,6 +2,7 @@ const serverConfig = require('../../config/serverConfig');
 const { createApp } = require('../createApp');
 const { loadTlsCredentials } = require('../infrastructure/loadTlsCredentials');
 const { registerFatalHandlers } = require('./registerFatalHandlers');
+const { createRuntimeState } = require('./runtimeState');
 const {
   createHttpServer,
   createHttpsServer,
@@ -45,18 +46,23 @@ const startApplicationRuntime = async ({
   });
 
   try {
-    const { app } = createAppFn({ config, appLogger });
+    const runtimeState = createRuntimeState();
+    const { app } = createAppFn({ config, appLogger, runtimeState });
     const tlsCredentials = await loadTlsCredentialsFn();
     const httpServer = createHttpServerFn(app);
     const httpsServer = createHttpsServerFn(app, () => tlsCredentials);
 
-    startServerFn(httpServer, serverPorts.httpPort, appLogger);
-    startServerFn(httpsServer, serverPorts.httpsPort, appLogger);
+    await Promise.all([
+      startServerFn(httpServer, serverPorts.httpPort, appLogger),
+      startServerFn(httpsServer, serverPorts.httpsPort, appLogger),
+    ]);
+    runtimeState.markReady();
 
-    shutdown = gracefulShutdownFn([httpServer, httpsServer], appLogger, processRef);
+    shutdown = gracefulShutdownFn([httpServer, httpsServer], appLogger, runtimeState, processRef);
 
     return {
       cleanupFatalHandlers,
+      runtimeState,
       servers: [httpServer, httpsServer],
       shutdown,
     };

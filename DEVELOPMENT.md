@@ -329,12 +329,17 @@ At least one provider must be configured at startup: `REPLICATE_API_TOKEN`, or A
 | --- | --- | --- | --- |
 | `RATE_LIMIT_WINDOW_MS` | No | `900000` | Rate-limit window. |
 | `RATE_LIMIT_MAX` | No | `100` | Max requests per window. |
+| `STATUS_RATE_LIMIT_WINDOW_MS` | No | `60000` | Dedicated rate-limit window for `/api/ping` and `/api/health`. |
+| `STATUS_RATE_LIMIT_MAX` | No | `60` | Max status-route requests per window per client. |
 | `LOG_LEVEL` | No | `debug` in non-production, `info` in production | Pino log level for process-stream logs. |
 | `SWAGGER_DEV_URL` | No | `https://localhost:8443` | Swagger server URL for local development docs. |
 | `SWAGGER_PROD_URL` | No | `https://wcag.qcraft.com.br` | Swagger server URL for production docs. |
 
 - Logging stays on stdout so container platforms can collect it without relying on local files.
 - Public endpoints remain `ping`, `health`, and `api-docs` even when API auth is enabled.
+- `/api/ping` stays a liveness signal and continues returning `200` while the process is draining.
+- `/api/health` is the readiness signal used by Render. It returns `200` while the instance is ready and `503` once graceful shutdown begins.
+- Status routes use their own limiter so health probes are protected without sharing the main API request budget.
 - Auth-protected API failures use a structured JSON contract with `error`, `code`, `requestId`, and optional `details`.
 
 ## Render Deployment Contract

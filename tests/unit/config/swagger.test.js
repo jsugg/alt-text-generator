@@ -136,6 +136,14 @@ describe('config/swagger', () => {
       },
     });
     expect(swaggerSpec.paths['/api/health'].get.security).toBeUndefined();
+    expect(swaggerSpec.paths['/api/health'].get.responses['503'].content['application/json'].schema)
+      .toMatchObject({
+        required: ['message', 'ready', 'timestamp', 'uptime'],
+        properties: {
+          message: { type: 'string', example: 'DRAINING' },
+          ready: { type: 'boolean', example: false },
+        },
+      });
     expect(swaggerSpec.paths['/api/scraper/images'].get.security).toEqual([
       { bearerAuth: [] },
       { apiKeyAuth: [] },

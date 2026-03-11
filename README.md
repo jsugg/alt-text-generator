@@ -137,6 +137,7 @@ Advanced runtime settings such as worker count, scraper timeouts, rate limits, l
 Clustered mode applies bounded restart backoff and a crash budget so persistent worker faults do not spin forever inside the app process.
 Production logs stay on the process stream so platforms such as Render can collect them directly.
 The Render deployment shape is versioned in [render.yaml](./render.yaml), while the Node runtime pin remains in [`package.json`](./package.json) under `engines.node`.
+`/api/ping` is the public liveness signal, while `/api/health` is a readiness endpoint: it returns `200` while the instance is ready and `503` while the process is draining during shutdown.
 
 ## Error Contract
 

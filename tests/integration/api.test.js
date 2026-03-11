@@ -2,6 +2,7 @@ const request = require('supertest');
 
 const packageMetadata = require('../../package.json');
 const { createApp } = require('../../src/createApp');
+const { createRuntimeState } = require('../../src/server/runtimeState');
 const ImageDescriberFactory = require('../../src/services/ImageDescriberFactory');
 const config = require('../../config');
 
@@ -41,6 +42,7 @@ const buildTestApp = ({
   scraperService = {},
   imageDescriberFactory = new ImageDescriberFactory(),
   config: appConfig,
+  runtimeState,
 } = {}) => {
   const appLogger = createAppLogger();
   const requestLogger = createRequestLogger();
@@ -50,6 +52,7 @@ const buildTestApp = ({
     scraperService,
     imageDescriberFactory,
     config: appConfig,
+    runtimeState,
   });
 
   return { app, appLogger, requestLogger };
@@ -105,6 +108,17 @@ describe('GET /api/ping', () => {
     expect(res.text).toBe('pong');
     expect(requestLogger).toHaveBeenCalled();
   });
+
+  it('stays available while the instance is draining', async () => {
+    const runtimeState = createRuntimeState({ initialReady: true });
+    runtimeState.markDraining();
+    const { app } = buildTestApp({ runtimeState });
+
+    const res = await secureGet(app, '/api/ping');
+
+    expect(res.status).toBe(200);
+    expect(res.text).toBe('pong');
+  });
 });
 
 describe('GET /', () => {
@@ -150,8 +164,23 @@ describe('GET /api/health', () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('message', 'OK');
+    expect(res.body).toHaveProperty('ready', true);
     expect(res.body).toHaveProperty('uptime');
     expect(res.body).toHaveProperty('timestamp');
+  });
+
+  it('returns 503 while the instance is draining', async () => {
+    const runtimeState = createRuntimeState({ initialReady: true });
+    runtimeState.markDraining();
+    const { app } = buildTestApp({ runtimeState });
+
+    const res = await secureGet(app, '/api/health');
+
+    expect(res.status).toBe(503);
+    expect(res.body).toMatchObject({
+      message: 'DRAINING',
+      ready: false,
+    });
   });
 });
 
@@ -161,17 +190,39 @@ describe('rate limiting', () => {
       windowMs: 60 * 1000,
       max: 1,
     },
+    statusRateLimit: {
+      windowMs: 60 * 1000,
+      max: 2,
+    },
   };
 
-  it('does not rate limit repeated health checks', async () => {
+  it('keeps health checks available when the default API limiter is exhausted', async () => {
+    const { app } = buildTestApp({ config: rateLimitedConfig });
+
+    const firstApiCall = await secureGet(app, '/api/v1/does-not-exist');
+    const secondApiCall = await secureGet(app, '/api/v1/does-not-exist');
+    const healthCheck = await secureGet(app, '/api/health');
+
+    expect(firstApiCall.status).toBe(404);
+    expect(secondApiCall.status).toBe(429);
+    expect(healthCheck.status).toBe(200);
+    expect(healthCheck.body).toMatchObject({
+      message: 'OK',
+      ready: true,
+    });
+  });
+
+  it('applies the dedicated status limiter to repeated health checks', async () => {
     const { app } = buildTestApp({ config: rateLimitedConfig });
 
     const first = await secureGet(app, '/api/health');
     const second = await secureGet(app, '/api/health');
+    const third = await secureGet(app, '/api/health');
 
     expect(first.status).toBe(200);
     expect(second.status).toBe(200);
-    expect(second.body).toHaveProperty('message', 'OK');
+    expect(third.status).toBe(429);
+    expect(third.text).toContain('Too many status requests');
   });
 
   it('continues to rate limit normal API traffic', async () => {

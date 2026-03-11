@@ -14,6 +14,8 @@ describe('startApplicationRuntime', () => {
     const httpServer = { kind: 'http' };
     const httpsServer = { kind: 'https' };
     const shutdown = jest.fn();
+    const createAppFn = jest.fn(() => ({ app }));
+    const gracefulShutdownFn = jest.fn(() => shutdown);
     const logger = {
       info: jest.fn(),
     };
@@ -21,18 +23,30 @@ describe('startApplicationRuntime', () => {
     const result = await startApplicationRuntime({
       appLogger: logger,
       config: { env: 'production' },
-      createAppFn: jest.fn(() => ({ app })),
+      createAppFn,
       createHttpServerFn: jest.fn(() => httpServer),
       createHttpsServerFn: jest.fn(() => httpsServer),
-      gracefulShutdownFn: jest.fn(() => shutdown),
+      gracefulShutdownFn,
       loadTlsCredentialsFn: jest.fn().mockResolvedValue({ key: 'k', cert: 'c' }),
       processRef: createProcessRef(),
       serverPorts: { httpPort: 8080, httpsPort: 8443 },
-      startServerFn: jest.fn(),
+      startServerFn: jest.fn().mockResolvedValue(undefined),
     });
 
     expect(result.servers).toEqual([httpServer, httpsServer]);
     expect(result.shutdown).toBe(shutdown);
+    expect(result.runtimeState.isReady()).toBe(true);
+    expect(createAppFn).toHaveBeenCalledWith(expect.objectContaining({
+      config: { env: 'production' },
+      appLogger: logger,
+      runtimeState: result.runtimeState,
+    }));
+    expect(gracefulShutdownFn).toHaveBeenCalledWith(
+      [httpServer, httpsServer],
+      logger,
+      result.runtimeState,
+      expect.any(EventEmitter),
+    );
   });
 
   it('cleans up fatal handlers when bootstrap fails before servers are ready', async () => {

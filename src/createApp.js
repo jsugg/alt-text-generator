@@ -13,10 +13,11 @@ const ReplicateDescriberService = require('./services/ReplicateDescriberService'
 const AzureDescriberService = require('./services/AzureDescriberService');
 const ImageDescriberFactory = require('./services/ImageDescriberFactory');
 const PageDescriptionService = require('./services/PageDescriptionService');
-const healthController = require('./api/v1/controllers/healthController');
+const { createHealthController } = require('./api/v1/controllers/healthController');
 const ScraperController = require('./api/v1/controllers/scraperController');
 const DescriptionController = require('./api/v1/controllers/descriptionController');
 const { applyMiddlewares } = require('./utils/applyBaseMiddleware');
+const { createStatusRateLimiter } = require('./api/v1/middleware/rate-limiters');
 const {
   createAccessControlMiddleware,
 } = require('./api/v1/middleware/access-control');
@@ -80,9 +81,10 @@ const createApp = ({
   scraperService,
   imageDescriberFactory,
   pageDescriptionService,
-  health = healthController,
+  health,
   outboundClients,
   replicateClient,
+  runtimeState,
 } = {}) => {
   const scraperConfig = config.scraper ?? defaultConfig.scraper;
   const proxyConfig = config.proxy ?? defaultConfig.proxy;
@@ -116,6 +118,8 @@ const createApp = ({
       scraperService: resolvedScraperService,
       imageDescriberFactory: resolvedImageDescriberFactory,
     });
+  const resolvedHealthController = health ?? createHealthController({ runtimeState });
+  const statusRateLimiter = createStatusRateLimiter(config);
 
   const scraperController = new ScraperController({
     scraperService: resolvedScraperService,
@@ -137,9 +141,10 @@ const createApp = ({
   app.use(createAccessControlMiddleware(config.auth));
 
   const apiRouter = buildApiRouter({
-    health,
+    health: resolvedHealthController,
     scraper: scraperController,
     description: descriptionController,
+    statusRateLimiter,
   }, appLogger);
   const mainRouter = createRouter(appLogger, apiRouter);
   app.use(mainRouter);

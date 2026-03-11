@@ -116,6 +116,11 @@ module.exports = {
     max: toNumber(process.env.RATE_LIMIT_MAX, 100),
   },
 
+  statusRateLimit: {
+    windowMs: toNumber(process.env.STATUS_RATE_LIMIT_WINDOW_MS, 60 * 1000),
+    max: toNumber(process.env.STATUS_RATE_LIMIT_MAX, 60),
+  },
+
   auth: {
     enabled: explicitApiAuthEnabled ?? authTokens.length > 0,
     tokens: authTokens,

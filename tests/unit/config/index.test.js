@@ -37,6 +37,8 @@ describe('config', () => {
         'SCRAPER_MAX_CONTENT_LENGTH_BYTES',
         'RATE_LIMIT_WINDOW_MS',
         'RATE_LIMIT_MAX',
+        'STATUS_RATE_LIMIT_WINDOW_MS',
+        'STATUS_RATE_LIMIT_MAX',
         'API_AUTH_ENABLED',
         'API_AUTH_TOKENS',
       ],
@@ -59,6 +61,10 @@ describe('config', () => {
     expect(config.rateLimit).toEqual({
       windowMs: 15 * 60 * 1000,
       max: 100,
+    });
+    expect(config.statusRateLimit).toEqual({
+      windowMs: 60 * 1000,
+      max: 60,
     });
     expect(config.auth).toEqual({
       enabled: false,
@@ -85,6 +91,8 @@ describe('config', () => {
         SCRAPER_MAX_CONTENT_LENGTH_BYTES: '4096',
         RATE_LIMIT_WINDOW_MS: '30000',
         RATE_LIMIT_MAX: '50',
+        STATUS_RATE_LIMIT_WINDOW_MS: '45000',
+        STATUS_RATE_LIMIT_MAX: '15',
         API_AUTH_ENABLED: 'true',
         API_AUTH_TOKENS: ' token-a,token-b , token-c ',
       },
@@ -107,6 +115,10 @@ describe('config', () => {
     expect(config.rateLimit).toEqual({
       windowMs: 30000,
       max: 50,
+    });
+    expect(config.statusRateLimit).toEqual({
+      windowMs: 45000,
+      max: 15,
     });
     expect(config.auth).toEqual({
       enabled: true,

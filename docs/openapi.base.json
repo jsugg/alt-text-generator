@@ -339,14 +339,20 @@
     },
     "/api/health": {
       "get": {
-        "summary": "Check if the API is healthy",
+        "summary": "Check if the API is ready to serve traffic",
         "responses": {
           "200": {
-            "description": "API is online and healthy",
+            "description": "API is online and ready",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
+                  "required": [
+                    "message",
+                    "ready",
+                    "timestamp",
+                    "uptime"
+                  ],
                   "properties": {
                     "uptime": {
                       "type": "number"
@@ -354,6 +360,10 @@
                     "message": {
                       "type": "string",
                       "example": "OK"
+                    },
+                    "ready": {
+                      "type": "boolean",
+                      "example": true
                     },
                     "timestamp": {
                       "type": "number"
@@ -363,8 +373,37 @@
               }
             }
           },
-          "500": {
-            "description": "Server error"
+          "503": {
+            "description": "API is draining and should be removed from service",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message",
+                    "ready",
+                    "timestamp",
+                    "uptime"
+                  ],
+                  "properties": {
+                    "uptime": {
+                      "type": "number"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "DRAINING"
+                    },
+                    "ready": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "timestamp": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }

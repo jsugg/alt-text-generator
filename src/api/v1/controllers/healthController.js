@@ -8,6 +8,9 @@ const ROOT_INDEX_LINKS = Object.freeze({
 });
 
 const SUPPORTED_API_AUTH_SCHEMES = Object.freeze(['X-API-Key', 'Bearer']);
+const defaultRuntimeState = Object.freeze({
+  isReady: () => true,
+});
 
 const buildServiceIndexResponse = (requestId) => ({
   name: packageMetadata.name,
@@ -18,6 +21,17 @@ const buildServiceIndexResponse = (requestId) => ({
     schemes: SUPPORTED_API_AUTH_SCHEMES,
   },
   requestId,
+});
+
+const buildHealthResponse = ({
+  now = Date.now,
+  ready = true,
+  uptime = process.uptime,
+}) => ({
+  message: ready ? 'OK' : 'DRAINING',
+  ready,
+  timestamp: now(),
+  uptime: uptime(),
 });
 
 /**
@@ -111,34 +125,81 @@ const ping = (req, res) => res.status(200).send('pong');
  * @swagger
  * /api/health:
  *   get:
- *     summary: Check if the API is healthy
+ *     summary: Check if the API is ready to serve traffic
  *     responses:
  *       200:
- *         description: API is online and healthy
+ *         description: API is online and ready
  *         content:
  *           application/json:
  *             schema:
  *               type: object
+ *               required:
+ *                 - message
+ *                 - ready
+ *                 - timestamp
+ *                 - uptime
  *               properties:
  *                 uptime:
  *                   type: number
  *                 message:
  *                   type: string
  *                   example: OK
+ *                 ready:
+ *                   type: boolean
+ *                   example: true
  *                 timestamp:
  *                   type: number
- *       500:
- *         description: Server error
+ *       503:
+ *         description: API is draining and should be removed from service
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required:
+ *                 - message
+ *                 - ready
+ *                 - timestamp
+ *                 - uptime
+ *               properties:
+ *                 uptime:
+ *                   type: number
+ *                 message:
+ *                   type: string
+ *                   example: DRAINING
+ *                 ready:
+ *                   type: boolean
+ *                   example: false
+ *                 timestamp:
+ *                   type: number
  */
-const health = (req, res) => res.json({
-  uptime: process.uptime(),
-  message: 'OK',
-  timestamp: Date.now(),
-});
+const createHealthController = ({
+  now = Date.now,
+  runtimeState = defaultRuntimeState,
+  uptime = process.uptime,
+} = {}) => {
+  const health = (req, res) => {
+    const ready = runtimeState.isReady();
+    const payload = buildHealthResponse({
+      now,
+      ready,
+      uptime,
+    });
+
+    return res.status(ready ? 200 : 503).json(payload);
+  };
+
+  return {
+    health,
+    index,
+    ping,
+  };
+};
 
 module.exports = {
   buildServiceIndexResponse,
-  health,
+  buildHealthResponse,
+  ...createHealthController(),
+  createHealthController,
   index,
   ping,
 };

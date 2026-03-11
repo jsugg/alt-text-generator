@@ -14,15 +14,22 @@ const {
  * @param {object} controllers.health - healthController
  * @param {object} controllers.scraper - ScraperController instance
  * @param {object} controllers.description - DescriptionController instance
+ * @param {Function} [controllers.statusRateLimiter] - rate limiter for status routes
  * @param {object} logger - app logger instance
  * @returns {object} Express Router
  */
-module.exports = ({ health, scraper, description }, logger) => {
+module.exports = ({
+  health,
+  scraper,
+  description,
+  statusRateLimiter,
+}, logger) => {
   const apiRouter = express.Router();
+  const statusRouteMiddleware = statusRateLimiter ? [statusRateLimiter] : [];
 
   apiRouter.get('/', health.index);
-  apiRouter.get(['/api/ping', '/api/v1/ping'], health.ping);
-  apiRouter.get(['/api/health', '/api/v1/health'], health.health);
+  apiRouter.get(['/api/ping', '/api/v1/ping'], ...statusRouteMiddleware, health.ping);
+  apiRouter.get(['/api/health', '/api/v1/health'], ...statusRouteMiddleware, health.health);
 
   apiRouter.get(
     ['/api/scraper/images', '/api/v1/scraper/images'],

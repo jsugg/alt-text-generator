@@ -66,6 +66,8 @@ const envVarsSchema = Joi.object({
   // Rate limiting
   RATE_LIMIT_WINDOW_MS: Joi.number().optional(),
   RATE_LIMIT_MAX: Joi.number().optional(),
+  STATUS_RATE_LIMIT_WINDOW_MS: Joi.number().integer().min(1).optional(),
+  STATUS_RATE_LIMIT_MAX: Joi.number().integer().min(1).optional(),
 
   // Optional API access control
   API_AUTH_ENABLED: Joi.string().valid('true', 'false').optional(),

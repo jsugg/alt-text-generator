@@ -1,7 +1,43 @@
 const http = require('http');
 const https = require('https');
 
-module.exports.createHttpServer = (app) => http.createServer(app);
+const DEFAULT_HEADERS_TIMEOUT_MS = 60_000;
+const DEFAULT_KEEP_ALIVE_TIMEOUT_MS = 5_000;
+const DEFAULT_REQUEST_TIMEOUT_MS = 120_000;
+const FORCE_SOCKET_CLOSE_TIMEOUT_MS = 1_000;
+const TRACKED_SOCKETS = Symbol('trackedSockets');
+
+const trackSocket = (sockets, socket) => {
+  sockets.add(socket);
+  socket.on('close', () => {
+    sockets.delete(socket);
+  });
+};
+
+const configureServer = (server) => {
+  const trackedSockets = new Set();
+  server.on('connection', (socket) => trackSocket(trackedSockets, socket));
+
+  return Object.assign(server, {
+    [TRACKED_SOCKETS]: trackedSockets,
+    headersTimeout: DEFAULT_HEADERS_TIMEOUT_MS,
+    keepAliveTimeout: DEFAULT_KEEP_ALIVE_TIMEOUT_MS,
+    requestTimeout: DEFAULT_REQUEST_TIMEOUT_MS,
+  });
+};
+
+const forceCloseServerConnections = (server) => {
+  if (typeof server.closeAllConnections === 'function') {
+    server.closeAllConnections();
+  }
+
+  const sockets = server[TRACKED_SOCKETS] ?? new Set();
+  sockets.forEach((socket) => {
+    socket.destroy();
+  });
+};
+
+module.exports.createHttpServer = (app) => configureServer(http.createServer(app));
 
 /**
  * Creates an HTTPS server.
@@ -16,19 +52,65 @@ module.exports.createHttpsServer = (app, loadTlsCredentials = () => ({
   cert: process.env.TLS_CERT,
 })) => {
   const { key, cert } = loadTlsCredentials();
-  return https.createServer({ key, cert }, app);
+  return configureServer(https.createServer({ key, cert }, app));
 };
 
 module.exports.startServer = (server, port, logger) => {
-  server.listen(port, () => {
-    logger.info({ port }, 'Server listening');
+  if (server.listening) {
+    return Promise.resolve(server);
+  }
+
+  return new Promise((resolve, reject) => {
+    let handleListening = () => {};
+
+    const handleError = (error) => {
+      server.off('listening', handleListening);
+      reject(error);
+    };
+
+    handleListening = () => {
+      server.off('error', handleError);
+      logger.info({ port }, 'Server listening');
+      resolve(server);
+    };
+
+    server.once('error', handleError);
+    server.once('listening', handleListening);
+
+    try {
+      server.listen(port);
+    } catch (error) {
+      server.off('error', handleError);
+      server.off('listening', handleListening);
+      reject(error);
+    }
   });
 };
 
 module.exports.closeServers = async (servers) => {
   await Promise.all(
     servers.map((server) => new Promise((resolve, reject) => {
-      server.close((err) => (err ? reject(err) : resolve()));
+      const forceCloseTimer = setTimeout(() => {
+        forceCloseServerConnections(server);
+      }, FORCE_SOCKET_CLOSE_TIMEOUT_MS);
+
+      if (typeof forceCloseTimer.unref === 'function') {
+        forceCloseTimer.unref();
+      }
+
+      server.close((err) => {
+        clearTimeout(forceCloseTimer);
+        if (err) {
+          reject(err);
+          return;
+        }
+
+        resolve();
+      });
+
+      if (typeof server.closeIdleConnections === 'function') {
+        server.closeIdleConnections();
+      }
     })),
   );
 };
@@ -40,9 +122,16 @@ module.exports.closeServers = async (servers) => {
  * @param {http.Server[]} servers - Array of servers to close
  * @param {object} logger - pino logger instance
  * @param {NodeJS.Process} [processRef] - process-like object for testing
+ * @param {object} [runtimeState] - mutable runtime readiness state
  * @returns {Function}
  */
-module.exports.gracefulShutdown = (servers, logger, processRef = process) => {
+module.exports.gracefulShutdown = (
+  servers,
+  logger,
+  runtimeState,
+  processRef,
+) => {
+  const resolvedProcessRef = processRef ?? process;
   let shutdownPromise;
 
   const shutdown = ({
@@ -58,6 +147,7 @@ module.exports.gracefulShutdown = (servers, logger, processRef = process) => {
 
     shutdownPromise = (async () => {
       try {
+        runtimeState?.markDraining?.();
         logger.info({ exitCode, reason, signal }, 'Closing servers');
 
         if (servers.length > 0) {
@@ -72,17 +162,17 @@ module.exports.gracefulShutdown = (servers, logger, processRef = process) => {
           logger.info('No servers registered for shutdown');
         }
       } finally {
-        processRef.exit(resolvedExitCode);
+        resolvedProcessRef.exit(resolvedExitCode);
       }
     })();
 
     return shutdownPromise;
   };
 
-  processRef.on('SIGTERM', () => {
+  resolvedProcessRef.on('SIGTERM', () => {
     shutdown({ exitCode: 0, reason: 'signal', signal: 'SIGTERM' });
   });
-  processRef.on('SIGINT', () => {
+  resolvedProcessRef.on('SIGINT', () => {
     shutdown({ exitCode: 0, reason: 'signal', signal: 'SIGINT' });
   });
 
