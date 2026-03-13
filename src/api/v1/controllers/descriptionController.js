@@ -45,7 +45,8 @@ class DescriptionController {
    *           example: https%3A%2F%2Fdeveloper.chrome.com%2Fstatic%2Fimages%2Fai-homepage-card.png
    *       - name: model
    *         in: query
-   *         description: The AI model to use, for example `clip` or `azure`.
+   *         description: The AI model to use, for example `clip`, `azure`,
+   *           `ollama`, `huggingface`, `openai`, `openrouter`, or `together`.
    *         required: true
    *         schema:
    *           type: string
@@ -152,7 +153,8 @@ class DescriptionController {
    *           example: https%3A%2F%2Fdeveloper.chrome.com%2F
    *       - name: model
    *         in: query
-   *         description: The AI model to use, for example `clip` or `azure`.
+   *         description: The AI model to use, for example `clip`, `azure`,
+   *           `ollama`, `huggingface`, `openai`, `openrouter`, or `together`.
    *         required: true
    *         schema:
    *           type: string

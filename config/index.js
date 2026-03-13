@@ -91,6 +91,10 @@ module.exports = {
     ),
   },
 
+  pageDescription: {
+    concurrency: toNumber(process.env.PAGE_DESCRIPTION_CONCURRENCY, 3),
+  },
+
   outboundTls: {
     caBundleFile:
       process.env.OUTBOUND_CA_BUNDLE_FILE

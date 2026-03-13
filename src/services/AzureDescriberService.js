@@ -1,6 +1,8 @@
 const path = require('path');
 
 const { getUpstreamErrorSummary } = require('../utils/getUpstreamErrorSummary');
+const { fetchImageAsset } = require('../providers/shared/fetchImageAsset');
+const { isSkippableImageSourceError } = require('../providers/shared/isSkippableImageSourceError');
 
 /**
  * Image description service backed by Azure Computer Vision.
@@ -28,21 +30,21 @@ class AzureDescriberService {
    * @param {object} deps
    * @param {object} deps.logger - pino logger instance
    * @param {object} deps.httpClient - axios-compatible HTTP client
-   * @param {object} deps.config - app config (config.azure)
+   * @param {object} deps.providerConfig - provider config section
    * @param {object} deps.requestOptions - bounded outbound request options
    */
   constructor({
     logger,
     httpClient,
-    config,
+    providerConfig,
     requestOptions = {},
   }) {
     this.logger = logger;
     this.httpClient = httpClient;
-    this.endpoint = config.azure.apiEndpoint;
-    this.subscriptionKey = config.azure.subscriptionKey;
-    this.language = config.azure.language;
-    this.maxCandidates = config.azure.maxCandidates;
+    this.endpoint = providerConfig.apiEndpoint;
+    this.subscriptionKey = providerConfig.subscriptionKey;
+    this.language = providerConfig.language;
+    this.maxCandidates = providerConfig.maxCandidates;
     this.requestOptions = requestOptions;
 
     if (!this.endpoint || !this.subscriptionKey) {
@@ -103,17 +105,7 @@ class AzureDescriberService {
       );
     }
 
-    const status = error?.response?.status;
-    const code = error?.code;
-
-    return (
-      status === 403
-      || status === 404
-      || status === 410
-      || code === 'ECONNABORTED'
-      || code === 'ENOTFOUND'
-      || code === 'ETIMEDOUT'
-    );
+    return isSkippableImageSourceError(error, this.endpoint);
   }
 
   /**
@@ -163,25 +155,19 @@ class AzureDescriberService {
    * @returns {Promise<Buffer>}
    */
   async fetchImageBuffer(imageUrl) {
-    const response = await this.httpClient.get(imageUrl, {
-      timeout: this.requestOptions.timeout,
-      maxRedirects: this.requestOptions.maxRedirects,
-      maxContentLength: this.requestOptions.maxContentLength,
-      maxBodyLength: this.requestOptions.maxContentLength,
-      responseType: 'arraybuffer',
+    const { buffer, contentType } = await fetchImageAsset({
+      httpClient: this.httpClient,
+      imageUrl,
+      requestOptions: this.requestOptions,
     });
-
-    const contentType = AzureDescriberService.normalizeContentType(
-      response?.headers?.['content-type'],
-    );
 
     if (!AzureDescriberService.isSupportedContentType(contentType)) {
       throw new Error(`Azure provider does not support content type '${contentType}'`);
     }
 
-    const imageBuffer = Buffer.isBuffer(response.data)
-      ? response.data
-      : Buffer.from(response.data);
+    const imageBuffer = Buffer.isBuffer(buffer)
+      ? buffer
+      : Buffer.from(buffer);
 
     if (imageBuffer.length === 0) {
       throw new Error('Azure provider received an empty image payload');
