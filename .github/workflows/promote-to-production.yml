@@ -42,12 +42,14 @@ jobs:
       - name: Create promotion GitHub App token
         id: promotion-app-token
         if: steps.promotion-auth.outputs.use_github_app == 'true'
-        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2.2.1
-        with:
-          app-id: ${{ vars.REPO_TOOLING_GITHUB_APP_ID }}
-          private-key: ${{ secrets.REPO_TOOLING_GITHUB_APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
-          repositories: ${{ github.event.repository.name }}
+        env:
+          REPO_TOOLING_GITHUB_APP_PRIVATE_KEY: ${{ secrets.REPO_TOOLING_GITHUB_APP_PRIVATE_KEY }}
+        run: >-
+          node scripts/github/create-github-app-installation-token.js
+          --app-id "${{ vars.REPO_TOOLING_GITHUB_APP_ID }}"
+          --owner "${{ github.repository_owner }}"
+          --repo "${{ github.event.repository.name }}"
+          --output-file "${GITHUB_OUTPUT}"
 
       - name: Require repository automation GitHub App
         if: steps.promotion-auth.outputs.use_github_app != 'true'
