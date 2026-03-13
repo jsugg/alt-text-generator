@@ -17,6 +17,13 @@ describe('Unit | Providers | Definitions | Build OpenAI Compatible Provider', ()
     defaultModel: 'demo-model',
     maxTokensEnvName: 'DEMO_MAX_TOKENS',
     promptEnvName: 'DEMO_PROMPT',
+    liveValidation: {
+      scopeKey: 'demo',
+      autoPriority: 50,
+      folderName: '90 Live Provider Validation',
+      scopeRequirement: 'DEMO_API_KEY',
+      allRequirement: 'DEMO_API_KEY',
+    },
     additionalEnvSchema: (schemaBuilder) => ({
       DEMO_HEADER: schemaBuilder.string().optional(),
     }),
@@ -92,5 +99,17 @@ describe('Unit | Providers | Definitions | Build OpenAI Compatible Provider', ()
     expect(runtime.providerKey).toBe('demo');
     expect(runtime.apiClient).toBe(providerClient);
     expect(runtime.httpClient).toBe(httpClient);
+  });
+
+  it('preserves live validation metadata on the provider definition', () => {
+    const provider = buildProvider();
+
+    expect(provider.liveValidation).toEqual({
+      scopeKey: 'demo',
+      autoPriority: 50,
+      folderName: '90 Live Provider Validation',
+      scopeRequirement: 'DEMO_API_KEY',
+      allRequirement: 'DEMO_API_KEY',
+    });
   });
 });

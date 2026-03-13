@@ -8,9 +8,17 @@ module.exports = buildOpenAiCompatibleProvider({
   baseUrlEnvName: 'OPENROUTER_BASE_URL',
   defaultBaseUrl: 'https://openrouter.ai/api/v1',
   modelEnvName: 'OPENROUTER_MODEL',
-  defaultModel: 'openrouter/auto',
+  defaultModel: 'openrouter/free',
   maxTokensEnvName: 'OPENROUTER_MAX_TOKENS',
   promptEnvName: 'OPENROUTER_PROMPT',
+  liveValidation: {
+    scopeKey: 'openrouter',
+    autoPriority: 40,
+    folderName: '90 Live Provider Validation',
+    requestEnvVars: ['model=openrouter'],
+    scopeRequirement: 'OPENROUTER_API_KEY',
+    allRequirement: 'OPENROUTER_API_KEY',
+  },
   additionalEnvSchema: (Joi) => ({
     OPENROUTER_HTTP_REFERER: Joi.string().uri().optional(),
     OPENROUTER_TITLE: Joi.string().optional(),

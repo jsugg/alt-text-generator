@@ -26,6 +26,8 @@ describe('Unit | Scripts | GitHub | Resolve Live Provider Scope', () => {
         REPLICATE_API_TOKEN: 'replicate-token',
         ACV_API_ENDPOINT: 'https://azure.example.com',
         ACV_SUBSCRIPTION_KEY: 'azure-key',
+        HF_API_KEY: 'hf-key',
+        OPENROUTER_API_KEY: 'openrouter-key',
       })).toBe('all');
     });
 
@@ -36,6 +38,17 @@ describe('Unit | Scripts | GitHub | Resolve Live Provider Scope', () => {
         ACV_API_ENDPOINT: 'https://azure.example.com',
         ACV_SUBSCRIPTION_KEY: 'azure-key',
       })).toBe('azure');
+    });
+
+    it('resolves api-key multimodal providers when they are explicitly requested', () => {
+      expect(resolveScopeFromEnv({
+        INPUT_PROVIDER_SCOPE: 'openrouter',
+        OPENROUTER_API_KEY: 'openrouter-key',
+      })).toBe('openrouter');
+      expect(resolveScopeFromEnv({
+        INPUT_PROVIDER_SCOPE: 'huggingface',
+        HF_API_KEY: 'hf-key',
+      })).toBe('huggingface');
     });
   });
 

@@ -23,12 +23,10 @@ const resolveConfiguredProviderScopes = ({
     return configuredProviderScopes;
   }
 
-  return getLiveValidationProviders()
-    .filter((provider) => (
-      (provider.liveValidation.scopeKey === 'azure' && hasAzureProvider)
-      || (provider.liveValidation.scopeKey === 'replicate' && hasReplicateProvider)
-    ))
-    .map((provider) => provider.liveValidation.scopeKey);
+  return [
+    ...(hasAzureProvider ? ['azure'] : []),
+    ...(hasReplicateProvider ? ['replicate'] : []),
+  ];
 };
 
 const buildAllRequirementMessage = () => {
@@ -55,7 +53,7 @@ const buildAllRequirementMessage = () => {
  *
  * @param {string|undefined|null} value
  * @param {{ label?: string, fallback?: string }} [options]
- * @returns {'auto'|'azure'|'replicate'|'all'}
+ * @returns {'auto'|'azure'|'replicate'|'huggingface'|'openrouter'|'all'}
  */
 function normalizeProviderScope(
   value,
@@ -104,8 +102,7 @@ function detectAvailableProviders(env = process.env) {
 /**
  * Resolves the final live-provider scope to execute.
  *
- * `auto` prefers Azure when Azure credentials are configured, otherwise it
- * falls back to Replicate when that token exists.
+ * `auto` prefers the configured provider with the lowest `autoPriority`.
  *
  * @param {{
  *   requestedScope?: string|undefined,
@@ -114,7 +111,7 @@ function detectAvailableProviders(env = process.env) {
  *   hasAzureProvider?: boolean|undefined,
  *   hasReplicateProvider?: boolean|undefined,
  * }} options
- * @returns {'azure'|'replicate'|'all'}
+ * @returns {'azure'|'replicate'|'huggingface'|'openrouter'|'all'}
  */
 function resolveProviderScope({
   requestedScope,
@@ -176,7 +173,7 @@ function resolveProviderScope({
 /**
  * Expands a resolved scope into provider booleans.
  *
- * @param {'azure'|'replicate'|'all'} scope
+ * @param {'azure'|'replicate'|'huggingface'|'openrouter'|'all'} scope
  * @returns {{
  *   selectedProviderScopes: string[],
  *   runAzure: boolean,
@@ -201,19 +198,41 @@ function getSelectedProviders(scope) {
   };
 }
 
-function getSelectedProviderFolders(scope) {
+/**
+ * Builds live-validation execution plans for the resolved provider scope.
+ *
+ * @param {'azure'|'replicate'|'huggingface'|'openrouter'|'all'} scope
+ * @returns {{ folderName: string, envVars: string[], scopeKey: string }[]}
+ */
+function getSelectedProviderPlans(scope) {
   const { selectedProviderScopes } = getSelectedProviders(scope);
 
   return selectedProviderScopes.map((selectedScope) => {
     const provider = getLiveProviderByScope(selectedScope);
-    return provider.liveValidation.folderName;
+
+    if (!provider) {
+      throw new Error(`Resolved live provider scope is invalid: ${scope}`);
+    }
+
+    return {
+      folderName: provider.liveValidation.folderName,
+      envVars: provider.liveValidation.requestEnvVars || [],
+      scopeKey: selectedScope,
+    };
   });
+}
+
+function getSelectedProviderFolders(scope) {
+  return Array.from(
+    new Set(getSelectedProviderPlans(scope).map((providerPlan) => providerPlan.folderName)),
+  );
 }
 
 module.exports = {
   VALID_PROVIDER_SCOPES: Array.from(VALID_PROVIDER_SCOPES),
   detectAvailableProviders,
   getSelectedProviderFolders,
+  getSelectedProviderPlans,
   getSelectedProviders,
   normalizeProviderScope,
   resolveProviderScope,

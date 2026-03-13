@@ -39,6 +39,7 @@ module.exports = {
     scopeKey: 'replicate',
     autoPriority: 20,
     folderName: '90 Live Provider Validation',
+    requestEnvVars: ['model=clip'],
     scopeRequirement: 'REPLICATE_API_TOKEN',
     allRequirement: 'REPLICATE_API_TOKEN',
   },

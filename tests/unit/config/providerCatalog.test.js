@@ -60,7 +60,7 @@ describe('Unit | Config | Provider Catalog', () => {
       huggingface: {
         apiKey: 'hf-key',
         baseUrl: 'https://router.huggingface.co/v1',
-        model: 'Qwen/Qwen2.5-VL-7B-Instruct:cheapest',
+        model: 'Qwen/Qwen3-VL-8B-Instruct:novita',
         maxTokens: 160,
         prompt: expect.any(String),
         headers: {},
@@ -76,7 +76,7 @@ describe('Unit | Config | Provider Catalog', () => {
       openrouter: {
         apiKey: 'openrouter-key',
         baseUrl: 'https://openrouter.ai/api/v1',
-        model: 'openrouter/auto',
+        model: 'openrouter/free',
         maxTokens: 160,
         prompt: expect.any(String),
         headers: {
@@ -163,8 +163,13 @@ describe('Unit | Config | Provider Catalog', () => {
       'together',
     ]);
     expect(getLiveValidationProviders().map((provider) => provider.liveValidation.scopeKey))
-      .toEqual(['replicate', 'azure']);
-    expect(getAvailableLiveProviderScopes()).toEqual(['replicate', 'azure']);
+      .toEqual(['replicate', 'azure', 'huggingface', 'openrouter']);
+    expect(getAvailableLiveProviderScopes()).toEqual([
+      'replicate',
+      'azure',
+      'huggingface',
+      'openrouter',
+    ]);
     expect(getLiveProviderByScope('azure').displayName).toBe('Azure Computer Vision');
   });
 });

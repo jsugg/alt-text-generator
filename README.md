@@ -91,8 +91,8 @@ Notes:
 - CI runs `postman:smoke` on pull requests and `postman:harness` on `main` / `production` pushes.
 - Deploy verification runs `postman:deploy` on `production` pushes so hosted smoke checks stay inside the Newman contract layer.
 - Deploy verification also reads `PRODUCTION_API_AUTH_ENABLED` and `PRODUCTION_DEPLOY_VALIDATION_API_TOKEN` from the GitHub Actions environment so hosted protected-endpoint checks can verify the expected Render `API_AUTH_ENABLED` / `API_AUTH_TOKENS` state.
-- Live mode uses a single `LIVE_PROVIDER_SCOPE` enum: `auto`, `azure`, `replicate`, or `all`.
-- `LIVE_PROVIDER_SCOPE=auto` prefers Azure when Azure credentials are configured and otherwise falls back to Replicate when a Replicate token exists.
+- Live mode uses a single `LIVE_PROVIDER_SCOPE` enum: `auto`, `azure`, `replicate`, `huggingface`, `openrouter`, or `all`.
+- `LIVE_PROVIDER_SCOPE=auto` keeps the live-provider preference order: Azure, then Replicate, then Hugging Face, then OpenRouter.
 - Live-provider runs upload Newman artifacts and append request, assertion, failure, and response-time metrics to the GitHub Actions step summary.
 - Local harness runs accept self-signed development TLS.
 - The deterministic harness uses a local Azure stub and can boot with a dummy Replicate token or Azure-only configuration.

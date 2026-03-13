@@ -91,10 +91,12 @@ The repository uses a small workflow set with separate responsibilities:
 - `Live Provider Validation` in `.github/workflows/live-provider-validation.yml`
   - manual only
   - runs `npm run postman:live`
-  - uses the `prod-validation` GitHub Actions variable `LIVE_PROVIDER_SCOPE` with `auto`, `azure`, `replicate`, or `all`
+  - uses the `prod-validation` GitHub Actions variable `LIVE_PROVIDER_SCOPE` with `auto`, `azure`, `replicate`, `huggingface`, `openrouter`, or `all`
   - requires GitHub Actions secrets, not Render env vars
   - requires `REPLICATE_API_TOKEN` only when the resolved scope includes Replicate
   - requires `ACV_API_ENDPOINT` plus `ACV_SUBSCRIPTION_KEY` only when the resolved scope includes Azure
+  - requires `HF_API_KEY` only when the resolved scope includes Hugging Face
+  - requires `OPENROUTER_API_KEY` only when the resolved scope includes OpenRouter
   - also supports a guarded weekly schedule when the repository variable `ENABLE_SCHEDULED_LIVE_PROVIDER_VALIDATION` is set to `true`
   - uploads Newman artifacts and writes request, assertion, failure, and response-time metrics into the workflow summary
 - `Deploy Verification` in `.github/workflows/deploy-verification.yml`
@@ -374,12 +376,12 @@ At least one provider must be configured at startup: `REPLICATE_API_TOKEN`, Azur
 | `OPENAI_PROMPT` | No | shared alt-text prompt | Prompt sent with the image. |
 | `HF_API_KEY` | No | none | Registers `huggingface`. `HF_TOKEN` is accepted as an alias. |
 | `HF_BASE_URL` | No | `https://router.huggingface.co/v1` | Hugging Face router base URL. |
-| `HF_MODEL` | No | `Qwen/Qwen2.5-VL-7B-Instruct:cheapest` | Default Hugging Face multimodal model selector. |
+| `HF_MODEL` | No | `Qwen/Qwen3-VL-8B-Instruct:novita` | Default low-cost Hugging Face image-to-text route. |
 | `HF_MAX_TOKENS` | No | `160` | Max completion tokens for `huggingface`. |
 | `HF_PROMPT` | No | shared alt-text prompt | Prompt sent with the image. |
 | `OPENROUTER_API_KEY` | No | none | Registers `openrouter`. |
 | `OPENROUTER_BASE_URL` | No | `https://openrouter.ai/api/v1` | OpenRouter base URL. |
-| `OPENROUTER_MODEL` | No | `openrouter/auto` | Default OpenRouter model routing target. |
+| `OPENROUTER_MODEL` | No | `openrouter/free` | Default zero-cost OpenRouter routing target for image captions. |
 | `OPENROUTER_MAX_TOKENS` | No | `160` | Max completion tokens for `openrouter`. |
 | `OPENROUTER_PROMPT` | No | shared alt-text prompt | Prompt sent with the image. |
 | `OPENROUTER_HTTP_REFERER` | No | unset | Optional OpenRouter attribution header. |

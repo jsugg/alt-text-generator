@@ -17,7 +17,7 @@ const {
 } = require('./postman/collection-utils');
 const {
   detectAvailableProviders,
-  getSelectedProviderFolders,
+  getSelectedProviderPlans,
   getSelectedProviders,
   resolveProviderScope,
 } = require('./postman/live-provider-scope');
@@ -159,6 +159,8 @@ function spawnLogged(label, command, args, env = {}) {
  *   replicateApiToken?: string | null,
  *   azureApiEndpoint?: string | null,
  *   azureSubscriptionKey?: string | null,
+ *   hfApiKey?: string | null,
+ *   openrouterApiKey?: string | null,
  *   apiAuthTokens?: string | null,
  * }} options
  * @returns {Record<string, string>}
@@ -169,6 +171,8 @@ function buildAppServerEnv({
   replicateApiToken = null,
   azureApiEndpoint = null,
   azureSubscriptionKey = null,
+  hfApiKey = null,
+  openrouterApiKey = null,
   apiAuthTokens = null,
 }) {
   const env = {
@@ -192,6 +196,14 @@ function buildAppServerEnv({
 
   if (azureSubscriptionKey) {
     env.ACV_SUBSCRIPTION_KEY = azureSubscriptionKey;
+  }
+
+  if (hfApiKey) {
+    env.HF_API_KEY = hfApiKey;
+  }
+
+  if (openrouterApiKey) {
+    env.OPENROUTER_API_KEY = openrouterApiKey;
   }
 
   if (apiAuthTokens) {
@@ -358,10 +370,16 @@ async function main() {
     : null;
   const selectedLiveProviders = liveProviderScope
     ? getSelectedProviders(liveProviderScope)
-    : { runAzure: false, runReplicate: false };
+    : { selectedProviderScopes: [], runAzure: false, runReplicate: false };
+  const selectedLiveProviderPlans = liveProviderScope
+    ? getSelectedProviderPlans(liveProviderScope)
+    : [];
+  const selectedLiveProviderScopeSet = new Set(selectedLiveProviders.selectedProviderScopes);
   let appReplicateApiToken = 'test-token';
   let appAzureApiEndpoint = `http://${HOST}:${FIXTURE_PORT}/vision/v3.2/describe`;
   let appAzureSubscriptionKey = 'stub-key';
+  let appHfApiKey = null;
+  let appOpenRouterApiKey = null;
 
   if (liveModeEnabled) {
     appReplicateApiToken = selectedLiveProviders.runReplicate
@@ -372,6 +390,12 @@ async function main() {
       : null;
     appAzureSubscriptionKey = selectedLiveProviders.runAzure
       ? liveAzureSubscriptionKey
+      : null;
+    appHfApiKey = selectedLiveProviderScopeSet.has('huggingface')
+      ? process.env.HF_API_KEY || process.env.HF_TOKEN
+      : null;
+    appOpenRouterApiKey = selectedLiveProviderScopeSet.has('openrouter')
+      ? process.env.OPENROUTER_API_KEY
       : null;
   }
   const managedChildren = new Set();
@@ -408,6 +432,8 @@ async function main() {
       replicateApiToken: appReplicateApiToken,
       azureApiEndpoint: appAzureApiEndpoint,
       azureSubscriptionKey: appAzureSubscriptionKey,
+      hfApiKey: appHfApiKey,
+      openrouterApiKey: appOpenRouterApiKey,
     }),
   );
   managedChildren.add(appServer);
@@ -537,9 +563,11 @@ async function main() {
     }
 
     if (liveModeEnabled) {
-      const liveFolders = getSelectedProviderFolders(liveProviderScope);
+      const liveFolders = Array.from(
+        new Set(selectedLiveProviderPlans.map((providerPlan) => providerPlan.folderName)),
+      );
 
-      if (liveFolders.length === 0) {
+      if (selectedLiveProviderPlans.length === 0) {
         throw new Error(`Live mode enabled but provider scope "${liveProviderScope}" selected no folders`);
       }
 
@@ -548,14 +576,21 @@ async function main() {
         liveFolders,
         'live mode',
       );
-      await runNewman(
-        'live-provider',
-        liveFolders,
-        {
-          allureResultsDir,
-          envVars: localNewmanEnvVars,
-          extraArgs: ['--insecure'],
-        },
+
+      await selectedLiveProviderPlans.reduce(
+        (runPromise, providerPlan) => runPromise.then(() => runNewman(
+          `live-provider-${providerPlan.scopeKey}`,
+          [providerPlan.folderName],
+          {
+            allureResultsDir,
+            envVars: [
+              ...localNewmanEnvVars,
+              ...providerPlan.envVars,
+            ],
+            extraArgs: ['--insecure'],
+          },
+        )),
+        Promise.resolve(),
       );
     }
   } finally {
