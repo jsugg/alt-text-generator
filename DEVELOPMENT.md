@@ -216,7 +216,7 @@ Allure workflow:
 - The `allure-report` job now restores Allure history from the most recent matching history artifact for that stream. `ci-main` keeps a one-time GitHub Pages fallback so the public trend line carries forward through the artifact migration.
 - After generating the report, CI packages `reports/allure-report/history` into a dedicated `allure-history-*` artifact instead of reusing the full HTML bundle as the restore source.
 - Pull requests from forks remain ephemeral: they generate the downloadable `allure-report` artifact but do not restore or persist history.
-- The public GitHub Pages deployment still publishes only `main`; PR reports remain downloadable artifacts. The `allure-pages` job pushes the generated site to the `gh-pages` branch, and the repository Pages source should remain configured to serve that branch from `/`.
+- The public GitHub Pages deployment still publishes only `main`; PR reports remain downloadable artifacts. The `allure-pages` job uploads a Pages deployment artifact and deploys it through the workflow-based GitHub Pages path.
 - Deploy verification now emits Allure output as well. Pushes to `production` persist a `deploy-production` history stream, while manual deploy verification runs only persist that stream when the workflow dispatch input `persist_history=true` is selected for the canonical production URL.
 
 ## Supported Models
