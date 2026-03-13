@@ -8,7 +8,15 @@ module.exports = buildOpenAiCompatibleProvider({
   baseUrlEnvName: 'HF_BASE_URL',
   defaultBaseUrl: 'https://router.huggingface.co/v1',
   modelEnvName: 'HF_MODEL',
-  defaultModel: 'Qwen/Qwen2.5-VL-7B-Instruct:cheapest',
+  defaultModel: 'Qwen/Qwen3-VL-8B-Instruct:novita',
   maxTokensEnvName: 'HF_MAX_TOKENS',
   promptEnvName: 'HF_PROMPT',
+  liveValidation: {
+    scopeKey: 'huggingface',
+    autoPriority: 30,
+    folderName: '90 Live Provider Validation',
+    requestEnvVars: ['model=huggingface'],
+    scopeRequirement: 'HF_API_KEY or HF_TOKEN',
+    allRequirement: 'HF_API_KEY or HF_TOKEN',
+  },
 });

@@ -1997,7 +1997,7 @@
       "name": "90 Live Provider Validation",
       "item": [
         {
-          "name": "Live clip single image",
+          "name": "Live provider single image",
           "request": {
             "method": "GET",
             "header": [
@@ -2011,7 +2011,7 @@
               },
               {
                 "key": "X-Max-Response-Time-Ms",
-                "value": "15000"
+                "value": "30000"
               }
             ],
             "url": {
@@ -2032,7 +2032,7 @@
                 },
                 {
                   "key": "model",
-                  "value": "clip"
+                  "value": "{{model}}"
                 }
               ]
             }
@@ -2065,7 +2065,7 @@
           ]
         },
         {
-          "name": "Live clip page descriptions",
+          "name": "Live provider page descriptions",
           "request": {
             "method": "GET",
             "header": [
@@ -2079,7 +2079,7 @@
               },
               {
                 "key": "X-Max-Response-Time-Ms",
-                "value": "15000"
+                "value": "30000"
               }
             ],
             "url": {
@@ -2100,7 +2100,7 @@
                 },
                 {
                   "key": "model",
-                  "value": "clip"
+                  "value": "{{model}}"
                 }
               ]
             }
@@ -2120,7 +2120,7 @@
                   "",
                   "pm.test('response includes page metadata', function () {",
                   "  pm.expect(body.pageUrl).to.eql(pm.environment.get('livePageUrl'));",
-                  "  pm.expect(body.model).to.eql('clip');",
+                  "  pm.expect(body.model).to.eql(pm.environment.get('model'));",
                   "  pm.expect(body.totalImages).to.be.a('number');",
                   "  pm.expect(body.uniqueImages).to.be.a('number');",
                   "  pm.expect(body.descriptions).to.be.an('array');",
