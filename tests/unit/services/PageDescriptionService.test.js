@@ -181,4 +181,50 @@ describe('Unit | Services | Page Description Service', () => {
       model: 'azure',
     })).rejects.toThrow('provider unavailable');
   });
+
+  it('limits concurrent provider calls while preserving output order', async () => {
+    const scraperService = {
+      getImages: jest.fn().mockResolvedValue({
+        imageSources: [
+          'https://example.com/a.jpg',
+          'https://example.com/b.jpg',
+          'https://example.com/c.jpg',
+        ],
+      }),
+    };
+    let inFlight = 0;
+    let maxInFlight = 0;
+    const describeImage = jest.fn().mockImplementation(async (imageUrl) => {
+      inFlight += 1;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      await new Promise((resolve) => {
+        setTimeout(resolve, 10);
+      });
+      inFlight -= 1;
+      return {
+        description: `description for ${imageUrl}`,
+        imageUrl,
+      };
+    });
+    const imageDescriberFactory = new ImageDescriberFactory().register('clip', {
+      describeImage,
+    });
+    const service = new PageDescriptionService({
+      scraperService,
+      imageDescriberFactory,
+      concurrency: 2,
+    });
+
+    const result = await service.describePage({
+      pageUrl: 'https://example.com/page',
+      model: 'clip',
+    });
+
+    expect(maxInFlight).toBeLessThanOrEqual(2);
+    expect(result.descriptions.map((item) => item.imageUrl)).toEqual([
+      'https://example.com/a.jpg',
+      'https://example.com/b.jpg',
+      'https://example.com/c.jpg',
+    ]);
+  });
 });

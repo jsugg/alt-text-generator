@@ -89,7 +89,7 @@
           {
             "name": "model",
             "in": "query",
-            "description": "The AI model to use, for example `clip` or `azure`.",
+            "description": "The AI model to use, for example `clip`, `azure`, `ollama`, `huggingface`, `openai`, `openrouter`, or `together`.",
             "required": true,
             "schema": {
               "type": "string",
@@ -180,7 +180,7 @@
           {
             "name": "model",
             "in": "query",
-            "description": "The AI model to use, for example `clip` or `azure`.",
+            "description": "The AI model to use, for example `clip`, `azure`, `ollama`, `huggingface`, `openai`, `openrouter`, or `together`.",
             "required": true,
             "schema": {
               "type": "string",

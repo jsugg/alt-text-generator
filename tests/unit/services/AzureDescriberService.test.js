@@ -6,13 +6,11 @@ const mockLogger = {
   error: jest.fn(),
 };
 
-const mockConfig = {
-  azure: {
-    apiEndpoint: 'https://eastus.api.cognitive.microsoft.com/vision/v3.2/describe',
-    subscriptionKey: 'test-key',
-    language: 'en',
-    maxCandidates: 4,
-  },
+const mockProviderConfig = {
+  apiEndpoint: 'https://eastus.api.cognitive.microsoft.com/vision/v3.2/describe',
+  subscriptionKey: 'test-key',
+  language: 'en',
+  maxCandidates: 4,
 };
 
 describe('Unit | Services | Azure Describer Service', () => {
@@ -38,7 +36,7 @@ describe('Unit | Services | Azure Describer Service', () => {
     const svc = new AzureDescriberService({
       logger: mockLogger,
       httpClient: mockHttpClient,
-      config: mockConfig,
+      providerConfig: mockProviderConfig,
     });
 
     const result = await svc.describeImage('https://example.com/dog.jpg');
@@ -64,7 +62,7 @@ describe('Unit | Services | Azure Describer Service', () => {
     const svc = new AzureDescriberService({
       logger: mockLogger,
       httpClient: mockHttpClient,
-      config: mockConfig,
+      providerConfig: mockProviderConfig,
     });
 
     await svc.describeImage('https://example.com/img.jpg');
@@ -100,14 +98,14 @@ describe('Unit | Services | Azure Describer Service', () => {
     const svc = new AzureDescriberService({
       logger: mockLogger,
       httpClient: mockHttpClient,
-      config: mockConfig,
+      providerConfig: mockProviderConfig,
     });
 
     await expect(svc.describeImage('https://example.com/img.jpg')).rejects.toThrow('Azure error');
     expect(mockLogger.error).toHaveBeenCalledWith(expect.objectContaining({
       err: error,
       provider: 'azure',
-      endpoint: mockConfig.azure.apiEndpoint,
+      endpoint: mockProviderConfig.apiEndpoint,
       imageUrl: 'https://example.com/img.jpg',
       upstream: {
         code: 'ENOTFOUND',
@@ -138,7 +136,7 @@ describe('Unit | Services | Azure Describer Service', () => {
     const svc = new AzureDescriberService({
       logger: mockLogger,
       httpClient: mockHttpClient,
-      config: mockConfig,
+      providerConfig: mockProviderConfig,
     });
 
     await expect(svc.describeImage('https://example.com/img.jpg'))
@@ -153,7 +151,7 @@ describe('Unit | Services | Azure Describer Service', () => {
         get: jest.fn(),
         post: jest.fn(),
       },
-      config: mockConfig,
+      providerConfig: mockProviderConfig,
     });
 
     expect(svc.filterSupportedImageSources([
@@ -179,7 +177,7 @@ describe('Unit | Services | Azure Describer Service', () => {
     const svc = new AzureDescriberService({
       logger: mockLogger,
       httpClient: mockHttpClient,
-      config: mockConfig,
+      providerConfig: mockProviderConfig,
     });
 
     await expect(svc.describeImage('https://example.com/a.svg'))
@@ -195,7 +193,7 @@ describe('Unit | Services | Azure Describer Service', () => {
         get: jest.fn(),
         post: jest.fn(),
       },
-      config: mockConfig,
+      providerConfig: mockProviderConfig,
     });
     const error = new Error('not found');
     error.response = { status: 404 };
@@ -213,7 +211,7 @@ describe('Unit | Services | Azure Describer Service', () => {
         get: jest.fn(),
         post: jest.fn(),
       },
-      config: mockConfig,
+      providerConfig: mockProviderConfig,
     });
     const error = new Error('permission denied');
     error.response = {
