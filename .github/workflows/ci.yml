@@ -35,17 +35,10 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Validate GitHub YAML syntax
-        run: |
-          ruby -e 'require "yaml"; Dir[".github/**/*.yml"].sort.each { |f| YAML.load_file(f); puts "ok #{f}" }'
+        run: ruby scripts/github/validate-workflow-yaml.rb
 
       - name: Install actionlint
-        run: |
-          ACTIONLINT_VERSION="1.7.11"
-          ACTIONLINT_ARCHIVE="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
-          ACTIONLINT_URL="https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${ACTIONLINT_ARCHIVE}"
-          curl --fail --silent --show-error --location --output /tmp/actionlint.tar.gz "${ACTIONLINT_URL}"
-          echo "900919a84f2229bac68ca9cd4103ea297abc35e9689ebb842c6e34a3d1b01b0a  /tmp/actionlint.tar.gz" | sha256sum --check --
-          tar -xzf /tmp/actionlint.tar.gz -C /tmp actionlint
+        run: bash scripts/github/install-actionlint.sh
 
       - name: Run actionlint
         run: /tmp/actionlint -color
@@ -157,18 +150,7 @@ jobs:
 
       - name: Write Newman summary
         if: always()
-        run: |
-          if ! node scripts/github/write-newman-summary.js \
-            --reports-dir reports/newman \
-            --collection-path postman/collections/alt-text-generator.postman_collection.json \
-            --summary-file "$GITHUB_STEP_SUMMARY"; then
-            {
-              echo "## Newman Summary"
-              echo
-              echo "- Summary generation failed unexpectedly."
-              echo "- Inspect the Newman CLI logs above and the uploaded Newman artifacts for raw failure details."
-            } >> "$GITHUB_STEP_SUMMARY"
-          fi
+        run: bash scripts/github/write-ci-newman-summary.sh "$GITHUB_STEP_SUMMARY"
 
       - name: Upload Newman artifacts
         if: always()
@@ -271,12 +253,7 @@ jobs:
       - name: Detect Allure raw results
         id: allure-inputs
         shell: bash
-        run: |
-          if find reports/allure-results -type f ! -name '.gitkeep' -print -quit | grep -q .; then
-            echo "has-results=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has-results=false" >> "$GITHUB_OUTPUT"
-          fi
+        run: bash scripts/reporting/detect-allure-results.sh reports/allure-results "$GITHUB_OUTPUT"
 
       - name: Resolve Allure history policy
         id: history-policy
@@ -305,14 +282,10 @@ jobs:
           steps.history-policy.outputs.restore_history == 'true' &&
           steps.history-policy.outputs.history_fallback_report_url != ''
         shell: bash
-        run: |
-          if [ -d reports/allure-results/history ] && find reports/allure-results/history -type f ! -name '.gitkeep' -print -quit | grep -q .; then
-            exit 0
-          fi
-
-          node scripts/reporting/fetch-allure-history.js \
-            --results-dir reports/allure-results \
-            --report-url "${{ steps.history-policy.outputs.history_fallback_report_url }}"
+        run: >-
+          bash scripts/reporting/restore-allure-history-fallback.sh
+          reports/allure-results
+          "${{ steps.history-policy.outputs.history_fallback_report_url }}"
 
       - name: Write Allure metadata
         if: steps.allure-inputs.outputs.has-results == 'true'
@@ -370,22 +343,15 @@ jobs:
 
       - name: Write Allure summary
         shell: bash
-        run: |
-          {
-            echo "## Allure Report"
-            echo
-            if [[ "${{ steps.allure-inputs.outputs.has-results }}" == "true" ]]; then
-              echo "- HTML report uploaded as the \`allure-report\` artifact."
-              echo "- Raw results merged from the canonical Node 20 Jest lane and the \`${{ github.event_name == 'pull_request' && 'smoke' || 'harness' }}\` Newman run."
-              echo "- Report kind: \`${{ steps.history-policy.outputs.report_kind }}\`."
-              echo "- History stream: \`${{ steps.history-policy.outputs.history_key || 'none' }}\`."
-              echo "- History restored from artifact: \`${{ steps.history-restore.outputs.restored || 'false' }}\`."
-              echo "- History persisted as artifact: \`${{ steps.history-policy.outputs.persist_history }}\`."
-              echo "- GitHub Pages published: \`${{ steps.history-policy.outputs.publish_pages }}\`."
-            else
-              echo "- No Allure raw results were available to merge."
-            fi
-          } >> "$GITHUB_STEP_SUMMARY"
+        env:
+          HAS_RESULTS: ${{ steps.allure-inputs.outputs.has-results }}
+          HISTORY_KEY: ${{ steps.history-policy.outputs.history_key || 'none' }}
+          HISTORY_RESTORED: ${{ steps.history-restore.outputs.restored || 'false' }}
+          NEWMAN_MODE: ${{ github.event_name == 'pull_request' && 'smoke' || 'harness' }}
+          PERSIST_HISTORY: ${{ steps.history-policy.outputs.persist_history }}
+          PUBLISH_PAGES: ${{ steps.history-policy.outputs.publish_pages }}
+          REPORT_KIND: ${{ steps.history-policy.outputs.report_kind }}
+        run: bash scripts/reporting/write-ci-allure-summary.sh "$GITHUB_STEP_SUMMARY"
 
   allure-pages:
     name: allure-pages
@@ -419,22 +385,7 @@ jobs:
 
       - name: Pack GitHub Pages artifact
         shell: bash
-        run: |
-          set -euo pipefail
-
-          if ! find reports/allure-report -type f ! -name '.gitkeep' -print -quit | grep -q .; then
-            echo "Allure report artifact is empty; cannot publish GitHub Pages content." >&2
-            exit 1
-          fi
-
-          tar \
-            --dereference --hard-dereference \
-            --directory reports/allure-report \
-            -cvf "${RUNNER_TEMP}/github-pages.tar" \
-            --exclude=.git \
-            --exclude=.github \
-            --exclude=".[^/]*" \
-            .
+        run: bash scripts/github/pack-pages-artifact.sh reports/allure-report "${RUNNER_TEMP}/github-pages.tar"
 
       - name: Upload GitHub Pages artifact
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
@@ -455,14 +406,9 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
 
       - name: Write GitHub Pages summary
-        run: |
-          {
-            echo "## Allure Pages"
-            echo
-            echo "- Published URL: ${{ steps.deployment.outputs.page_url }}"
-            echo "- Published via workflow deployment: true"
-            echo "- Deployment transport: GitHub Pages REST API"
-          } >> "$GITHUB_STEP_SUMMARY"
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: bash scripts/github/write-pages-summary.sh "$GITHUB_STEP_SUMMARY"
 
   ci-summary:
     name: ci-summary
@@ -477,18 +423,18 @@ jobs:
       - allure-pages
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
       - name: Write summary
-        run: |
-          {
-            echo "## CI Summary"
-            echo
-            echo "- actionlint: ${{ needs.actionlint.result }}"
-            echo "- lint: ${{ needs.lint.result }}"
-            echo "- test: ${{ needs.test.result }}"
-            echo "- newman: ${{ needs.newman.result }}"
-            echo "- test-report: ${{ needs.test-report.result }}"
-            echo "- allure-report: ${{ needs.allure-report.result }}"
-            echo "- allure-pages: ${{ needs.allure-pages.result }}"
-            echo "- allure-pages-url: ${{ needs.allure-pages.outputs.page-url || 'not-published' }}"
-            echo "- newman mode: ${{ github.event_name == 'pull_request' && 'smoke' || 'harness' }}"
-          } >> "$GITHUB_STEP_SUMMARY"
+        env:
+          ACTIONLINT_RESULT: ${{ needs.actionlint.result }}
+          ALLURE_PAGES_RESULT: ${{ needs.allure-pages.result }}
+          ALLURE_PAGES_URL: ${{ needs.allure-pages.outputs.page-url || 'not-published' }}
+          ALLURE_REPORT_RESULT: ${{ needs.allure-report.result }}
+          LINT_RESULT: ${{ needs.lint.result }}
+          NEWMAN_MODE: ${{ github.event_name == 'pull_request' && 'smoke' || 'harness' }}
+          NEWMAN_RESULT: ${{ needs.newman.result }}
+          TEST_REPORT_RESULT: ${{ needs.test-report.result }}
+          TEST_RESULT: ${{ needs.test.result }}
+        run: bash scripts/github/write-ci-summary.sh "$GITHUB_STEP_SUMMARY"

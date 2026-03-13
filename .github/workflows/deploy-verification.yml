@@ -50,30 +50,7 @@ jobs:
 
       - name: Write deploy summary
         if: always()
-        run: |
-          {
-            echo "## Deploy Verification"
-            echo
-            echo "- Event: ${{ github.event_name }}"
-            echo "- Base URL: ${BASE_URL}"
-            echo "- Production API auth expected: ${PRODUCTION_API_AUTH_ENABLED:-false}"
-            echo "- Production deploy validation token configured: ${PRODUCTION_DEPLOY_VALIDATION_API_TOKEN_CONFIGURED}"
-            if [ "${PRODUCTION_API_AUTH_ENABLED:-false}" = "true" ] && [ "${PRODUCTION_DEPLOY_VALIDATION_API_TOKEN_CONFIGURED}" != "true" ]; then
-              echo "- Protected deploy verification skipped because PRODUCTION_API_AUTH_ENABLED=true but PRODUCTION_DEPLOY_VALIDATION_API_TOKEN is not configured. Render API_AUTH_ENABLED must be true and API_AUTH_TOKENS must include the same token."
-            fi
-            echo
-          } >> "$GITHUB_STEP_SUMMARY"
-          if ! node scripts/github/write-newman-summary.js \
-            --reports-dir reports/newman \
-            --collection-path postman/collections/alt-text-generator.postman_collection.json \
-            --summary-file "$GITHUB_STEP_SUMMARY"; then
-            {
-              echo "## Newman Summary"
-              echo
-              echo "- Summary generation failed unexpectedly."
-              echo "- Inspect the Newman CLI logs above and the uploaded Newman artifacts for raw failure details."
-            } >> "$GITHUB_STEP_SUMMARY"
-          fi
+        run: bash scripts/github/write-deploy-summary.sh "$GITHUB_STEP_SUMMARY"
 
       - name: Upload Newman artifacts
         if: always()
@@ -127,12 +104,7 @@ jobs:
       - name: Detect Allure raw results
         id: allure-inputs
         shell: bash
-        run: |
-          if find reports/allure-results -type f ! -name '.gitkeep' -print -quit | grep -q .; then
-            echo "has-results=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has-results=false" >> "$GITHUB_OUTPUT"
-          fi
+        run: bash scripts/reporting/detect-allure-results.sh reports/allure-results "$GITHUB_OUTPUT"
 
       - name: Resolve Allure history policy
         id: history-policy
@@ -211,17 +183,9 @@ jobs:
 
       - name: Write Allure summary
         shell: bash
-        run: |
-          {
-            echo "## Deploy Allure Report"
-            echo
-            if [[ "${{ steps.allure-inputs.outputs.has-results }}" == "true" ]]; then
-              echo "- HTML report uploaded as the \`deploy-verification-allure-report\` artifact."
-              echo "- Report kind: \`${{ steps.history-policy.outputs.report_kind }}\`."
-              echo "- History stream: \`${{ steps.history-policy.outputs.history_key || 'none' }}\`."
-              echo "- History persisted as artifact: \`${{ steps.history-policy.outputs.persist_history }}\`."
-              echo "- GitHub Pages published: \`false\`."
-            else
-              echo "- No Allure raw results were available to merge."
-            fi
-          } >> "$GITHUB_STEP_SUMMARY"
+        env:
+          HAS_RESULTS: ${{ steps.allure-inputs.outputs.has-results }}
+          HISTORY_KEY: ${{ steps.history-policy.outputs.history_key || 'none' }}
+          PERSIST_HISTORY: ${{ steps.history-policy.outputs.persist_history }}
+          REPORT_KIND: ${{ steps.history-policy.outputs.report_kind }}
+        run: bash scripts/reporting/write-deploy-allure-summary.sh "$GITHUB_STEP_SUMMARY"
