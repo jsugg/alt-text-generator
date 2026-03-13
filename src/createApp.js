@@ -1,6 +1,5 @@
 const express = require('express');
 const axios = require('axios');
-const Replicate = require('replicate');
 
 const defaultConfig = require('../config');
 const {
@@ -9,10 +8,8 @@ const {
 } = require('./infrastructure/logger');
 const { createOutboundClients } = require('./infrastructure/outboundTrust');
 const ScraperService = require('./services/ScraperService');
-const ReplicateDescriberService = require('./services/ReplicateDescriberService');
-const AzureDescriberService = require('./services/AzureDescriberService');
-const ImageDescriberFactory = require('./services/ImageDescriberFactory');
 const PageDescriptionService = require('./services/PageDescriptionService');
+const { buildImageDescriberFactory } = require('./providers/runtimeRegistry');
 const { createHealthController } = require('./api/v1/controllers/healthController');
 const ScraperController = require('./api/v1/controllers/scraperController');
 const DescriptionController = require('./api/v1/controllers/descriptionController');
@@ -26,53 +23,6 @@ const createRequestFilter = require('./api/v1/middleware/request-filter');
 const { createRouter } = require('./utils/createRouter');
 const buildApiRouter = require('./api/v1/routes/api');
 
-const buildReplicateClient = (config, fetch) => new Replicate({
-  auth: config.replicate.apiToken,
-  baseUrl: config.replicate.apiEndpoint,
-  fetch,
-  userAgent: config.replicate.userAgent,
-});
-
-const hasReplicateProviderConfig = (replicateConfig = {}) => Boolean(
-  replicateConfig.apiToken,
-);
-
-const hasAzureProviderConfig = (azureConfig = {}) => Boolean(
-  azureConfig.apiEndpoint && azureConfig.subscriptionKey,
-);
-
-const buildImageDescriberFactory = ({
-  config,
-  logger,
-  replicateClient,
-  httpClient,
-  requestOptions,
-}) => {
-  const factory = new ImageDescriberFactory();
-  if (hasReplicateProviderConfig(config.replicate)) {
-    const replicateDescriber = new ReplicateDescriberService({
-      logger,
-      replicateClient,
-      config,
-    });
-
-    factory.register('clip', replicateDescriber);
-  }
-
-  if (hasAzureProviderConfig(config.azure)) {
-    const azureDescriber = new AzureDescriberService({
-      logger,
-      httpClient,
-      config,
-      requestOptions,
-    });
-
-    factory.register('azure', azureDescriber);
-  }
-
-  return factory;
-};
-
 const createApp = ({
   config = defaultConfig,
   appLogger = defaultAppLogger,
@@ -84,6 +34,7 @@ const createApp = ({
   health,
   outboundClients,
   rateLimitStoreProvider,
+  providerClients,
   replicateClient,
   runtimeState,
 } = {}) => {
@@ -105,14 +56,16 @@ const createApp = ({
       config,
       logger: appLogger,
       httpClient: resolvedHttpClient,
+      outboundClients: resolvedOutboundClients,
       requestOptions: {
         timeout: scraperConfig.requestTimeoutMs,
         maxRedirects: scraperConfig.maxRedirects,
         maxContentLength: scraperConfig.maxContentLengthBytes,
       },
-      replicateClient: hasReplicateProviderConfig(config.replicate)
-        ? (replicateClient ?? buildReplicateClient(config, resolvedOutboundClients.fetch))
-        : undefined,
+      providerClients: {
+        ...(providerClients ?? {}),
+        ...(replicateClient ? { clip: replicateClient, replicate: replicateClient } : {}),
+      },
     });
   const resolvedPageDescriptionService = pageDescriptionService
     ?? new PageDescriptionService({

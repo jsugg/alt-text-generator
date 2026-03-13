@@ -1,9 +1,54 @@
+const {
+  getAvailableLiveProviderScopes,
+  getLiveProviderByScope,
+  getLiveValidationProviders,
+} = require('../../config/providerCatalog');
+
+const getSortedLiveValidationProviders = () => getLiveValidationProviders()
+  .sort((left, right) => left.liveValidation.autoPriority - right.liveValidation.autoPriority);
+
 const VALID_PROVIDER_SCOPES = new Set([
   'auto',
-  'azure',
-  'replicate',
+  ...getSortedLiveValidationProviders()
+    .map((provider) => provider.liveValidation.scopeKey),
   'all',
 ]);
+
+const resolveConfiguredProviderScopes = ({
+  configuredProviderScopes,
+  hasAzureProvider,
+  hasReplicateProvider,
+} = {}) => {
+  if (Array.isArray(configuredProviderScopes)) {
+    return configuredProviderScopes;
+  }
+
+  return getLiveValidationProviders()
+    .filter((provider) => (
+      (provider.liveValidation.scopeKey === 'azure' && hasAzureProvider)
+      || (provider.liveValidation.scopeKey === 'replicate' && hasReplicateProvider)
+    ))
+    .map((provider) => provider.liveValidation.scopeKey);
+};
+
+const buildAllRequirementMessage = () => {
+  const requirements = getSortedLiveValidationProviders()
+    .map((provider) => provider.liveValidation.allRequirement);
+
+  if (requirements.length === 0) {
+    return 'live provider credentials';
+  }
+
+  if (requirements.length === 1) {
+    return requirements[0];
+  }
+
+  if (requirements.length === 2) {
+    return `${requirements[0]} and ${requirements[1]}`;
+  }
+
+  return requirements.join(', ');
+};
 
 /**
  * Normalizes a provider-scope string.
@@ -37,21 +82,22 @@ function normalizeProviderScope(
 /**
  * Detects which live providers are configured from the supplied environment.
  *
- * @param {{
- *   replicateApiToken?: string|undefined,
- *   azureApiEndpoint?: string|undefined,
- *   azureSubscriptionKey?: string|undefined,
- * }} options
- * @returns {{ hasAzureProvider: boolean, hasReplicateProvider: boolean }}
+ * @param {NodeJS.ProcessEnv} [env]
+ * @returns {{
+ *   configuredProviderScopes: string[],
+ *   hasAzureProvider: boolean,
+ *   hasReplicateProvider: boolean,
+ * }}
  */
-function detectAvailableProviders({
-  replicateApiToken,
-  azureApiEndpoint,
-  azureSubscriptionKey,
-}) {
+function detectAvailableProviders(env = process.env) {
+  const configuredProviderScopes = getLiveValidationProviders()
+    .filter((provider) => provider.isConfiguredInEnv(env))
+    .map((provider) => provider.liveValidation.scopeKey);
+
   return {
-    hasReplicateProvider: Boolean(replicateApiToken),
-    hasAzureProvider: Boolean(azureApiEndpoint && azureSubscriptionKey),
+    configuredProviderScopes,
+    hasAzureProvider: configuredProviderScopes.includes('azure'),
+    hasReplicateProvider: configuredProviderScopes.includes('replicate'),
   };
 }
 
@@ -64,14 +110,16 @@ function detectAvailableProviders({
  * @param {{
  *   requestedScope?: string|undefined,
  *   configuredScope?: string|undefined,
- *   hasAzureProvider: boolean,
- *   hasReplicateProvider: boolean,
+ *   configuredProviderScopes?: string[]|undefined,
+ *   hasAzureProvider?: boolean|undefined,
+ *   hasReplicateProvider?: boolean|undefined,
  * }} options
  * @returns {'azure'|'replicate'|'all'}
  */
 function resolveProviderScope({
   requestedScope,
   configuredScope,
+  configuredProviderScopes,
   hasAzureProvider,
   hasReplicateProvider,
 }) {
@@ -84,34 +132,41 @@ function resolveProviderScope({
   const desiredScope = normalizedRequestedScope === 'auto'
     ? normalizedConfiguredScope
     : normalizedRequestedScope;
+  const resolvedProviderScopes = resolveConfiguredProviderScopes({
+    configuredProviderScopes,
+    hasAzureProvider,
+    hasReplicateProvider,
+  });
+  const configuredProviderScopeSet = new Set(resolvedProviderScopes);
 
   if (desiredScope === 'auto') {
-    if (hasAzureProvider) {
-      return 'azure';
-    }
+    const autoProvider = getSortedLiveValidationProviders()
+      .filter((provider) => configuredProviderScopeSet.has(provider.liveValidation.scopeKey))
+      .at(0);
 
-    if (hasReplicateProvider) {
-      return 'replicate';
+    if (autoProvider) {
+      return autoProvider.liveValidation.scopeKey;
     }
 
     throw new Error(
-      'Live provider validation requires Azure credentials or REPLICATE_API_TOKEN',
+      `Live provider validation requires ${buildAllRequirementMessage()}`,
     );
   }
 
-  if (desiredScope === 'azure' && !hasAzureProvider) {
+  if (
+    desiredScope === 'all'
+    && resolvedProviderScopes.length !== getAvailableLiveProviderScopes().length
+  ) {
     throw new Error(
-      'provider_scope=azure requires ACV_API_ENDPOINT and ACV_SUBSCRIPTION_KEY',
+      `provider_scope=all requires ${buildAllRequirementMessage()}`,
     );
   }
 
-  if (desiredScope === 'replicate' && !hasReplicateProvider) {
-    throw new Error('provider_scope=replicate requires REPLICATE_API_TOKEN');
-  }
+  if (desiredScope !== 'all' && !configuredProviderScopeSet.has(desiredScope)) {
+    const provider = getLiveProviderByScope(desiredScope);
 
-  if (desiredScope === 'all' && (!hasAzureProvider || !hasReplicateProvider)) {
     throw new Error(
-      'provider_scope=all requires Azure credentials and REPLICATE_API_TOKEN',
+      `provider_scope=${desiredScope} requires ${provider.liveValidation.scopeRequirement}`,
     );
   }
 
@@ -122,24 +177,43 @@ function resolveProviderScope({
  * Expands a resolved scope into provider booleans.
  *
  * @param {'azure'|'replicate'|'all'} scope
- * @returns {{ runAzure: boolean, runReplicate: boolean }}
+ * @returns {{
+ *   selectedProviderScopes: string[],
+ *   runAzure: boolean,
+ *   runReplicate: boolean,
+ * }}
  */
 function getSelectedProviders(scope) {
-  switch (scope) {
-    case 'azure':
-      return { runAzure: true, runReplicate: false };
-    case 'replicate':
-      return { runAzure: false, runReplicate: true };
-    case 'all':
-      return { runAzure: true, runReplicate: true };
-    default:
+  const selectedProviderScopes = scope === 'all'
+    ? getAvailableLiveProviderScopes()
+    : [scope];
+
+  selectedProviderScopes.forEach((selectedScope) => {
+    if (!getLiveProviderByScope(selectedScope)) {
       throw new Error(`Resolved live provider scope is invalid: ${scope}`);
-  }
+    }
+  });
+
+  return {
+    selectedProviderScopes,
+    runAzure: selectedProviderScopes.includes('azure'),
+    runReplicate: selectedProviderScopes.includes('replicate'),
+  };
+}
+
+function getSelectedProviderFolders(scope) {
+  const { selectedProviderScopes } = getSelectedProviders(scope);
+
+  return selectedProviderScopes.map((selectedScope) => {
+    const provider = getLiveProviderByScope(selectedScope);
+    return provider.liveValidation.folderName;
+  });
 }
 
 module.exports = {
   VALID_PROVIDER_SCOPES: Array.from(VALID_PROVIDER_SCOPES),
   detectAvailableProviders,
+  getSelectedProviderFolders,
   getSelectedProviders,
   normalizeProviderScope,
   resolveProviderScope,
