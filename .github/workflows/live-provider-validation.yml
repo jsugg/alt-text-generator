@@ -79,26 +79,4 @@ jobs:
 
       - name: Write summary
         if: always()
-        run: |
-          {
-            echo "## Live Provider Validation"
-            echo
-            echo "- Event: ${{ github.event_name }}"
-            echo "- Provider scope: ${LIVE_PROVIDER_SCOPE:-unresolved}"
-            echo
-          } >> "$GITHUB_STEP_SUMMARY"
-          if [ -d reports/newman ]; then
-            if ! node scripts/github/write-newman-summary.js \
-              --reports-dir reports/newman \
-              --collection-path postman/collections/alt-text-generator.postman_collection.json \
-              --summary-file "$GITHUB_STEP_SUMMARY"; then
-              {
-                echo "## Newman Summary"
-                echo
-                echo "- Summary generation failed unexpectedly."
-                echo "- Inspect the Newman CLI logs above and the uploaded Newman artifacts for raw failure details."
-              } >> "$GITHUB_STEP_SUMMARY"
-            fi
-          else
-            echo "- No Newman reports were produced." >> "$GITHUB_STEP_SUMMARY"
-          fi
+        run: bash scripts/github/write-live-provider-summary.sh "$GITHUB_STEP_SUMMARY"

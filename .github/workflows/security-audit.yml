@@ -28,43 +28,7 @@ jobs:
 
       - name: Run production dependency audit
         id: audit
-        run: |
-          mkdir -p reports/security
-          set +e
-          npm audit --omit=dev --audit-level=high --json > reports/security/npm-audit.json 2> reports/security/npm-audit.stderr.log
-          status=$?
-          set -e
-          echo "status=${status}" >> "$GITHUB_OUTPUT"
-
-          node - <<'NODE'
-          const fs = require('node:fs');
-
-          const reportPath = 'reports/security/npm-audit.json';
-          const fallback = { metadata: { vulnerabilities: {} } };
-          let report = fallback;
-
-          try {
-            const raw = fs.readFileSync(reportPath, 'utf8').trim();
-            report = raw ? JSON.parse(raw) : fallback;
-          } catch (error) {
-            report = {
-              ...fallback,
-              parseError: error.message,
-            };
-            fs.writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`);
-          }
-
-          const vulnerabilities = report.metadata?.vulnerabilities || {};
-          const critical = Number(vulnerabilities.critical || 0);
-          const high = Number(vulnerabilities.high || 0);
-          const moderate = Number(vulnerabilities.moderate || 0);
-          const low = Number(vulnerabilities.low || 0);
-
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `critical=${critical}\n`);
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `high=${high}\n`);
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `moderate=${moderate}\n`);
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `low=${low}\n`);
-          NODE
+        run: bash scripts/github/run-security-audit.sh
 
       - name: Upload audit artifacts
         if: always()
@@ -77,15 +41,12 @@ jobs:
 
       - name: Write summary
         if: always()
-        run: |
-          {
-            echo "## Security Audit"
-            echo
-            echo "- Critical: ${{ steps.audit.outputs.critical || '0' }}"
-            echo "- High: ${{ steps.audit.outputs.high || '0' }}"
-            echo "- Moderate: ${{ steps.audit.outputs.moderate || '0' }}"
-            echo "- Low: ${{ steps.audit.outputs.low || '0' }}"
-          } >> "$GITHUB_STEP_SUMMARY"
+        env:
+          AUDIT_CRITICAL: ${{ steps.audit.outputs.critical || '0' }}
+          AUDIT_HIGH: ${{ steps.audit.outputs.high || '0' }}
+          AUDIT_LOW: ${{ steps.audit.outputs.low || '0' }}
+          AUDIT_MODERATE: ${{ steps.audit.outputs.moderate || '0' }}
+        run: bash scripts/github/write-security-audit-summary.sh "$GITHUB_STEP_SUMMARY"
 
       - name: Fail on high or critical findings
         if: steps.audit.outputs.status != '0'

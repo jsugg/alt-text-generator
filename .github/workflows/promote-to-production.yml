@@ -30,14 +30,7 @@ jobs:
         env:
           REPO_TOOLING_GITHUB_APP_ID: ${{ vars.REPO_TOOLING_GITHUB_APP_ID }}
           REPO_TOOLING_GITHUB_APP_PRIVATE_KEY: ${{ secrets.REPO_TOOLING_GITHUB_APP_PRIVATE_KEY }}
-        run: |
-          if [ -n "${REPO_TOOLING_GITHUB_APP_ID}" ] && [ -n "${REPO_TOOLING_GITHUB_APP_PRIVATE_KEY}" ]; then
-            echo "use_github_app=true" >> "${GITHUB_OUTPUT}"
-            echo "token_source=github_app" >> "${GITHUB_OUTPUT}"
-          else
-            echo "use_github_app=false" >> "${GITHUB_OUTPUT}"
-            echo "token_source=github_token" >> "${GITHUB_OUTPUT}"
-          fi
+        run: bash scripts/github/resolve-promotion-auth.sh
 
       - name: Create promotion GitHub App token
         id: promotion-app-token
@@ -53,13 +46,7 @@ jobs:
 
       - name: Require repository automation GitHub App
         if: steps.promotion-auth.outputs.use_github_app != 'true'
-        run: |
-          {
-            echo "Exact-SHA promotion to production is blocked."
-            echo "Configure vars.REPO_TOOLING_GITHUB_APP_ID and secrets.REPO_TOOLING_GITHUB_APP_PRIVATE_KEY."
-            echo "Then add that GitHub App to the protected production branch bypass list before retrying."
-          } >&2
-          exit 1
+        run: bash scripts/github/require-promotion-github-app.sh
 
       - name: Promote main into production with GitHub App token
         if: steps.promotion-auth.outputs.use_github_app == 'true'
@@ -76,17 +63,6 @@ jobs:
 
       - name: Write promotion auth summary
         if: always()
-        run: |
-          {
-            echo "## Promotion Authentication"
-            echo
-            if [ "${{ steps.promotion-auth.outputs.token_source }}" = "github_app" ]; then
-              echo "- Token source: GitHub App installation token"
-              echo "- Expected behavior: the production ref update should emit downstream push workflow runs."
-            else
-              echo "- Token source: GitHub App not configured"
-              echo "- Exact-SHA promotion is blocked until the repository automation app is configured."
-              echo "- To restore automatic production push workflows, configure vars.REPO_TOOLING_GITHUB_APP_ID and secrets.REPO_TOOLING_GITHUB_APP_PRIVATE_KEY."
-              echo "- The app must also be allowed to update the protected production branch ref."
-            fi
-          } >> "${GITHUB_STEP_SUMMARY}"
+        env:
+          TOKEN_SOURCE: ${{ steps.promotion-auth.outputs.token_source }}
+        run: bash scripts/github/write-promotion-auth-summary.sh "${GITHUB_STEP_SUMMARY}"
