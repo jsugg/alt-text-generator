@@ -5,6 +5,7 @@ const {
   listRunArtifacts,
   normalizePageUrl,
   parseArgs,
+  resolveOidcAudience,
   selectArtifact,
   waitForDeployment,
 } = require('../../../../scripts/github/deploy-pages-artifact');
@@ -179,6 +180,16 @@ describe('Unit | Scripts | GitHub | Deploy Pages Artifact', () => {
         'https://jsugg.github.io/alt-text-generator/',
       );
       expect(normalizePageUrl('')).toBe('');
+    });
+  });
+
+  describe('resolveOidcAudience', () => {
+    it('uses the repository owner as the Pages OIDC audience', () => {
+      expect(resolveOidcAudience('jsugg/alt-text-generator')).toBe('https://github.com/jsugg');
+    });
+
+    it('rejects invalid repository identifiers', () => {
+      expect(() => resolveOidcAudience('')).toThrow('Invalid GitHub repository value: ');
     });
   });
 
@@ -395,7 +406,7 @@ describe('Unit | Scripts | GitHub | Deploy Pages Artifact', () => {
       });
 
       expect(fetchImpl.mock.calls[0][0]).toContain('/actions/runs/23032044656/artifacts');
-      expect(fetchImpl.mock.calls[1][0].toString()).toContain('audience=https%3A%2F%2Fgithub.com%2Fjsugg%2Falt-text-generator');
+      expect(fetchImpl.mock.calls[1][0].toString()).toContain('audience=https%3A%2F%2Fgithub.com%2Fjsugg');
       expect(fetchImpl.mock.calls[2][1]).toMatchObject({
         method: 'POST',
       });

@@ -293,6 +293,16 @@ function requireEnv(env, key) {
   return value;
 }
 
+function resolveOidcAudience(repository) {
+  const owner = repository.split('/')[0];
+
+  if (!owner) {
+    throw new Error(`Invalid GitHub repository value: ${repository}`);
+  }
+
+  return `https://github.com/${owner}`;
+}
+
 async function deployPagesArtifact(options, env = process.env, helpers = {}) {
   const fetchImpl = helpers.fetchImpl || fetch;
   const sleepImpl = helpers.sleepImpl || sleep;
@@ -301,7 +311,7 @@ async function deployPagesArtifact(options, env = process.env, helpers = {}) {
   const token = requireEnv(env, 'GITHUB_TOKEN');
   const oidcRequestToken = requireEnv(env, 'ACTIONS_ID_TOKEN_REQUEST_TOKEN');
   const oidcRequestUrl = requireEnv(env, 'ACTIONS_ID_TOKEN_REQUEST_URL');
-  const oidcAudience = `https://github.com/${repository}`;
+  const oidcAudience = resolveOidcAudience(repository);
 
   const artifacts = await listRunArtifacts({
     apiBaseUrl: options.apiBaseUrl,
@@ -384,6 +394,7 @@ module.exports = {
   listRunArtifacts,
   normalizePageUrl,
   parseArgs,
+  resolveOidcAudience,
   selectArtifact,
   waitForDeployment,
 };
