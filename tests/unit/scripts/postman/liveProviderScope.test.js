@@ -1,5 +1,6 @@
 const {
   detectAvailableProviders,
+  getSelectedProviderFolders,
   getSelectedProviders,
   normalizeProviderScope,
   resolveProviderScope,
@@ -29,7 +30,11 @@ describe('Unit | Scripts | Postman | Live Provider Scope', () => {
         replicateApiToken: 'replicate-token',
         azureApiEndpoint: 'https://azure.example.com',
         azureSubscriptionKey: 'azure-key',
+        REPLICATE_API_TOKEN: 'replicate-token',
+        ACV_API_ENDPOINT: 'https://azure.example.com',
+        ACV_SUBSCRIPTION_KEY: 'azure-key',
       })).toEqual({
+        configuredProviderScopes: ['replicate', 'azure'],
         hasAzureProvider: true,
         hasReplicateProvider: true,
       });
@@ -37,8 +42,9 @@ describe('Unit | Scripts | Postman | Live Provider Scope', () => {
 
     it('requires both azure endpoint and credential', () => {
       expect(detectAvailableProviders({
-        azureApiEndpoint: 'https://azure.example.com',
+        ACV_API_ENDPOINT: 'https://azure.example.com',
       })).toEqual({
+        configuredProviderScopes: [],
         hasAzureProvider: false,
         hasReplicateProvider: false,
       });
@@ -50,8 +56,7 @@ describe('Unit | Scripts | Postman | Live Provider Scope', () => {
       expect(resolveProviderScope({
         requestedScope: 'auto',
         configuredScope: 'auto',
-        hasAzureProvider: true,
-        hasReplicateProvider: true,
+        configuredProviderScopes: ['replicate', 'azure'],
       })).toBe('azure');
     });
 
@@ -59,8 +64,7 @@ describe('Unit | Scripts | Postman | Live Provider Scope', () => {
       expect(resolveProviderScope({
         requestedScope: 'auto',
         configuredScope: 'all',
-        hasAzureProvider: true,
-        hasReplicateProvider: true,
+        configuredProviderScopes: ['replicate', 'azure'],
       })).toBe('all');
     });
 
@@ -68,8 +72,7 @@ describe('Unit | Scripts | Postman | Live Provider Scope', () => {
       expect(resolveProviderScope({
         requestedScope: 'auto',
         configuredScope: 'auto',
-        hasAzureProvider: false,
-        hasReplicateProvider: true,
+        configuredProviderScopes: ['replicate'],
       })).toBe('replicate');
     });
 
@@ -77,8 +80,7 @@ describe('Unit | Scripts | Postman | Live Provider Scope', () => {
       expect(() => resolveProviderScope({
         requestedScope: 'azure',
         configuredScope: 'auto',
-        hasAzureProvider: false,
-        hasReplicateProvider: true,
+        configuredProviderScopes: ['replicate'],
       })).toThrow(
         'provider_scope=azure requires ACV_API_ENDPOINT and ACV_SUBSCRIPTION_KEY',
       );
@@ -88,8 +90,7 @@ describe('Unit | Scripts | Postman | Live Provider Scope', () => {
       expect(() => resolveProviderScope({
         requestedScope: 'all',
         configuredScope: 'auto',
-        hasAzureProvider: true,
-        hasReplicateProvider: false,
+        configuredProviderScopes: ['azure'],
       })).toThrow(
         'provider_scope=all requires Azure credentials and REPLICATE_API_TOKEN',
       );
@@ -99,6 +100,7 @@ describe('Unit | Scripts | Postman | Live Provider Scope', () => {
   describe('getSelectedProviders', () => {
     it('maps all to both providers', () => {
       expect(getSelectedProviders('all')).toEqual({
+        selectedProviderScopes: ['replicate', 'azure'],
         runAzure: true,
         runReplicate: true,
       });
@@ -106,9 +108,19 @@ describe('Unit | Scripts | Postman | Live Provider Scope', () => {
 
     it('maps azure to azure only', () => {
       expect(getSelectedProviders('azure')).toEqual({
+        selectedProviderScopes: ['azure'],
         runAzure: true,
         runReplicate: false,
       });
+    });
+  });
+
+  describe('getSelectedProviderFolders', () => {
+    it('maps the all scope to every live provider folder', () => {
+      expect(getSelectedProviderFolders('all')).toEqual([
+        '90 Live Provider Validation',
+        '91 Live Azure Validation',
+      ]);
     });
   });
 });

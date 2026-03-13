@@ -17,6 +17,7 @@ const {
 } = require('./postman/collection-utils');
 const {
   detectAvailableProviders,
+  getSelectedProviderFolders,
   getSelectedProviders,
   resolveProviderScope,
 } = require('./postman/live-provider-scope');
@@ -347,15 +348,12 @@ async function main() {
   const liveProviderScopeInput = process.env.LIVE_PROVIDER_SCOPE || 'auto';
   const liveAzureSubscriptionKey = process.env.ACV_SUBSCRIPTION_KEY || null;
   const availableLiveProviders = detectAvailableProviders({
-    replicateApiToken: process.env.REPLICATE_API_TOKEN,
-    azureApiEndpoint: process.env.ACV_API_ENDPOINT,
-    azureSubscriptionKey: process.env.ACV_SUBSCRIPTION_KEY,
+    ...process.env,
   });
   const liveProviderScope = liveModeEnabled
     ? resolveProviderScope({
       requestedScope: liveProviderScopeInput,
-      hasAzureProvider: availableLiveProviders.hasAzureProvider,
-      hasReplicateProvider: availableLiveProviders.hasReplicateProvider,
+      configuredProviderScopes: availableLiveProviders.configuredProviderScopes,
     })
     : null;
   const selectedLiveProviders = liveProviderScope
@@ -539,21 +537,7 @@ async function main() {
     }
 
     if (liveModeEnabled) {
-      const liveFolders = [];
-
-      if (selectedLiveProviders.runReplicate) {
-        liveFolders.push('90 Live Provider Validation');
-      } else {
-        // eslint-disable-next-line no-console
-        console.log(`Skipping 90 Live Provider Validation: LIVE_PROVIDER_SCOPE=${liveProviderScope}`);
-      }
-
-      if (selectedLiveProviders.runAzure) {
-        liveFolders.push('91 Live Azure Validation');
-      } else {
-        // eslint-disable-next-line no-console
-        console.log(`Skipping 91 Live Azure Validation: LIVE_PROVIDER_SCOPE=${liveProviderScope}`);
-      }
+      const liveFolders = getSelectedProviderFolders(liveProviderScope);
 
       if (liveFolders.length === 0) {
         throw new Error(`Live mode enabled but provider scope "${liveProviderScope}" selected no folders`);

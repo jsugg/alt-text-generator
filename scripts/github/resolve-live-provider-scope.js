@@ -42,17 +42,12 @@ function appendSummary(summaryFile, lines) {
  * @returns {'azure'|'replicate'|'all'}
  */
 function resolveScopeFromEnv(env = process.env) {
-  const availableProviders = detectAvailableProviders({
-    replicateApiToken: env.REPLICATE_API_TOKEN,
-    azureApiEndpoint: env.ACV_API_ENDPOINT,
-    azureSubscriptionKey: env.ACV_SUBSCRIPTION_KEY,
-  });
+  const availableProviders = detectAvailableProviders(env);
 
   return resolveProviderScope({
     requestedScope: env.INPUT_PROVIDER_SCOPE,
     configuredScope: env.LIVE_PROVIDER_SCOPE,
-    hasAzureProvider: availableProviders.hasAzureProvider,
-    hasReplicateProvider: availableProviders.hasReplicateProvider,
+    configuredProviderScopes: availableProviders.configuredProviderScopes,
   });
 }
 

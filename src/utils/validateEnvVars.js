@@ -1,4 +1,10 @@
 const Joi = require('joi');
+const {
+  buildProviderEnvSchema,
+  getConfiguredProvidersFromEnv,
+  getProviderCatalog,
+  validateProviderEnv,
+} = require('../../config/providerCatalog');
 
 const {
   buildRateLimitStoreConfig,
@@ -46,14 +52,6 @@ const envVarsSchema = Joi.object({
   }),
   OUTBOUND_CA_BUNDLE_FILE: Joi.string().optional(),
 
-  // Replicate is optional and only required when the clip provider is enabled
-  REPLICATE_API_TOKEN: Joi.string().optional(),
-  REPLICATE_API_ENDPOINT: Joi.string().uri().optional(),
-  REPLICATE_USER_AGENT: Joi.string().optional(),
-  REPLICATE_MODEL_OWNER: Joi.string().optional(),
-  REPLICATE_MODEL_NAME: Joi.string().optional(),
-  REPLICATE_MODEL_VERSION: Joi.string().optional(),
-
   // Scraper HTTP safeguards
   SCRAPER_REQUEST_TIMEOUT_MS: Joi.number().integer().min(1).optional(),
   SCRAPER_MAX_REDIRECTS: Joi.number().integer().min(0).optional(),
@@ -63,12 +61,6 @@ const envVarsSchema = Joi.object({
   LOG_LEVEL: Joi.string()
     .valid('trace', 'debug', 'info', 'warn', 'error', 'fatal')
     .optional(),
-
-  // Azure Computer Vision (optional provider)
-  ACV_API_ENDPOINT: Joi.string().uri().optional(),
-  ACV_SUBSCRIPTION_KEY: Joi.string().optional(),
-  ACV_LANGUAGE: Joi.string().optional(),
-  ACV_MAX_CANDIDATES: Joi.number().integer().min(1).optional(),
 
   // Rate limiting
   RATE_LIMIT_WINDOW_MS: Joi.number().optional(),
@@ -91,6 +83,7 @@ const envVarsSchema = Joi.object({
   // Swagger
   SWAGGER_DEV_URL: Joi.string().uri().optional(),
   SWAGGER_PROD_URL: Joi.string().uri().optional(),
+  ...buildProviderEnvSchema(Joi),
 }).unknown();
 
 const validateEnvVars = () => {
@@ -99,26 +92,23 @@ const validateEnvVars = () => {
     throw new Error(`Config validation error: ${error.message}`);
   }
 
-  const hasAzureEndpoint = Boolean(process.env.ACV_API_ENDPOINT);
-  const hasAzureCredential = Boolean(process.env.ACV_SUBSCRIPTION_KEY);
-  const hasReplicateProvider = Boolean(process.env.REPLICATE_API_TOKEN);
-  const hasAzureProvider = hasAzureEndpoint && hasAzureCredential;
+  const providerValidationErrors = validateProviderEnv(process.env);
+  const configuredProviders = getConfiguredProvidersFromEnv(process.env);
   const authTokens = parseAuthTokens(process.env.API_AUTH_TOKENS);
   const workerCount = Number(process.env.WORKER_COUNT ?? 1);
   const rateLimitStore = buildRateLimitStoreConfig(process.env);
 
-  if (!hasReplicateProvider && !hasAzureProvider) {
-    throw new Error(
-      'Config validation error: at least one provider must be configured. '
-        + 'Set REPLICATE_API_TOKEN to enable clip, or set ACV_API_ENDPOINT and '
-        + 'ACV_SUBSCRIPTION_KEY to enable azure',
-    );
+  if (providerValidationErrors.length > 0) {
+    throw new Error(providerValidationErrors[0]);
   }
 
-  if (hasAzureEndpoint !== hasAzureCredential) {
+  if (configuredProviders.length === 0) {
+    const providerHints = getProviderCatalog()
+      .map((provider) => provider.startupHint)
+      .join(', or set ');
+
     throw new Error(
-      'Config validation error: ACV_API_ENDPOINT and ACV_SUBSCRIPTION_KEY '
-        + 'must be set together to enable the Azure provider',
+      `Config validation error: at least one provider must be configured. Set ${providerHints}`,
     );
   }
 

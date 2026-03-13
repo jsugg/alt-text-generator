@@ -3,6 +3,7 @@
 // All other modules read from here instead of process.env directly.
 
 const { buildRateLimitStoreConfig } = require('./rateLimitStore');
+const { buildProviderConfigSections } = require('./providerCatalog');
 
 const toNumber = (value, fallback) => {
   const parsedValue = Number(value);
@@ -96,23 +97,7 @@ module.exports = {
       || process.env.NODE_EXTRA_CA_CERTS,
   },
 
-  replicate: {
-    apiToken: process.env.REPLICATE_API_TOKEN,
-    apiEndpoint: process.env.REPLICATE_API_ENDPOINT,
-    userAgent: process.env.REPLICATE_USER_AGENT || 'alt-text-generator/1.0.0',
-    modelOwner: process.env.REPLICATE_MODEL_OWNER || 'rmokady',
-    modelName: process.env.REPLICATE_MODEL_NAME || 'clip_prefix_caption',
-    modelVersion:
-      process.env.REPLICATE_MODEL_VERSION
-      || '9a34a6339872a03f45236f114321fb51fc7aa8269d38ae0ce5334969981e4cd8',
-  },
-
-  azure: {
-    apiEndpoint: process.env.ACV_API_ENDPOINT,
-    subscriptionKey: process.env.ACV_SUBSCRIPTION_KEY,
-    language: process.env.ACV_LANGUAGE || 'en',
-    maxCandidates: toNumber(process.env.ACV_MAX_CANDIDATES, 4),
-  },
+  ...buildProviderConfigSections(process.env),
 
   rateLimit: {
     windowMs: toNumber(process.env.RATE_LIMIT_WINDOW_MS, 15 * 60 * 1000),
