@@ -40,6 +40,7 @@ const createApp = ({
 } = {}) => {
   const scraperConfig = config.scraper ?? defaultConfig.scraper;
   const proxyConfig = config.proxy ?? defaultConfig.proxy;
+  const pageDescriptionConfig = config.pageDescription ?? defaultConfig.pageDescription;
   const resolvedOutboundClients = outboundClients ?? createOutboundClients(config);
   const resolvedHttpClient = httpClient ?? resolvedOutboundClients.httpClient ?? axios;
   const resolvedScraperService = scraperService ?? new ScraperService({
@@ -71,6 +72,7 @@ const createApp = ({
     ?? new PageDescriptionService({
       scraperService: resolvedScraperService,
       imageDescriberFactory: resolvedImageDescriberFactory,
+      concurrency: pageDescriptionConfig.concurrency,
     });
   const resolvedHealthController = health ?? createHealthController({ runtimeState });
   const statusRateLimiter = createStatusRateLimiter(config, rateLimitStoreProvider);

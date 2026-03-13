@@ -11,14 +11,14 @@ class ReplicateDescriberService {
    * @param {object} deps
    * @param {object} deps.logger - pino logger instance
    * @param {object} deps.replicateClient - instantiated Replicate SDK client
-   * @param {object} deps.config - app config (config.replicate)
+   * @param {object} deps.providerConfig - provider config section
    */
-  constructor({ logger, replicateClient, config }) {
+  constructor({ logger, replicateClient, providerConfig }) {
     this.logger = logger;
     this.replicate = replicateClient;
-    this.modelOwner = config.replicate.modelOwner;
-    this.modelName = config.replicate.modelName;
-    this.modelVersion = config.replicate.modelVersion;
+    this.modelOwner = providerConfig.modelOwner;
+    this.modelName = providerConfig.modelName;
+    this.modelVersion = providerConfig.modelVersion;
   }
 
   /**

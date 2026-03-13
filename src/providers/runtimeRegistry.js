@@ -1,49 +1,7 @@
-const Replicate = require('replicate');
-
 const {
   getConfiguredProvidersFromConfig,
 } = require('../../config/providerCatalog');
 const ImageDescriberFactory = require('../services/ImageDescriberFactory');
-const ReplicateDescriberService = require('../services/ReplicateDescriberService');
-const AzureDescriberService = require('../services/AzureDescriberService');
-
-const buildReplicateClient = (config, fetch) => new Replicate({
-  auth: config.replicate.apiToken,
-  baseUrl: config.replicate.apiEndpoint,
-  fetch,
-  userAgent: config.replicate.userAgent,
-});
-
-const runtimeProviderBuilders = {
-  clip: ({
-    config,
-    logger,
-    outboundClients,
-    providerClient,
-  }) => {
-    const replicateClient = providerClient ?? buildReplicateClient(
-      config,
-      outboundClients.fetch,
-    );
-
-    return new ReplicateDescriberService({
-      logger,
-      replicateClient,
-      config,
-    });
-  },
-  azure: ({
-    config,
-    logger,
-    httpClient,
-    requestOptions,
-  }) => new AzureDescriberService({
-    logger,
-    httpClient,
-    config,
-    requestOptions,
-  }),
-};
 
 const resolveProviderClient = (provider, providerClients = {}) => (
   providerClients[provider.key]
@@ -73,13 +31,11 @@ const buildImageDescriberFactory = ({
   const factory = new ImageDescriberFactory();
 
   getConfiguredProvidersFromConfig(config).forEach((provider) => {
-    const buildProvider = runtimeProviderBuilders[provider.key];
-
-    if (!buildProvider) {
+    if (typeof provider.createRuntime !== 'function') {
       throw new Error(`No runtime builder registered for provider '${provider.key}'`);
     }
 
-    const describer = buildProvider({
+    const describer = provider.createRuntime({
       config,
       logger,
       httpClient,

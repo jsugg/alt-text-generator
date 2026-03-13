@@ -25,6 +25,14 @@ describe('Unit | Config | Provider Catalog', () => {
       ACV_SUBSCRIPTION_KEY: 'azure-key',
       ACV_LANGUAGE: 'pt-BR',
       ACV_MAX_CANDIDATES: '7',
+      OPENAI_API_KEY: 'openai-key',
+      OPENAI_MODEL: 'gpt-4.1-mini',
+      HF_API_KEY: 'hf-key',
+      OLLAMA_MODEL: 'llama3.2-vision',
+      OPENROUTER_API_KEY: 'openrouter-key',
+      OPENROUTER_HTTP_REFERER: 'https://example.com',
+      OPENROUTER_TITLE: 'Alt Text 4 All',
+      TOGETHER_API_KEY: 'together-key',
     });
 
     expect(sections).toEqual({
@@ -42,6 +50,48 @@ describe('Unit | Config | Provider Catalog', () => {
         language: 'pt-BR',
         maxCandidates: 7,
       },
+      ollama: {
+        enabled: true,
+        baseUrl: 'http://127.0.0.1:11434',
+        model: 'llama3.2-vision',
+        prompt: expect.any(String),
+        keepAlive: undefined,
+      },
+      huggingface: {
+        apiKey: 'hf-key',
+        baseUrl: 'https://router.huggingface.co/v1',
+        model: 'Qwen/Qwen2.5-VL-7B-Instruct:cheapest',
+        maxTokens: 160,
+        prompt: expect.any(String),
+        headers: {},
+      },
+      openai: {
+        apiKey: 'openai-key',
+        baseUrl: 'https://api.openai.com/v1',
+        model: 'gpt-4.1-mini',
+        maxTokens: 160,
+        prompt: expect.any(String),
+        headers: {},
+      },
+      openrouter: {
+        apiKey: 'openrouter-key',
+        baseUrl: 'https://openrouter.ai/api/v1',
+        model: 'openrouter/auto',
+        maxTokens: 160,
+        prompt: expect.any(String),
+        headers: {
+          'HTTP-Referer': 'https://example.com',
+          'X-Title': 'Alt Text 4 All',
+        },
+      },
+      together: {
+        apiKey: 'together-key',
+        baseUrl: 'https://api.together.xyz/v1',
+        model: 'meta-llama/Llama-4-Scout-17B-16E-Instruct',
+        maxTokens: 160,
+        prompt: expect.any(String),
+        headers: {},
+      },
     });
     expect(buildProviderConfigSections({
       ACV_MAX_CANDIDATES: '0',
@@ -53,16 +103,37 @@ describe('Unit | Config | Provider Catalog', () => {
 
     expect(schema).toHaveProperty('REPLICATE_API_TOKEN');
     expect(schema).toHaveProperty('ACV_API_ENDPOINT');
+    expect(schema).toHaveProperty('OPENAI_API_KEY');
+    expect(schema).toHaveProperty('HF_API_KEY');
+    expect(schema).toHaveProperty('OLLAMA_MODEL');
+    expect(schema).toHaveProperty('OPENROUTER_API_KEY');
+    expect(schema).toHaveProperty('TOGETHER_API_KEY');
     expect(getConfiguredProvidersFromEnv({})).toEqual([]);
     expect(getConfiguredProvidersFromEnv({
       REPLICATE_API_TOKEN: 'replicate-token',
       ACV_API_ENDPOINT: 'https://azure.example.com/vision/v3.2/describe',
       ACV_SUBSCRIPTION_KEY: 'azure-key',
-    }).map((provider) => provider.key)).toEqual(['clip', 'azure']);
+      OPENAI_API_KEY: 'openai-key',
+      HF_TOKEN: 'hf-token',
+      OLLAMA_BASE_URL: 'http://127.0.0.1:11434',
+      OPENROUTER_API_KEY: 'openrouter-key',
+      TOGETHER_API_KEY: 'together-key',
+    }).map((provider) => provider.key)).toEqual([
+      'clip',
+      'azure',
+      'ollama',
+      'huggingface',
+      'openai',
+      'openrouter',
+      'together',
+    ]);
     expect(getConfiguredProvidersFromConfig({
       replicate: { apiToken: 'replicate-token' },
       azure: {},
-    }).map((provider) => provider.key)).toEqual(['clip']);
+      openai: { apiKey: 'openai-key' },
+      huggingface: { apiKey: 'hf-key' },
+      ollama: { enabled: true },
+    }).map((provider) => provider.key)).toEqual(['clip', 'ollama', 'huggingface', 'openai']);
   });
 
   it('validates provider-specific env rules and exposes live-provider metadata', () => {
@@ -76,7 +147,21 @@ describe('Unit | Config | Provider Catalog', () => {
       ACV_API_ENDPOINT: 'https://azure.example.com/vision/v3.2/describe',
       ACV_SUBSCRIPTION_KEY: 'azure-key',
     })).toEqual([]);
-    expect(getProviderCatalog().map((provider) => provider.key)).toEqual(['clip', 'azure']);
+    expect(validateProviderEnv({
+      OPENAI_MODEL: 'gpt-4.1-mini',
+    })[0]).toMatch(/OPENAI_API_KEY/);
+    expect(validateProviderEnv({
+      OPENROUTER_TITLE: 'Alt Text 4 All',
+    })[0]).toMatch(/OPENROUTER_API_KEY/);
+    expect(getProviderCatalog().map((provider) => provider.key)).toEqual([
+      'clip',
+      'azure',
+      'ollama',
+      'huggingface',
+      'openai',
+      'openrouter',
+      'together',
+    ]);
     expect(getLiveValidationProviders().map((provider) => provider.liveValidation.scopeKey))
       .toEqual(['replicate', 'azure']);
     expect(getAvailableLiveProviderScopes()).toEqual(['replicate', 'azure']);

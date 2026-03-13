@@ -16,7 +16,7 @@ Alt-Text 4 All is an HTTPS-first API that scrapes website images and generates A
 The service exposes these primary capabilities:
 
 - discover image URLs on a target page
-- generate alt text for a specific image with the `clip` model or the `azure` model when Azure is configured
+- generate alt text for a specific image with provider-backed models such as `clip`, `azure`, `ollama`, `huggingface`, `openai`, `openrouter`, and `together`
 - generate alt text for all images on a page while preserving duplicate entries
 
 ## Features
@@ -37,6 +37,8 @@ The service exposes these primary capabilities:
 - At least one provider configuration:
   - `REPLICATE_API_TOKEN` for the `clip` model
   - or `ACV_API_ENDPOINT` plus `ACV_SUBSCRIPTION_KEY` for the `azure` model
+  - or `OLLAMA_MODEL` / `OLLAMA_BASE_URL` for the `ollama` model
+  - or `OPENAI_API_KEY`, `HF_API_KEY` / `HF_TOKEN`, `OPENROUTER_API_KEY`, or `TOGETHER_API_KEY`
 
 ## Quick Start
 
@@ -137,6 +139,8 @@ Required at startup:
 - At least one provider configuration:
   - `REPLICATE_API_TOKEN` to register `clip`
   - or `ACV_API_ENDPOINT` plus `ACV_SUBSCRIPTION_KEY` to register `azure`
+  - or `OLLAMA_MODEL` / `OLLAMA_BASE_URL` to register `ollama`
+  - or `OPENAI_API_KEY`, `HF_API_KEY` / `HF_TOKEN`, `OPENROUTER_API_KEY`, or `TOGETHER_API_KEY`
 
 Required for live Azure descriptions:
 
@@ -151,6 +155,10 @@ Common local settings:
   - Defaults to `true` when `API_AUTH_TOKENS` contains at least one token, otherwise `false`
   - When `true`, `API_AUTH_TOKENS` must contain at least one non-empty token
 - `PORT` and `TLS_PORT`
+- `PAGE_DESCRIPTION_CONCURRENCY`
+  - Optional positive integer
+  - Defaults to `3`
+  - Caps concurrent provider calls per page-description request to reduce rate-limit and cost spikes
 - `API_AUTH_TOKENS`
   - Optional comma-separated tokens
   - When API auth is enabled, scraper and description endpoints require `Authorization: Bearer <token>` or `X-API-Key: <token>`
@@ -212,7 +220,7 @@ GET `/api/accessibility/description` or `/api/v1/accessibility/description`
 - Summary: returns an alt-text description for a given image
 - Query params:
   - `image_source`: URL-encoded address of the image
-  - `model`: AI model identifier, `clip` or `azure` when Azure is configured
+  - `model`: AI model identifier, such as `clip`, `azure`, `ollama`, `huggingface`, `openai`, `openrouter`, or `together`
 
 Example:
 
@@ -225,7 +233,7 @@ GET `/api/accessibility/descriptions` or `/api/v1/accessibility/descriptions`
 - Summary: scrapes a page and returns descriptions for its images
 - Query params:
   - `url`: URL-encoded address of the target website
-  - `model`: AI model identifier, `clip` or `azure` when Azure is configured
+  - `model`: AI model identifier, such as `clip`, `azure`, `ollama`, `huggingface`, `openai`, `openrouter`, or `together`
 - Notes:
   - preserves duplicate image entries in page order
   - reuses one prediction per unique normalized image URL per request

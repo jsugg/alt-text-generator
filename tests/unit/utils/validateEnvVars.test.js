@@ -1,8 +1,51 @@
 const ORIGINAL_ENV = process.env;
+const PROVIDER_ENV_KEYS = [
+  'REPLICATE_API_TOKEN',
+  'REPLICATE_API_ENDPOINT',
+  'REPLICATE_USER_AGENT',
+  'REPLICATE_MODEL_OWNER',
+  'REPLICATE_MODEL_NAME',
+  'REPLICATE_MODEL_VERSION',
+  'ACV_API_ENDPOINT',
+  'ACV_SUBSCRIPTION_KEY',
+  'ACV_LANGUAGE',
+  'ACV_MAX_CANDIDATES',
+  'OPENAI_API_KEY',
+  'OPENAI_BASE_URL',
+  'OPENAI_MODEL',
+  'OPENAI_MAX_TOKENS',
+  'OPENAI_PROMPT',
+  'HF_API_KEY',
+  'HF_TOKEN',
+  'HF_BASE_URL',
+  'HF_MODEL',
+  'HF_MAX_TOKENS',
+  'HF_PROMPT',
+  'OLLAMA_BASE_URL',
+  'OLLAMA_MODEL',
+  'OLLAMA_PROMPT',
+  'OLLAMA_KEEP_ALIVE',
+  'OPENROUTER_API_KEY',
+  'OPENROUTER_BASE_URL',
+  'OPENROUTER_MODEL',
+  'OPENROUTER_MAX_TOKENS',
+  'OPENROUTER_PROMPT',
+  'OPENROUTER_HTTP_REFERER',
+  'OPENROUTER_TITLE',
+  'TOGETHER_API_KEY',
+  'TOGETHER_BASE_URL',
+  'TOGETHER_MODEL',
+  'TOGETHER_MAX_TOKENS',
+  'TOGETHER_PROMPT',
+];
 
 const loadValidator = ({ overrides = {}, remove = [] } = {}) => {
   jest.resetModules();
   process.env = { ...ORIGINAL_ENV };
+
+  PROVIDER_ENV_KEYS.forEach((key) => {
+    delete process.env[key];
+  });
 
   remove.forEach((key) => {
     delete process.env[key];
@@ -40,6 +83,28 @@ describe('Unit | Utils | Validate Env Vars', () => {
         ACV_SUBSCRIPTION_KEY: 'azure-key',
       },
       remove: ['REPLICATE_API_TOKEN'],
+    });
+
+    expect(() => validateEnvVars()).not.toThrow();
+  });
+
+  it('accepts an OpenAI-only provider configuration', () => {
+    const validateEnvVars = loadValidator({
+      overrides: {
+        OPENAI_API_KEY: 'openai-key',
+      },
+      remove: ['REPLICATE_API_TOKEN', 'ACV_API_ENDPOINT', 'ACV_SUBSCRIPTION_KEY'],
+    });
+
+    expect(() => validateEnvVars()).not.toThrow();
+  });
+
+  it('accepts an Ollama-only provider configuration', () => {
+    const validateEnvVars = loadValidator({
+      overrides: {
+        OLLAMA_MODEL: 'llama3.2-vision',
+      },
+      remove: ['REPLICATE_API_TOKEN', 'ACV_API_ENDPOINT', 'ACV_SUBSCRIPTION_KEY'],
     });
 
     expect(() => validateEnvVars()).not.toThrow();
@@ -229,6 +294,17 @@ describe('Unit | Utils | Validate Env Vars', () => {
     });
 
     expect(() => validateEnvVars()).toThrow(/ACV_API_ENDPOINT/);
+  });
+
+  it('rejects OpenAI overrides without an API key', () => {
+    const validateEnvVars = loadValidator({
+      overrides: {
+        OPENAI_MODEL: 'gpt-4.1-mini',
+      },
+      remove: ['REPLICATE_API_TOKEN', 'ACV_API_ENDPOINT', 'ACV_SUBSCRIPTION_KEY', 'OPENAI_API_KEY'],
+    });
+
+    expect(() => validateEnvVars()).toThrow(/OPENAI_API_KEY/);
   });
 
   it('accepts non-empty API auth tokens when provided', () => {

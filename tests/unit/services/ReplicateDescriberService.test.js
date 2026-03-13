@@ -6,12 +6,10 @@ const mockLogger = {
   error: jest.fn(),
 };
 
-const mockConfig = {
-  replicate: {
-    modelOwner: 'testowner',
-    modelName: 'testmodel',
-    modelVersion: 'abc123',
-  },
+const mockProviderConfig = {
+  modelOwner: 'testowner',
+  modelName: 'testmodel',
+  modelVersion: 'abc123',
 };
 
 describe('Unit | Services | Replicate Describer Service', () => {
@@ -22,7 +20,7 @@ describe('Unit | Services | Replicate Describer Service', () => {
     const svc = new ReplicateDescriberService({
       logger: mockLogger,
       replicateClient: mockReplicate,
-      config: mockConfig,
+      providerConfig: mockProviderConfig,
     });
 
     const result = await svc.describeImage('https://example.com/cat.jpg');
@@ -59,7 +57,7 @@ describe('Unit | Services | Replicate Describer Service', () => {
     const svc = new ReplicateDescriberService({
       logger: mockLogger,
       replicateClient: mockReplicate,
-      config: mockConfig,
+      providerConfig: mockProviderConfig,
     });
 
     await expect(svc.describeImage('https://example.com/cat.jpg')).rejects.toThrow('API error');

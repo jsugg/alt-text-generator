@@ -226,6 +226,11 @@ API routes that generate descriptions require a `model` query parameter. Today t
 - `clip` (Replicate-backed)
 - `azure` (Azure Computer Vision-backed, registered only when `ACV_API_ENDPOINT` and
   `ACV_SUBSCRIPTION_KEY` are set)
+- `ollama` (local/self-hosted Ollama, registered when `OLLAMA_MODEL` or `OLLAMA_BASE_URL` is set)
+- `huggingface` (Hugging Face's OpenAI-compatible router, registered when `HF_API_KEY` or `HF_TOKEN` is set)
+- `openai` (OpenAI multimodal chat, registered when `OPENAI_API_KEY` is set)
+- `openrouter` (OpenRouter multimodal chat, registered when `OPENROUTER_API_KEY` is set)
+- `together` (Together AI multimodal chat, registered when `TOGETHER_API_KEY` is set)
 
 ## Configuration and Profiles
 
@@ -252,6 +257,7 @@ TLS_PORT=18447
 WORKER_COUNT=1
 LOG_LEVEL=info
 REPLICATE_API_TOKEN=replace-me
+PAGE_DESCRIPTION_CONCURRENCY=3
 # written by doctor:tls in many workflows:
 OUTBOUND_CA_BUNDLE_FILE=/absolute/path/to/certs/outbound-extra-ca.pem
 ```
@@ -282,6 +288,7 @@ Notes:
 | --- | --- | --- | --- |
 | `NODE_ENV` | No | `development` | Valid values: `development`, `production`, `test`. |
 | `REPLICATE_API_TOKEN` | No | none | Required only to register the `clip` provider and for real Replicate-backed descriptions. |
+| `PAGE_DESCRIPTION_CONCURRENCY` | No | `3` | Max concurrent provider calls during one page-description request. |
 | `API_AUTH_ENABLED` | No | derived from `API_AUTH_TOKENS` | Explicitly enables or disables API auth. Defaults to `true` when `API_AUTH_TOKENS` contains at least one token, otherwise `false`. |
 | `API_AUTH_TOKENS` | No | unset | Optional comma-separated API tokens. When API auth is enabled, scraper and description endpoints require either `Authorization: Bearer <token>` or `X-API-Key: <token>`. |
 | `ENV_FILE` | No | `.env` | Selects which dotenv file to load at startup. Not validated by Joi. |
@@ -345,7 +352,43 @@ Development TLS behavior:
 | `ACV_MAX_CANDIDATES` | No | `4` | Maximum Azure caption candidates. |
 
 `ACV_API_ENDPOINT` and `ACV_SUBSCRIPTION_KEY` must be set together or startup validation fails.
-At least one provider must be configured at startup: `REPLICATE_API_TOKEN`, or Azure endpoint plus subscription key.
+At least one provider must be configured at startup: `REPLICATE_API_TOKEN`, Azure credentials, an Ollama opt-in (`OLLAMA_MODEL` or `OLLAMA_BASE_URL`), or one of the OpenAI-compatible API keys (`OPENAI_API_KEY`, `HF_API_KEY`/`HF_TOKEN`, `OPENROUTER_API_KEY`, or `TOGETHER_API_KEY`).
+
+### Ollama (optional provider)
+
+| Variable | Required | Default | Description |
+| --- | --- | --- | --- |
+| `OLLAMA_BASE_URL` | No | `http://127.0.0.1:11434` | Ollama server base URL. Setting this or `OLLAMA_MODEL` registers `ollama`. |
+| `OLLAMA_MODEL` | No | `llama3.2-vision` | Ollama multimodal model name. Setting this or `OLLAMA_BASE_URL` registers `ollama`. |
+| `OLLAMA_PROMPT` | No | shared alt-text prompt | Prompt sent with the image. |
+| `OLLAMA_KEEP_ALIVE` | No | unset | Optional Ollama keep-alive hint such as `5m`. |
+
+### OpenAI-compatible multimodal providers
+
+| Variable | Required | Default | Description |
+| --- | --- | --- | --- |
+| `OPENAI_API_KEY` | No | none | Registers `openai`. |
+| `OPENAI_BASE_URL` | No | `https://api.openai.com/v1` | Override for proxies or compatible gateways. |
+| `OPENAI_MODEL` | No | `gpt-4.1-mini` | Default OpenAI multimodal model. |
+| `OPENAI_MAX_TOKENS` | No | `160` | Max completion tokens for `openai`. |
+| `OPENAI_PROMPT` | No | shared alt-text prompt | Prompt sent with the image. |
+| `HF_API_KEY` | No | none | Registers `huggingface`. `HF_TOKEN` is accepted as an alias. |
+| `HF_BASE_URL` | No | `https://router.huggingface.co/v1` | Hugging Face router base URL. |
+| `HF_MODEL` | No | `Qwen/Qwen2.5-VL-7B-Instruct:cheapest` | Default Hugging Face multimodal model selector. |
+| `HF_MAX_TOKENS` | No | `160` | Max completion tokens for `huggingface`. |
+| `HF_PROMPT` | No | shared alt-text prompt | Prompt sent with the image. |
+| `OPENROUTER_API_KEY` | No | none | Registers `openrouter`. |
+| `OPENROUTER_BASE_URL` | No | `https://openrouter.ai/api/v1` | OpenRouter base URL. |
+| `OPENROUTER_MODEL` | No | `openrouter/auto` | Default OpenRouter model routing target. |
+| `OPENROUTER_MAX_TOKENS` | No | `160` | Max completion tokens for `openrouter`. |
+| `OPENROUTER_PROMPT` | No | shared alt-text prompt | Prompt sent with the image. |
+| `OPENROUTER_HTTP_REFERER` | No | unset | Optional OpenRouter attribution header. |
+| `OPENROUTER_TITLE` | No | unset | Optional OpenRouter application title header. |
+| `TOGETHER_API_KEY` | No | none | Registers `together`. |
+| `TOGETHER_BASE_URL` | No | `https://api.together.xyz/v1` | Together AI base URL. |
+| `TOGETHER_MODEL` | No | `meta-llama/Llama-4-Scout-17B-16E-Instruct` | Default Together multimodal model. |
+| `TOGETHER_MAX_TOKENS` | No | `160` | Max completion tokens for `together`. |
+| `TOGETHER_PROMPT` | No | shared alt-text prompt | Prompt sent with the image. |
 
 ### Rate Limiting, Logging, and Swagger
 

@@ -1,3 +1,34 @@
+const toPositiveInteger = (value, fallback) => {
+  const parsedValue = Number(value);
+  return Number.isInteger(parsedValue) && parsedValue > 0 ? parsedValue : fallback;
+};
+
+const mapWithConcurrencyLimit = async (items, limit, mapper) => {
+  if (items.length === 0) {
+    return [];
+  }
+
+  const results = new Array(items.length);
+  let nextIndex = 0;
+  const workerCount = Math.min(limit, items.length);
+
+  const createWorker = async () => {
+    const currentIndex = nextIndex;
+    nextIndex += 1;
+
+    if (currentIndex >= items.length) {
+      return;
+    }
+
+    results[currentIndex] = await mapper(items[currentIndex], currentIndex);
+    await createWorker();
+  };
+  const workers = Array.from({ length: workerCount }, () => createWorker());
+
+  await Promise.all(workers);
+  return results;
+};
+
 /**
  * Orchestrates page scraping and image description generation.
  *
@@ -9,10 +40,12 @@ class PageDescriptionService {
    * @param {object} deps
    * @param {object} deps.scraperService - ScraperService instance
    * @param {object} deps.imageDescriberFactory - ImageDescriberFactory instance
+   * @param {number} [deps.concurrency] - max concurrent provider calls for page descriptions
    */
-  constructor({ scraperService, imageDescriberFactory }) {
+  constructor({ scraperService, imageDescriberFactory, concurrency = 3 }) {
     this.scraperService = scraperService;
     this.imageDescriberFactory = imageDescriberFactory;
+    this.concurrency = toPositiveInteger(concurrency, 3);
   }
 
   /**
@@ -37,23 +70,19 @@ class PageDescriptionService {
     const filteredImageSources = typeof describer.filterSupportedImageSources === 'function'
       ? describer.filterSupportedImageSources(imageSources)
       : imageSources;
-    const descriptionPromises = new Map();
-
-    filteredImageSources.forEach((imageSource) => {
-      if (!descriptionPromises.has(imageSource)) {
-        descriptionPromises.set(imageSource, describer.describeImage(imageSource));
-      }
-    });
+    const uniqueImageSources = [...new Set(filteredImageSources)];
 
     const settledDescriptions = new Map(
-      await Promise.all(
-        [...descriptionPromises.entries()].map(async ([imageSource, descriptionPromise]) => {
+      await mapWithConcurrencyLimit(
+        uniqueImageSources,
+        this.concurrency,
+        async (imageSource) => {
           try {
-            return [imageSource, { status: 'fulfilled', value: await descriptionPromise }];
+            return [imageSource, { status: 'fulfilled', value: await describer.describeImage(imageSource) }];
           } catch (error) {
             return [imageSource, { status: 'rejected', reason: error }];
           }
-        }),
+        },
       ),
     );
     const successfulImageSources = [];
