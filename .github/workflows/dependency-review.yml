@@ -23,9 +23,6 @@ on:
 permissions:
   contents: read
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
-
 concurrency:
   group: dependency-review-${{ github.ref }}
   cancel-in-progress: true
@@ -39,13 +36,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-      - name: Review dependency changes for pull requests
-        if: github.event_name == 'pull_request'
-        uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
-
-      - name: Review dependency changes for pushes and manual runs
-        if: github.event_name != 'pull_request'
-        uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
+      - name: Setup Node
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
-          base-ref: ${{ github.event_name == 'workflow_dispatch' && inputs.base_ref || github.event.before }}
-          head-ref: ${{ github.event_name == 'workflow_dispatch' && inputs.head_ref || github.sha }}
+          node-version: 24
+
+      - name: Review dependency changes
+        env:
+          DEPENDENCY_REVIEW_BASE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event_name == 'workflow_dispatch' && inputs.base_ref || github.event.before }}
+          DEPENDENCY_REVIEW_HEAD_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.event_name == 'workflow_dispatch' && inputs.head_ref || github.sha }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          node scripts/github/review-dependencies.js \
+            --repo "${GITHUB_REPOSITORY}" \
+            --base-ref "${DEPENDENCY_REVIEW_BASE_REF}" \
+            --head-ref "${DEPENDENCY_REVIEW_HEAD_REF}"
