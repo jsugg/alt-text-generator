@@ -60,7 +60,7 @@ describe('Unit | Config | Provider Catalog', () => {
       huggingface: {
         apiKey: 'hf-key',
         baseUrl: 'https://router.huggingface.co/v1',
-        model: 'Qwen/Qwen3-VL-8B-Instruct:novita',
+        model: 'Qwen/Qwen3-VL-30B-A3B-Instruct:novita',
         maxTokens: 160,
         prompt: expect.any(String),
         headers: {},
@@ -76,7 +76,7 @@ describe('Unit | Config | Provider Catalog', () => {
       openrouter: {
         apiKey: 'openrouter-key',
         baseUrl: 'https://openrouter.ai/api/v1',
-        model: 'openrouter/free',
+        model: 'google/gemma-3-4b-it:free',
         maxTokens: 160,
         prompt: expect.any(String),
         headers: {

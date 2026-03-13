@@ -330,7 +330,7 @@ Development TLS behavior:
 | `CLUSTER_MAX_CRASHES` | No | `5` | Maximum unexpected worker exits allowed inside the crash window before the primary exits non-zero. |
 | `CLUSTER_SHUTDOWN_TIMEOUT_MS` | No | `10000` | Time the cluster primary waits for worker disconnect during shutdown before forcing exit. |
 | `REDIS_URL` | No | unset | Shared Redis URL used automatically for rate limiting when `RATE_LIMIT_STORE=auto` and no explicit `RATE_LIMIT_REDIS_URL` is provided. |
-| `SCRAPER_REQUEST_TIMEOUT_MS` | No | `10000` | Timeout for outbound page fetches. |
+| `SCRAPER_REQUEST_TIMEOUT_MS` | No | `10000` | Timeout for outbound page fetches and provider HTTP calls. |
 | `SCRAPER_MAX_REDIRECTS` | No | `5` | Redirect limit for outbound page fetches. |
 | `SCRAPER_MAX_CONTENT_LENGTH_BYTES` | No | `2097152` | Maximum response body size accepted when scraping HTML. |
 
@@ -376,12 +376,12 @@ At least one provider must be configured at startup: `REPLICATE_API_TOKEN`, Azur
 | `OPENAI_PROMPT` | No | shared alt-text prompt | Prompt sent with the image. |
 | `HF_API_KEY` | No | none | Registers `huggingface`. `HF_TOKEN` is accepted as an alias. |
 | `HF_BASE_URL` | No | `https://router.huggingface.co/v1` | Hugging Face router base URL. |
-| `HF_MODEL` | No | `Qwen/Qwen3-VL-8B-Instruct:novita` | Default low-cost Hugging Face image-to-text route. |
+| `HF_MODEL` | No | `Qwen/Qwen3-VL-30B-A3B-Instruct:novita` | Default low-cost Hugging Face image-to-text route. |
 | `HF_MAX_TOKENS` | No | `160` | Max completion tokens for `huggingface`. |
 | `HF_PROMPT` | No | shared alt-text prompt | Prompt sent with the image. |
 | `OPENROUTER_API_KEY` | No | none | Registers `openrouter`. |
 | `OPENROUTER_BASE_URL` | No | `https://openrouter.ai/api/v1` | OpenRouter base URL. |
-| `OPENROUTER_MODEL` | No | `openrouter/free` | Default zero-cost OpenRouter routing target for image captions. |
+| `OPENROUTER_MODEL` | No | `google/gemma-3-4b-it:free` | Default zero-cost OpenRouter image-caption model. |
 | `OPENROUTER_MAX_TOKENS` | No | `160` | Max completion tokens for `openrouter`. |
 | `OPENROUTER_PROMPT` | No | shared alt-text prompt | Prompt sent with the image. |
 | `OPENROUTER_HTTP_REFERER` | No | unset | Optional OpenRouter attribution header. |

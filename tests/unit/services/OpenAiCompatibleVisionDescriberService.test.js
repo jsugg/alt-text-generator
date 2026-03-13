@@ -165,4 +165,80 @@ describe('Unit | Services | OpenAI Compatible Vision Describer Service', () => {
 
     expect(svc.shouldSkipDescriptionError(error)).toBe(true);
   });
+
+  it('uses a fetched data url immediately for localhost images', async () => {
+    const httpClient = {
+      get: jest.fn().mockResolvedValue({
+        data: Buffer.from('fixture-image'),
+        headers: {
+          'content-type': 'image/png',
+        },
+      }),
+    };
+    const apiClient = {
+      post: jest.fn().mockResolvedValue({
+        data: {
+          choices: [
+            {
+              message: {
+                content: 'fixture caption',
+              },
+            },
+          ],
+        },
+      }),
+    };
+    const svc = new OpenAiCompatibleVisionDescriberService({
+      logger: mockLogger,
+      httpClient,
+      apiClient,
+      providerConfig: mockProviderConfig,
+      providerKey: 'openrouter',
+      providerName: 'OpenRouter Vision',
+      requestOptions: {
+        timeout: 700,
+      },
+    });
+
+    const result = await svc.describeImage('http://127.0.0.1:19090/assets/a.png');
+
+    expect(result).toEqual({
+      description: 'fixture caption',
+      imageUrl: 'http://127.0.0.1:19090/assets/a.png',
+    });
+    expect(httpClient.get).toHaveBeenCalledWith('http://127.0.0.1:19090/assets/a.png', {
+      timeout: 700,
+      maxRedirects: undefined,
+      maxContentLength: undefined,
+      maxBodyLength: undefined,
+      responseType: 'arraybuffer',
+    });
+    expect(apiClient.post).toHaveBeenCalledTimes(1);
+    expect(apiClient.post.mock.calls[0][1].messages[0].content[1].image_url.url)
+      .toMatch(/^data:image\/png;base64,/);
+  });
+
+  it('filters unsupported svg image sources for page descriptions', () => {
+    const svc = new OpenAiCompatibleVisionDescriberService({
+      logger: mockLogger,
+      httpClient: {
+        get: jest.fn(),
+      },
+      apiClient: {
+        post: jest.fn(),
+      },
+      providerConfig: mockProviderConfig,
+      providerKey: 'huggingface',
+      providerName: 'Hugging Face Inference',
+    });
+
+    expect(svc.filterSupportedImageSources([
+      'https://example.com/photo.jpg',
+      'https://example.com/logo.svg',
+      'https://cdn.example.com/image',
+    ])).toEqual([
+      'https://example.com/photo.jpg',
+      'https://cdn.example.com/image',
+    ]);
+  });
 });

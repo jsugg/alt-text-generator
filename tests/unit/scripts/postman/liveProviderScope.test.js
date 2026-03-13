@@ -140,7 +140,11 @@ describe('Unit | Scripts | Postman | Live Provider Scope', () => {
       expect(getSelectedProviderPlans('huggingface')).toEqual([
         {
           folderName: '90 Live Provider Validation',
-          envVars: ['model=huggingface'],
+          envVars: [
+            'model=huggingface',
+            'liveImageUrl=http://127.0.0.1:19090/assets/a.png',
+            'livePageUrl=http://127.0.0.1:19090/fixtures/page-with-images',
+          ],
           scopeKey: 'huggingface',
         },
       ]);

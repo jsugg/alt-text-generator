@@ -162,6 +162,8 @@ function spawnLogged(label, command, args, env = {}) {
  *   hfApiKey?: string | null,
  *   openrouterApiKey?: string | null,
  *   apiAuthTokens?: string | null,
+ *   scraperRequestTimeoutMs?: string | null,
+ *   pageDescriptionConcurrency?: string | null,
  * }} options
  * @returns {Record<string, string>}
  */
@@ -174,6 +176,8 @@ function buildAppServerEnv({
   hfApiKey = null,
   openrouterApiKey = null,
   apiAuthTokens = null,
+  scraperRequestTimeoutMs = null,
+  pageDescriptionConcurrency = null,
 }) {
   const env = {
     NODE_ENV: 'development',
@@ -209,6 +213,14 @@ function buildAppServerEnv({
   if (apiAuthTokens) {
     env.API_AUTH_ENABLED = 'true';
     env.API_AUTH_TOKENS = apiAuthTokens;
+  }
+
+  if (scraperRequestTimeoutMs) {
+    env.SCRAPER_REQUEST_TIMEOUT_MS = scraperRequestTimeoutMs;
+  }
+
+  if (pageDescriptionConcurrency) {
+    env.PAGE_DESCRIPTION_CONCURRENCY = pageDescriptionConcurrency;
   }
 
   return env;
@@ -380,6 +392,8 @@ async function main() {
   let appAzureSubscriptionKey = 'stub-key';
   let appHfApiKey = null;
   let appOpenRouterApiKey = null;
+  const liveAppScraperRequestTimeoutMs = liveModeEnabled ? '30000' : null;
+  const liveAppPageDescriptionConcurrency = liveModeEnabled ? '1' : null;
 
   if (liveModeEnabled) {
     appReplicateApiToken = selectedLiveProviders.runReplicate
@@ -434,6 +448,8 @@ async function main() {
       azureSubscriptionKey: appAzureSubscriptionKey,
       hfApiKey: appHfApiKey,
       openrouterApiKey: appOpenRouterApiKey,
+      scraperRequestTimeoutMs: liveAppScraperRequestTimeoutMs,
+      pageDescriptionConcurrency: liveAppPageDescriptionConcurrency,
     }),
   );
   managedChildren.add(appServer);
