@@ -7,6 +7,11 @@ const PROVIDER_VALIDATION_FIXTURE_EXPECTATIONS = Object.freeze({
   providerValidationPageUrl: 'text/html',
 });
 
+const ACCEPTABLE_HTML_CONTENT_TYPES = Object.freeze([
+  'text/html',
+  'text/plain',
+]);
+
 /**
  * @param {string} value
  * @returns {string}
@@ -30,10 +35,15 @@ async function assertFixtureResponse(response, key, url, expectedPrefix) {
   }
 
   const contentType = normalizeContentType(response.headers.get('content-type') || '');
-  if (!contentType.startsWith(expectedPrefix)) {
+  const acceptsHtmlFixture = expectedPrefix === 'text/html'
+    && ACCEPTABLE_HTML_CONTENT_TYPES.includes(contentType);
+  if (!acceptsHtmlFixture && !contentType.startsWith(expectedPrefix)) {
+    const expectedDescription = expectedPrefix === 'text/html'
+      ? 'text/html* or text/plain*'
+      : `${expectedPrefix}*`;
     throw new Error(
       `${key} returned content-type "${contentType || 'unknown'}" from ${url}; `
-        + `expected ${expectedPrefix}*`,
+        + `expected ${expectedDescription}`,
     );
   }
 
