@@ -25,7 +25,6 @@ on:
           - auto
           - huggingface
           - openai
-          - openrouter
           - together
           - all
 
@@ -64,7 +63,6 @@ jobs:
           LIVE_PROVIDER_SCOPE: ${{ github.event_name == 'workflow_dispatch' && inputs.provider_scope || 'all' }}
           HF_API_KEY: ${{ secrets.HF_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
         run: node scripts/github/resolve-provider-validation-scope.js
 
@@ -75,8 +73,6 @@ jobs:
           HF_API_KEY: ${{ secrets.HF_API_KEY }}
           HF_MODEL: Qwen/Qwen3-VL-30B-A3B-Instruct:fastest
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENAI_MODEL: gpt-4.1-nano
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           OPENAI_MODEL: gpt-4.1-nano
           TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
           PROVIDER_VALIDATION_PUBLIC_REF: production

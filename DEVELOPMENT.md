@@ -181,7 +181,7 @@ Modes:
   - appends raw Allure result files to `reports/allure-results/`
 - `npm run postman:pre-production-provider`
   - low-cost real-provider validation against the local app
-  - uses the Hugging Face plus OpenAI subset when both providers are configured
+  - uses the Hugging Face, OpenAI, and Together subset when configured
   - reuses repo-controlled public provider-validation fixtures so results can be compared directly with post-deploy validation
 - `npm run postman:live-provider`
   - production description-service validation
@@ -190,7 +190,7 @@ Modes:
   - supports `azure`, `replicate`, `huggingface`, `openai`, `openrouter`, or `all` through `LIVE_PROVIDER_SCOPE`
 - `npm run postman:post-deploy -- --base-url https://wcag.qcraft.com.br`
   - post-deploy smoke verification
-  - runs the post-deploy folders plus the same low-cost Hugging Face plus OpenAI subset and writes `post-deploy*.json` / `post-deploy*.xml`
+  - runs the post-deploy folders plus the same low-cost Hugging Face, OpenAI, and Together subset and writes `post-deploy*.json` / `post-deploy*.xml`
 
 Contribution standards for folder naming, tier placement, and assertion policy are documented in [docs/postman-standards.md](./docs/postman-standards.md).
 

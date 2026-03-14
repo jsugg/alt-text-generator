@@ -18,6 +18,7 @@ const VALID_PROVIDER_SCOPES = new Set([
 const LOW_COST_PROVIDER_VALIDATION_SCOPES = Object.freeze([
   'huggingface',
   'openai',
+  'together',
 ]);
 
 const resolveConfiguredProviderScopes = ({
