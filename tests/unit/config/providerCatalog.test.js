@@ -62,7 +62,7 @@ describe('Unit | Config | Provider Catalog', () => {
       huggingface: {
         apiKey: 'hf-key',
         baseUrl: 'https://router.huggingface.co/v1',
-        model: 'Qwen/Qwen3-VL-30B-A3B-Instruct:novita',
+        model: 'Qwen/Qwen3-VL-30B-A3B-Instruct:fastest',
         maxTokens: 160,
         prompt: expect.any(String),
         headers: {},

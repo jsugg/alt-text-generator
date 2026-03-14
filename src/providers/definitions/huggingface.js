@@ -8,7 +8,7 @@ module.exports = buildOpenAiCompatibleProvider({
   baseUrlEnvName: 'HF_BASE_URL',
   defaultBaseUrl: 'https://router.huggingface.co/v1',
   modelEnvName: 'HF_MODEL',
-  defaultModel: 'Qwen/Qwen3-VL-30B-A3B-Instruct:novita',
+  defaultModel: 'Qwen/Qwen3-VL-30B-A3B-Instruct:fastest',
   maxTokensEnvName: 'HF_MAX_TOKENS',
   promptEnvName: 'HF_PROMPT',
   providerValidation: {

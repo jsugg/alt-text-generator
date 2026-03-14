@@ -396,7 +396,7 @@ At least one provider must be configured at startup: `REPLICATE_API_TOKEN`, Azur
 | `OPENAI_PROMPT` | No | shared alt-text prompt | Prompt sent with the image. |
 | `HF_API_KEY` | No | none | Registers `huggingface`. `HF_TOKEN` is accepted as an alias. |
 | `HF_BASE_URL` | No | `https://router.huggingface.co/v1` | Hugging Face router base URL. |
-| `HF_MODEL` | No | `Qwen/Qwen3-VL-30B-A3B-Instruct:novita` | Default low-cost Hugging Face image-to-text route. |
+| `HF_MODEL` | No | `Qwen/Qwen3-VL-30B-A3B-Instruct:fastest` | Default Hugging Face image-to-text route, preferring the router's fastest live provider. |
 | `HF_MAX_TOKENS` | No | `160` | Max completion tokens for `huggingface`. |
 | `HF_PROMPT` | No | shared alt-text prompt | Prompt sent with the image. |
 | `OPENROUTER_API_KEY` | No | none | Registers `openrouter`. |
