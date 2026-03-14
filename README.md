@@ -86,7 +86,7 @@ Notes:
 - `postman:smoke` is the fast deterministic gate.
 - `postman:full` runs the full local provider-integration suite, including protected-endpoint auth coverage, mocked provider-validation coverage, and JSON/JUnit reports under `reports/newman/`.
 - CI also emits `reports/jest/junit.xml` from the canonical Node 20 Jest lane and publishes one combined GitHub test report that joins Jest and Newman results.
-- `postman:pre-production-provider` boots the app locally and runs the low-cost real-provider validation set used immediately before promotion, currently Hugging Face plus OpenAI when both are configured.
+- `postman:pre-production-provider` boots the app locally and runs the low-cost real-provider validation set used immediately before promotion, currently Hugging Face, OpenAI, and Together when configured.
 - `postman:live-provider` is the production description-service validation command for deployed-app plus live-provider checks against a supplied base URL.
 - `postman:post-deploy` runs post-deploy smoke plus the same low-cost real-provider validation set against a supplied base URL.
 - Before Newman starts, `postman:live-provider` and `postman:post-deploy` wait for consecutive stable health/auth probes so zero-downtime rollout overlap does not create false negatives.
@@ -94,11 +94,11 @@ Notes:
 - CI runs `postman:smoke` on pull requests and `postman:full` on `main` / `production` pushes.
 - Post-deploy verification runs `postman:post-deploy` on `production` pushes so smoke and low-cost provider checks stay inside the Newman contract layer.
 - Post-deploy verification also reads `PRODUCTION_API_AUTH_ENABLED` and `PRODUCTION_DEPLOY_VALIDATION_API_TOKEN` from the GitHub Actions environment so protected-endpoint checks match the deployed Render `API_AUTH_ENABLED` / `API_AUTH_TOKENS` state.
-- Provider-validation workflows use a single `LIVE_PROVIDER_SCOPE` enum: `auto`, `azure`, `replicate`, `huggingface`, `openai`, `openrouter`, or `all`.
-- `LIVE_PROVIDER_SCOPE=auto` keeps the provider-validation preference order: Azure, then Replicate, then Hugging Face, then OpenRouter, then OpenAI.
+- Provider-validation workflows use a single `LIVE_PROVIDER_SCOPE` enum: `auto`, `azure`, `replicate`, `huggingface`, `openai`, `openrouter`, `together`, or `all`.
+- `LIVE_PROVIDER_SCOPE=auto` keeps the provider-validation preference order: Azure, then Replicate, then Hugging Face, then OpenRouter, then OpenAI, then Together AI.
 - `provider_scope=all` runs every provider that is configured for that environment; it does not require every supported provider to be enabled everywhere.
 - Local provider integration is fully mocked and never spends live provider credits.
-- Pre-production and post-deploy use the low-cost Hugging Face plus OpenAI subset, while production live-provider validation can still run every configured provider against the same repo-controlled public provider-validation fixtures.
+- Pre-production and post-deploy use the low-cost Hugging Face, OpenAI, and Together subset, while production live-provider validation can still run every configured provider against the same repo-controlled public provider-validation fixtures.
 - `postman:smoke` and `postman:full` use the local Postman environment; `postman:live-provider` and `postman:post-deploy` use the live Postman environment.
 - Outside GitHub Actions, set `PROVIDER_VALIDATION_PUBLIC_REF=<pushed-sha-or-ref>` if you need live-provider runs to use a branch-specific fixture revision before it lands on `main`.
 - Production live-provider validation refuses localhost/private-network targets.

@@ -93,6 +93,15 @@
             "required": true,
             "schema": {
               "type": "string",
+              "enum": [
+                "clip",
+                "azure",
+                "ollama",
+                "huggingface",
+                "openai",
+                "openrouter",
+                "together"
+              ],
               "example": "clip"
             }
           }
@@ -184,6 +193,15 @@
             "required": true,
             "schema": {
               "type": "string",
+              "enum": [
+                "clip",
+                "azure",
+                "ollama",
+                "huggingface",
+                "openai",
+                "openrouter",
+                "together"
+              ],
               "example": "clip"
             }
           }

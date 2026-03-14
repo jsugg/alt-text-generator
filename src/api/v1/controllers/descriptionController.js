@@ -50,6 +50,14 @@ class DescriptionController {
    *         required: true
    *         schema:
    *           type: string
+   *           enum:
+   *             - clip
+   *             - azure
+   *             - ollama
+   *             - huggingface
+   *             - openai
+   *             - openrouter
+   *             - together
    *           example: clip
    *     responses:
    *       200:
@@ -158,6 +166,14 @@ class DescriptionController {
    *         required: true
    *         schema:
    *           type: string
+   *           enum:
+   *             - clip
+   *             - azure
+   *             - ollama
+   *             - huggingface
+   *             - openai
+   *             - openrouter
+   *             - together
    *           example: clip
    *     responses:
    *       200:

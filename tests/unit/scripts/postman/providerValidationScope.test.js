@@ -21,7 +21,7 @@ describe('Unit | Scripts | Postman | Provider Validation Scope', () => {
 
     it('rejects unsupported scope values', () => {
       expect(() => normalizeProviderScope('both')).toThrow(
-        'provider scope must be one of: auto, azure, replicate, huggingface, openrouter, openai, all',
+        'provider scope must be one of: auto, azure, replicate, huggingface, openrouter, openai, together, all',
       );
     });
   });
@@ -72,8 +72,9 @@ describe('Unit | Scripts | Postman | Provider Validation Scope', () => {
         HF_API_KEY: 'hf-key',
         OPENAI_API_KEY: 'openai-key',
         OPENROUTER_API_KEY: 'openrouter-key',
+        TOGETHER_API_KEY: 'together-key',
       })).toEqual({
-        configuredProviderScopes: ['huggingface', 'openai', 'openrouter'],
+        configuredProviderScopes: ['huggingface', 'openai', 'openrouter', 'together'],
         hasAzureProvider: false,
         hasReplicateProvider: false,
       });
@@ -119,7 +120,7 @@ describe('Unit | Scripts | Postman | Provider Validation Scope', () => {
       expect(resolveProviderScope({
         requestedScope: 'auto',
         configuredScope: 'auto',
-        configuredProviderScopes: ['openrouter', 'openai', 'huggingface'],
+        configuredProviderScopes: ['openrouter', 'openai', 'huggingface', 'together'],
       })).toBe('huggingface');
     });
 
@@ -147,7 +148,7 @@ describe('Unit | Scripts | Postman | Provider Validation Scope', () => {
         configuredScope: 'auto',
         configuredProviderScopes: [],
       })).toThrow(
-        'provider validation requires Azure credentials, REPLICATE_API_TOKEN, HF_API_KEY or HF_TOKEN, OPENROUTER_API_KEY, OPENAI_API_KEY',
+        'provider validation requires Azure credentials, REPLICATE_API_TOKEN, HF_API_KEY or HF_TOKEN, OPENROUTER_API_KEY, OPENAI_API_KEY, TOGETHER_API_KEY',
       );
     });
   });
@@ -197,9 +198,21 @@ describe('Unit | Scripts | Postman | Provider Validation Scope', () => {
       ]);
     });
 
+    it('maps together to the shared neutral folder with production env vars', () => {
+      expect(getSelectedProviderPlans('together')).toEqual([
+        {
+          folderName: '90 Provider Validation',
+          envVars: [
+            'model=together',
+          ],
+          scopeKey: 'together',
+        },
+      ]);
+    });
+
     it('expands all using only configured provider plans', () => {
       expect(getSelectedProviderPlans('all', {
-        configuredProviderScopes: ['azure', 'openrouter'],
+        configuredProviderScopes: ['azure', 'openrouter', 'together'],
       })).toEqual([
         {
           folderName: '91 Azure Provider Validation',
@@ -213,6 +226,13 @@ describe('Unit | Scripts | Postman | Provider Validation Scope', () => {
           ],
           scopeKey: 'openrouter',
         },
+        {
+          folderName: '90 Provider Validation',
+          envVars: [
+            'model=together',
+          ],
+          scopeKey: 'together',
+        },
       ]);
     });
   });
@@ -220,7 +240,7 @@ describe('Unit | Scripts | Postman | Provider Validation Scope', () => {
   describe('getSelectedProviderFolders', () => {
     it('maps the all scope to the configured live provider folders', () => {
       expect(getSelectedProviderFolders('all', {
-        configuredProviderScopes: ['azure', 'openrouter'],
+        configuredProviderScopes: ['azure', 'openrouter', 'together'],
       })).toEqual([
         '91 Azure Provider Validation',
         '90 Provider Validation',
