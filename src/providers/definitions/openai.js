@@ -8,7 +8,7 @@ module.exports = buildOpenAiCompatibleProvider({
   baseUrlEnvName: 'OPENAI_BASE_URL',
   defaultBaseUrl: 'https://api.openai.com/v1',
   modelEnvName: 'OPENAI_MODEL',
-  defaultModel: 'gpt-4.1-mini',
+  defaultModel: 'gpt-4.1-nano',
   maxTokensEnvName: 'OPENAI_MAX_TOKENS',
   promptEnvName: 'OPENAI_PROMPT',
   providerValidation: {

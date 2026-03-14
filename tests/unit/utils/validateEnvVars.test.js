@@ -299,7 +299,7 @@ describe('Unit | Utils | Validate Env Vars', () => {
   it('rejects OpenAI overrides without an API key', () => {
     const validateEnvVars = loadValidator({
       overrides: {
-        OPENAI_MODEL: 'gpt-4.1-mini',
+        OPENAI_MODEL: 'gpt-4.1-nano',
       },
       remove: ['REPLICATE_API_TOKEN', 'ACV_API_ENDPOINT', 'ACV_SUBSCRIPTION_KEY', 'OPENAI_API_KEY'],
     });

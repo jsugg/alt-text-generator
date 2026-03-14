@@ -396,7 +396,7 @@ async function main() {
   }
   if (mode === 'live') {
     throw new Error(
-      'The live mode moved to scripts/run-postman-live.js. Use npm run postman:live '
+      'The live mode moved to scripts/run-postman-live.js. Use npm run postman:hosted-provider '
       + 'for hosted validation or node scripts/run-postman-harness.js provider-integration '
       + 'for the local provider-integration harness.',
     );

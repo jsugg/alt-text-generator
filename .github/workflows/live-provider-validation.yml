@@ -1,4 +1,4 @@
-name: Live Provider Validation
+name: Hosted Provider Validation
 
 on:
   workflow_dispatch:
@@ -9,7 +9,7 @@ on:
         default: 'https://wcag.qcraft.com.br'
         type: string
       provider_scope:
-        description: Select the live provider scope. Use auto to defer to the prod-validation LIVE_PROVIDER_SCOPE variable.
+        description: Select the hosted provider scope. Use auto to defer to the prod-validation LIVE_PROVIDER_SCOPE variable.
         required: false
         default: auto
         type: choice
@@ -39,14 +39,14 @@ jobs:
       - name: Write summary
         run: |
           {
-            echo "## Live Provider Validation"
+            echo "## Hosted Provider Validation"
             echo
             echo "- Scheduled run skipped because ENABLE_SCHEDULED_LIVE_PROVIDER_VALIDATION is not set to true."
           } >> "$GITHUB_STEP_SUMMARY"
 
   live-provider:
     if: github.event_name != 'schedule' || vars.ENABLE_SCHEDULED_LIVE_PROVIDER_VALIDATION == 'true'
-    name: live-provider
+    name: hosted-provider
     runs-on: ubuntu-latest
     environment: prod-validation
     timeout-minutes: 20
@@ -61,7 +61,7 @@ jobs:
 
       - name: Resolve provider scope
         env:
-          VALIDATION_SUMMARY_TITLE: Live Provider Validation
+          VALIDATION_SUMMARY_TITLE: Hosted Provider Validation
           INPUT_PROVIDER_SCOPE: ${{ inputs.provider_scope }}
           LIVE_PROVIDER_SCOPE: ${{ vars.LIVE_PROVIDER_SCOPE }}
           REPLICATE_ENABLED: ${{ vars.REPLICATE_ENABLED }}
@@ -73,8 +73,8 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: node scripts/github/resolve-provider-validation-scope.js
 
-      - name: Run live provider validation
-        run: npm run postman:live -- --base-url "${BASE_URL}"
+      - name: Run hosted provider validation
+        run: npm run postman:hosted-provider -- --base-url "${BASE_URL}"
         env:
           BASE_URL: ${{ github.event_name == 'workflow_dispatch' && inputs.base_url || 'https://wcag.qcraft.com.br' }}
           PRODUCTION_API_AUTH_ENABLED: ${{ vars.PRODUCTION_API_AUTH_ENABLED }}
@@ -88,11 +88,11 @@ jobs:
           HF_API_KEY: ${{ secrets.HF_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
 
-      - name: Upload live validation artifacts
+      - name: Upload hosted validation artifacts
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: live-provider-artifacts
+          name: hosted-provider-artifacts
           path: reports/newman/
           if-no-files-found: ignore
           retention-days: 7
@@ -101,4 +101,4 @@ jobs:
         if: always()
         run: bash scripts/github/write-provider-validation-summary.sh "$GITHUB_STEP_SUMMARY"
         env:
-          VALIDATION_SUMMARY_TITLE: Live Provider Validation
+          VALIDATION_SUMMARY_TITLE: Hosted Provider Validation
