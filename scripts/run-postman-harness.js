@@ -405,10 +405,15 @@ async function main() {
     })
     : null;
   const selectedProviderValidation = providerValidationScope
-    ? getSelectedProviders(providerValidationScope)
+    ? getSelectedProviders(providerValidationScope, {
+      configuredProviderScopes: availableLiveProviders.configuredProviderScopes,
+    })
     : { selectedProviderScopes: [], runAzure: false, runReplicate: false };
   const selectedProviderPlans = providerValidationScope
-    ? getSelectedProviderPlans(providerValidationScope, { mode: 'provider-integration' })
+    ? getSelectedProviderPlans(providerValidationScope, {
+      configuredProviderScopes: availableLiveProviders.configuredProviderScopes,
+      mode: 'provider-integration',
+    })
     : [];
   const selectedProviderScopeSet = new Set(selectedProviderValidation.selectedProviderScopes);
   let appReplicateApiToken = 'test-token';

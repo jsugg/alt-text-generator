@@ -41,6 +41,18 @@ describe('Unit | Scripts | Postman | Provider Validation Scope', () => {
       });
     });
 
+    it('excludes disabled replicate credentials from the configured scope list', () => {
+      expect(detectAvailableProviders({
+        REPLICATE_ENABLED: 'false',
+        REPLICATE_API_TOKEN: 'replicate-token',
+        OPENAI_API_KEY: 'openai-key',
+      })).toEqual({
+        configuredProviderScopes: ['openai'],
+        hasAzureProvider: false,
+        hasReplicateProvider: false,
+      });
+    });
+
     it('detects api-key-backed multimodal providers', () => {
       expect(detectAvailableProviders({
         HF_API_KEY: 'hf-key',
@@ -107,23 +119,33 @@ describe('Unit | Scripts | Postman | Provider Validation Scope', () => {
       );
     });
 
-    it('rejects all scope when only one provider is configured', () => {
-      expect(() => resolveProviderScope({
+    it('expands all to the configured providers only', () => {
+      expect(resolveProviderScope({
         requestedScope: 'all',
         configuredScope: 'auto',
         configuredProviderScopes: ['azure'],
+      })).toBe('all');
+    });
+
+    it('rejects all scope when no provider is configured', () => {
+      expect(() => resolveProviderScope({
+        requestedScope: 'all',
+        configuredScope: 'auto',
+        configuredProviderScopes: [],
       })).toThrow(
-        'provider_scope=all requires Azure credentials, REPLICATE_API_TOKEN, HF_API_KEY or HF_TOKEN, OPENROUTER_API_KEY, OPENAI_API_KEY',
+        'provider validation requires Azure credentials, REPLICATE_API_TOKEN, HF_API_KEY or HF_TOKEN, OPENROUTER_API_KEY, OPENAI_API_KEY',
       );
     });
   });
 
   describe('getSelectedProviders', () => {
-    it('maps all to both providers', () => {
-      expect(getSelectedProviders('all')).toEqual({
-        selectedProviderScopes: ['replicate', 'azure', 'huggingface', 'openai', 'openrouter'],
+    it('maps all to the configured providers', () => {
+      expect(getSelectedProviders('all', {
+        configuredProviderScopes: ['azure', 'openai'],
+      })).toEqual({
+        selectedProviderScopes: ['azure', 'openai'],
         runAzure: true,
-        runReplicate: true,
+        runReplicate: false,
       });
     });
 
@@ -160,13 +182,34 @@ describe('Unit | Scripts | Postman | Provider Validation Scope', () => {
         },
       ]);
     });
+
+    it('expands all using only configured provider plans', () => {
+      expect(getSelectedProviderPlans('all', {
+        configuredProviderScopes: ['azure', 'openrouter'],
+      })).toEqual([
+        {
+          folderName: '91 Azure Provider Validation',
+          envVars: [],
+          scopeKey: 'azure',
+        },
+        {
+          folderName: '90 Provider Validation',
+          envVars: [
+            'model=openrouter',
+          ],
+          scopeKey: 'openrouter',
+        },
+      ]);
+    });
   });
 
   describe('getSelectedProviderFolders', () => {
-    it('maps the all scope to every live provider folder', () => {
-      expect(getSelectedProviderFolders('all')).toEqual([
-        '90 Provider Validation',
+    it('maps the all scope to the configured live provider folders', () => {
+      expect(getSelectedProviderFolders('all', {
+        configuredProviderScopes: ['azure', 'openrouter'],
+      })).toEqual([
         '91 Azure Provider Validation',
+        '90 Provider Validation',
       ]);
     });
   });

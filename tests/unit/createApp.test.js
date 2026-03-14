@@ -227,4 +227,32 @@ describe('Unit | Application Composition', () => {
 
     expect(services.imageDescriberFactory.getAvailableModels()).toEqual([]);
   });
+
+  it('does not register clip when Replicate is explicitly disabled', () => {
+    const config = {
+      replicate: {
+        enabled: false,
+        apiToken: 'test-token',
+        apiEndpoint: 'https://replicate.example.com',
+        userAgent: 'alt-text-generator/test',
+        modelOwner: 'owner',
+        modelName: 'model',
+        modelVersion: 'version',
+      },
+      scraper: {
+        requestTimeoutMs: 1500,
+        maxRedirects: 4,
+        maxContentLengthBytes: 2048,
+      },
+    };
+
+    const { services } = createApp({
+      appLogger: createAppLogger(),
+      requestLogger: createRequestLogger(),
+      httpClient: { get: jest.fn(), post: jest.fn() },
+      config,
+    });
+
+    expect(services.imageDescriberFactory.getAvailableModels()).toEqual([]);
+  });
 });
