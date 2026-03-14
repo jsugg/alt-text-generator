@@ -6,6 +6,11 @@ const {
 } = require('../../../../scripts/github/dispatch-pages-publish');
 
 describe('Unit | Scripts | GitHub | Dispatch Pages Publish', () => {
+  afterEach(() => {
+    delete process.env.GITHUB_API_URL;
+    delete process.env.GITHUB_REPOSITORY;
+  });
+
   it('parses CLI arguments with defaults', () => {
     expect(parseArgs([
       '--repo',
@@ -18,6 +23,40 @@ describe('Unit | Scripts | GitHub | Dispatch Pages Publish', () => {
       repo: 'jsugg/alt-text-generator',
       runId: '12345',
       workflow: 'allure-pages-publish.yml',
+    });
+  });
+
+  it('parses fallback defaults when GitHub env vars are absent', () => {
+    delete process.env.GITHUB_API_URL;
+    delete process.env.GITHUB_REPOSITORY;
+
+    expect(parseArgs([
+      '--repo',
+      'jsugg/alt-text-generator',
+      '--run-id',
+      '12345',
+    ])).toEqual({
+      apiBaseUrl: 'https://api.github.com/',
+      ref: 'main',
+      repo: 'jsugg/alt-text-generator',
+      runId: '12345',
+      workflow: 'allure-pages-publish.yml',
+    });
+  });
+
+  it('parses equals syntax and normalizes custom API base URLs', () => {
+    expect(parseArgs([
+      '--api-base-url=https://api.github.example',
+      '--ref=refs/heads/main',
+      '--repo=jsugg/alt-text-generator',
+      '--run-id=12345',
+      '--workflow=custom.yml',
+    ])).toEqual({
+      apiBaseUrl: 'https://api.github.example/',
+      ref: 'refs/heads/main',
+      repo: 'jsugg/alt-text-generator',
+      runId: '12345',
+      workflow: 'custom.yml',
     });
   });
 
@@ -38,6 +77,9 @@ describe('Unit | Scripts | GitHub | Dispatch Pages Publish', () => {
 
   it('builds API URLs relative to the configured GitHub API base', () => {
     expect(buildApiUrl('https://api.github.com', '/repos/jsugg/alt-text-generator')).toBe(
+      'https://api.github.com/repos/jsugg/alt-text-generator',
+    );
+    expect(buildApiUrl('https://api.github.com/', '/repos/jsugg/alt-text-generator')).toBe(
       'https://api.github.com/repos/jsugg/alt-text-generator',
     );
   });
@@ -73,6 +115,21 @@ describe('Unit | Scripts | GitHub | Dispatch Pages Publish', () => {
       token: '',
       workflow: 'allure-pages-publish.yml',
     })).rejects.toThrow('Missing required environment variable: GITHUB_TOKEN');
+  });
+
+  it('surfaces GitHub API dispatch failures', async () => {
+    const fetchImpl = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 403,
+      text: async () => 'forbidden',
+    });
+
+    await expect(postGitHubJson({
+      body: { ref: 'main' },
+      fetchImpl,
+      token: 'test-token',
+      url: 'https://api.github.com/repos/jsugg/alt-text-generator/actions/workflows/allure-pages-publish.yml/dispatches',
+    })).rejects.toThrow('GitHub workflow dispatch failed with status 403: forbidden');
   });
 
   it('dispatches the publish workflow for the source CI run', async () => {

@@ -17,6 +17,14 @@ async function createTempDir() {
 }
 
 describe('Unit | Scripts | GitHub | Resolve Pages Source Run', () => {
+  afterEach(() => {
+    delete process.env.GITHUB_API_URL;
+    delete process.env.GITHUB_EVENT_NAME;
+    delete process.env.GITHUB_EVENT_PATH;
+    delete process.env.GITHUB_REPOSITORY;
+    delete process.env.GITHUB_TOKEN;
+  });
+
   it('parses CLI arguments', () => {
     expect(parseArgs([
       '--github-output',
@@ -62,6 +70,24 @@ describe('Unit | Scripts | GitHub | Resolve Pages Source Run', () => {
       headSha: 'abc123',
       runId: '99',
       sourceEvent: 'push',
+      workflowConclusion: 'failure',
+    });
+  });
+
+  it('falls back to the workflow event name when the source workflow event is absent', async () => {
+    await expect(resolveSourceRun({
+      eventName: 'workflow_run',
+      eventPayload: {
+        workflow_run: {
+          conclusion: 'failure',
+          head_sha: 'abc123',
+          id: 99,
+        },
+      },
+    })).resolves.toEqual({
+      headSha: 'abc123',
+      runId: '99',
+      sourceEvent: 'workflow_run',
       workflowConclusion: 'failure',
     });
   });
@@ -124,6 +150,22 @@ describe('Unit | Scripts | GitHub | Resolve Pages Source Run', () => {
     });
   });
 
+  it('surfaces GitHub workflow lookup failures', async () => {
+    const fetchImpl = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      text: async () => 'missing',
+    });
+
+    await expect(fetchWorkflowRun({
+      apiBaseUrl: 'https://api.github.com/',
+      fetchImpl,
+      repository: 'jsugg/alt-text-generator',
+      runId: '123456',
+      token: 'test-token',
+    })).rejects.toThrow('GitHub workflow run lookup failed with status 404: missing');
+  });
+
   it('rejects workflow_dispatch runs without a resolvable source workflow run ID', async () => {
     await expect(resolveSourceRun({
       eventName: 'workflow_dispatch',
@@ -141,6 +183,7 @@ describe('Unit | Scripts | GitHub | Resolve Pages Source Run', () => {
     await expect(fetchWorkflowRun({
       repository: 'jsugg/alt-text-generator',
       runId: '123456',
+      token: '',
     })).rejects.toThrow('Missing required environment variable: GITHUB_TOKEN');
   });
 
