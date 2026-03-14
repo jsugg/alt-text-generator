@@ -12,6 +12,7 @@ const {
   readEventPayload,
   resolveAllureHistoryPolicy,
   resolvePullRequestContext,
+  toOutputLines,
 } = require('../../scripts/reporting/resolve-allure-history-policy');
 
 describe('Unit | Allure History Policy', () => {
@@ -57,6 +58,13 @@ describe('Unit | Allure History Policy', () => {
     })).toBeNull();
   });
 
+  it('returns no GitHub Pages URL for malformed repository identifiers', () => {
+    expect(buildPagesReportUrl({
+      repository: 'alt-text-generator',
+      serverUrl: 'https://github.com',
+    })).toBeNull();
+  });
+
   it('reads the GitHub event payload from disk', async () => {
     const eventDir = await fs.mkdtemp(path.join(os.tmpdir(), 'allure-policy-event-'));
     const eventPath = path.join(eventDir, 'event.json');
@@ -67,6 +75,10 @@ describe('Unit | Allure History Policy', () => {
     } finally {
       await fs.rm(eventDir, { force: true, recursive: true });
     }
+  });
+
+  it('returns an empty payload when no event path is provided', () => {
+    expect(readEventPayload(null)).toEqual({});
   });
 
   it('rejects unsupported workflow kinds', () => {
@@ -205,6 +217,28 @@ describe('Unit | Allure History Policy', () => {
     });
   });
 
+  it('keeps non-main/non-production CI runs ephemeral', () => {
+    expect(resolveAllureHistoryPolicy({
+      workflowKind: 'ci',
+      env: {
+        GITHUB_EVENT_NAME: 'workflow_dispatch',
+        GITHUB_REF: 'refs/heads/feature/demo',
+      },
+    })).toEqual({
+      history_artifact_name: '',
+      history_fallback_report_url: '',
+      history_key: '',
+      history_retention_days: '',
+      pages_path: '',
+      pages_report_url: '',
+      persist_history: 'false',
+      publish_pages: 'false',
+      report_kind: 'ci-other',
+      report_label: 'CI',
+      restore_history: 'false',
+    });
+  });
+
   it('persists deploy-production history on production pushes', () => {
     expect(resolveAllureHistoryPolicy({
       workflowKind: 'deploy',
@@ -247,6 +281,29 @@ describe('Unit | Allure History Policy', () => {
       publish_pages: 'false',
       report_kind: 'deploy-manual',
       report_label: 'Post Deploy Verification Manual',
+      restore_history: 'false',
+    });
+  });
+
+  it('keeps custom deploy verification URLs ephemeral', () => {
+    expect(resolveAllureHistoryPolicy({
+      workflowKind: 'deploy',
+      baseUrl: 'https://preview.example.com',
+      persistHistory: true,
+      env: {
+        GITHUB_EVENT_NAME: 'workflow_dispatch',
+      },
+    })).toEqual({
+      history_artifact_name: '',
+      history_fallback_report_url: '',
+      history_key: '',
+      history_retention_days: '',
+      pages_path: '',
+      pages_report_url: '',
+      persist_history: 'false',
+      publish_pages: 'false',
+      report_kind: 'deploy-custom',
+      report_label: 'Post Deploy Verification Custom URL',
       restore_history: 'false',
     });
   });
@@ -295,5 +352,12 @@ describe('Unit | Allure History Policy', () => {
       report_label: 'Post Deploy Verification Custom URL',
       restore_history: 'false',
     });
+  });
+
+  it('serializes GitHub Actions outputs with trailing newlines', () => {
+    expect(toOutputLines({
+      foo: 'bar',
+      baz: 'qux',
+    })).toBe('foo=bar\nbaz=qux\n');
   });
 });

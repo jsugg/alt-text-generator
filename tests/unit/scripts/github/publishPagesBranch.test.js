@@ -4,8 +4,11 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 
 const {
+  hasRemoteBranch,
+  hasStagedChanges,
   parseArgs,
   publishPagesBranch,
+  runGit: runGitCommand,
 } = require('../../../../scripts/github/publish-pages-branch');
 
 function runGit(cwd, args) {
@@ -30,7 +33,7 @@ async function createRemoteRepo() {
   const repoDir = path.join(tempDir, 'repo');
   const siteDir = path.join(tempDir, 'site');
 
-  runGit(tempDir, ['init', '--bare', remoteDir]);
+  runGit(tempDir, ['-c', 'init.defaultBranch=main', 'init', '--bare', remoteDir]);
   runGit(tempDir, ['clone', remoteDir, repoDir]);
   runGit(repoDir, ['checkout', '-b', 'main']);
   await writeFile(path.join(repoDir, 'README.md'), '# repo\n');
@@ -79,6 +82,75 @@ describe('Unit | Scripts | GitHub | Publish Pages Branch', () => {
     ])).toThrow('--commit-message is required');
   });
 
+  it('supports equals syntax and rejects malformed arguments', () => {
+    expect(parseArgs([
+      '--site-dir=reports/pages-site',
+      '--commit-message=docs: publish report',
+      '--branch=preview-pages',
+    ])).toEqual({
+      branch: 'preview-pages',
+      commitMessage: 'docs: publish report',
+      outputFile: null,
+      repoDir: process.cwd(),
+      siteDir: path.join(process.cwd(), 'reports/pages-site'),
+    });
+
+    expect(() => parseArgs([
+      'reports/pages-site',
+    ])).toThrow('Unexpected argument: reports/pages-site');
+
+    expect(() => parseArgs([
+      '--site-dir',
+      'reports/pages-site',
+      '--commit-message',
+    ])).toThrow('Missing value for --commit-message');
+
+    expect(() => parseArgs([
+      '--site-dir',
+      'reports/pages-site',
+      '--commit-message',
+      'docs: publish report',
+      '--unsupported',
+      'nope',
+    ])).toThrow('Unsupported argument: --unsupported');
+  });
+
+  it('exposes git helpers for failure-tolerant checks', async () => {
+    const {
+      repoDir,
+      rootDir,
+    } = await createRemoteRepo();
+
+    try {
+      expect(hasRemoteBranch({
+        branch: 'gh-pages',
+        repoDir,
+      })).toBe(false);
+
+      expect(hasStagedChanges(repoDir)).toBe(false);
+      await writeFile(path.join(repoDir, 'notes.txt'), 'draft');
+      runGit(repoDir, ['add', 'notes.txt']);
+      expect(hasStagedChanges(repoDir)).toBe(true);
+
+      expect(() => runGitCommand({
+        args: ['rev-parse', '--verify', 'refs/heads/does-not-exist'],
+        cwd: repoDir,
+      })).toThrow('git rev-parse --verify refs/heads/does-not-exist failed');
+
+      const allowFailureResult = runGitCommand({
+        allowFailure: true,
+        args: ['rev-parse', '--verify', 'refs/heads/does-not-exist'],
+        cwd: repoDir,
+      });
+      expect(allowFailureResult.status).not.toBe(0);
+    } finally {
+      await fs.rm(rootDir, {
+        force: true,
+        recursive: true,
+      });
+    }
+  });
+
   it('creates and updates the published branch', async () => {
     const {
       repoDir,
@@ -99,6 +171,10 @@ describe('Unit | Scripts | GitHub | Publish Pages Branch', () => {
 
       expect(firstPublish.changed).toBe(true);
       expect(firstPublish.commitSha).toMatch(/^[a-f0-9]{40}$/u);
+      expect(hasRemoteBranch({
+        branch: 'gh-pages',
+        repoDir,
+      })).toBe(true);
 
       const publishedCloneDir = path.join(rootDir, 'published');
       runGit(rootDir, ['clone', '--branch', 'gh-pages', path.join(rootDir, 'remote.git'), publishedCloneDir]);
@@ -130,6 +206,41 @@ describe('Unit | Scripts | GitHub | Publish Pages Branch', () => {
 
       runGit(publishedCloneDir, ['pull', '--ff-only']);
       await expect(fs.readFile(path.join(publishedCloneDir, 'index.html'), 'utf8')).resolves.toBe('second-report');
+    } finally {
+      await fs.rm(rootDir, {
+        force: true,
+        recursive: true,
+      });
+    }
+  });
+
+  it('writes GitHub Actions outputs when executed as a CLI', async () => {
+    const {
+      repoDir,
+      rootDir,
+      siteDir,
+    } = await createRemoteRepo();
+
+    try {
+      const outputFile = path.join(rootDir, 'github-output.txt');
+      await writeFile(path.join(siteDir, 'index.html'), 'cli-report');
+
+      execFileSync('node', [
+        path.join(process.cwd(), 'scripts/github/publish-pages-branch.js'),
+        '--repo-dir',
+        repoDir,
+        '--site-dir',
+        siteDir,
+        '--commit-message',
+        'docs: publish cli report',
+        '--output-file',
+        outputFile,
+      ], {
+        cwd: process.cwd(),
+        encoding: 'utf8',
+      });
+
+      await expect(fs.readFile(outputFile, 'utf8')).resolves.toMatch(/^branch=gh-pages\nchanged=true\ncommit_sha=[a-f0-9]{40}\n$/u);
     } finally {
       await fs.rm(rootDir, {
         force: true,

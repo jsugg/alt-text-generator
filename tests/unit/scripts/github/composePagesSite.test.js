@@ -60,6 +60,19 @@ describe('Unit | Scripts | GitHub | Compose Pages Site', () => {
     ])).toThrow('Missing required argument: --report-dir <path>');
   });
 
+  it('rejects unsupported CLI arguments', () => {
+    expect(() => parseArgs([
+      '--existing-site-dir',
+      'reports/pages-site',
+      '--output-dir',
+      'reports/pages-next',
+      '--report-dir',
+      'reports/allure-report',
+      '--unsupported',
+      'value',
+    ])).toThrow('Unknown argument: --unsupported');
+  });
+
   it('normalizes safe publish paths and rejects traversal', () => {
     expect(normalizePublishPath('/pr/123/')).toBe('pr/123');
     expect(normalizePublishPath('')).toBe('');
@@ -157,5 +170,16 @@ describe('Unit | Scripts | GitHub | Compose Pages Site', () => {
 
     await expect(fs.readFile(path.join(outputDir, 'index.html'), 'utf8')).resolves.toBe('main-report');
     await expect(fs.access(path.join(outputDir, 'pr', 'index.html'))).rejects.toThrow();
+  });
+
+  it('ignores non-directory PR entries and folders without an index', async () => {
+    const tempDir = await createTempDir();
+    const siteDir = path.join(tempDir, 'site');
+
+    await writeFile(path.join(siteDir, 'pr', '111', 'index.html'), 'report');
+    await writeFile(path.join(siteDir, 'pr', 'notes.txt'), 'not-a-directory');
+    await fs.mkdir(path.join(siteDir, 'pr', '222'), { recursive: true });
+
+    await expect(listPublishedPrDirectories(siteDir)).resolves.toEqual(['111']);
   });
 });

@@ -10,6 +10,9 @@ const ImageDescriberFactory = require('../../src/services/ImageDescriberFactory'
 const config = require('../../config');
 
 const TEST_REQUEST_ID = 'test-request-id';
+const SECURE_TEST_HOST = config.https.port === 443
+  ? 'localhost'
+  : `localhost:${config.https.port}`;
 
 const createAppLogger = () => ({
   info: jest.fn(),
@@ -39,6 +42,7 @@ const createRequestLogger = () => {
 
 const secureGet = (app, path) => request(app)
   .get(path)
+  .set('Host', SECURE_TEST_HOST)
   .set('X-Forwarded-Proto', 'https');
 
 const buildTestApp = ({
