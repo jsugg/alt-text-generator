@@ -1,1 +1,0 @@
-<p>Found. Redirecting to /api/v1/</p>
