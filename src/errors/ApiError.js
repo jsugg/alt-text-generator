@@ -86,6 +86,20 @@ class ApiError extends Error {
    * @param {object} params
    * @param {string} params.message
    * @param {string} params.code
+   * @returns {ApiError}
+   */
+  static gatewayTimeout({ message, code }) {
+    return new ApiError({
+      statusCode: 504,
+      code,
+      message,
+    });
+  }
+
+  /**
+   * @param {object} params
+   * @param {string} params.message
+   * @param {string} params.code
    * @param {object} [params.cause]
    * @returns {ApiError}
    */

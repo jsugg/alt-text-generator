@@ -101,6 +101,14 @@ describe('Unit | Config | Swagger', () => {
       .content['application/json']
       .schema.items
       .properties.imageUrl.example;
+    const pendingDescriptionResponse = swaggerSpec.paths['/api/accessibility/description']
+      .get.responses['202']
+      .content['application/json']
+      .schema;
+    const pendingPageDescriptionResponse = swaggerSpec.paths['/api/accessibility/descriptions']
+      .get.responses['202']
+      .content['application/json']
+      .schema;
     const serializedSpec = JSON.stringify(swaggerSpec);
 
     expect(descriptionImageSource.schema.example).toBe(
@@ -121,6 +129,12 @@ describe('Unit | Config | Swagger', () => {
     expect(responseImageExample).toBe(
       'https://developer.chrome.com/static/images/ai-homepage-card.png',
     );
+    expect(pendingDescriptionResponse).toEqual({
+      $ref: '#/components/schemas/DescriptionJobResponse',
+    });
+    expect(pendingPageDescriptionResponse).toEqual({
+      $ref: '#/components/schemas/PageDescriptionJobResponse',
+    });
     expect(serializedSpec).not.toContain('example.com');
     expect(serializedSpec).not.toContain('neymarques.com');
   });
@@ -163,6 +177,14 @@ describe('Unit | Config | Swagger', () => {
     expect(swaggerSpec.paths['/api/accessibility/description'].get.responses['401']
       .content['application/json'].schema).toEqual({
       $ref: '#/components/schemas/ApiErrorResponse',
+    });
+    expect(swaggerSpec.paths['/api/accessibility/description-jobs/{jobId}'].get.responses['202']
+      .content['application/json'].schema).toEqual({
+      $ref: '#/components/schemas/DescriptionJobResponse',
+    });
+    expect(swaggerSpec.paths['/api/accessibility/page-description-jobs/{jobId}'].get.responses['202']
+      .content['application/json'].schema).toEqual({
+      $ref: '#/components/schemas/PageDescriptionJobResponse',
     });
   });
 

@@ -1,5 +1,15 @@
 const ORIGINAL_ENV = process.env;
 const {
+  DEFAULT_DESCRIPTION_JOB_CLAIM_TTL_MS,
+  DEFAULT_DESCRIPTION_JOB_COMPLETED_TTL_MS,
+  DEFAULT_DESCRIPTION_JOB_FAILED_TTL_MS,
+  DEFAULT_DESCRIPTION_JOB_PENDING_TTL_MS,
+  DEFAULT_DESCRIPTION_JOB_POLL_INTERVAL_MS,
+  DEFAULT_DESCRIPTION_JOB_REDIS_PREFIX,
+  DEFAULT_DESCRIPTION_JOB_WAIT_TIMEOUT_MS,
+  DESCRIPTION_JOB_STORE_MODES,
+} = require('../../../config/descriptionJobStore');
+const {
   DEFAULT_RATE_LIMIT_REDIS_PREFIX,
   DEFAULT_UNIT_LOCAL_REDIS_URL,
 } = require('../../../config/rateLimitStore');
@@ -39,6 +49,15 @@ describe('Unit | Config | Index', () => {
         'SCRAPER_REQUEST_TIMEOUT_MS',
         'SCRAPER_MAX_REDIRECTS',
         'SCRAPER_MAX_CONTENT_LENGTH_BYTES',
+        'DESCRIPTION_JOB_STORE',
+        'DESCRIPTION_JOB_REDIS_URL',
+        'DESCRIPTION_JOB_REDIS_PREFIX',
+        'DESCRIPTION_JOB_WAIT_TIMEOUT_MS',
+        'DESCRIPTION_JOB_POLL_INTERVAL_MS',
+        'DESCRIPTION_JOB_PENDING_TTL_MS',
+        'DESCRIPTION_JOB_COMPLETED_TTL_MS',
+        'DESCRIPTION_JOB_FAILED_TTL_MS',
+        'DESCRIPTION_JOB_CLAIM_TTL_MS',
         'RATE_LIMIT_WINDOW_MS',
         'RATE_LIMIT_MAX',
         'RATE_LIMIT_STORE',
@@ -82,6 +101,18 @@ describe('Unit | Config | Index', () => {
       redisPrefix: DEFAULT_RATE_LIMIT_REDIS_PREFIX,
       redisUrl: undefined,
     });
+    expect(config.descriptionJobs).toEqual({
+      kind: DESCRIPTION_JOB_STORE_MODES.MEMORY,
+      mode: DESCRIPTION_JOB_STORE_MODES.AUTO,
+      redisPrefix: DEFAULT_DESCRIPTION_JOB_REDIS_PREFIX,
+      redisUrl: undefined,
+      waitTimeoutMs: DEFAULT_DESCRIPTION_JOB_WAIT_TIMEOUT_MS,
+      pollIntervalMs: DEFAULT_DESCRIPTION_JOB_POLL_INTERVAL_MS,
+      pendingTtlMs: DEFAULT_DESCRIPTION_JOB_PENDING_TTL_MS,
+      completedTtlMs: DEFAULT_DESCRIPTION_JOB_COMPLETED_TTL_MS,
+      failedTtlMs: DEFAULT_DESCRIPTION_JOB_FAILED_TTL_MS,
+      claimTtlMs: DEFAULT_DESCRIPTION_JOB_CLAIM_TTL_MS,
+    });
     expect(config.auth).toEqual({
       enabled: false,
       tokens: [],
@@ -105,6 +136,15 @@ describe('Unit | Config | Index', () => {
         SCRAPER_REQUEST_TIMEOUT_MS: '2500',
         SCRAPER_MAX_REDIRECTS: '2',
         SCRAPER_MAX_CONTENT_LENGTH_BYTES: '4096',
+        DESCRIPTION_JOB_STORE: 'auto',
+        DESCRIPTION_JOB_REDIS_PREFIX: 'description-jobs',
+        DESCRIPTION_JOB_REDIS_URL: 'redis://jobs.example:6379',
+        DESCRIPTION_JOB_WAIT_TIMEOUT_MS: '6000',
+        DESCRIPTION_JOB_POLL_INTERVAL_MS: '250',
+        DESCRIPTION_JOB_PENDING_TTL_MS: '120000',
+        DESCRIPTION_JOB_COMPLETED_TTL_MS: '1800000',
+        DESCRIPTION_JOB_FAILED_TTL_MS: '60000',
+        DESCRIPTION_JOB_CLAIM_TTL_MS: '45000',
         RATE_LIMIT_WINDOW_MS: '30000',
         RATE_LIMIT_MAX: '50',
         RATE_LIMIT_STORE: 'auto',
@@ -146,6 +186,18 @@ describe('Unit | Config | Index', () => {
       redisTopology: 'external',
       redisPrefix: 'redis-rate-limit:',
       redisUrl: 'redis://rate-limit.example:6379',
+    });
+    expect(config.descriptionJobs).toEqual({
+      kind: DESCRIPTION_JOB_STORE_MODES.REDIS,
+      mode: DESCRIPTION_JOB_STORE_MODES.AUTO,
+      redisPrefix: 'description-jobs:',
+      redisUrl: 'redis://jobs.example:6379',
+      waitTimeoutMs: 6000,
+      pollIntervalMs: 250,
+      pendingTtlMs: 120000,
+      completedTtlMs: 1800000,
+      failedTtlMs: 60000,
+      claimTtlMs: 45000,
     });
     expect(config.auth).toEqual({
       enabled: true,

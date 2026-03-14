@@ -6,6 +6,17 @@ const PROVIDER_ENV_KEYS = [
   'REPLICATE_MODEL_OWNER',
   'REPLICATE_MODEL_NAME',
   'REPLICATE_MODEL_VERSION',
+  'REPLICATE_REQUEST_TIMEOUT_MS',
+  'REPLICATE_POLL_INTERVAL_MS',
+  'DESCRIPTION_JOB_STORE',
+  'DESCRIPTION_JOB_REDIS_URL',
+  'DESCRIPTION_JOB_REDIS_PREFIX',
+  'DESCRIPTION_JOB_WAIT_TIMEOUT_MS',
+  'DESCRIPTION_JOB_POLL_INTERVAL_MS',
+  'DESCRIPTION_JOB_PENDING_TTL_MS',
+  'DESCRIPTION_JOB_COMPLETED_TTL_MS',
+  'DESCRIPTION_JOB_FAILED_TTL_MS',
+  'DESCRIPTION_JOB_CLAIM_TTL_MS',
   'ACV_API_ENDPOINT',
   'ACV_SUBSCRIPTION_KEY',
   'ACV_LANGUAGE',
@@ -256,6 +267,18 @@ describe('Unit | Utils | Validate Env Vars', () => {
     });
 
     expect(() => validateEnvVars()).toThrow(/RATE_LIMIT_STORE=redis/i);
+  });
+
+  it('rejects Redis-backed description jobs without a Redis URL', () => {
+    const validateEnvVars = loadValidator({
+      overrides: {
+        REPLICATE_API_TOKEN: 'test-token',
+        DESCRIPTION_JOB_STORE: 'redis',
+      },
+      remove: ['DESCRIPTION_JOB_REDIS_URL', 'RATE_LIMIT_REDIS_URL', 'REDIS_URL'],
+    });
+
+    expect(() => validateEnvVars()).toThrow(/DESCRIPTION_JOB_STORE=redis/i);
   });
 
   it('rejects multi-worker startup without a shared Redis-backed store', () => {

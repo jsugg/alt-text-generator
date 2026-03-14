@@ -23,6 +23,7 @@ The service exposes these primary capabilities:
 
 - Website image scraping with relative URL resolution
 - AI-generated descriptions for image URLs
+- Async job handoff for slow single-image and page-description providers such as Replicate-backed `clip`
 - HTTPS-first local runtime with automatic HTTP -> HTTPS redirect
 - Swagger UI for interactive API exploration
 - Lint and test automation in CI
@@ -185,6 +186,7 @@ Common local settings:
   - Use `npm run doctor:tls -- https://example.com --fix --write-env --env-file .env.test` when a target works in `curl` but fails in Node/app scraping
 
 Advanced runtime settings such as worker count, scraper timeouts, rate limits, logging, Swagger URLs, and stubbed provider endpoints are documented in [DEVELOPMENT.md](./DEVELOPMENT.md).
+Slow-provider job persistence can stay in memory or move to Redis through the `DESCRIPTION_JOB_*` settings documented there.
 `WORKER_COUNT=1` runs the app as a single process; cluster management is only enabled when `WORKER_COUNT > 1`.
 When `WORKER_COUNT > 1`, configure a Redis-backed rate-limit store through `RATE_LIMIT_STORE=redis` (or `auto`). The default topology is external Redis via `REDIS_URL`/`RATE_LIMIT_REDIS_URL`, and a future-ready `RATE_LIMIT_REDIS_TOPOLOGY=unit-local` mode can default to `redis://127.0.0.1:6379` for a pod-local/sidecar Redis design. Startup validation blocks clustered mode without Redis.
 Clustered mode applies bounded restart backoff and a crash budget so persistent worker faults do not spin forever inside the app process.
@@ -231,11 +233,27 @@ GET `/api/accessibility/description` or `/api/v1/accessibility/description`
 - Query params:
   - `image_source`: URL-encoded address of the image
   - `model`: AI model identifier, such as `clip`, `azure`, `ollama`, `huggingface`, `openai`, `openrouter`, or `together`
+- Notes:
+  - fast providers return `200` with the description array immediately
+  - slow async providers such as `clip` can return `202` with `jobId`, `status`, `pollAfterMs`, and `statusUrl`
 
 Example:
 
 ```bash
 curl -sk "https://localhost:8443/api/accessibility/description?image_source=https%3A%2F%2Fwww.google.com%2Fimages%2Fbranding%2Fgooglelogo%2F1x%2Fgooglelogo_color_272x92dp.png&model=clip"
+```
+
+GET `/api/accessibility/description-jobs/:jobId` or `/api/v1/accessibility/description-jobs/:jobId`
+
+- Summary: polls the current state of an async single-image description job
+- Responses:
+  - `202` while the provider is still processing
+  - `200` when the job has completed or failed
+
+Example:
+
+```bash
+curl -sk "https://localhost:8443/api/accessibility/description-jobs/8dbd0c163f9c85166abac1d449f5fe3e78244da0edb8ff6ea7f2e4c4cc6db83d"
 ```
 
 GET `/api/accessibility/descriptions` or `/api/v1/accessibility/descriptions`
@@ -245,6 +263,8 @@ GET `/api/accessibility/descriptions` or `/api/v1/accessibility/descriptions`
   - `url`: URL-encoded address of the target website
   - `model`: AI model identifier, such as `clip`, `azure`, `ollama`, `huggingface`, `openai`, `openrouter`, or `together`
 - Notes:
+  - fast providers return `200` with the completed page-description payload
+  - slow async providers such as `clip` can return `202` with `jobId`, `status`, `pollAfterMs`, and `statusUrl`
   - preserves duplicate image entries in page order
   - reuses one prediction per unique normalized image URL per request
 
@@ -252,6 +272,19 @@ Example:
 
 ```bash
 curl -sk "https://localhost:8443/api/accessibility/descriptions?url=https%3A%2F%2Fdeveloper.chrome.com%2F&model=clip"
+```
+
+GET `/api/accessibility/page-description-jobs/:jobId` or `/api/v1/accessibility/page-description-jobs/:jobId`
+
+- Summary: polls the current state of an async page-description job
+- Responses:
+  - `202` while the provider is still processing
+  - `200` when the job has completed or failed
+
+Example:
+
+```bash
+curl -sk "https://localhost:8443/api/accessibility/page-description-jobs/51cc340310a52659fbe9f3d2b9ef754f17f4f2376eb138dfb2cd7f0142ae5db0"
 ```
 
 ## Development

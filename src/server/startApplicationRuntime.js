@@ -2,6 +2,9 @@ const serverConfig = require('../../config/serverConfig');
 const { createApp } = require('../createApp');
 const { loadTlsCredentials } = require('../infrastructure/loadTlsCredentials');
 const {
+  initializeDescriptionJobStore,
+} = require('../infrastructure/descriptionJobStore');
+const {
   initializeRateLimitStoreProvider,
 } = require('../infrastructure/rateLimitStore');
 const { registerFatalHandlers } = require('./registerFatalHandlers');
@@ -37,12 +40,14 @@ const startApplicationRuntime = async ({
   createHttpServerFn = createHttpServer,
   createHttpsServerFn = createHttpsServer,
   gracefulShutdownFn = gracefulShutdown,
+  initializeDescriptionJobStoreFn = initializeDescriptionJobStore,
   initializeRateLimitStoreProviderFn = initializeRateLimitStoreProvider,
   loadTlsCredentialsFn = loadTlsCredentials,
   serverPorts = serverConfig,
   startServerFn = startServer,
 } = {}) => {
   let shutdown;
+  let descriptionJobStore;
   let rateLimitStoreProvider;
   const cleanupFatalHandlers = registerFatalHandlers({
     getShutdownHandler: () => shutdown,
@@ -52,6 +57,10 @@ const startApplicationRuntime = async ({
 
   try {
     const runtimeState = createRuntimeState();
+    descriptionJobStore = await initializeDescriptionJobStoreFn({
+      config,
+      logger: appLogger,
+    });
     rateLimitStoreProvider = await initializeRateLimitStoreProviderFn({
       config,
       logger: appLogger,
@@ -59,6 +68,7 @@ const startApplicationRuntime = async ({
     const { app } = createAppFn({
       config,
       appLogger,
+      descriptionJobStore,
       rateLimitStoreProvider,
       runtimeState,
     });
@@ -77,11 +87,15 @@ const startApplicationRuntime = async ({
       appLogger,
       runtimeState,
       processRef,
-      [() => rateLimitStoreProvider?.close?.()],
+      [
+        () => descriptionJobStore?.close?.(),
+        () => rateLimitStoreProvider?.close?.(),
+      ],
     );
 
     return {
       cleanupFatalHandlers,
+      descriptionJobStore,
       rateLimitStoreProvider,
       runtimeState,
       servers: [httpServer, httpsServer],
@@ -89,6 +103,11 @@ const startApplicationRuntime = async ({
     };
   } catch (error) {
     cleanupFatalHandlers();
+    try {
+      await descriptionJobStore?.close?.();
+    } catch (closeError) {
+      appLogger?.error?.({ err: closeError }, 'Failed to close description-job store during bootstrap cleanup');
+    }
     try {
       await rateLimitStoreProvider?.close?.();
     } catch (closeError) {

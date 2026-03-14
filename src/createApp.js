@@ -3,10 +3,15 @@ const axios = require('axios');
 
 const defaultConfig = require('../config');
 const {
+  createMemoryDescriptionJobStore,
+} = require('./infrastructure/descriptionJobStore');
+const {
   appLogger: defaultAppLogger,
   requestLogger: defaultRequestLogger,
 } = require('./infrastructure/logger');
 const { createOutboundClients } = require('./infrastructure/outboundTrust');
+const { DescriptionJobService } = require('./services/DescriptionJobService');
+const { PageDescriptionJobService } = require('./services/PageDescriptionJobService');
 const ScraperService = require('./services/ScraperService');
 const PageDescriptionService = require('./services/PageDescriptionService');
 const { buildImageDescriberFactory } = require('./providers/runtimeRegistry');
@@ -31,6 +36,9 @@ const createApp = ({
   scraperService,
   imageDescriberFactory,
   pageDescriptionService,
+  descriptionJobService,
+  pageDescriptionJobService,
+  descriptionJobStore,
   health,
   outboundClients,
   rateLimitStoreProvider,
@@ -41,6 +49,7 @@ const createApp = ({
   const scraperConfig = config.scraper ?? defaultConfig.scraper;
   const proxyConfig = config.proxy ?? defaultConfig.proxy;
   const pageDescriptionConfig = config.pageDescription ?? defaultConfig.pageDescription;
+  const descriptionJobsConfig = config.descriptionJobs ?? defaultConfig.descriptionJobs;
   const resolvedOutboundClients = outboundClients ?? createOutboundClients(config);
   const resolvedHttpClient = httpClient ?? resolvedOutboundClients.httpClient ?? axios;
   const resolvedScraperService = scraperService ?? new ScraperService({
@@ -73,6 +82,31 @@ const createApp = ({
       scraperService: resolvedScraperService,
       imageDescriberFactory: resolvedImageDescriberFactory,
       concurrency: pageDescriptionConfig.concurrency,
+      asyncPollIntervalMs: descriptionJobsConfig.pollIntervalMs,
+    });
+  const resolvedDescriptionJobStore = descriptionJobStore ?? createMemoryDescriptionJobStore();
+  const resolvedDescriptionJobService = descriptionJobService ?? new DescriptionJobService({
+    imageDescriberFactory: resolvedImageDescriberFactory,
+    jobStore: resolvedDescriptionJobStore,
+    logger: appLogger,
+    waitTimeoutMs: descriptionJobsConfig.waitTimeoutMs,
+    pollIntervalMs: descriptionJobsConfig.pollIntervalMs,
+    pendingTtlMs: descriptionJobsConfig.pendingTtlMs,
+    completedTtlMs: descriptionJobsConfig.completedTtlMs,
+    failedTtlMs: descriptionJobsConfig.failedTtlMs,
+  });
+  const resolvedPageDescriptionJobService = pageDescriptionJobService
+    ?? new PageDescriptionJobService({
+      pageDescriptionService: resolvedPageDescriptionService,
+      descriptionJobService: resolvedDescriptionJobService,
+      jobStore: resolvedDescriptionJobStore,
+      logger: appLogger,
+      waitTimeoutMs: descriptionJobsConfig.waitTimeoutMs,
+      pollIntervalMs: descriptionJobsConfig.pollIntervalMs,
+      pendingTtlMs: descriptionJobsConfig.pendingTtlMs,
+      completedTtlMs: descriptionJobsConfig.completedTtlMs,
+      failedTtlMs: descriptionJobsConfig.failedTtlMs,
+      claimTtlMs: descriptionJobsConfig.claimTtlMs,
     });
   const resolvedHealthController = health ?? createHealthController({ runtimeState });
   const statusRateLimiter = createStatusRateLimiter(config, rateLimitStoreProvider);
@@ -84,6 +118,8 @@ const createApp = ({
   const descriptionController = new DescriptionController({
     imageDescriberFactory: resolvedImageDescriberFactory,
     pageDescriptionService: resolvedPageDescriptionService,
+    descriptionJobService: resolvedDescriptionJobService,
+    pageDescriptionJobService: resolvedPageDescriptionJobService,
     logger: appLogger,
   });
 
@@ -112,6 +148,9 @@ const createApp = ({
     requestLogger,
     services: {
       outboundClients: resolvedOutboundClients,
+      descriptionJobService: resolvedDescriptionJobService,
+      pageDescriptionJobService: resolvedPageDescriptionJobService,
+      descriptionJobStore: resolvedDescriptionJobStore,
       scraperService: resolvedScraperService,
       imageDescriberFactory: resolvedImageDescriberFactory,
       pageDescriptionService: resolvedPageDescriptionService,

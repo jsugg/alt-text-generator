@@ -227,4 +227,154 @@ describe('Unit | Services | Page Description Service', () => {
       'https://example.com/c.jpg',
     ]);
   });
+
+  it('waits for async-capable provider jobs when describing a page in async mode', async () => {
+    const scraperService = {
+      getImages: jest.fn().mockResolvedValue({
+        imageSources: [
+          'https://example.com/a.jpg',
+          'https://example.com/b.jpg',
+          'https://example.com/a.jpg',
+        ],
+      }),
+    };
+    const createDescriptionJob = jest
+      .fn()
+      .mockImplementation(async (imageUrl) => ({
+        providerJobId: `job:${imageUrl}`,
+        imageUrl,
+        status: 'processing',
+      }));
+    const getDescriptionJob = jest
+      .fn()
+      .mockImplementation(async (providerJobId, imageUrl) => ({
+        providerJobId,
+        imageUrl,
+        status: 'succeeded',
+        result: {
+          description: `async description for ${imageUrl}`,
+          imageUrl,
+        },
+      }));
+    const imageDescriberFactory = new ImageDescriberFactory().register('clip', {
+      createDescriptionJob,
+      getDescriptionJob,
+    });
+    const service = new PageDescriptionService({
+      scraperService,
+      imageDescriberFactory,
+      asyncPollIntervalMs: 1,
+      sleep: jest.fn().mockResolvedValue(undefined),
+    });
+
+    const result = await service.describePageWithAsyncJobs({
+      pageUrl: 'https://example.com/page',
+      model: 'clip',
+    });
+
+    expect(createDescriptionJob).toHaveBeenCalledTimes(2);
+    expect(getDescriptionJob).toHaveBeenCalledTimes(2);
+    expect(result).toEqual({
+      pageUrl: 'https://example.com/page',
+      model: 'clip',
+      totalImages: 3,
+      uniqueImages: 2,
+      descriptions: [
+        {
+          description: 'async description for https://example.com/a.jpg',
+          imageUrl: 'https://example.com/a.jpg',
+        },
+        {
+          description: 'async description for https://example.com/b.jpg',
+          imageUrl: 'https://example.com/b.jpg',
+        },
+        {
+          description: 'async description for https://example.com/a.jpg',
+          imageUrl: 'https://example.com/a.jpg',
+        },
+      ],
+    });
+  });
+
+  it('falls back to synchronous image descriptions when async mode is requested for a sync provider', async () => {
+    const scraperService = {
+      getImages: jest.fn().mockResolvedValue({
+        imageSources: ['https://example.com/a.jpg'],
+      }),
+    };
+    const describeImage = jest.fn().mockResolvedValue({
+      description: 'sync fallback',
+      imageUrl: 'https://example.com/a.jpg',
+    });
+    const imageDescriberFactory = new ImageDescriberFactory().register('azure', {
+      describeImage,
+    });
+    const service = new PageDescriptionService({
+      scraperService,
+      imageDescriberFactory,
+    });
+
+    const result = await service.describePageWithAsyncJobs({
+      pageUrl: 'https://example.com/page',
+      model: 'azure',
+    });
+
+    expect(describeImage).toHaveBeenCalledWith('https://example.com/a.jpg');
+    expect(result).toEqual({
+      pageUrl: 'https://example.com/page',
+      model: 'azure',
+      totalImages: 1,
+      uniqueImages: 1,
+      descriptions: [
+        {
+          description: 'sync fallback',
+          imageUrl: 'https://example.com/a.jpg',
+        },
+      ],
+    });
+  });
+
+  it('supports caller-provided image resolvers for page job orchestration', async () => {
+    const scraperService = {
+      getImages: jest.fn().mockResolvedValue({
+        imageSources: [
+          'https://example.com/a.jpg',
+          'https://example.com/a.jpg',
+        ],
+      }),
+    };
+    const imageDescriberFactory = new ImageDescriberFactory().register('clip', {});
+    const describeImage = jest.fn().mockImplementation(async (imageUrl) => ({
+      description: `resolved by job ${imageUrl}`,
+      imageUrl,
+    }));
+    const service = new PageDescriptionService({
+      scraperService,
+      imageDescriberFactory,
+    });
+
+    const result = await service.describePageWithResolver({
+      pageUrl: 'https://example.com/page',
+      model: 'clip',
+      describeImage,
+    });
+
+    expect(describeImage).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({
+      pageUrl: 'https://example.com/page',
+      model: 'clip',
+      totalImages: 2,
+      uniqueImages: 1,
+      descriptions: [
+        {
+          description: 'resolved by job https://example.com/a.jpg',
+          imageUrl: 'https://example.com/a.jpg',
+        },
+        {
+          description: 'resolved by job https://example.com/a.jpg',
+          imageUrl: 'https://example.com/a.jpg',
+        },
+      ],
+    });
+  });
 });

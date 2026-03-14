@@ -42,6 +42,16 @@ module.exports = ({
   );
 
   apiRouter.get(
+    ['/api/accessibility/description-jobs/:jobId', '/api/v1/accessibility/description-jobs/:jobId'],
+    asyncHandler(description.getDescriptionJob),
+  );
+
+  apiRouter.get(
+    ['/api/accessibility/page-description-jobs/:jobId', '/api/v1/accessibility/page-description-jobs/:jobId'],
+    asyncHandler(description.getPageDescriptionJob),
+  );
+
+  apiRouter.get(
     ['/api/accessibility/descriptions', '/api/v1/accessibility/descriptions'],
     asyncHandler(description.describePage),
   );

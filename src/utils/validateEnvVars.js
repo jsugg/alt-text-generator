@@ -7,6 +7,11 @@ const {
 } = require('../../config/providerCatalog');
 
 const {
+  buildDescriptionJobStoreConfig,
+  DESCRIPTION_JOB_STORE_MODES,
+} = require('../../config/descriptionJobStore');
+
+const {
   buildRateLimitStoreConfig,
   RATE_LIMIT_REDIS_TOPOLOGIES,
   RATE_LIMIT_STORE_MODES,
@@ -56,6 +61,17 @@ const envVarsSchema = Joi.object({
   SCRAPER_REQUEST_TIMEOUT_MS: Joi.number().integer().min(1).optional(),
   SCRAPER_MAX_REDIRECTS: Joi.number().integer().min(0).optional(),
   SCRAPER_MAX_CONTENT_LENGTH_BYTES: Joi.number().integer().min(1).optional(),
+  DESCRIPTION_JOB_STORE: Joi.string()
+    .valid(...Object.values(DESCRIPTION_JOB_STORE_MODES))
+    .optional(),
+  DESCRIPTION_JOB_REDIS_URL: Joi.string().pattern(/^rediss?:\/\//).optional(),
+  DESCRIPTION_JOB_REDIS_PREFIX: Joi.string().min(1).optional(),
+  DESCRIPTION_JOB_WAIT_TIMEOUT_MS: Joi.number().integer().min(1).optional(),
+  DESCRIPTION_JOB_POLL_INTERVAL_MS: Joi.number().integer().min(1).optional(),
+  DESCRIPTION_JOB_PENDING_TTL_MS: Joi.number().integer().min(1).optional(),
+  DESCRIPTION_JOB_COMPLETED_TTL_MS: Joi.number().integer().min(1).optional(),
+  DESCRIPTION_JOB_FAILED_TTL_MS: Joi.number().integer().min(1).optional(),
+  DESCRIPTION_JOB_CLAIM_TTL_MS: Joi.number().integer().min(1).optional(),
 
   // Logging
   LOG_LEVEL: Joi.string()
@@ -97,6 +113,7 @@ const validateEnvVars = () => {
   const configuredProviders = getConfiguredProvidersFromEnv(process.env);
   const authTokens = parseAuthTokens(process.env.API_AUTH_TOKENS);
   const workerCount = Number(process.env.WORKER_COUNT ?? 1);
+  const descriptionJobs = buildDescriptionJobStoreConfig(process.env);
   const rateLimitStore = buildRateLimitStoreConfig(process.env);
 
   if (providerValidationErrors.length > 0) {
@@ -143,6 +160,16 @@ const validateEnvVars = () => {
     throw new Error(
       'Config validation error: CLUSTER_RESTART_MAX_BACKOFF_MS must be greater '
         + 'than or equal to CLUSTER_RESTART_BACKOFF_MS',
+    );
+  }
+
+  if (
+    descriptionJobs.mode === DESCRIPTION_JOB_STORE_MODES.REDIS
+    && !descriptionJobs.redisUrl
+  ) {
+    throw new Error(
+      'Config validation error: DESCRIPTION_JOB_STORE=redis requires DESCRIPTION_JOB_REDIS_URL '
+        + 'or REDIS_URL or RATE_LIMIT_REDIS_URL to be configured',
     );
   }
 
