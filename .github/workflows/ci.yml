@@ -370,7 +370,7 @@ jobs:
       cancel-in-progress: false
     permissions:
       actions: read
-      contents: write
+      contents: read
     outputs:
       page-url: ${{ needs.allure-report.outputs.pages_report_url }}
     steps:
@@ -402,24 +402,36 @@ jobs:
           --publish-path "${{ needs.allure-report.outputs.pages_path }}"
           --report-dir reports/allure-report
 
-      - name: Publish GitHub Pages branch
-        id: publish
-        env:
-          PAGE_COMMIT_MESSAGE: >-
-            docs: publish ${{ needs.allure-report.outputs.report_kind }} report for ${{ github.sha }}
+      - name: Write GitHub Pages metadata
         run: >-
-          node scripts/github/publish-pages-branch.js
-          --site-dir reports/pages-site-next
-          --branch gh-pages
-          --commit-message "${PAGE_COMMIT_MESSAGE}"
-          --output-file "${GITHUB_OUTPUT}"
+          node scripts/github/write-pages-metadata.js
+          --metadata-path reports/pages-metadata/page-metadata.json
+          --page-path "${{ needs.allure-report.outputs.pages_path || '/' }}"
+          --page-url "${{ needs.allure-report.outputs.pages_report_url }}"
+          --report-kind "${{ needs.allure-report.outputs.report_kind }}"
+
+      - name: Upload prepared GitHub Pages site
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: allure-pages-site
+          path: reports/pages-site-next/
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Upload GitHub Pages metadata
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: allure-pages-metadata
+          path: reports/pages-metadata/page-metadata.json
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Write GitHub Pages summary
         env:
-          PAGE_BRANCH: ${{ steps.publish.outputs.branch || 'gh-pages' }}
-          PAGE_CHANGED: ${{ steps.publish.outputs.changed || 'false' }}
-          PAGE_COMMIT_SHA: ${{ steps.publish.outputs.commit_sha || '' }}
+          PAGE_ARTIFACT_PREPARED: 'true'
+          PAGE_DEPLOYED: 'false'
           PAGE_PATH: ${{ needs.allure-report.outputs.pages_path || '/' }}
+          PAGE_TRANSPORT: workflow_run-pages-deploy
           PAGE_URL: ${{ needs.allure-report.outputs.pages_report_url }}
           REPORT_KIND: ${{ needs.allure-report.outputs.report_kind }}
         run: bash scripts/github/write-pages-summary.sh "$GITHUB_STEP_SUMMARY"
