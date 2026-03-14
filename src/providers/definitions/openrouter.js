@@ -18,10 +18,6 @@ module.exports = buildOpenAiCompatibleProvider({
     requestEnvVars: [
       'model=openrouter',
     ],
-    providerIntegrationEnvVars: [
-      'providerValidationImageUrl=http://127.0.0.1:19090/assets/a.png',
-      'providerValidationPageUrl=http://127.0.0.1:19090/fixtures/page-with-images',
-    ],
     scopeRequirement: 'OPENROUTER_API_KEY',
     allRequirement: 'OPENROUTER_API_KEY',
   },

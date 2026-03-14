@@ -18,10 +18,6 @@ module.exports = buildOpenAiCompatibleProvider({
     requestEnvVars: [
       'model=huggingface',
     ],
-    providerIntegrationEnvVars: [
-      'providerValidationImageUrl=http://127.0.0.1:19090/assets/a.png',
-      'providerValidationPageUrl=http://127.0.0.1:19090/fixtures/page-with-images',
-    ],
     scopeRequirement: 'HF_API_KEY or HF_TOKEN',
     allRequirement: 'HF_API_KEY or HF_TOKEN',
   },

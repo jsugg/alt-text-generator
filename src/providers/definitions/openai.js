@@ -16,10 +16,6 @@ module.exports = buildOpenAiCompatibleProvider({
     autoPriority: 50,
     folderName: '90 Provider Validation',
     requestEnvVars: ['model=openai'],
-    providerIntegrationEnvVars: [
-      'providerValidationImageUrl=http://127.0.0.1:19090/assets/a.png',
-      'providerValidationPageUrl=http://127.0.0.1:19090/fixtures/page-with-images',
-    ],
     scopeRequirement: 'OPENAI_API_KEY',
     allRequirement: 'OPENAI_API_KEY',
   },
