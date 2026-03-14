@@ -24,4 +24,13 @@ summary_file="${1:?summary file is required}"
   if [ -n "${SOURCE_RUN_CONCLUSION:-}" ]; then
     echo "- Source run conclusion: ${SOURCE_RUN_CONCLUSION}"
   fi
+  if [ -n "${STATE_BRANCH:-}" ]; then
+    echo "- State branch: ${STATE_BRANCH}"
+  fi
+  if [ -n "${STATE_BRANCH_CHANGED:-}" ]; then
+    echo "- State branch updated: ${STATE_BRANCH_CHANGED}"
+  fi
+  if [ -n "${STATE_BRANCH_COMMIT_SHA:-}" ]; then
+    echo "- State branch commit: ${STATE_BRANCH_COMMIT_SHA}"
+  fi
 } >> "${summary_file}"

@@ -244,6 +244,7 @@ Allure workflow:
 - Pull requests from forks remain ephemeral: they generate the downloadable `allure-report` artifact but do not restore or persist history.
 - The `allure-pages` job now composes a full static site snapshot and uploads it as a short-lived artifact. The follow-up `Allure Pages Publish` workflow deploys that artifact to GitHub Pages so `main` stays at the root while same-repository PR reports live under `/pr/<number>/`.
 - `Allure Pages Publish` triggers from completed CI runs instead of only successful runs so failed test executions can still publish a public Allure report. It also exposes `workflow_dispatch` with a `run_id` input so a specific CI run can be republished or backfilled after the workflow lands on `main`.
+- The publish workflow checks out the repository so it can reuse the shared Node helpers, deploys the composed site with the official Pages actions, and then syncs the exact deployed snapshot back to `gh-pages`. That branch is no longer the publication trigger, but it remains the durable snapshot source that future `compose-pages-site` runs merge against.
 - Post-deploy verification now emits Allure output as well. Pushes to `production` persist a `deploy-production` history stream, while manual post-deploy verification runs only persist that stream when the workflow dispatch input `persist_history=true` is selected for the canonical production URL.
 
 ## Supported Models
