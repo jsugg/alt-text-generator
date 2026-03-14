@@ -15,6 +15,10 @@ const VALID_PROVIDER_SCOPES = new Set([
     .map((provider) => provider.providerValidation.scopeKey),
   'all',
 ]);
+const LOW_COST_PROVIDER_VALIDATION_SCOPES = Object.freeze([
+  'huggingface',
+  'openai',
+]);
 
 const resolveConfiguredProviderScopes = ({
   configuredProviderScopes,
@@ -105,9 +109,18 @@ function normalizeProviderScope(
  *   hasReplicateProvider: boolean,
  * }}
  */
-function detectAvailableProviders(env = process.env) {
+function detectAvailableProviders(env = process.env, { allowedProviderScopes = null } = {}) {
+  const allowedProviderScopeSet = Array.isArray(allowedProviderScopes)
+    ? new Set(allowedProviderScopes)
+    : null;
   const configuredProviderScopes = getProviderValidationProviders()
-    .filter((provider) => provider.isConfiguredInEnv(env))
+    .filter((provider) => (
+      provider.isConfiguredInEnv(env)
+      && (
+        allowedProviderScopeSet === null
+        || allowedProviderScopeSet.has(provider.providerValidation.scopeKey)
+      )
+    ))
     .map((provider) => provider.providerValidation.scopeKey);
 
   return {
@@ -257,6 +270,7 @@ function getSelectedProviderFolders(scope, options) {
 }
 
 module.exports = {
+  LOW_COST_PROVIDER_VALIDATION_SCOPES,
   VALID_PROVIDER_SCOPES: Array.from(VALID_PROVIDER_SCOPES),
   detectAvailableProviders,
   getSelectedProviderFolders,

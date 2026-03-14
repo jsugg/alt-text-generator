@@ -23,8 +23,8 @@ on:
         type: choice
         options:
           - auto
+          - huggingface
           - openai
-          - openrouter
           - all
 
 permissions:
@@ -60,16 +60,18 @@ jobs:
           VALIDATION_SUMMARY_TITLE: Post Deploy Verification
           INPUT_PROVIDER_SCOPE: ${{ github.event_name == 'workflow_dispatch' && inputs.provider_scope || 'all' }}
           LIVE_PROVIDER_SCOPE: ${{ github.event_name == 'workflow_dispatch' && inputs.provider_scope || 'all' }}
+          HF_API_KEY: ${{ secrets.HF_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: node scripts/github/resolve-provider-validation-scope.js
 
       - name: Run post-deploy Newman verification
         run: npm run postman:post-deploy -- --base-url "${BASE_URL}"
         env:
           LIVE_PROVIDER_SCOPE: ${{ env.LIVE_PROVIDER_SCOPE }}
+          HF_API_KEY: ${{ secrets.HF_API_KEY }}
+          HF_MODEL: Qwen/Qwen3-VL-30B-A3B-Instruct:fastest
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENAI_MODEL: gpt-4.1-nano
           PROVIDER_VALIDATION_PUBLIC_REF: production
 
       - name: Write deploy summary

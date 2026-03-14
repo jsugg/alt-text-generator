@@ -364,14 +364,15 @@ describe('Unit | Scripts | Run Postman Deploy', () => {
     it('keeps the post-deploy provider subset on low-cost providers only', () => {
       expect(resolvePostDeployProviderPlans({
         LIVE_PROVIDER_SCOPE: 'all',
+        HF_API_KEY: 'hf-key',
         OPENAI_API_KEY: 'openai-key',
         OPENROUTER_API_KEY: 'openrouter-key',
       })).toEqual({
         providerPlans: [
           {
-            envVars: ['model=openrouter'],
+            envVars: ['model=huggingface'],
             folderName: '90 Provider Validation',
-            scopeKey: 'openrouter',
+            scopeKey: 'huggingface',
           },
           {
             envVars: ['model=openai'],
@@ -403,6 +404,35 @@ describe('Unit | Scripts | Run Postman Deploy', () => {
       expect(workflow).toContain('npm run postman:post-deploy -- --base-url "$'
         + '{BASE_URL}"');
       expect(workflow).not.toContain('postman:deploy');
+    });
+
+    it('pins release validation workflows to Hugging Face plus OpenAI', () => {
+      const postDeployWorkflow = fs.readFileSync(
+        path.join(ROOT, '.github/workflows/post-deploy-verification.yml'),
+        'utf8',
+      );
+      const promoteWorkflow = fs.readFileSync(
+        path.join(ROOT, '.github/workflows/promote-to-production.yml'),
+        'utf8',
+      );
+
+      expect(postDeployWorkflow).toContain('HF_API_KEY: $'
+        + '{{ secrets.HF_API_KEY }}');
+      expect(postDeployWorkflow).toContain('HF_MODEL: Qwen/Qwen3-VL-30B-A3B-Instruct:fastest');
+      expect(postDeployWorkflow).toContain('OPENAI_API_KEY: $'
+        + '{{ secrets.OPENAI_API_KEY }}');
+      expect(postDeployWorkflow).toContain('OPENAI_MODEL: gpt-4.1-nano');
+      expect(postDeployWorkflow).not.toContain('OPENROUTER_API_KEY');
+      expect(postDeployWorkflow).not.toContain('OPENROUTER_MODEL');
+
+      expect(promoteWorkflow).toContain('HF_API_KEY: $'
+        + '{{ secrets.HF_API_KEY }}');
+      expect(promoteWorkflow).toContain('HF_MODEL: Qwen/Qwen3-VL-30B-A3B-Instruct:fastest');
+      expect(promoteWorkflow).toContain('OPENAI_API_KEY: $'
+        + '{{ secrets.OPENAI_API_KEY }}');
+      expect(promoteWorkflow).toContain('OPENAI_MODEL: gpt-4.1-nano');
+      expect(promoteWorkflow).not.toContain('OPENROUTER_API_KEY');
+      expect(promoteWorkflow).not.toContain('OPENROUTER_MODEL');
     });
   });
 });

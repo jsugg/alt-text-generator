@@ -1,4 +1,5 @@
 const {
+  LOW_COST_PROVIDER_VALIDATION_SCOPES,
   detectAvailableProviders,
   getSelectedProviderFolders,
   getSelectedProviderPlans,
@@ -26,6 +27,20 @@ describe('Unit | Scripts | Postman | Provider Validation Scope', () => {
   });
 
   describe('detectAvailableProviders', () => {
+    it('can restrict detection to an allowed provider subset', () => {
+      expect(detectAvailableProviders({
+        HF_API_KEY: 'hf-key',
+        OPENAI_API_KEY: 'openai-key',
+        OPENROUTER_API_KEY: 'openrouter-key',
+      }, {
+        allowedProviderScopes: LOW_COST_PROVIDER_VALIDATION_SCOPES,
+      })).toEqual({
+        configuredProviderScopes: ['huggingface', 'openai'],
+        hasAzureProvider: false,
+        hasReplicateProvider: false,
+      });
+    });
+
     it('detects replicate and azure independently', () => {
       expect(detectAvailableProviders({
         replicateApiToken: 'replicate-token',
