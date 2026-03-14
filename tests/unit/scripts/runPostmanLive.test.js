@@ -1,3 +1,6 @@
+const fs = require('node:fs');
+const path = require('node:path');
+
 const {
   assertPublicHttpUrl,
   buildLiveProviderEnvVars,
@@ -6,9 +9,14 @@ const {
   parseArgs,
 } = require('../../../scripts/run-postman-live');
 const {
+  buildPublicProviderValidationFixtureUrls,
+} = require('../../../scripts/postman/provider-validation-public-fixtures');
+const {
   PROVIDER_VALIDATION_MAX_RESPONSE_TIME_MS,
   PROVIDER_VALIDATION_NEWMAN_TIMEOUT_REQUEST_MS,
 } = require('../../../scripts/postman/harness-timeouts');
+
+const ROOT = path.resolve(__dirname, '../../..');
 
 describe('Unit | Scripts | Run Postman Live', () => {
   describe('parseArgs', () => {
@@ -54,7 +62,9 @@ describe('Unit | Scripts | Run Postman Live', () => {
   });
 
   describe('buildLiveProviderEnvVars', () => {
-    it('derives stable provider-validation fixtures from the hosted base URL', () => {
+    it('uses public provider-validation fixtures alongside the live base URL', () => {
+      const fixtureUrls = buildPublicProviderValidationFixtureUrls();
+
       expect(buildLiveProviderEnvVars('https://wcag.qcraft.com.br/', {
         deployValidationApiToken: 'deploy-token',
         productionApiAuthEnabled: 'true',
@@ -63,10 +73,7 @@ describe('Unit | Scripts | Run Postman Live', () => {
         deployValidationApiToken: 'deploy-token',
         expectedSwaggerServerUrl: 'https://wcag.qcraft.com.br',
         productionApiAuthEnabled: 'true',
-        providerValidationImageUrl: 'https://wcag.qcraft.com.br/provider-validation/assets/a.png',
-        providerValidationPageUrl: 'https://wcag.qcraft.com.br/provider-validation/page',
-        providerValidationAzureImageUrl: 'https://wcag.qcraft.com.br/provider-validation/assets/a.png',
-        providerValidationAzurePageUrl: 'https://wcag.qcraft.com.br/provider-validation/page',
+        ...fixtureUrls,
         maxResponseTimeMs: String(PROVIDER_VALIDATION_MAX_RESPONSE_TIME_MS),
       });
     });
@@ -74,6 +81,8 @@ describe('Unit | Scripts | Run Postman Live', () => {
 
   describe('buildLiveProviderNewmanArgs', () => {
     it('includes derived provider validation vars and requested folders', () => {
+      const fixtureUrls = buildPublicProviderValidationFixtureUrls();
+
       expect(buildLiveProviderNewmanArgs('https://wcag.qcraft.com.br', {
         authConfig: {
           deployValidationApiToken: 'deploy-token',
@@ -90,9 +99,9 @@ describe('Unit | Scripts | Run Postman Live', () => {
         '--env-var',
         'productionApiAuthEnabled=true',
         '--env-var',
-        'providerValidationImageUrl=https://wcag.qcraft.com.br/provider-validation/assets/a.png',
+        `providerValidationImageUrl=${fixtureUrls.providerValidationImageUrl}`,
         '--env-var',
-        'providerValidationPageUrl=https://wcag.qcraft.com.br/provider-validation/page',
+        `providerValidationPageUrl=${fixtureUrls.providerValidationPageUrl}`,
         '--env-var',
         'model=openai',
         '--timeout-request',
@@ -100,6 +109,28 @@ describe('Unit | Scripts | Run Postman Live', () => {
         '--folder',
         '90 Provider Validation',
       ]));
+    });
+  });
+
+  describe('package and workflow wiring', () => {
+    it('uses postman:live-provider as the canonical npm command', () => {
+      const packageJson = JSON.parse(
+        fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'),
+      );
+
+      expect(packageJson.scripts['postman:live-provider']).toBe('node scripts/run-postman-live.js');
+      expect(packageJson.scripts['postman:hosted-provider']).toBeUndefined();
+    });
+
+    it('invokes postman:live-provider from the live workflow', () => {
+      const workflow = fs.readFileSync(
+        path.join(ROOT, '.github/workflows/live-provider-validation.yml'),
+        'utf8',
+      );
+
+      expect(workflow).toContain('npm run postman:live-provider -- --base-url "$'
+        + '{BASE_URL}"');
+      expect(workflow).not.toContain('postman:hosted-provider');
     });
   });
 });

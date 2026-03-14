@@ -6,7 +6,7 @@
 
 [![GitHub license](https://img.shields.io/github/license/jsugg/alt-text-generator)](https://github.com/jsugg/alt-text-generator/blob/main/LICENSE)
 [![CI](https://github.com/jsugg/alt-text-generator/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/jsugg/alt-text-generator/actions/workflows/ci.yml)
-[![Deploy Verification](https://github.com/jsugg/alt-text-generator/actions/workflows/deploy-verification.yml/badge.svg?branch=production)](https://github.com/jsugg/alt-text-generator/actions/workflows/deploy-verification.yml)
+[![Post Deploy Verification](https://github.com/jsugg/alt-text-generator/actions/workflows/post-deploy-verification.yml/badge.svg?branch=production)](https://github.com/jsugg/alt-text-generator/actions/workflows/post-deploy-verification.yml)
 ![Node CI 20 | 22 | 24](https://img.shields.io/badge/node%20CI-20%20%7C%2022%20%7C%2024-339933?logo=node.js&logoColor=white)
 
 ## Overview
@@ -75,35 +75,36 @@ Commands:
 
 ```bash
 npm run postman:smoke
-npm run postman:harness
-npm run postman:provider-integration
-npm run postman:hosted-provider -- --base-url https://wcag.qcraft.com.br
-npm run postman:deploy -- --base-url https://wcag.qcraft.com.br
+npm run postman:full
+npm run postman:pre-production-provider
+npm run postman:live-provider -- --base-url https://wcag.qcraft.com.br
+npm run postman:post-deploy -- --base-url https://wcag.qcraft.com.br
 ```
 
 Notes:
 
 - `postman:smoke` is the fast deterministic gate.
-- `postman:harness` runs the full deterministic suite, including protected-endpoint auth coverage, and writes JSON and JUnit reports under `reports/newman/`.
+- `postman:full` runs the full local provider-integration suite, including protected-endpoint auth coverage, mocked provider-validation coverage, and JSON/JUnit reports under `reports/newman/`.
 - CI also emits `reports/jest/junit.xml` from the canonical Node 20 Jest lane and publishes one combined GitHub test report that joins Jest and Newman results.
-- `postman:provider-integration` is the local provider-integration harness: it boots the app locally, uses deterministic local fixtures for the core contract suite, and uses repo-owned public provider-validation fixtures for real vendor coverage without claiming hosted coverage.
-- `postman:hosted-provider` is the canonical hosted provider-validation command for explicit deployed-service validation against a supplied base URL.
-- `postman:live` remains as a backward-compatible alias for `postman:hosted-provider`.
-- `postman:deploy` runs the hosted production-smoke folder from the same Postman collection against a supplied base URL.
-- Before Newman starts, `postman:deploy` waits for consecutive stable health/auth probes so zero-downtime rollout overlap does not create deploy-smoke false negatives.
-- When production auth is enabled, `postman:hosted-provider` reuses `PRODUCTION_DEPLOY_VALIDATION_API_TOKEN` for provider-validation requests.
-- CI runs `postman:smoke` on pull requests and `postman:harness` on `main` / `production` pushes.
-- Deploy verification runs `postman:deploy` on `production` pushes so hosted smoke checks stay inside the Newman contract layer.
-- Deploy verification also reads `PRODUCTION_API_AUTH_ENABLED` and `PRODUCTION_DEPLOY_VALIDATION_API_TOKEN` from the GitHub Actions environment so hosted protected-endpoint checks can verify the expected Render `API_AUTH_ENABLED` / `API_AUTH_TOKENS` state.
+- `postman:pre-production-provider` boots the app locally and runs the low-cost real-provider validation set used immediately before promotion.
+- `postman:live-provider` is the production description-service validation command for deployed-app plus live-provider checks against a supplied base URL.
+- `postman:post-deploy` runs post-deploy smoke plus the same low-cost real-provider validation set against a supplied base URL.
+- Before Newman starts, `postman:live-provider` and `postman:post-deploy` wait for consecutive stable health/auth probes so zero-downtime rollout overlap does not create false negatives.
+- When production auth is enabled, `postman:live-provider` and `postman:post-deploy` reuse `PRODUCTION_DEPLOY_VALIDATION_API_TOKEN` for provider-validation requests.
+- CI runs `postman:smoke` on pull requests and `postman:full` on `main` / `production` pushes.
+- Post-deploy verification runs `postman:post-deploy` on `production` pushes so smoke and low-cost provider checks stay inside the Newman contract layer.
+- Post-deploy verification also reads `PRODUCTION_API_AUTH_ENABLED` and `PRODUCTION_DEPLOY_VALIDATION_API_TOKEN` from the GitHub Actions environment so protected-endpoint checks match the deployed Render `API_AUTH_ENABLED` / `API_AUTH_TOKENS` state.
 - Provider-validation workflows use a single `LIVE_PROVIDER_SCOPE` enum: `auto`, `azure`, `replicate`, `huggingface`, `openai`, `openrouter`, or `all`.
 - `LIVE_PROVIDER_SCOPE=auto` keeps the provider-validation preference order: Azure, then Replicate, then Hugging Face, then OpenRouter, then OpenAI.
 - `provider_scope=all` runs every provider that is configured for that environment; it does not require every supported provider to be enabled everywhere.
-- Provider integration resolves public provider-validation fixtures from this repository and pins them to `GITHUB_SHA` in GitHub Actions when available.
-- Outside GitHub Actions, set `PROVIDER_VALIDATION_PUBLIC_REF=<pushed-sha-or-ref>` if you need provider-integration runs to use a branch-specific fixture revision before it lands on `main`.
-- Hosted live-provider validation derives public validation fixtures from the target `baseUrl` and refuses localhost/private-network targets.
+- Local provider integration is fully mocked and never spends live provider credits.
+- Pre-production, post-deploy, and production live-provider checks all use repo-controlled public provider-validation fixtures so local and deployed real-provider validations compare the same inputs.
+- `postman:smoke` and `postman:full` use the local Postman environment; `postman:live-provider` and `postman:post-deploy` use the live Postman environment.
+- Outside GitHub Actions, set `PROVIDER_VALIDATION_PUBLIC_REF=<pushed-sha-or-ref>` if you need live-provider runs to use a branch-specific fixture revision before it lands on `main`.
+- Production live-provider validation refuses localhost/private-network targets.
 - Provider-validation runs upload Newman artifacts and append request, assertion, failure, and response-time metrics to the GitHub Actions step summary.
 - Local harness runs accept self-signed development TLS.
-- The deterministic harness uses a local Azure stub and can boot with a dummy Replicate token or Azure-only configuration.
+- The deterministic full suite uses local stubs for Azure, Replicate, and OpenAI-compatible provider request shapes.
 
 Contribution standards for the contract suite live in [docs/postman-standards.md](./docs/postman-standards.md).
 
@@ -114,7 +115,7 @@ Use these commands for local Allure generation:
 ```bash
 npm run allure:clean
 npm run test:allure
-npm run postman:harness:allure
+npm run postman:full:allure
 npm run allure:generate
 npm run allure:open
 ```
@@ -133,10 +134,10 @@ Notes:
 - The public Pages deployment is `https://jsugg.github.io/alt-text-generator/`; the suites view is `https://jsugg.github.io/alt-text-generator/#suites`.
 - Pushes to `main` publish the latest generated report through the `allure-pages` workflow deployment after the job finishes successfully.
 - CI now keeps separate Allure history streams for `main` (`ci-main`) and same-repository pull requests (`ci-pr-<number>`), while deploy verification keeps its own `deploy-production` stream.
-- GitHub Pages remains the public HTML surface for `main` only; PR and deploy-verification reports are action artifacts.
+- GitHub Pages remains the public HTML surface for `main` only; PR and post-deploy verification reports are action artifacts.
 - Same-repository PRs restore and persist their own history artifacts, so failure trends follow the PR instead of borrowing `main` history.
-- Fork pull requests and custom deploy-verification URLs stay ephemeral and do not restore or persist history artifacts.
-- Manual deploy verification against the canonical production URL only persists history when `persist_history=true` is selected in the workflow dispatch form.
+- Fork pull requests and custom post-deploy verification URLs stay ephemeral and do not restore or persist history artifacts.
+- Manual post-deploy verification against the canonical production URL only persists history when `persist_history=true` is selected in the workflow dispatch form.
 - CI only emits Jest Allure results from the Node 20 lane so unit tests do not appear three times in the merged report.
 - The Allure CLI requires Java when you generate the HTML report locally or in CI.
 
@@ -263,7 +264,7 @@ Use the development guide for:
 - security and operational validation workflow guidance
 - TLS and outbound CA troubleshooting
 - lint, test, and live validation commands
-- repo-controlled hosted live-provider validation against real providers
+- repo-controlled production description-service validation against real providers
 
 See [DEVELOPMENT.md](./DEVELOPMENT.md).
 

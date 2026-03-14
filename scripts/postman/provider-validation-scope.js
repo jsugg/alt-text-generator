@@ -56,7 +56,11 @@ const resolveSelectedProviderScopes = (scope, configuredProviderScopes = null) =
   }
 
   if (Array.isArray(configuredProviderScopes) && configuredProviderScopes.length > 0) {
-    return configuredProviderScopes.slice();
+    const configuredProviderScopeSet = new Set(configuredProviderScopes);
+
+    return getSortedProviderValidationProviders()
+      .map((provider) => provider.providerValidation.scopeKey)
+      .filter((scopeKey) => configuredProviderScopeSet.has(scopeKey));
   }
 
   return getAvailableProviderValidationScopes();

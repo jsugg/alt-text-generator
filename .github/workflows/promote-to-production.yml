@@ -11,8 +11,59 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  pre-production-provider-validation:
+    name: pre-production-provider-validation
+    runs-on: ubuntu-latest
+    environment: prod-validation
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup project
+        uses: ./.github/actions/setup-node-project
+        with:
+          node-version: '20'
+
+      - name: Resolve pre-production provider scope
+        env:
+          VALIDATION_SUMMARY_TITLE: Pre Production Provider Validation
+          INPUT_PROVIDER_SCOPE: all
+          LIVE_PROVIDER_SCOPE: all
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: node scripts/github/resolve-provider-validation-scope.js
+
+      - name: Run pre-production provider validation
+        run: npm run postman:pre-production-provider
+        env:
+          LIVE_PROVIDER_SCOPE: ${{ env.LIVE_PROVIDER_SCOPE }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: gpt-4.1-nano
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_MODEL: google/gemma-3-4b-it:free
+          PROVIDER_VALIDATION_PUBLIC_REF: ${{ github.sha }}
+
+      - name: Upload pre-production provider artifacts
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: pre-production-provider-artifacts
+          path: reports/newman/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Write summary
+        if: always()
+        run: bash scripts/github/write-provider-validation-summary.sh "$GITHUB_STEP_SUMMARY"
+        env:
+          LIVE_PROVIDER_SCOPE: ${{ env.LIVE_PROVIDER_SCOPE }}
+          VALIDATION_SUMMARY_TITLE: Pre Production Provider Validation
+
   promote:
     name: promote
+    needs:
+      - pre-production-provider-validation
     runs-on: ubuntu-latest
     environment: prod-validation
     timeout-minutes: 15

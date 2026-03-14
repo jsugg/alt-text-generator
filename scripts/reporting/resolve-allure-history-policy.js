@@ -269,7 +269,7 @@ function resolveDeployPolicy({
       persist_history: 'true',
       publish_pages: 'false',
       report_kind: 'deploy-production',
-      report_label: 'Deploy Verification Production',
+      report_label: 'Post Deploy Verification Production',
       restore_history: 'true',
     };
   }
@@ -283,7 +283,7 @@ function resolveDeployPolicy({
       persist_history: 'true',
       publish_pages: 'false',
       report_kind: 'deploy-production',
-      report_label: 'Deploy Verification Production',
+      report_label: 'Post Deploy Verification Production',
       restore_history: 'true',
     };
   }
@@ -296,7 +296,9 @@ function resolveDeployPolicy({
     persist_history: 'false',
     publish_pages: 'false',
     report_kind: isCanonicalBaseUrl ? 'deploy-manual' : 'deploy-custom',
-    report_label: isCanonicalBaseUrl ? 'Deploy Verification Manual' : 'Deploy Verification Custom URL',
+    report_label: isCanonicalBaseUrl
+      ? 'Post Deploy Verification Manual'
+      : 'Post Deploy Verification Custom URL',
     restore_history: 'false',
   };
 }

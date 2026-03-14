@@ -7,7 +7,7 @@ summary_file="${1:?summary file is required}"
   echo "## Deploy Allure Report"
   echo
   if [ "${HAS_RESULTS:-false}" = "true" ]; then
-    echo "- HTML report uploaded as the \`deploy-verification-allure-report\` artifact."
+    echo "- HTML report uploaded as the \`post-deploy-verification-allure-report\` artifact."
     echo "- Report kind: \`${REPORT_KIND:?REPORT_KIND is required}\`."
     echo "- History stream: \`${HISTORY_KEY:-none}\`."
     echo "- History persisted as artifact: \`${PERSIST_HISTORY:?PERSIST_HISTORY is required}\`."
