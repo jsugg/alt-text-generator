@@ -90,6 +90,7 @@ Notes:
 - `postman:live` is optional and reserved for explicit hosted live-provider validation against a deployed base URL.
 - `postman:deploy` runs the hosted production-smoke folder from the same Postman collection against a supplied base URL.
 - Before Newman starts, `postman:deploy` waits for consecutive stable health/auth probes so zero-downtime rollout overlap does not create deploy-smoke false negatives.
+- When production auth is enabled, `postman:live` reuses `PRODUCTION_DEPLOY_VALIDATION_API_TOKEN` for provider-validation requests.
 - CI runs `postman:smoke` on pull requests and `postman:harness` on `main` / `production` pushes.
 - Deploy verification runs `postman:deploy` on `production` pushes so hosted smoke checks stay inside the Newman contract layer.
 - Deploy verification also reads `PRODUCTION_API_AUTH_ENABLED` and `PRODUCTION_DEPLOY_VALIDATION_API_TOKEN` from the GitHub Actions environment so hosted protected-endpoint checks can verify the expected Render `API_AUTH_ENABLED` / `API_AUTH_TOKENS` state.

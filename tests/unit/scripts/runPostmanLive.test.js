@@ -51,9 +51,14 @@ describe('Unit | Scripts | Run Postman Live', () => {
 
   describe('buildLiveProviderEnvVars', () => {
     it('derives stable provider-validation fixtures from the hosted base URL', () => {
-      expect(buildLiveProviderEnvVars('https://wcag.qcraft.com.br/')).toEqual({
+      expect(buildLiveProviderEnvVars('https://wcag.qcraft.com.br/', {
+        deployValidationApiToken: 'deploy-token',
+        productionApiAuthEnabled: 'true',
+      })).toEqual({
         baseUrl: 'https://wcag.qcraft.com.br',
+        deployValidationApiToken: 'deploy-token',
         expectedSwaggerServerUrl: 'https://wcag.qcraft.com.br',
+        productionApiAuthEnabled: 'true',
         providerValidationImageUrl: 'https://wcag.qcraft.com.br/provider-validation/assets/a.png',
         providerValidationPageUrl: 'https://wcag.qcraft.com.br/provider-validation/page',
         providerValidationAzureImageUrl: 'https://wcag.qcraft.com.br/provider-validation/assets/a.png',
@@ -66,12 +71,20 @@ describe('Unit | Scripts | Run Postman Live', () => {
   describe('buildLiveProviderNewmanArgs', () => {
     it('includes derived provider validation vars and requested folders', () => {
       expect(buildLiveProviderNewmanArgs('https://wcag.qcraft.com.br', {
+        authConfig: {
+          deployValidationApiToken: 'deploy-token',
+          productionApiAuthEnabled: 'true',
+        },
         folders: ['90 Provider Validation'],
         label: 'live-provider-openai',
         providerEnvVars: ['model=openai'],
       })).toEqual(expect.arrayContaining([
         '--env-var',
         'baseUrl=https://wcag.qcraft.com.br',
+        '--env-var',
+        'deployValidationApiToken=deploy-token',
+        '--env-var',
+        'productionApiAuthEnabled=true',
         '--env-var',
         'providerValidationImageUrl=https://wcag.qcraft.com.br/provider-validation/assets/a.png',
         '--env-var',

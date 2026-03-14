@@ -145,9 +145,19 @@ function parseArgs(argv) {
 
 /**
  * @param {string} baseUrl
+ * @param {{
+ *   deployValidationApiToken?: string,
+ *   productionApiAuthEnabled?: 'true'|'false',
+ * }} [authConfig]
  * @returns {Record<string, string>}
  */
-function buildLiveProviderEnvVars(baseUrl) {
+function buildLiveProviderEnvVars(
+  baseUrl,
+  {
+    deployValidationApiToken = '',
+    productionApiAuthEnabled = 'false',
+  } = {},
+) {
   const normalizedBaseUrl = normalizeBaseUrl(baseUrl);
   const providerValidationPageUrl = new URL('/provider-validation/page', `${normalizedBaseUrl}/`).toString();
   const providerValidationImageUrl = new URL(
@@ -166,7 +176,9 @@ function buildLiveProviderEnvVars(baseUrl) {
 
   return {
     baseUrl: normalizedBaseUrl,
+    deployValidationApiToken,
     expectedSwaggerServerUrl: normalizedBaseUrl,
+    productionApiAuthEnabled,
     providerValidationImageUrl,
     providerValidationPageUrl,
     providerValidationAzureImageUrl: providerValidationImageUrl,
@@ -179,6 +191,10 @@ function buildLiveProviderEnvVars(baseUrl) {
  * @param {string} baseUrl
  * @param {{
  *   allureResultsDir?: string | null,
+ *   authConfig?: {
+ *     deployValidationApiToken?: string,
+ *     productionApiAuthEnabled?: 'true'|'false',
+ *   } | null,
  *   folders: string[],
  *   label: string,
  *   providerEnvVars?: string[],
@@ -189,13 +205,14 @@ function buildLiveProviderNewmanArgs(
   baseUrl,
   {
     allureResultsDir = null,
+    authConfig = null,
     folders,
     label,
     providerEnvVars = [],
   },
 ) {
   const folderArgs = folders.flatMap((folder) => ['--folder', folder]);
-  const envVarArgs = Object.entries(buildLiveProviderEnvVars(baseUrl))
+  const envVarArgs = Object.entries(buildLiveProviderEnvVars(baseUrl, authConfig ?? undefined))
     .flatMap(([key, value]) => ['--env-var', `${key}=${value}`]);
 
   return [
@@ -224,6 +241,10 @@ function buildLiveProviderNewmanArgs(
  * @param {string} baseUrl
  * @param {{
  *   allureResultsDir?: string | null,
+ *   authConfig?: {
+ *     deployValidationApiToken?: string,
+ *     productionApiAuthEnabled?: 'true'|'false',
+ *   } | null,
  *   folders: string[],
  *   label: string,
  *   providerEnvVars?: string[],
@@ -234,6 +255,7 @@ function runNewman(
   baseUrl,
   {
     allureResultsDir = null,
+    authConfig = null,
     folders,
     label,
     providerEnvVars = [],
@@ -241,6 +263,7 @@ function runNewman(
 ) {
   const args = buildLiveProviderNewmanArgs(baseUrl, {
     allureResultsDir,
+    authConfig,
     folders,
     label,
     providerEnvVars,
@@ -280,6 +303,14 @@ async function main() {
     configuredScope: process.env.LIVE_PROVIDER_SCOPE,
     configuredProviderScopes: availableProviders.configuredProviderScopes,
   });
+
+  if (authConfig.productionApiAuthEnabled === 'true' && !authConfig.deployValidationApiToken) {
+    throw new Error(
+      'Hosted live-provider validation requires PRODUCTION_DEPLOY_VALIDATION_API_TOKEN '
+      + 'when PRODUCTION_API_AUTH_ENABLED=true.',
+    );
+  }
+
   const providerPlans = getSelectedProviderPlans(providerScope);
   const collection = readCollection(COLLECTION_PATH);
   const availableFolders = listTopLevelFolderNames(collection);
@@ -302,7 +333,7 @@ async function main() {
     await fs.mkdir(allureResultsDir, { recursive: true });
   }
 
-  buildLiveProviderEnvVars(normalizedBaseUrl);
+  buildLiveProviderEnvVars(normalizedBaseUrl, authConfig);
   await waitForStableDeploy(normalizedBaseUrl, authConfig);
 
   await providerPlans.reduce(
@@ -310,6 +341,7 @@ async function main() {
       normalizedBaseUrl,
       {
         allureResultsDir,
+        authConfig,
         folders: [providerPlan.folderName],
         label: `live-provider-${providerPlan.scopeKey}`,
         providerEnvVars: providerPlan.envVars,
