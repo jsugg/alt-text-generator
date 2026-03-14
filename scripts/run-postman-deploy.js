@@ -13,6 +13,7 @@ const {
   readCollection,
 } = require('./postman/collection-utils');
 const {
+  LOW_COST_PROVIDER_VALIDATION_SCOPES,
   detectAvailableProviders,
   getSelectedProviderPlans,
   resolveProviderScope,
@@ -167,7 +168,9 @@ function parseArgs(argv) {
  * }}
  */
 function resolvePostDeployProviderPlans(env = process.env) {
-  const availableProviders = detectAvailableProviders(env);
+  const availableProviders = detectAvailableProviders(env, {
+    allowedProviderScopes: LOW_COST_PROVIDER_VALIDATION_SCOPES,
+  });
   const providerScope = resolveProviderScope({
     requestedScope: env.LIVE_PROVIDER_SCOPE,
     configuredScope: env.LIVE_PROVIDER_SCOPE,

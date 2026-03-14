@@ -16,6 +16,7 @@ const {
   readCollection,
 } = require('./postman/collection-utils');
 const {
+  LOW_COST_PROVIDER_VALIDATION_SCOPES,
   getSelectedProviderPlans,
   resolveProviderScope,
   detectAvailableProviders,
@@ -463,7 +464,9 @@ async function main() {
   });
   const publicProviderValidationFixtures = buildPublicProviderValidationFixtureUrls();
   const availableLiveProviders = realProviderModeEnabled
-    ? detectAvailableProviders(process.env)
+    ? detectAvailableProviders(process.env, {
+      allowedProviderScopes: LOW_COST_PROVIDER_VALIDATION_SCOPES,
+    })
     : { configuredProviderScopes: LOCAL_PROVIDER_VALIDATION_SCOPES.slice() };
   const configuredProviderScopes = fullModeEnabled
     ? LOCAL_PROVIDER_VALIDATION_SCOPES.slice()

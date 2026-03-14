@@ -30,18 +30,18 @@ jobs:
           VALIDATION_SUMMARY_TITLE: Pre Production Provider Validation
           INPUT_PROVIDER_SCOPE: all
           LIVE_PROVIDER_SCOPE: all
+          HF_API_KEY: ${{ secrets.HF_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: node scripts/github/resolve-provider-validation-scope.js
 
       - name: Run pre-production provider validation
         run: npm run postman:pre-production-provider
         env:
           LIVE_PROVIDER_SCOPE: ${{ env.LIVE_PROVIDER_SCOPE }}
+          HF_API_KEY: ${{ secrets.HF_API_KEY }}
+          HF_MODEL: Qwen/Qwen3-VL-30B-A3B-Instruct:fastest
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_MODEL: gpt-4.1-nano
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          OPENROUTER_MODEL: google/gemma-3-4b-it:free
           PROVIDER_VALIDATION_PUBLIC_REF: ${{ github.sha }}
 
       - name: Upload pre-production provider artifacts

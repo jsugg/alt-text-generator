@@ -86,7 +86,7 @@ Notes:
 - `postman:smoke` is the fast deterministic gate.
 - `postman:full` runs the full local provider-integration suite, including protected-endpoint auth coverage, mocked provider-validation coverage, and JSON/JUnit reports under `reports/newman/`.
 - CI also emits `reports/jest/junit.xml` from the canonical Node 20 Jest lane and publishes one combined GitHub test report that joins Jest and Newman results.
-- `postman:pre-production-provider` boots the app locally and runs the low-cost real-provider validation set used immediately before promotion.
+- `postman:pre-production-provider` boots the app locally and runs the low-cost real-provider validation set used immediately before promotion, currently Hugging Face plus OpenAI when both are configured.
 - `postman:live-provider` is the production description-service validation command for deployed-app plus live-provider checks against a supplied base URL.
 - `postman:post-deploy` runs post-deploy smoke plus the same low-cost real-provider validation set against a supplied base URL.
 - Before Newman starts, `postman:live-provider` and `postman:post-deploy` wait for consecutive stable health/auth probes so zero-downtime rollout overlap does not create false negatives.
@@ -98,7 +98,7 @@ Notes:
 - `LIVE_PROVIDER_SCOPE=auto` keeps the provider-validation preference order: Azure, then Replicate, then Hugging Face, then OpenRouter, then OpenAI.
 - `provider_scope=all` runs every provider that is configured for that environment; it does not require every supported provider to be enabled everywhere.
 - Local provider integration is fully mocked and never spends live provider credits.
-- Pre-production, post-deploy, and production live-provider checks all use repo-controlled public provider-validation fixtures so local and deployed real-provider validations compare the same inputs.
+- Pre-production and post-deploy use the low-cost Hugging Face plus OpenAI subset, while production live-provider validation can still run every configured provider against the same repo-controlled public provider-validation fixtures.
 - `postman:smoke` and `postman:full` use the local Postman environment; `postman:live-provider` and `postman:post-deploy` use the live Postman environment.
 - Outside GitHub Actions, set `PROVIDER_VALIDATION_PUBLIC_REF=<pushed-sha-or-ref>` if you need live-provider runs to use a branch-specific fixture revision before it lands on `main`.
 - Production live-provider validation refuses localhost/private-network targets.
