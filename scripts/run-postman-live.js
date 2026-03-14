@@ -18,6 +18,9 @@ const {
   resolveAllureResultsDir,
 } = require('./postman/newman-reporting');
 const {
+  assertProviderValidationFixturesReachable,
+} = require('./postman/provider-validation-fixture-probe');
+const {
   COLLECTION_PATH,
   assertPublicHttpUrl,
   buildLiveProviderEnvVars,
@@ -103,7 +106,9 @@ async function main() {
 
   await ensureReportsDir(allureResultsDir);
 
-  buildLiveProviderEnvVars(normalizedBaseUrl, authConfig);
+  await assertProviderValidationFixturesReachable(
+    buildLiveProviderEnvVars(normalizedBaseUrl, authConfig),
+  );
   assertPublicHttpUrl(normalizedBaseUrl, 'baseUrl');
   await waitForStableDeploy(normalizedBaseUrl, authConfig);
 

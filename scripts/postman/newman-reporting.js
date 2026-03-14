@@ -18,6 +18,19 @@ function resolveAllureResultsDir(env = process.env, rootDir = process.cwd()) {
 }
 
 /**
+ * Builds the JSON and JUnit report paths for a Newman run label.
+ *
+ * @param {{ label: string, reportsDir: string }} options
+ * @returns {{ jsonReportPath: string, junitReportPath: string }}
+ */
+function buildNewmanReportPaths({ label, reportsDir }) {
+  return {
+    jsonReportPath: path.join(reportsDir, `${label}.json`),
+    junitReportPath: path.join(reportsDir, `${label}.xml`),
+  };
+}
+
+/**
  * Builds reporter arguments for a Newman run.
  *
  * @param {{ allureResultsDir?: string | null, label: string, reportsDir: string }} options
@@ -28,14 +41,18 @@ function buildNewmanReporterArgs({
   reportsDir,
   allureResultsDir = null,
 }) {
+  const { jsonReportPath, junitReportPath } = buildNewmanReportPaths({
+    label,
+    reportsDir,
+  });
   const reporters = ['cli', 'json', 'junit'];
   const args = [
     '-r',
     reporters.join(','),
     '--reporter-json-export',
-    path.join(reportsDir, `${label}.json`),
+    jsonReportPath,
     '--reporter-junit-export',
-    path.join(reportsDir, `${label}.xml`),
+    junitReportPath,
   ];
 
   if (allureResultsDir) {
@@ -48,6 +65,7 @@ function buildNewmanReporterArgs({
 }
 
 module.exports = {
+  buildNewmanReportPaths,
   buildNewmanReporterArgs,
   resolveAllureResultsDir,
 };

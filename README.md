@@ -150,7 +150,6 @@ Required at startup:
   - or `ACV_API_ENDPOINT` plus `ACV_SUBSCRIPTION_KEY` to register `azure`
   - or `OLLAMA_MODEL` / `OLLAMA_BASE_URL` to register `ollama`
   - or `OPENAI_API_KEY`, `HF_API_KEY` / `HF_TOKEN`, `OPENROUTER_API_KEY`, or `TOGETHER_API_KEY`
-- Set `REPLICATE_ENABLED=false` when you need to keep a Replicate token configured but temporarily remove `clip` from the runtime and validation scope.
 
 Required for live Azure descriptions:
 

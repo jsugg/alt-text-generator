@@ -1,6 +1,7 @@
 const path = require('node:path');
 
 const {
+  buildNewmanReportPaths,
   buildNewmanReporterArgs,
   resolveAllureResultsDir,
 } = require('../../scripts/postman/newman-reporting');
@@ -38,6 +39,26 @@ describe('Unit | Postman Harness Reporting', () => {
       '--reporter-junit-export',
       path.join(process.cwd(), 'reports', 'newman', 'smoke.xml'),
     ]);
+  });
+
+  it('derives stable JSON and JUnit report paths from the run label', () => {
+    expect(buildNewmanReportPaths({
+      label: 'provider-integration-openai',
+      reportsDir: path.join(process.cwd(), 'reports', 'newman'),
+    })).toEqual({
+      jsonReportPath: path.join(
+        process.cwd(),
+        'reports',
+        'newman',
+        'provider-integration-openai.json',
+      ),
+      junitReportPath: path.join(
+        process.cwd(),
+        'reports',
+        'newman',
+        'provider-integration-openai.xml',
+      ),
+    });
   });
 
   it('adds the Allure reporter when a results directory is configured', () => {

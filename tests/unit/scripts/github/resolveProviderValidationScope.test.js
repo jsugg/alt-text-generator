@@ -33,14 +33,13 @@ describe('Unit | Scripts | GitHub | Resolve Provider Validation Scope', () => {
       })).toBe('all');
     });
 
-    it('treats disabled replicate credentials as unavailable when resolving auto', () => {
+    it('treats a Replicate token as a configured provider when resolving auto', () => {
       expect(resolveScopeFromEnv({
         INPUT_PROVIDER_SCOPE: 'auto',
         LIVE_PROVIDER_SCOPE: 'auto',
-        REPLICATE_ENABLED: 'false',
         REPLICATE_API_TOKEN: 'replicate-token',
         OPENAI_API_KEY: 'openai-key',
-      })).toBe('openai');
+      })).toBe('replicate');
     });
 
     it('falls back to azure when auto is requested and both providers are configured', () => {
