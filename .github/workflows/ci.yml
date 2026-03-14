@@ -217,6 +217,8 @@ jobs:
       has-results: ${{ steps.allure-inputs.outputs.has-results }}
       history_artifact_name: ${{ steps.history-policy.outputs.history_artifact_name }}
       history_key: ${{ steps.history-policy.outputs.history_key }}
+      pages_path: ${{ steps.history-policy.outputs.pages_path }}
+      pages_report_url: ${{ steps.history-policy.outputs.pages_report_url }}
       persist_history: ${{ steps.history-policy.outputs.persist_history }}
       publish_pages: ${{ steps.history-policy.outputs.publish_pages }}
       report_kind: ${{ steps.history-policy.outputs.report_kind }}
@@ -348,6 +350,7 @@ jobs:
           HISTORY_KEY: ${{ steps.history-policy.outputs.history_key || 'none' }}
           HISTORY_RESTORED: ${{ steps.history-restore.outputs.restored || 'false' }}
           NEWMAN_MODE: ${{ github.event_name == 'pull_request' && 'smoke' || 'full' }}
+          PAGES_REPORT_URL: ${{ steps.history-policy.outputs.pages_report_url || 'not-published' }}
           PERSIST_HISTORY: ${{ steps.history-policy.outputs.persist_history }}
           PUBLISH_PAGES: ${{ steps.history-policy.outputs.publish_pages }}
           REPORT_KIND: ${{ steps.history-policy.outputs.report_kind }}
@@ -356,13 +359,15 @@ jobs:
   allure-pages:
     name: allure-pages
     if: >-
-      github.event_name == 'push' &&
-      github.ref == 'refs/heads/main' &&
       needs.allure-report.result == 'success' &&
-      needs.allure-report.outputs.has-results == 'true'
+      needs.allure-report.outputs.has-results == 'true' &&
+      needs.allure-report.outputs.publish_pages == 'true'
     needs:
       - allure-report
     runs-on: ubuntu-latest
+    concurrency:
+      group: allure-pages-site
+      cancel-in-progress: false
     permissions:
       actions: read
       contents: read
@@ -370,12 +375,23 @@ jobs:
       pages: write
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ needs.allure-report.outputs.pages_report_url }}
     outputs:
-      page-url: ${{ steps.deployment.outputs.page_url }}
+      page-url: ${{ needs.allure-report.outputs.pages_report_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Fetch published Pages branch
+        run: git fetch origin gh-pages || true
+
+      - name: Restore current Pages content
+        shell: bash
+        run: |
+          mkdir -p reports/pages-site-current
+          if git rev-parse --verify origin/gh-pages >/dev/null 2>&1; then
+            git archive origin/gh-pages | tar -xf - -C reports/pages-site-current
+          fi
 
       - name: Download Allure report artifact
         uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
@@ -383,9 +399,17 @@ jobs:
           name: allure-report
           path: reports/allure-report
 
+      - name: Compose GitHub Pages site
+        run: >-
+          node scripts/github/compose-pages-site.js
+          --existing-site-dir reports/pages-site-current
+          --output-dir reports/pages-site-next
+          --publish-path "${{ needs.allure-report.outputs.pages_path }}"
+          --report-dir reports/allure-report
+
       - name: Pack GitHub Pages artifact
         shell: bash
-        run: bash scripts/github/pack-pages-artifact.sh reports/allure-report "${RUNNER_TEMP}/github-pages.tar"
+        run: bash scripts/github/pack-pages-artifact.sh reports/pages-site-next "${RUNNER_TEMP}/github-pages.tar"
 
       - name: Upload GitHub Pages artifact
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
@@ -407,7 +431,9 @@ jobs:
 
       - name: Write GitHub Pages summary
         env:
-          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+          PAGE_PATH: ${{ needs.allure-report.outputs.pages_path || '/' }}
+          PAGE_URL: ${{ needs.allure-report.outputs.pages_report_url }}
+          REPORT_KIND: ${{ needs.allure-report.outputs.report_kind }}
         run: bash scripts/github/write-pages-summary.sh "$GITHUB_STEP_SUMMARY"
 
   ci-summary:

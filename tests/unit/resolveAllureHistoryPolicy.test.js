@@ -4,8 +4,10 @@ const path = require('node:path');
 
 const {
   DEFAULT_DEPLOY_BASE_URL,
+  buildPagesPathUrl,
   buildPagesReportUrl,
   normalizeUrl,
+  normalizePublishPath,
   parseArgs,
   readEventPayload,
   resolveAllureHistoryPolicy,
@@ -38,6 +40,14 @@ describe('Unit | Allure History Policy', () => {
       repository: 'jsugg/alt-text-generator',
       serverUrl: 'https://github.com',
     })).toBe('https://jsugg.github.io/alt-text-generator');
+  });
+
+  it('builds report URLs for published Pages subpaths', () => {
+    expect(buildPagesPathUrl({
+      pagesReportUrl: 'https://jsugg.github.io/alt-text-generator/',
+      publishPath: '/pr/123/',
+    })).toBe('https://jsugg.github.io/alt-text-generator/pr/123');
+    expect(normalizePublishPath('/pr/123/')).toBe('pr/123');
   });
 
   it('returns no GitHub Pages URL for non-public GitHub hosts', () => {
@@ -99,6 +109,8 @@ describe('Unit | Allure History Policy', () => {
       history_fallback_report_url: 'https://jsugg.github.io/alt-text-generator',
       history_key: 'ci-main',
       history_retention_days: '90',
+      pages_path: '',
+      pages_report_url: 'https://jsugg.github.io/alt-text-generator',
       persist_history: 'true',
       publish_pages: 'true',
       report_kind: 'ci-main',
@@ -126,11 +138,13 @@ describe('Unit | Allure History Policy', () => {
       },
     })).toEqual({
       history_artifact_name: 'allure-history-ci-pr-456',
-      history_fallback_report_url: '',
+      history_fallback_report_url: 'https://jsugg.github.io/alt-text-generator/pr/456',
       history_key: 'ci-pr-456',
       history_retention_days: '14',
+      pages_path: 'pr/456',
+      pages_report_url: 'https://jsugg.github.io/alt-text-generator/pr/456',
       persist_history: 'true',
-      publish_pages: 'false',
+      publish_pages: 'true',
       report_kind: 'ci-pr',
       report_label: 'CI PR #456',
       restore_history: 'true',
@@ -159,6 +173,8 @@ describe('Unit | Allure History Policy', () => {
       history_fallback_report_url: '',
       history_key: '',
       history_retention_days: '',
+      pages_path: '',
+      pages_report_url: '',
       persist_history: 'false',
       publish_pages: 'false',
       report_kind: 'ci-pr-external',
@@ -179,6 +195,8 @@ describe('Unit | Allure History Policy', () => {
       history_fallback_report_url: '',
       history_key: '',
       history_retention_days: '',
+      pages_path: '',
+      pages_report_url: '',
       persist_history: 'false',
       publish_pages: 'false',
       report_kind: 'ci-production',
@@ -200,6 +218,8 @@ describe('Unit | Allure History Policy', () => {
       history_fallback_report_url: '',
       history_key: 'deploy-production',
       history_retention_days: '60',
+      pages_path: '',
+      pages_report_url: '',
       persist_history: 'true',
       publish_pages: 'false',
       report_kind: 'deploy-production',
@@ -221,6 +241,8 @@ describe('Unit | Allure History Policy', () => {
       history_fallback_report_url: '',
       history_key: '',
       history_retention_days: '',
+      pages_path: '',
+      pages_report_url: '',
       persist_history: 'false',
       publish_pages: 'false',
       report_kind: 'deploy-manual',
@@ -242,6 +264,8 @@ describe('Unit | Allure History Policy', () => {
       history_fallback_report_url: '',
       history_key: 'deploy-production',
       history_retention_days: '60',
+      pages_path: '',
+      pages_report_url: '',
       persist_history: 'true',
       publish_pages: 'false',
       report_kind: 'deploy-production',
@@ -263,6 +287,8 @@ describe('Unit | Allure History Policy', () => {
       history_fallback_report_url: '',
       history_key: '',
       history_retention_days: '',
+      pages_path: '',
+      pages_report_url: '',
       persist_history: 'false',
       publish_pages: 'false',
       report_kind: 'deploy-custom',

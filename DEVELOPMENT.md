@@ -237,11 +237,12 @@ Allure workflow:
 - `npm run report:allure` mirrors CI by cleaning old results, running Jest, running the deterministic Newman harness, and generating HTML from the merged `reports/allure-results/` directory.
 - GitHub Actions publishes Allure from the canonical Node 20 Jest lane only so matrix lanes 22 and 24 do not duplicate unit tests in the merged report.
 - The public GitHub Pages deployment is `https://jsugg.github.io/alt-text-generator/`; the suites view is `https://jsugg.github.io/alt-text-generator/#suites`.
+- Same-repository pull requests publish to `https://jsugg.github.io/alt-text-generator/pr/<number>/`, keeping a separate public Allure surface from `main`.
 - The CI workflow resolves a stream-specific history policy before report generation. `main` uses `ci-main`, same-repository pull requests use `ci-pr-<number>`, and pushes to `production` do not persist CI branch history.
-- The `allure-report` job now restores Allure history from the most recent matching history artifact for that stream. `ci-main` keeps a one-time GitHub Pages fallback so the public trend line carries forward through the artifact migration.
+- The `allure-report` job restores Allure history from the most recent matching history artifact for that stream. `ci-main` falls back to the public root Pages report, and same-repository PRs fall back to their own `/pr/<number>/` Pages report when available.
 - After generating the report, CI packages `reports/allure-report/history` into a dedicated `allure-history-*` artifact instead of reusing the full HTML bundle as the restore source.
 - Pull requests from forks remain ephemeral: they generate the downloadable `allure-report` artifact but do not restore or persist history.
-- The public GitHub Pages deployment still publishes only `main`; PR reports remain downloadable artifacts. The `allure-pages` job uploads a Pages deployment artifact and deploys it through the workflow-based GitHub Pages path.
+- The `allure-pages` job now composes a full static site snapshot before deployment so `main` stays at the root while same-repository PR reports live under `/pr/<number>/`.
 - Post-deploy verification now emits Allure output as well. Pushes to `production` persist a `deploy-production` history stream, while manual post-deploy verification runs only persist that stream when the workflow dispatch input `persist_history=true` is selected for the canonical production URL.
 
 ## Supported Models
