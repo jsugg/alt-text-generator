@@ -203,7 +203,7 @@ describe('Unit | Allure History Policy', () => {
       persist_history: 'true',
       publish_pages: 'false',
       report_kind: 'deploy-production',
-      report_label: 'Deploy Verification Production',
+      report_label: 'Post Deploy Verification Production',
       restore_history: 'true',
     });
   });
@@ -224,7 +224,7 @@ describe('Unit | Allure History Policy', () => {
       persist_history: 'false',
       publish_pages: 'false',
       report_kind: 'deploy-manual',
-      report_label: 'Deploy Verification Manual',
+      report_label: 'Post Deploy Verification Manual',
       restore_history: 'false',
     });
   });
@@ -245,7 +245,7 @@ describe('Unit | Allure History Policy', () => {
       persist_history: 'true',
       publish_pages: 'false',
       report_kind: 'deploy-production',
-      report_label: 'Deploy Verification Production',
+      report_label: 'Post Deploy Verification Production',
       restore_history: 'true',
     });
   });
@@ -266,7 +266,7 @@ describe('Unit | Allure History Policy', () => {
       persist_history: 'false',
       publish_pages: 'false',
       report_kind: 'deploy-custom',
-      report_label: 'Deploy Verification Custom URL',
+      report_label: 'Post Deploy Verification Custom URL',
       restore_history: 'false',
     });
   });

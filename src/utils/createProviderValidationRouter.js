@@ -6,7 +6,7 @@ const {
 } = require('../providerValidation/fixtures');
 
 /**
- * Builds the public provider-validation router used by hosted live checks.
+ * Builds the public provider-validation router used by production live checks.
  *
  * @returns {object} Express Router
  */

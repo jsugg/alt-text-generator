@@ -135,7 +135,7 @@ jobs:
     timeout-minutes: 15
     env:
       ALLURE_RESULTS_DIR: reports/allure-results
-      NEWMAN_MODE: ${{ github.event_name == 'pull_request' && 'smoke' || 'harness' }}
+      NEWMAN_MODE: ${{ github.event_name == 'pull_request' && 'smoke' || 'full' }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -145,7 +145,7 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Run deterministic Postman/Newman harness
+      - name: Run deterministic Postman/Newman suite
         run: npm run "postman:${NEWMAN_MODE}"
 
       - name: Write Newman summary
@@ -292,7 +292,7 @@ jobs:
         run: node scripts/reporting/write-allure-metadata.js --results-dir reports/allure-results
         env:
           ALLURE_HISTORY_KEY: ${{ steps.history-policy.outputs.history_key }}
-          ALLURE_NEWMAN_MODE: ${{ github.event_name == 'pull_request' && 'smoke' || 'harness' }}
+          ALLURE_NEWMAN_MODE: ${{ github.event_name == 'pull_request' && 'smoke' || 'full' }}
           ALLURE_REPORT_KIND: ${{ steps.history-policy.outputs.report_kind }}
           ALLURE_WORKFLOW_KIND: ci
           GITHUB_REF_NAME: ${{ github.ref_name }}
@@ -315,7 +315,7 @@ jobs:
           --history-key "${{ steps.history-policy.outputs.history_key }}"
           --report-kind "${{ steps.history-policy.outputs.report_kind }}"
         env:
-          ALLURE_NEWMAN_MODE: ${{ github.event_name == 'pull_request' && 'smoke' || 'harness' }}
+          ALLURE_NEWMAN_MODE: ${{ github.event_name == 'pull_request' && 'smoke' || 'full' }}
           GITHUB_REF_NAME: ${{ github.ref_name }}
           GITHUB_EVENT_NAME: ${{ github.event_name }}
           ALLURE_PR_NUMBER: ${{ github.event.pull_request.number || '' }}
@@ -347,7 +347,7 @@ jobs:
           HAS_RESULTS: ${{ steps.allure-inputs.outputs.has-results }}
           HISTORY_KEY: ${{ steps.history-policy.outputs.history_key || 'none' }}
           HISTORY_RESTORED: ${{ steps.history-restore.outputs.restored || 'false' }}
-          NEWMAN_MODE: ${{ github.event_name == 'pull_request' && 'smoke' || 'harness' }}
+          NEWMAN_MODE: ${{ github.event_name == 'pull_request' && 'smoke' || 'full' }}
           PERSIST_HISTORY: ${{ steps.history-policy.outputs.persist_history }}
           PUBLISH_PAGES: ${{ steps.history-policy.outputs.publish_pages }}
           REPORT_KIND: ${{ steps.history-policy.outputs.report_kind }}
@@ -433,7 +433,7 @@ jobs:
           ALLURE_PAGES_URL: ${{ needs.allure-pages.outputs.page-url || 'not-published' }}
           ALLURE_REPORT_RESULT: ${{ needs.allure-report.result }}
           LINT_RESULT: ${{ needs.lint.result }}
-          NEWMAN_MODE: ${{ github.event_name == 'pull_request' && 'smoke' || 'harness' }}
+          NEWMAN_MODE: ${{ github.event_name == 'pull_request' && 'smoke' || 'full' }}
           NEWMAN_RESULT: ${{ needs.newman.result }}
           TEST_REPORT_RESULT: ${{ needs.test-report.result }}
           TEST_RESULT: ${{ needs.test.result }}

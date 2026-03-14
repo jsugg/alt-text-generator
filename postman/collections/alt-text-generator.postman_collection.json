@@ -2315,10 +2315,10 @@
       ]
     },
     {
-      "name": "95 Deploy Verification",
+      "name": "95 Post Deploy Verification",
       "item": [
         {
-          "name": "Hosted health",
+          "name": "Post deploy health",
           "request": {
             "method": "GET",
             "header": [
@@ -2372,7 +2372,7 @@
           ]
         },
         {
-          "name": "Hosted swagger spec",
+          "name": "Post deploy swagger spec",
           "request": {
             "method": "GET",
             "header": [
@@ -2417,7 +2417,7 @@
                   "const servers = match ? JSON.parse(match[1]) : [];",
                   "const expectedSwaggerServerUrl = pm.environment.get('expectedSwaggerServerUrl');",
                   "",
-                  "pm.test('deploy swagger spec includes the expected hosted server', function () {",
+                  "pm.test('deploy swagger spec includes the expected production server', function () {",
                   "  pm.expect(servers.some((server) => server.url === expectedSwaggerServerUrl)).to.eql(true);",
                   "});",
                   "",
@@ -2430,7 +2430,7 @@
           ]
         },
         {
-          "name": "Hosted protected auth expectation",
+          "name": "Post deploy protected auth expectation",
           "request": {
             "method": "GET",
             "header": [
@@ -2496,10 +2496,10 @@
       ]
     },
     {
-      "name": "96 Deploy Protected Verification",
+      "name": "96 Post Deploy Protected Verification",
       "item": [
         {
-          "name": "Hosted scraper contract",
+          "name": "Post deploy scraper contract",
           "request": {
             "method": "GET",
             "header": [
@@ -2556,77 +2556,6 @@
                   "  body.imageSources.forEach((imageUrl) => {",
                   "    pm.expect(imageUrl).to.be.a('string');",
                   "  });",
-                  "});"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Hosted azure single description",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "X-Expected-Status-Code",
-                "value": "200"
-              },
-              {
-                "key": "X-Max-Response-Time-Ms",
-                "value": "20000"
-              },
-              {
-                "key": "X-API-Key",
-                "value": "{{deployValidationApiToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/accessibility/description",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "accessibility",
-                "description"
-              ],
-              "query": [
-                {
-                  "key": "image_source",
-                  "value": "{{deployAzureImageUrl}}"
-                },
-                {
-                  "key": "model",
-                  "value": "azure"
-                }
-              ]
-            }
-          },
-          "response": [],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('deploy azure description returns 200', function () {",
-                  "  pm.expect(pm.response.code, 'Expected deploy azure description request to succeed. Verify PRODUCTION_DEPLOY_VALIDATION_API_TOKEN matches a token in Render API_AUTH_TOKENS when Render API_AUTH_ENABLED=true.').to.eql(200);",
-                  "});",
-                  "",
-                  "const body = pm.response.json();",
-                  "",
-                  "pm.test('deploy azure description response is a one-item array', function () {",
-                  "  pm.expect(body).to.be.an('array').with.lengthOf(1);",
-                  "});",
-                  "",
-                  "pm.test('deploy azure description is non-empty for the requested image', function () {",
-                  "  pm.expect(body[0].imageUrl).to.eql(pm.environment.get('deployAzureImageUrl'));",
-                  "  pm.expect(body[0].description).to.be.a('string');",
-                  "  pm.expect(body[0].description.length).to.be.above(0);",
                   "});"
                 ]
               }

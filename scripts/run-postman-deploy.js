@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Executes the hosted deploy verification folder from the Postman collection.
+ * Executes the post-deploy verification folders from the Postman collection.
  */
 
 const fs = require('node:fs/promises');
@@ -13,9 +13,19 @@ const {
   readCollection,
 } = require('./postman/collection-utils');
 const {
+  detectAvailableProviders,
+  getSelectedProviderPlans,
+  resolveProviderScope,
+} = require('./postman/provider-validation-scope');
+const {
   buildNewmanReporterArgs,
   resolveAllureResultsDir,
 } = require('./postman/newman-reporting');
+const {
+  DEFAULT_BASE_URL,
+  normalizeBaseUrl,
+  runLiveProviderNewman,
+} = require('./postman/live-provider-validation');
 
 const ROOT = path.resolve(__dirname, '..');
 const COLLECTION_PATH = path.join(
@@ -28,12 +38,11 @@ const ENV_PATH = path.join(
   ROOT,
   'postman',
   'environments',
-  'alt-text-generator.production.postman_environment.json',
+  'alt-text-generator.live.postman_environment.json',
 );
 const REPORTS_DIR = path.join(ROOT, 'reports', 'newman');
-const PUBLIC_DEPLOY_FOLDER = '95 Deploy Verification';
-const PROTECTED_DEPLOY_FOLDER = '96 Deploy Protected Verification';
-const DEFAULT_BASE_URL = 'https://wcag.qcraft.com.br';
+const PUBLIC_DEPLOY_FOLDER = '95 Post Deploy Verification';
+const PROTECTED_DEPLOY_FOLDER = '96 Post Deploy Protected Verification';
 const DEPLOY_STABILIZATION_POLL_INTERVAL_MS = 3_000;
 const DEPLOY_STABILIZATION_REQUIRED_SUCCESSES = 3;
 const DEPLOY_STABILIZATION_TIMEOUT_MS = 90_000;
@@ -43,16 +52,6 @@ const NPX = process.platform === 'win32' ? 'npx.cmd' : 'npx';
 const sleep = (durationMs) => new Promise((resolve) => {
   setTimeout(resolve, durationMs);
 });
-
-/**
- * Normalizes a base URL for env-var reuse.
- *
- * @param {string} baseUrl
- * @returns {string}
- */
-function normalizeBaseUrl(baseUrl) {
-  return baseUrl.replace(/\/+$/, '');
-}
 
 /**
  * Normalizes a string boolean flag.
@@ -104,7 +103,7 @@ function resolveProductionDeployAuthConfig(env = process.env) {
     || deployValidationApiToken.length > 0;
   const protectedVerificationSkipReason = protectedVerificationEnabled
     ? null
-    : 'Skipping 96 Deploy Protected Verification because '
+    : 'Skipping 96 Post Deploy Protected Verification because '
       + 'PRODUCTION_API_AUTH_ENABLED=true but PRODUCTION_DEPLOY_VALIDATION_API_TOKEN is not set. '
       + 'Protected deploy checks require Render API_AUTH_ENABLED=true and '
       + 'API_AUTH_TOKENS to include the same token.';
@@ -156,6 +155,36 @@ function parseArgs(argv) {
   }
 
   return args;
+}
+
+/**
+ * Resolves the low-cost live-provider plans used during post-deploy verification.
+ *
+ * @param {NodeJS.ProcessEnv} env
+ * @returns {{
+ *   providerPlans: { folderName: string, envVars: string[], scopeKey: string }[],
+ *   providerScope: string,
+ * }}
+ */
+function resolvePostDeployProviderPlans(env = process.env) {
+  const availableProviders = detectAvailableProviders(env);
+  const providerScope = resolveProviderScope({
+    requestedScope: env.LIVE_PROVIDER_SCOPE,
+    configuredScope: env.LIVE_PROVIDER_SCOPE,
+    configuredProviderScopes: availableProviders.configuredProviderScopes,
+  });
+  const providerPlans = getSelectedProviderPlans(providerScope, {
+    configuredProviderScopes: availableProviders.configuredProviderScopes,
+  });
+
+  if (providerPlans.length === 0) {
+    throw new Error(`Post-deploy provider validation resolved no folders for scope "${providerScope}"`);
+  }
+
+  return {
+    providerPlans,
+    providerScope,
+  };
 }
 
 /**
@@ -505,7 +534,7 @@ function buildDeployNewmanArgs(
     '--timeout-script',
     '10000',
     ...buildNewmanReporterArgs({
-      label: 'deploy',
+      label: 'post-deploy',
       reportsDir: REPORTS_DIR,
       allureResultsDir,
     }),
@@ -554,7 +583,7 @@ function runNewman(
         return;
       }
 
-      reject(new Error(`Deploy Newman run failed with exit code ${code}`));
+      reject(new Error(`Post-deploy Newman run failed with exit code ${code}`));
     });
 
     child.on('error', reject);
@@ -571,9 +600,13 @@ async function main() {
   const normalizedBaseUrl = normalizeBaseUrl(baseUrl);
   const allureResultsDir = resolveAllureResultsDir(process.env, ROOT);
   const authConfig = resolveProductionDeployAuthConfig(process.env);
+  const { providerPlans } = resolvePostDeployProviderPlans(process.env);
   const collection = readCollection(COLLECTION_PATH);
   const availableFolders = listTopLevelFolderNames(collection);
   const selectedFolders = [PUBLIC_DEPLOY_FOLDER];
+  const providerValidationFolders = Array.from(
+    new Set(providerPlans.map((providerPlan) => providerPlan.folderName)),
+  );
 
   if (authConfig.protectedVerificationEnabled) {
     selectedFolders.push(PROTECTED_DEPLOY_FOLDER);
@@ -584,7 +617,12 @@ async function main() {
   assertTopLevelFoldersExist(
     availableFolders,
     selectedFolders,
-    'deploy mode',
+    'post-deploy mode',
+  );
+  assertTopLevelFoldersExist(
+    availableFolders,
+    providerValidationFolders,
+    'post-deploy provider-validation mode',
   );
 
   await fs.mkdir(REPORTS_DIR, { recursive: true });
@@ -598,6 +636,19 @@ async function main() {
     folders: selectedFolders,
     productionApiAuthEnabled: authConfig.productionApiAuthEnabled,
   });
+  await providerPlans.reduce(
+    (runPromise, providerPlan) => runPromise.then(() => runLiveProviderNewman(
+      normalizedBaseUrl,
+      {
+        allureResultsDir,
+        authConfig,
+        folders: [providerPlan.folderName],
+        label: `post-deploy-provider-${providerPlan.scopeKey}`,
+        providerEnvVars: providerPlan.envVars,
+      },
+    )),
+    Promise.resolve(),
+  );
 }
 
 if (require.main === module) {
@@ -618,6 +669,7 @@ module.exports = {
   normalizeBooleanFlag,
   parseArgs,
   requestDeployProbe,
+  resolvePostDeployProviderPlans,
   resolveProductionDeployAuthConfig,
   waitForStableDeploy,
 };

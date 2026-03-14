@@ -16,10 +16,9 @@ const {
   readCollection,
 } = require('./postman/collection-utils');
 const {
-  detectAvailableProviders,
   getSelectedProviderPlans,
-  getSelectedProviders,
   resolveProviderScope,
+  detectAvailableProviders,
 } = require('./postman/provider-validation-scope');
 const {
   buildNewmanReporterArgs,
@@ -28,6 +27,11 @@ const {
 const {
   buildPublicProviderValidationFixtureUrls,
 } = require('./postman/provider-validation-public-fixtures');
+const {
+  buildLocalMockProviderConfig,
+  buildLocalMockProviderValidationFixtureUrls,
+  LOCAL_PROVIDER_VALIDATION_SCOPES,
+} = require('./postman/local-provider-mocks');
 const {
   DEFAULT_MAX_RESPONSE_TIME_MS,
   DEFAULT_NEWMAN_TIMEOUT_REQUEST_MS,
@@ -47,7 +51,7 @@ const ENV_PATH = path.join(
   ROOT,
   'postman',
   'environments',
-  'alt-text-generator.local.fixture.postman_environment.json',
+  'alt-text-generator.local.postman_environment.json',
 );
 const REPORTS_DIR = path.join(ROOT, 'reports', 'newman');
 
@@ -166,12 +170,19 @@ function spawnLogged(label, command, args, env = {}) {
  * @param {{
  *   httpPort: string,
  *   httpsPort: string,
+ *   replicateApiEndpoint?: string | null,
  *   replicateApiToken?: string | null,
  *   azureApiEndpoint?: string | null,
  *   azureSubscriptionKey?: string | null,
  *   openaiApiKey?: string | null,
+ *   openaiBaseUrl?: string | null,
+ *   openaiModel?: string | null,
  *   hfApiKey?: string | null,
+ *   hfBaseUrl?: string | null,
+ *   hfModel?: string | null,
  *   openrouterApiKey?: string | null,
+ *   openrouterBaseUrl?: string | null,
+ *   openrouterModel?: string | null,
  *   apiAuthTokens?: string | null,
  *   scraperRequestTimeoutMs?: string | null,
  *   pageDescriptionConcurrency?: string | null,
@@ -181,12 +192,19 @@ function spawnLogged(label, command, args, env = {}) {
 function buildAppServerEnv({
   httpPort,
   httpsPort,
+  replicateApiEndpoint = null,
   replicateApiToken = null,
   azureApiEndpoint = null,
   azureSubscriptionKey = null,
   openaiApiKey = null,
+  openaiBaseUrl = null,
+  openaiModel = null,
   hfApiKey = null,
+  hfBaseUrl = null,
+  hfModel = null,
   openrouterApiKey = null,
+  openrouterBaseUrl = null,
+  openrouterModel = null,
   apiAuthTokens = null,
   scraperRequestTimeoutMs = null,
   pageDescriptionConcurrency = null,
@@ -206,6 +224,10 @@ function buildAppServerEnv({
     env.REPLICATE_API_TOKEN = replicateApiToken;
   }
 
+  if (replicateApiEndpoint) {
+    env.REPLICATE_API_ENDPOINT = replicateApiEndpoint;
+  }
+
   if (azureApiEndpoint) {
     env.ACV_API_ENDPOINT = azureApiEndpoint;
   }
@@ -218,12 +240,36 @@ function buildAppServerEnv({
     env.OPENAI_API_KEY = openaiApiKey;
   }
 
+  if (openaiBaseUrl) {
+    env.OPENAI_BASE_URL = openaiBaseUrl;
+  }
+
+  if (openaiModel) {
+    env.OPENAI_MODEL = openaiModel;
+  }
+
   if (hfApiKey) {
     env.HF_API_KEY = hfApiKey;
   }
 
+  if (hfBaseUrl) {
+    env.HF_BASE_URL = hfBaseUrl;
+  }
+
+  if (hfModel) {
+    env.HF_MODEL = hfModel;
+  }
+
   if (openrouterApiKey) {
     env.OPENROUTER_API_KEY = openrouterApiKey;
+  }
+
+  if (openrouterBaseUrl) {
+    env.OPENROUTER_BASE_URL = openrouterBaseUrl;
+  }
+
+  if (openrouterModel) {
+    env.OPENROUTER_MODEL = openrouterModel;
   }
 
   if (apiAuthTokens) {
@@ -253,6 +299,12 @@ function buildAppServerEnv({
  *   envVars?: string[],
  *   extraArgs?: string[],
  *   maxResponseTimeMs?: number,
+ *   providerValidationFixtureUrls?: {
+ *     providerValidationAzureImageUrl: string,
+ *     providerValidationAzurePageUrl: string,
+ *     providerValidationImageUrl: string,
+ *     providerValidationPageUrl: string,
+ *   },
  *   timeoutRequestMs?: number,
  * }} options
  * @returns {Promise<void>}
@@ -266,11 +318,11 @@ function runNewman(
     envVars = [],
     extraArgs = [],
     maxResponseTimeMs = DEFAULT_MAX_RESPONSE_TIME_MS,
+    providerValidationFixtureUrls = buildPublicProviderValidationFixtureUrls(),
     timeoutRequestMs = DEFAULT_NEWMAN_TIMEOUT_REQUEST_MS,
   } = {},
 ) {
   const folderArgs = folders.flatMap((folder) => ['--folder', folder]);
-  const publicProviderValidationFixtures = buildPublicProviderValidationFixtureUrls();
 
   const args = [
     '--no-install',
@@ -302,13 +354,13 @@ function runNewman(
     '--env-var',
     `expectedSwaggerServerUrl=https://localhost:${APP_HTTPS_PORT}`,
     '--env-var',
-    `providerValidationImageUrl=${publicProviderValidationFixtures.providerValidationImageUrl}`,
+    `providerValidationImageUrl=${providerValidationFixtureUrls.providerValidationImageUrl}`,
     '--env-var',
-    `providerValidationPageUrl=${publicProviderValidationFixtures.providerValidationPageUrl}`,
+    `providerValidationPageUrl=${providerValidationFixtureUrls.providerValidationPageUrl}`,
     '--env-var',
-    `providerValidationAzureImageUrl=${publicProviderValidationFixtures.providerValidationAzureImageUrl}`,
+    `providerValidationAzureImageUrl=${providerValidationFixtureUrls.providerValidationAzureImageUrl}`,
     '--env-var',
-    `providerValidationAzurePageUrl=${publicProviderValidationFixtures.providerValidationAzurePageUrl}`,
+    `providerValidationAzurePageUrl=${providerValidationFixtureUrls.providerValidationAzurePageUrl}`,
     '--env-var',
     'model=azure',
     '--env-var',
@@ -391,72 +443,119 @@ function installSignalCleanup(children) {
  */
 async function main() {
   const mode = process.argv[2] || 'full';
-  if (!['smoke', 'full', 'provider-integration', 'live'].includes(mode)) {
+  if (!['smoke', 'full', 'real-provider'].includes(mode)) {
     throw new Error(`Unsupported harness mode "${mode}"`);
   }
-  if (mode === 'live') {
-    throw new Error(
-      'The live mode moved to scripts/run-postman-live.js. Use npm run postman:hosted-provider '
-      + 'for hosted validation or node scripts/run-postman-harness.js provider-integration '
-      + 'for the local provider-integration harness.',
-    );
-  }
   const allureResultsDir = resolveAllureResultsDir(process.env, ROOT);
-  const providerIntegrationModeEnabled = mode === 'provider-integration';
-  const requiresAuthHarness = mode === 'smoke' || mode === 'full';
-  const providerScopeInput = process.env.LIVE_PROVIDER_SCOPE || 'auto';
+  const fullModeEnabled = mode === 'full';
+  const realProviderModeEnabled = mode === 'real-provider';
+  const providerValidationModeEnabled = fullModeEnabled || realProviderModeEnabled;
+  const requiresAuthHarness = mode === 'smoke' || fullModeEnabled;
+  const providerScopeInput = process.env.LIVE_PROVIDER_SCOPE || 'all';
   const liveAzureSubscriptionKey = process.env.ACV_SUBSCRIPTION_KEY || null;
-  const availableLiveProviders = detectAvailableProviders({
-    ...process.env,
+  const mockProviderConfig = buildLocalMockProviderConfig({
+    host: HOST,
+    port: FIXTURE_PORT,
   });
-  const providerValidationScope = providerIntegrationModeEnabled
-    ? resolveProviderScope({
-      requestedScope: providerScopeInput,
-      configuredProviderScopes: availableLiveProviders.configuredProviderScopes,
-    })
-    : null;
-  const selectedProviderValidation = providerValidationScope
-    ? getSelectedProviders(providerValidationScope, {
-      configuredProviderScopes: availableLiveProviders.configuredProviderScopes,
-    })
-    : { selectedProviderScopes: [], runAzure: false, runReplicate: false };
+  const mockProviderValidationFixtureUrls = buildLocalMockProviderValidationFixtureUrls({
+    host: HOST,
+    port: FIXTURE_PORT,
+  });
+  const publicProviderValidationFixtures = buildPublicProviderValidationFixtureUrls();
+  const availableLiveProviders = realProviderModeEnabled
+    ? detectAvailableProviders(process.env)
+    : { configuredProviderScopes: LOCAL_PROVIDER_VALIDATION_SCOPES.slice() };
+  const configuredProviderScopes = fullModeEnabled
+    ? LOCAL_PROVIDER_VALIDATION_SCOPES.slice()
+    : availableLiveProviders.configuredProviderScopes;
+  let providerValidationScope = null;
+  if (providerValidationModeEnabled) {
+    providerValidationScope = fullModeEnabled
+      ? 'all'
+      : resolveProviderScope({
+        requestedScope: providerScopeInput,
+        configuredProviderScopes,
+      });
+  }
   const selectedProviderPlans = providerValidationScope
     ? getSelectedProviderPlans(providerValidationScope, {
-      configuredProviderScopes: availableLiveProviders.configuredProviderScopes,
-      mode: 'provider-integration',
+      configuredProviderScopes,
     })
     : [];
-  const selectedProviderScopeSet = new Set(selectedProviderValidation.selectedProviderScopes);
-  let appReplicateApiToken = 'test-token';
-  let appAzureApiEndpoint = `http://${HOST}:${FIXTURE_PORT}/vision/v3.2/describe`;
+  const selectedProviderScopeSet = new Set(
+    selectedProviderPlans.map((providerPlan) => providerPlan.scopeKey),
+  );
+  let appReplicateApiToken = fullModeEnabled ? mockProviderConfig.replicateApiToken : 'test-token';
+  let appReplicateApiEndpoint = fullModeEnabled ? mockProviderConfig.replicateApiEndpoint : null;
+  let appAzureApiEndpoint = fullModeEnabled
+    ? mockProviderConfig.azureApiEndpoint
+    : `http://${HOST}:${FIXTURE_PORT}/vision/v3.2/describe`;
   let appAzureSubscriptionKey = 'stub-key';
   let appOpenAiApiKey = null;
+  let appOpenAiBaseUrl = null;
+  let appOpenAiModel = null;
   let appHfApiKey = null;
+  let appHfBaseUrl = null;
+  let appHfModel = null;
   let appOpenRouterApiKey = null;
-  const providerIntegrationScraperRequestTimeoutMs = providerIntegrationModeEnabled
+  let appOpenRouterBaseUrl = null;
+  let appOpenRouterModel = null;
+  const providerIntegrationScraperRequestTimeoutMs = providerValidationModeEnabled
     ? String(PROVIDER_VALIDATION_APP_REQUEST_TIMEOUT_MS)
     : null;
-  const providerIntegrationPageDescriptionConcurrency = providerIntegrationModeEnabled ? '1' : null;
+  const providerIntegrationPageDescriptionConcurrency = providerValidationModeEnabled ? '1' : null;
+  const providerValidationFixtureUrls = fullModeEnabled
+    ? mockProviderValidationFixtureUrls
+    : publicProviderValidationFixtures;
 
-  if (providerIntegrationModeEnabled) {
-    appReplicateApiToken = selectedProviderValidation.runReplicate
+  if (realProviderModeEnabled) {
+    appReplicateApiToken = selectedProviderScopeSet.has('replicate')
       ? process.env.REPLICATE_API_TOKEN
       : null;
-    appAzureApiEndpoint = selectedProviderValidation.runAzure
+    appReplicateApiEndpoint = selectedProviderScopeSet.has('replicate')
+      ? process.env.REPLICATE_API_ENDPOINT || null
+      : null;
+    appAzureApiEndpoint = selectedProviderScopeSet.has('azure')
       ? process.env.ACV_API_ENDPOINT
       : null;
-    appAzureSubscriptionKey = selectedProviderValidation.runAzure
+    appAzureSubscriptionKey = selectedProviderScopeSet.has('azure')
       ? liveAzureSubscriptionKey
       : null;
     appOpenAiApiKey = selectedProviderScopeSet.has('openai')
       ? process.env.OPENAI_API_KEY
       : null;
+    appOpenAiBaseUrl = selectedProviderScopeSet.has('openai')
+      ? process.env.OPENAI_BASE_URL || null
+      : null;
+    appOpenAiModel = selectedProviderScopeSet.has('openai')
+      ? process.env.OPENAI_MODEL || null
+      : null;
     appHfApiKey = selectedProviderScopeSet.has('huggingface')
       ? process.env.HF_API_KEY || process.env.HF_TOKEN
+      : null;
+    appHfBaseUrl = selectedProviderScopeSet.has('huggingface')
+      ? process.env.HF_BASE_URL || null
+      : null;
+    appHfModel = selectedProviderScopeSet.has('huggingface')
+      ? process.env.HF_MODEL || null
       : null;
     appOpenRouterApiKey = selectedProviderScopeSet.has('openrouter')
       ? process.env.OPENROUTER_API_KEY
       : null;
+    appOpenRouterBaseUrl = selectedProviderScopeSet.has('openrouter')
+      ? process.env.OPENROUTER_BASE_URL || null
+      : null;
+    appOpenRouterModel = selectedProviderScopeSet.has('openrouter')
+      ? process.env.OPENROUTER_MODEL || null
+      : null;
+  } else if (fullModeEnabled) {
+    appAzureSubscriptionKey = mockProviderConfig.azureSubscriptionKey;
+    appOpenAiApiKey = mockProviderConfig.openaiApiKey;
+    appOpenAiBaseUrl = mockProviderConfig.openaiBaseUrl;
+    appHfApiKey = mockProviderConfig.hfApiKey;
+    appHfBaseUrl = mockProviderConfig.hfBaseUrl;
+    appOpenRouterApiKey = mockProviderConfig.openrouterApiKey;
+    appOpenRouterBaseUrl = mockProviderConfig.openrouterBaseUrl;
   }
   const managedChildren = new Set();
   const collection = readCollection(COLLECTION_PATH);
@@ -489,12 +588,19 @@ async function main() {
     buildAppServerEnv({
       httpPort: APP_HTTP_PORT,
       httpsPort: APP_HTTPS_PORT,
+      replicateApiEndpoint: appReplicateApiEndpoint,
       replicateApiToken: appReplicateApiToken,
       azureApiEndpoint: appAzureApiEndpoint,
       azureSubscriptionKey: appAzureSubscriptionKey,
       openaiApiKey: appOpenAiApiKey,
+      openaiBaseUrl: appOpenAiBaseUrl,
+      openaiModel: appOpenAiModel,
       hfApiKey: appHfApiKey,
+      hfBaseUrl: appHfBaseUrl,
+      hfModel: appHfModel,
       openrouterApiKey: appOpenRouterApiKey,
+      openrouterBaseUrl: appOpenRouterBaseUrl,
+      openrouterModel: appOpenRouterModel,
       scraperRequestTimeoutMs: providerIntegrationScraperRequestTimeoutMs,
       pageDescriptionConcurrency: providerIntegrationPageDescriptionConcurrency,
     }),
@@ -625,40 +731,44 @@ async function main() {
       );
     }
 
-    if (providerIntegrationModeEnabled) {
-      const liveFolders = Array.from(
+    if (providerValidationModeEnabled) {
+      const providerValidationFolders = Array.from(
         new Set(selectedProviderPlans.map((providerPlan) => providerPlan.folderName)),
       );
+      const providerValidationLabelPrefix = fullModeEnabled
+        ? 'local-provider-integration'
+        : 'pre-production-provider';
 
       if (selectedProviderPlans.length === 0) {
         throw new Error(
-          'Provider-integration mode enabled but provider scope '
+          'Provider-validation mode enabled but provider scope '
           + `'${providerValidationScope}' selected no folders`,
         );
       }
 
       assertTopLevelFoldersExist(
         availableFolders,
-        liveFolders,
-        'provider-integration mode',
+        providerValidationFolders,
+        providerValidationLabelPrefix,
       );
 
       await selectedProviderPlans.reduce(
         (runPromise, providerPlan) => runPromise.then(() => runNewman(
-          `provider-integration-${providerPlan.scopeKey}`,
+          `${providerValidationLabelPrefix}-${providerPlan.scopeKey}`,
           [providerPlan.folderName],
           {
             allureResultsDir,
             envVars: [
-              ...localNewmanEnvVars,
+              ...(fullModeEnabled ? localNewmanEnvVars : []),
               ...providerPlan.envVars,
             ],
             extraArgs: ['--insecure'],
+            providerValidationFixtureUrls,
             maxResponseTimeMs: resolveMaxResponseTimeMs({
-              providerValidationModeEnabled: providerIntegrationModeEnabled,
+              providerValidationModeEnabled,
             }),
             timeoutRequestMs: resolveNewmanTimeoutRequestMs({
-              providerValidationModeEnabled: providerIntegrationModeEnabled,
+              providerValidationModeEnabled,
             }),
           },
         )),

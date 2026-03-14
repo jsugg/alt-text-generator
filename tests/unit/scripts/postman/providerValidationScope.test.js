@@ -159,7 +159,7 @@ describe('Unit | Scripts | Postman | Provider Validation Scope', () => {
   });
 
   describe('getSelectedProviderPlans', () => {
-    it('maps generic providers to the shared neutral folder with hosted env vars', () => {
+    it('maps generic providers to the shared neutral folder with production env vars', () => {
       expect(getSelectedProviderPlans('huggingface')).toEqual([
         {
           folderName: '90 Provider Validation',

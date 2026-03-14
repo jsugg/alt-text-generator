@@ -1,4 +1,4 @@
-name: Deploy Verification
+name: Post Deploy Verification
 
 on:
   push:
@@ -16,17 +16,27 @@ on:
         required: false
         default: false
         type: boolean
+      provider_scope:
+        description: Select the low-cost live-provider scope to exercise after deployment.
+        required: false
+        default: all
+        type: choice
+        options:
+          - auto
+          - openai
+          - openrouter
+          - all
 
 permissions:
   contents: read
 
 concurrency:
-  group: deploy-verification-${{ github.ref }}
+  group: post-deploy-verification-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   smoke:
-    name: production-smoke
+    name: post-deploy-smoke
     runs-on: ubuntu-latest
     environment: prod-validation
     timeout-minutes: 10
@@ -45,8 +55,22 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Run deploy Newman verification
-        run: npm run postman:deploy -- --base-url "${BASE_URL}"
+      - name: Resolve post-deploy provider scope
+        env:
+          VALIDATION_SUMMARY_TITLE: Post Deploy Verification
+          INPUT_PROVIDER_SCOPE: ${{ github.event_name == 'workflow_dispatch' && inputs.provider_scope || 'all' }}
+          LIVE_PROVIDER_SCOPE: ${{ github.event_name == 'workflow_dispatch' && inputs.provider_scope || 'all' }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: node scripts/github/resolve-provider-validation-scope.js
+
+      - name: Run post-deploy Newman verification
+        run: npm run postman:post-deploy -- --base-url "${BASE_URL}"
+        env:
+          LIVE_PROVIDER_SCOPE: ${{ env.LIVE_PROVIDER_SCOPE }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          PROVIDER_VALIDATION_PUBLIC_REF: production
 
       - name: Write deploy summary
         if: always()
@@ -56,7 +80,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: deploy-verification-artifacts
+          name: post-deploy-verification-artifacts
           path: reports/newman/
           if-no-files-found: ignore
           retention-days: 7
@@ -65,13 +89,13 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: deploy-verification-allure-results
+          name: post-deploy-verification-allure-results
           path: reports/allure-results/
           if-no-files-found: ignore
           retention-days: 7
 
   allure-report:
-    name: deploy-allure-report
+    name: post-deploy-allure-report
     if: always()
     needs:
       - smoke
@@ -97,7 +121,7 @@ jobs:
       - name: Download Newman Allure results
         uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
-          pattern: deploy-verification-allure-results
+          pattern: post-deploy-verification-allure-results
           path: reports/allure-results
           merge-multiple: true
 
@@ -176,7 +200,7 @@ jobs:
         if: always() && steps.allure-inputs.outputs.has-results == 'true'
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: deploy-verification-allure-report
+          name: post-deploy-verification-allure-report
           path: reports/allure-report/
           if-no-files-found: ignore
           retention-days: 7

@@ -8,7 +8,9 @@ summary_title="${VALIDATION_SUMMARY_TITLE:-Provider Validation}"
   echo "## ${summary_title}"
   echo
   echo "- Event: ${GITHUB_EVENT_NAME:-unknown}"
-  echo "- Provider scope: ${LIVE_PROVIDER_SCOPE:-unresolved}"
+  if [ -n "${LIVE_PROVIDER_SCOPE:-}" ]; then
+    echo "- Provider scope: ${LIVE_PROVIDER_SCOPE}"
+  fi
   echo
 } >> "${summary_file}"
 

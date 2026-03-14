@@ -7,19 +7,21 @@
  * - a health endpoint
  * - a page with duplicate + mixed absolute/relative image references
  * - lightweight PNG assets
- * - a stub Azure Computer Vision describe endpoint
+ * - provider-validation page/assets
+ * - mocked provider endpoints for Azure, Replicate, and OpenAI-compatible APIs
  */
 
 const express = require('express');
 
-const { getProviderValidationAsset } = require('../src/providerValidation/fixtures');
+const {
+  buildProviderValidationPageHtml,
+  getProviderValidationAsset,
+} = require('../src/providerValidation/fixtures');
 
 const HOST = '127.0.0.1';
 const PORT = Number(process.env.POSTMAN_FIXTURE_PORT || 19090);
 const BASE_URL = `http://${HOST}:${PORT}`;
-
-const app = express();
-app.use(express.json());
+const OPENAI_COMPATIBLE_JSON_LIMIT = '1mb';
 
 const ASSET_A_PNG = getProviderValidationAsset('a.png');
 const ASSET_B_PNG = getProviderValidationAsset('b.png');
@@ -65,12 +67,49 @@ function captionForBuffer(imageBuffer) {
   return 'stub caption for unknown asset';
 }
 
-app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', source: 'postman-fixture-server' });
-});
+/**
+ * @param {string} providerName
+ * @returns {string}
+ */
+function buildProviderCaption(providerName) {
+  return `${providerName} stub caption`;
+}
 
-app.get('/fixtures/page-with-images', (_req, res) => {
-  res.type('html').send(`<!doctype html>
+/**
+ * @param {string} providerName
+ * @returns {import('express').RequestHandler}
+ */
+function createOpenAiCompatibleStubHandler(providerName) {
+  return (_req, res) => {
+    res.json({
+      id: `${providerName}-stub-response`,
+      object: 'chat.completion',
+      created: 1,
+      model: `${providerName}-stub-model`,
+      choices: [
+        {
+          index: 0,
+          finish_reason: 'stop',
+          message: {
+            role: 'assistant',
+            content: buildProviderCaption(providerName),
+          },
+        },
+      ],
+    });
+  };
+}
+
+function createFixtureApp({ baseUrl = BASE_URL } = {}) {
+  const app = express();
+  app.use(express.json({ limit: OPENAI_COMPATIBLE_JSON_LIMIT }));
+
+  app.get('/health', (_req, res) => {
+    res.json({ status: 'ok', source: 'postman-fixture-server' });
+  });
+
+  app.get('/fixtures/page-with-images', (_req, res) => {
+    res.type('html').send(`<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
@@ -83,16 +122,16 @@ app.get('/fixtures/page-with-images', (_req, res) => {
     <img src="/assets/a.png" alt="" />
 
     <!-- absolute URL -->
-    <img src="${BASE_URL}/assets/b.png" alt="" />
+    <img src="${baseUrl}/assets/b.png" alt="" />
 
     <!-- duplicate URL to validate dedupe + preserved order -->
     <img src="/assets/a.png" alt="" />
   </body>
 </html>`);
-});
+  });
 
-app.get('/fixtures/page-with-partial-images', (_req, res) => {
-  res.type('html').send(`<!doctype html>
+  app.get('/fixtures/page-with-partial-images', (_req, res) => {
+    res.type('html').send(`<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
@@ -111,10 +150,10 @@ app.get('/fixtures/page-with-partial-images', (_req, res) => {
     <img src="/assets/a.png" alt="" />
   </body>
 </html>`);
-});
+  });
 
-app.get('/fixtures/page-with-provider-failure', (_req, res) => {
-  res.type('html').send(`<!doctype html>
+  app.get('/fixtures/page-with-provider-failure', (_req, res) => {
+    res.type('html').send(`<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
@@ -130,56 +169,94 @@ app.get('/fixtures/page-with-provider-failure', (_req, res) => {
     <img src="/assets/provider-error.png" alt="" />
   </body>
 </html>`);
-});
+  });
 
-app.get('/assets/:name', (req, res) => {
-  let asset = null;
+  app.get('/provider-validation/page', (req, res) => {
+    const requestBaseUrl = `${req.protocol}://${req.get('host')}`;
+    res.type('html').send(buildProviderValidationPageHtml(requestBaseUrl));
+  });
 
-  if (req.params.name === 'a.png') {
-    asset = ASSET_A_PNG;
-  } else if (req.params.name === 'b.png') {
-    asset = ASSET_B_PNG;
-  } else if (req.params.name === 'provider-error.png') {
-    asset = ASSET_PROVIDER_FAILURE_PNG;
-  }
+  app.get('/provider-validation/assets/:name', (req, res) => {
+    const asset = getProviderValidationAsset(req.params.name);
 
-  if (!asset) {
-    res.status(404).type('text/plain').send('asset not found');
-    return;
-  }
+    if (!asset) {
+      res.status(404).type('text/plain').send('asset not found');
+      return;
+    }
 
-  res.type('image/png').send(asset);
-});
+    res.type('image/png').send(asset);
+  });
 
-app.post('/vision/v3.2/describe', express.raw({ type: 'application/octet-stream' }), (req, res) => {
-  const imageUrl = typeof req.body?.url === 'string' ? req.body.url : '';
-  const imageBuffer = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
+  app.get('/assets/:name', (req, res) => {
+    let asset = null;
 
-  if (
-    imageUrl.endsWith('/assets/provider-error.png')
-    || Buffer.compare(imageBuffer, ASSET_PROVIDER_FAILURE_PNG) === 0
-  ) {
-    res.status(401).json({
-      error: {
-        code: 'PermissionDenied',
-        message: 'stub provider authentication failure',
+    if (req.params.name === 'a.png') {
+      asset = ASSET_A_PNG;
+    } else if (req.params.name === 'b.png') {
+      asset = ASSET_B_PNG;
+    } else if (req.params.name === 'provider-error.png') {
+      asset = ASSET_PROVIDER_FAILURE_PNG;
+    }
+
+    if (!asset) {
+      res.status(404).type('text/plain').send('asset not found');
+      return;
+    }
+
+    res.type('image/png').send(asset);
+  });
+
+  app.post('/openai/v1/chat/completions', createOpenAiCompatibleStubHandler('openai'));
+  app.post('/huggingface/v1/chat/completions', createOpenAiCompatibleStubHandler('huggingface'));
+  app.post('/openrouter/v1/chat/completions', createOpenAiCompatibleStubHandler('openrouter'));
+
+  app.post('/predictions', (_req, res) => {
+    res.json({
+      id: 'stub-prediction',
+      status: 'succeeded',
+      output: buildProviderCaption('replicate'),
+    });
+  });
+
+  app.post('/vision/v3.2/describe', express.raw({ type: 'application/octet-stream' }), (req, res) => {
+    const imageUrl = typeof req.body?.url === 'string' ? req.body.url : '';
+    const imageBuffer = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
+
+    if (
+      imageUrl.endsWith('/assets/provider-error.png')
+      || Buffer.compare(imageBuffer, ASSET_PROVIDER_FAILURE_PNG) === 0
+    ) {
+      res.status(401).json({
+        error: {
+          code: 'PermissionDenied',
+          message: 'stub provider authentication failure',
+        },
+      });
+      return;
+    }
+
+    const caption = imageBuffer.length > 0
+      ? captionForBuffer(imageBuffer)
+      : captionForUrl(imageUrl);
+
+    res.json({
+      description: {
+        captions: [{ text: caption }],
       },
     });
-    return;
-  }
-
-  const caption = imageBuffer.length > 0
-    ? captionForBuffer(imageBuffer)
-    : captionForUrl(imageUrl);
-
-  res.json({
-    description: {
-      captions: [{ text: caption }],
-    },
   });
-});
 
-app.listen(PORT, HOST, () => {
-  // eslint-disable-next-line no-console
-  console.log(`postman fixture server listening on ${BASE_URL}`);
-});
+  return app;
+}
+
+if (require.main === module) {
+  createFixtureApp({ baseUrl: BASE_URL }).listen(PORT, HOST, () => {
+    // eslint-disable-next-line no-console
+    console.log(`postman fixture server listening on ${BASE_URL}`);
+  });
+}
+
+module.exports = {
+  createFixtureApp,
+  OPENAI_COMPATIBLE_JSON_LIMIT,
+};

@@ -30,7 +30,7 @@ describe('Unit | Allure History Artifact Packaging', () => {
   it('builds a manifest with stream-specific metadata', () => {
     expect(buildHistoryArtifactManifest({
       env: {
-        ALLURE_NEWMAN_MODE: 'harness',
+        ALLURE_NEWMAN_MODE: 'full',
         GITHUB_EVENT_NAME: 'push',
         GITHUB_REF_NAME: 'main',
         GITHUB_RUN_ID: '123',
@@ -44,7 +44,7 @@ describe('Unit | Allure History Artifact Packaging', () => {
       createdAt: '2026-03-11T15:00:00.000Z',
       eventName: 'push',
       historyKey: 'ci-main',
-      newmanMode: 'harness',
+      newmanMode: 'full',
       refName: 'main',
       reportKind: 'ci-main',
       runId: '123',
@@ -63,7 +63,7 @@ describe('Unit | Allure History Artifact Packaging', () => {
         GITHUB_REF_NAME: 'main',
         GITHUB_RUN_ID: '123',
         GITHUB_RUN_NUMBER: '45',
-        GITHUB_WORKFLOW: 'Deploy Verification',
+        GITHUB_WORKFLOW: 'Post Deploy Verification',
       },
       historyKey: 'deploy-production',
       now: '2026-03-11T15:00:00.000Z',
@@ -79,7 +79,7 @@ describe('Unit | Allure History Artifact Packaging', () => {
       reportKind: 'deploy-production',
       runId: '123',
       runNumber: '45',
-      workflowName: 'Deploy Verification',
+      workflowName: 'Post Deploy Verification',
     });
   });
 

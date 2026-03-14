@@ -1,0 +1,50 @@
+name: Local Provider Integration
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths-ignore:
+      - '**/*.md'
+      - '.github/assets/**'
+      - 'LICENSE'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: local-provider-integration-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  local-provider-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup project
+        uses: ./.github/actions/setup-node-project
+        with:
+          node-version: '20'
+
+      - name: Run local provider integration suite
+        run: npm run postman:full
+
+      - name: Upload local provider integration artifacts
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: local-provider-integration-artifacts
+          path: reports/newman/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Write summary
+        if: always()
+        run: bash scripts/github/write-provider-validation-summary.sh "$GITHUB_STEP_SUMMARY"
+        env:
+          LIVE_PROVIDER_SCOPE: mocked-all
+          VALIDATION_SUMMARY_TITLE: Local Provider Integration

@@ -1,3 +1,6 @@
+const fs = require('node:fs');
+const path = require('node:path');
+
 const {
   buildDeployEnvVars,
   buildDeployNewmanArgs,
@@ -8,9 +11,12 @@ const {
   normalizeBaseUrl,
   parseArgs,
   requestDeployProbe,
+  resolvePostDeployProviderPlans,
   resolveProductionDeployAuthConfig,
   waitForStableDeploy,
 } = require('../../../scripts/run-postman-deploy');
+
+const ROOT = path.resolve(__dirname, '../../..');
 
 const createHeaders = (entries = {}) => ({
   get: (name) => {
@@ -58,7 +64,7 @@ describe('Unit | Scripts | Run Postman Deploy', () => {
   });
 
   describe('buildDeployEnvVars', () => {
-    it('targets the hosted api-docs page for deploy scraper verification', () => {
+    it('targets the production api-docs page for deploy scraper verification', () => {
       expect(buildDeployEnvVars('https://wcag.qcraft.com.br', {
         productionApiAuthEnabled: 'true',
         deployValidationApiToken: 'deploy-token',
@@ -76,15 +82,15 @@ describe('Unit | Scripts | Run Postman Deploy', () => {
     it('keeps the deploy JSON and JUnit reporters by default', () => {
       expect(buildDeployNewmanArgs('https://wcag.qcraft.com.br', {
         deployValidationApiToken: 'deploy-token',
-        folders: ['95 Deploy Verification'],
+        folders: ['95 Post Deploy Verification'],
         productionApiAuthEnabled: 'true',
       })).toEqual(expect.arrayContaining([
         '-r',
         'cli,json,junit',
         '--reporter-json-export',
-        expect.stringMatching(/reports\/newman\/deploy\.json$/),
+        expect.stringMatching(/reports\/newman\/post-deploy\.json$/),
         '--reporter-junit-export',
-        expect.stringMatching(/reports\/newman\/deploy\.xml$/),
+        expect.stringMatching(/reports\/newman\/post-deploy\.xml$/),
       ]));
     });
 
@@ -92,7 +98,7 @@ describe('Unit | Scripts | Run Postman Deploy', () => {
       expect(buildDeployNewmanArgs('https://wcag.qcraft.com.br', {
         allureResultsDir: '/tmp/allure-results',
         deployValidationApiToken: 'deploy-token',
-        folders: ['95 Deploy Verification'],
+        folders: ['95 Post Deploy Verification'],
         productionApiAuthEnabled: 'true',
       })).toEqual(expect.arrayContaining([
         '-r',
@@ -104,7 +110,7 @@ describe('Unit | Scripts | Run Postman Deploy', () => {
   });
 
   describe('buildDeployProbeUrls', () => {
-    it('builds deploy rollout probe URLs from the hosted base URL', () => {
+    it('builds deploy rollout probe URLs from the production base URL', () => {
       expect(buildDeployProbeUrls('https://wcag.qcraft.com.br', {
         productionApiAuthEnabled: 'true',
         deployValidationApiToken: 'deploy-token',
@@ -156,7 +162,7 @@ describe('Unit | Scripts | Run Postman Deploy', () => {
         productionApiAuthEnabled: 'true',
         deployValidationApiToken: '',
         protectedVerificationEnabled: false,
-        protectedVerificationSkipReason: 'Skipping 96 Deploy Protected Verification because '
+        protectedVerificationSkipReason: 'Skipping 96 Post Deploy Protected Verification because '
           + 'PRODUCTION_API_AUTH_ENABLED=true but PRODUCTION_DEPLOY_VALIDATION_API_TOKEN is not set. '
           + 'Protected deploy checks require Render API_AUTH_ENABLED=true and API_AUTH_TOKENS '
           + 'to include the same token.',
@@ -183,7 +189,7 @@ describe('Unit | Scripts | Run Postman Deploy', () => {
         productionApiAuthEnabled: 'true',
         deployValidationApiToken: '',
         protectedVerificationEnabled: false,
-        protectedVerificationSkipReason: 'Skipping 96 Deploy Protected Verification because '
+        protectedVerificationSkipReason: 'Skipping 96 Post Deploy Protected Verification because '
           + 'PRODUCTION_API_AUTH_ENABLED=true but PRODUCTION_DEPLOY_VALIDATION_API_TOKEN is not set. '
           + 'Protected deploy checks require Render API_AUTH_ENABLED=true and API_AUTH_TOKENS '
           + 'to include the same token.',
@@ -351,6 +357,52 @@ describe('Unit | Scripts | Run Postman Deploy', () => {
         + 'protected auth probe returned 200; expected 401; '
         + 'protected auth probe did not return API_AUTHENTICATION_FAILED',
       );
+    });
+  });
+
+  describe('resolvePostDeployProviderPlans', () => {
+    it('keeps the post-deploy provider subset on low-cost providers only', () => {
+      expect(resolvePostDeployProviderPlans({
+        LIVE_PROVIDER_SCOPE: 'all',
+        OPENAI_API_KEY: 'openai-key',
+        OPENROUTER_API_KEY: 'openrouter-key',
+      })).toEqual({
+        providerPlans: [
+          {
+            envVars: ['model=openrouter'],
+            folderName: '90 Provider Validation',
+            scopeKey: 'openrouter',
+          },
+          {
+            envVars: ['model=openai'],
+            folderName: '90 Provider Validation',
+            scopeKey: 'openai',
+          },
+        ],
+        providerScope: 'all',
+      });
+    });
+  });
+
+  describe('package and workflow wiring', () => {
+    it('uses postman:post-deploy as the canonical npm command', () => {
+      const packageJson = JSON.parse(
+        fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'),
+      );
+
+      expect(packageJson.scripts['postman:post-deploy']).toBe('node scripts/run-postman-deploy.js');
+      expect(packageJson.scripts['postman:deploy']).toBeUndefined();
+    });
+
+    it('invokes postman:post-deploy from the post-deploy workflow', () => {
+      const workflow = fs.readFileSync(
+        path.join(ROOT, '.github/workflows/post-deploy-verification.yml'),
+        'utf8',
+      );
+
+      expect(workflow).toContain('npm run postman:post-deploy -- --base-url "$'
+        + '{BASE_URL}"');
+      expect(workflow).not.toContain('postman:deploy');
     });
   });
 });
