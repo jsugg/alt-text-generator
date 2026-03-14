@@ -2,13 +2,14 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 describe('Unit | Workflows | Allure Pages Publish', () => {
-  it('deploys prepared Pages artifacts from completed CI runs and supports manual backfills', () => {
+  it('deploys prepared Pages artifacts from main CI runs and supports dispatch-based PR/manual backfills', () => {
     const workflowPath = path.join(process.cwd(), '.github', 'workflows', 'allure-pages-publish.yml');
     const workflowContents = fs.readFileSync(workflowPath, 'utf8');
 
     expect(workflowContents).toContain('workflow_run:');
+    expect(workflowContents).toContain('branches:');
+    expect(workflowContents).toContain('- main');
     expect(workflowContents).toContain('workflow_dispatch:');
-    expect(workflowContents).toContain('- CI');
     expect(workflowContents).toContain('run_id:');
     expect(workflowContents).toContain('uses: actions/checkout@');
     expect(workflowContents).toContain('name: allure-pages-site');

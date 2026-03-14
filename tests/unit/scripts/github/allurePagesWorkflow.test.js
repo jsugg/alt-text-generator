@@ -11,7 +11,7 @@ function getAllurePagesJobBlock(workflowContents) {
 }
 
 describe('Unit | Workflows | CI Allure Pages', () => {
-  it('prepares a composed Pages site artifact without deploying directly from the CI run', () => {
+  it('prepares a composed Pages site artifact and dispatches PR publication without deploying directly from the CI run', () => {
     const workflowPath = path.join(process.cwd(), '.github', 'workflows', 'ci.yml');
     const workflowContents = fs.readFileSync(workflowPath, 'utf8');
     const allurePagesJobBlock = getAllurePagesJobBlock(workflowContents);
@@ -27,5 +27,10 @@ describe('Unit | Workflows | CI Allure Pages', () => {
     expect(allurePagesJobBlock).not.toContain('id-token: write');
     expect(allurePagesJobBlock).not.toContain('deploy-pages-artifact.js');
     expect(allurePagesJobBlock).not.toContain('publish-pages-branch.js');
+
+    expect(workflowContents).toContain('allure-pages-publish-dispatch:');
+    expect(workflowContents).toContain('needs.allure-pages.result == \'success\'');
+    expect(workflowContents).toContain('github.event.pull_request.head.repo.full_name == github.repository');
+    expect(workflowContents).toContain('node scripts/github/dispatch-pages-publish.js');
   });
 });

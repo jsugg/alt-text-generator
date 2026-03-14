@@ -431,10 +431,35 @@ jobs:
           PAGE_ARTIFACT_PREPARED: 'true'
           PAGE_DEPLOYED: 'false'
           PAGE_PATH: ${{ needs.allure-report.outputs.pages_path || '/' }}
-          PAGE_TRANSPORT: workflow_run-pages-deploy
+          PAGE_TRANSPORT: ${{ github.event_name == 'pull_request' && 'workflow_dispatch-pages-deploy' || 'workflow_run-pages-deploy' }}
           PAGE_URL: ${{ needs.allure-report.outputs.pages_report_url }}
           REPORT_KIND: ${{ needs.allure-report.outputs.report_kind }}
         run: bash scripts/github/write-pages-summary.sh "$GITHUB_STEP_SUMMARY"
+
+  allure-pages-publish-dispatch:
+    name: allure-pages-publish-dispatch
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      needs.allure-pages.result == 'success'
+    needs:
+      - allure-pages
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Dispatch Allure Pages publish workflow
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          node scripts/github/dispatch-pages-publish.js
+          --repo "${{ github.repository }}"
+          --ref "main"
+          --run-id "${{ github.run_id }}"
 
   ci-summary:
     name: ci-summary
@@ -447,6 +472,7 @@ jobs:
       - test-report
       - allure-report
       - allure-pages
+      - allure-pages-publish-dispatch
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
