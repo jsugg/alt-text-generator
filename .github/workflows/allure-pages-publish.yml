@@ -39,6 +39,7 @@ jobs:
         id: source-run
         env:
           DISPATCH_RUN_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.run_id || '' }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: >-
           node scripts/github/resolve-pages-source-run.js
           --github-output "${GITHUB_OUTPUT}"
