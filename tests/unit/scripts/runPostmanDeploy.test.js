@@ -367,6 +367,7 @@ describe('Unit | Scripts | Run Postman Deploy', () => {
         HF_API_KEY: 'hf-key',
         OPENAI_API_KEY: 'openai-key',
         OPENROUTER_API_KEY: 'openrouter-key',
+        TOGETHER_API_KEY: 'together-key',
       })).toEqual({
         providerPlans: [
           {
@@ -378,6 +379,11 @@ describe('Unit | Scripts | Run Postman Deploy', () => {
             envVars: ['model=openai'],
             folderName: '90 Provider Validation',
             scopeKey: 'openai',
+          },
+          {
+            envVars: ['model=together'],
+            folderName: '90 Provider Validation',
+            scopeKey: 'together',
           },
         ],
         providerScope: 'all',

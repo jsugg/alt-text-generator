@@ -29,6 +29,7 @@ describe('Unit | Scripts | GitHub | Resolve Provider Validation Scope', () => {
         HF_API_KEY: 'hf-key',
         OPENAI_API_KEY: 'openai-key',
         OPENROUTER_API_KEY: 'openrouter-key',
+        TOGETHER_API_KEY: 'together-key',
       })).toBe('all');
     });
 
@@ -64,6 +65,10 @@ describe('Unit | Scripts | GitHub | Resolve Provider Validation Scope', () => {
         INPUT_PROVIDER_SCOPE: 'huggingface',
         HF_API_KEY: 'hf-key',
       })).toBe('huggingface');
+      expect(resolveScopeFromEnv({
+        INPUT_PROVIDER_SCOPE: 'together',
+        TOGETHER_API_KEY: 'together-key',
+      })).toBe('together');
     });
   });
 

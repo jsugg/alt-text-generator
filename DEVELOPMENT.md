@@ -411,9 +411,9 @@ At least one provider must be configured at startup: `REPLICATE_API_TOKEN`, Azur
 | `OPENROUTER_PROMPT` | No | shared alt-text prompt | Prompt sent with the image. |
 | `OPENROUTER_HTTP_REFERER` | No | unset | Optional OpenRouter attribution header. |
 | `OPENROUTER_TITLE` | No | unset | Optional OpenRouter application title header. |
-| `TOGETHER_API_KEY` | No | none | Registers `together`. |
+| `TOGETHER_API_KEY` | No | none | Together AI API key. Registers `together`. |
 | `TOGETHER_BASE_URL` | No | `https://api.together.xyz/v1` | Together AI base URL. |
-| `TOGETHER_MODEL` | No | `meta-llama/Llama-4-Scout-17B-16E-Instruct` | Default Together multimodal model. |
+| `TOGETHER_MODEL` | No | `Qwen/Qwen3-VL-8B-Instruct` | Default Together multimodal model. |
 | `TOGETHER_MAX_TOKENS` | No | `160` | Max completion tokens for `together`. |
 | `TOGETHER_PROMPT` | No | shared alt-text prompt | Prompt sent with the image. |
 

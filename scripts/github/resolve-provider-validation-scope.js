@@ -39,7 +39,7 @@ function appendSummary(summaryFile, lines) {
  * Resolves the provider-validation scope from the current environment.
  *
  * @param {NodeJS.ProcessEnv} env
- * @returns {'azure'|'replicate'|'huggingface'|'openai'|'openrouter'|'all'}
+ * @returns {'azure'|'replicate'|'huggingface'|'openai'|'openrouter'|'together'|'all'}
  */
 function resolveScopeFromEnv(env = process.env) {
   const availableProviders = detectAvailableProviders(env);

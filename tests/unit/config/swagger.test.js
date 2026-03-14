@@ -90,8 +90,10 @@ describe('Unit | Config | Swagger', () => {
     const descriptionImageSource = descriptionParameters.find(
       (parameter) => parameter.name === 'image_source',
     );
+    const descriptionModel = descriptionParameters.find((parameter) => parameter.name === 'model');
     const pageParameters = swaggerSpec.paths['/api/accessibility/descriptions'].get.parameters;
     const pageUrl = pageParameters.find((parameter) => parameter.name === 'url');
+    const pageModel = pageParameters.find((parameter) => parameter.name === 'model');
     const scraperParameters = swaggerSpec.paths['/api/scraper/images'].get.parameters;
     const scraperUrl = scraperParameters.find((parameter) => parameter.name === 'url');
     const responseImageExample = swaggerSpec.paths['/api/accessibility/description']
@@ -106,6 +108,16 @@ describe('Unit | Config | Swagger', () => {
     );
     expect(pageUrl.schema.example).toBe('https%3A%2F%2Fdeveloper.chrome.com%2F');
     expect(scraperUrl.schema.example).toBe('https%3A%2F%2Fdeveloper.chrome.com%2F');
+    expect(descriptionModel.schema.enum).toEqual([
+      'clip',
+      'azure',
+      'ollama',
+      'huggingface',
+      'openai',
+      'openrouter',
+      'together',
+    ]);
+    expect(pageModel.schema.enum).toEqual(descriptionModel.schema.enum);
     expect(responseImageExample).toBe(
       'https://developer.chrome.com/static/images/ai-homepage-card.png',
     );

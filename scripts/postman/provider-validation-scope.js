@@ -75,7 +75,7 @@ const resolveSelectedProviderScopes = (scope, configuredProviderScopes = null) =
  *
  * @param {string|undefined|null} value
  * @param {{ label?: string, fallback?: string }} [options]
- * @returns {'auto'|'azure'|'replicate'|'huggingface'|'openai'|'openrouter'|'all'}
+ * @returns {'auto'|'azure'|'replicate'|'huggingface'|'openai'|'openrouter'|'together'|'all'}
  */
 function normalizeProviderScope(
   value,
@@ -142,7 +142,7 @@ function detectAvailableProviders(env = process.env, { allowedProviderScopes = n
  *   hasAzureProvider?: boolean|undefined,
  *   hasReplicateProvider?: boolean|undefined,
  * }} options
- * @returns {'azure'|'replicate'|'huggingface'|'openai'|'openrouter'|'all'}
+ * @returns {'azure'|'replicate'|'huggingface'|'openai'|'openrouter'|'together'|'all'}
  */
 function resolveProviderScope({
   requestedScope,
@@ -205,7 +205,7 @@ function resolveProviderScope({
 /**
  * Expands a resolved scope into provider booleans.
  *
- * @param {'azure'|'replicate'|'huggingface'|'openai'|'openrouter'|'all'} scope
+ * @param {'azure'|'replicate'|'huggingface'|'openai'|'openrouter'|'together'|'all'} scope
  * @returns {{
  *   selectedProviderScopes: string[],
  *   runAzure: boolean,
@@ -231,7 +231,7 @@ function getSelectedProviders(scope, { configuredProviderScopes } = {}) {
 /**
  * Builds provider-validation execution plans for the resolved provider scope.
  *
- * @param {'azure'|'replicate'|'huggingface'|'openai'|'openrouter'|'all'} scope
+ * @param {'azure'|'replicate'|'huggingface'|'openai'|'openrouter'|'together'|'all'} scope
  * @param {{ mode?: 'live'|'provider-integration' }} [options]
  * @returns {{ folderName: string, envVars: string[], scopeKey: string }[]}
  */
