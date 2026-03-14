@@ -62,7 +62,7 @@
     "selfsigned": "^5.5.0",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^4.6.2",
-    "undici": "^6.23.0"
+    "undici": "^6.24.0"
   },
   "devDependencies": {
     "allure-commandline": "^2.37.0",
