@@ -131,9 +131,8 @@ Notes:
 - Raw Allure files accumulate under `reports/allure-results/`; generated HTML is written to `reports/allure-report/`.
 - The combined report merges one canonical Jest run with the Newman harness so local and CI results follow the same structure.
 - CI uploads the generated HTML as the `allure-report` artifact.
-- The public Pages deployment is `https://jsugg.github.io/alt-text-generator/`; the suites view is `https://jsugg.github.io/alt-text-generator/#suites`.
-- Pushes to `main` publish the latest generated report at `https://jsugg.github.io/alt-text-generator/`.
-- Same-repository pull requests now publish a second public report at `https://jsugg.github.io/alt-text-generator/pr/<number>/`.
+- Public Allure URLs: `https://jsugg.github.io/alt-text-generator/` for the latest `main` report, `https://jsugg.github.io/alt-text-generator/#suites` for the suites view, `https://jsugg.github.io/alt-text-generator/pr/` for the pull-request report index, and `https://jsugg.github.io/alt-text-generator/pr/<number>/` for a specific same-repository pull request report.
+- Pushes to `main` publish the latest generated report at the root URL, and same-repository pull requests publish their own report beneath `/pr/<number>/`.
 - CI now keeps separate Allure history streams for `main` (`ci-main`) and same-repository pull requests (`ci-pr-<number>`), while deploy verification keeps its own `deploy-production` stream.
 - Same-repository PR reports restore and persist their own history stream, so each PR URL carries commit-to-commit trend data for that PR.
 - CI prepares the composed Pages site, and the follow-up `Allure Pages Publish` workflow performs the actual GitHub Pages deployment so PR refs never have to deploy directly to the protected `github-pages` environment. Pushes to `main` hand off to that workflow through `workflow_run`, while same-repository pull requests dispatch it explicitly with the source CI `run_id` so PR report URLs publish reliably from the default-branch workflow code. The publish workflow still supports manual `run_id` backfills, still runs even when the source CI workflow failed after producing an Allure artifact, and still syncs each successful deployment back to the `gh-pages` branch so that branch remains the durable state source for future root/PR snapshot composition.
