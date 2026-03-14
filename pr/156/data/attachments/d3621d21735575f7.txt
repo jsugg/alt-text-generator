@@ -1,0 +1,1 @@
+{"name":"alt-text-generator","version":"1.0.0","status":"ok","links":{"api":"/api/v1","docs":"/api-docs/","health":"/api/health","ping":"/api/ping"},"auth":{"schemes":["X-API-Key","Bearer"]},"requestId":"57250679-c64d-420b-b0b9-c7ae944602fc"}
