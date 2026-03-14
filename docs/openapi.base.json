@@ -59,6 +59,168 @@
             }
           }
         }
+      },
+      "DescriptionJobResponse": {
+        "type": "object",
+        "required": [
+          "jobId",
+          "model",
+          "imageUrl",
+          "status"
+        ],
+        "properties": {
+          "jobId": {
+            "type": "string",
+            "example": "8dbd0c163f9c85166abac1d449f5fe3e78244da0edb8ff6ea7f2e4c4cc6db83d"
+          },
+          "model": {
+            "type": "string",
+            "example": "clip"
+          },
+          "imageUrl": {
+            "type": "string",
+            "example": "https://developer.chrome.com/static/images/ai-homepage-card.png"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "processing",
+              "starting",
+              "succeeded",
+              "failed",
+              "canceled"
+            ],
+            "example": "pending"
+          },
+          "pollAfterMs": {
+            "type": "integer",
+            "example": 1000
+          },
+          "statusUrl": {
+            "type": "string",
+            "example": "/api/v1/accessibility/description-jobs/8dbd0c163f9c85166abac1d449f5fe3e78244da0edb8ff6ea7f2e4c4cc6db83d"
+          },
+          "result": {
+            "type": "object",
+            "properties": {
+              "description": {
+                "type": "string",
+                "example": "A man with glasses is playing a violin."
+              },
+              "imageUrl": {
+                "type": "string",
+                "example": "https://developer.chrome.com/static/images/ai-homepage-card.png"
+              }
+            }
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "message": {
+                "type": "string",
+                "example": "Replicate prediction failed"
+              },
+              "code": {
+                "type": "string",
+                "example": "DESCRIPTION_PROVIDER_TIMEOUT"
+              }
+            }
+          }
+        }
+      },
+      "PageDescriptionJobResponse": {
+        "type": "object",
+        "required": [
+          "jobId",
+          "model",
+          "pageUrl",
+          "status"
+        ],
+        "properties": {
+          "jobId": {
+            "type": "string",
+            "example": "51cc340310a52659fbe9f3d2b9ef754f17f4f2376eb138dfb2cd7f0142ae5db0"
+          },
+          "model": {
+            "type": "string",
+            "example": "clip"
+          },
+          "pageUrl": {
+            "type": "string",
+            "example": "https://developer.chrome.com/"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "processing",
+              "starting",
+              "succeeded",
+              "failed",
+              "canceled"
+            ],
+            "example": "pending"
+          },
+          "pollAfterMs": {
+            "type": "integer",
+            "example": 1000
+          },
+          "statusUrl": {
+            "type": "string",
+            "example": "/api/v1/accessibility/page-description-jobs/51cc340310a52659fbe9f3d2b9ef754f17f4f2376eb138dfb2cd7f0142ae5db0"
+          },
+          "result": {
+            "type": "object",
+            "properties": {
+              "pageUrl": {
+                "type": "string",
+                "example": "https://developer.chrome.com/"
+              },
+              "model": {
+                "type": "string",
+                "example": "clip"
+              },
+              "totalImages": {
+                "type": "integer",
+                "example": 3
+              },
+              "uniqueImages": {
+                "type": "integer",
+                "example": 2
+              },
+              "descriptions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "description": {
+                      "type": "string",
+                      "example": "A man with glasses is playing a violin."
+                    },
+                    "imageUrl": {
+                      "type": "string",
+                      "example": "https://developer.chrome.com/static/images/ai-homepage-card.png"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "message": {
+                "type": "string",
+                "example": "Page description job failed"
+              },
+              "code": {
+                "type": "string",
+                "example": "PAGE_DESCRIPTION_JOB_FETCH_FAILED"
+              }
+            }
+          }
+        }
       }
     }
   },
@@ -66,7 +228,7 @@
     "/api/accessibility/description": {
       "get": {
         "summary": "Returns a description for a given image",
-        "description": "Takes an image URL and sends it to the selected AI model to generate an alt-text description.",
+        "description": "Takes an image URL and sends it to the selected AI model to generate an alt-text description. Slow asynchronous providers such as `clip` can return `202 Accepted` with a job status payload.",
         "security": [
           {
             "bearerAuth": []
@@ -130,6 +292,16 @@
               }
             }
           },
+          "202": {
+            "description": "Description job accepted and still processing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DescriptionJobResponse"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Missing or invalid parameters, or unsupported model",
             "content": {
@@ -159,6 +331,16 @@
                 }
               }
             }
+          },
+          "504": {
+            "description": "Description provider timed out before completing the request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -166,7 +348,7 @@
     "/api/accessibility/descriptions": {
       "get": {
         "summary": "Returns descriptions for images found on a page",
-        "description": "Scrapes a website, preserves duplicate image entries in page order, and reuses a single prediction per unique image URL.",
+        "description": "Scrapes a website, preserves duplicate image entries in page order, and reuses a single prediction per unique image URL. Slow asynchronous providers such as `clip` can return `202 Accepted` with a page-description job payload.",
         "security": [
           {
             "bearerAuth": []
@@ -210,6 +392,16 @@
           "200": {
             "description": "OK"
           },
+          "202": {
+            "description": "Page-description job accepted and still processing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageDescriptionJobResponse"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Missing or invalid parameters, or unsupported model",
             "content": {
@@ -232,6 +424,178 @@
           },
           "500": {
             "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Description provider timed out before completing the request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/accessibility/page-description-jobs/{jobId}": {
+      "get": {
+        "summary": "Returns the current status of an asynchronous page-description job",
+        "description": "Poll this endpoint after a `202 Accepted` response from the page-description route.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job has completed or failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageDescriptionJobResponse"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Job is still processing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageDescriptionJobResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid API authentication credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Page-description job not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/accessibility/description-jobs/{jobId}": {
+      "get": {
+        "summary": "Returns the current status of an asynchronous description job",
+        "description": "Poll this endpoint after a `202 Accepted` response from the single-image description route.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "apiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job has completed or failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DescriptionJobResponse"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Job is still processing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DescriptionJobResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid API authentication credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Description job not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Description provider timed out while checking job status",
             "content": {
               "application/json": {
                 "schema": {

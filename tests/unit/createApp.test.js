@@ -78,6 +78,10 @@ describe('Unit | Application Composition', () => {
     expect(services.pageDescriptionService.scraperService).toBe(services.scraperService);
     expect(services.pageDescriptionService.imageDescriberFactory)
       .toBe(services.imageDescriberFactory);
+    expect(services.pageDescriptionJobService.pageDescriptionService)
+      .toBe(services.pageDescriptionService);
+    expect(services.pageDescriptionJobService.descriptionJobService)
+      .toBe(services.descriptionJobService);
   });
 
   it('falls back to the default loggers and replicate client', () => {

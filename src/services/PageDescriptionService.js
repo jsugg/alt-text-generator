@@ -3,6 +3,12 @@ const toPositiveInteger = (value, fallback) => {
   return Number.isInteger(parsedValue) && parsedValue > 0 ? parsedValue : fallback;
 };
 
+const DEFAULT_ASYNC_POLL_INTERVAL_MS = 1000;
+
+const sleep = (ms) => new Promise((resolve) => {
+  setTimeout(resolve, ms);
+});
+
 const mapWithConcurrencyLimit = async (items, limit, mapper) => {
   if (items.length === 0) {
     return [];
@@ -41,50 +47,128 @@ class PageDescriptionService {
    * @param {object} deps.scraperService - ScraperService instance
    * @param {object} deps.imageDescriberFactory - ImageDescriberFactory instance
    * @param {number} [deps.concurrency] - max concurrent provider calls for page descriptions
+   * @param {number} [deps.asyncPollIntervalMs] - polling interval for async provider jobs
+   * @param {Function} [deps.sleep] - injected delay helper for tests
    */
-  constructor({ scraperService, imageDescriberFactory, concurrency = 3 }) {
+  constructor({
+    scraperService,
+    imageDescriberFactory,
+    concurrency = 3,
+    asyncPollIntervalMs = DEFAULT_ASYNC_POLL_INTERVAL_MS,
+    sleep: wait = sleep,
+  }) {
     this.scraperService = scraperService;
     this.imageDescriberFactory = imageDescriberFactory;
     this.concurrency = toPositiveInteger(concurrency, 3);
+    this.asyncPollIntervalMs = toPositiveInteger(
+      asyncPollIntervalMs,
+      DEFAULT_ASYNC_POLL_INTERVAL_MS,
+    );
+    this.sleep = wait;
   }
 
-  /**
-   * Describes the images found on a page while preserving their original order.
-   * Image-specific failures can be skipped when the provider exposes an
-   * explicit skip policy for page-level best-effort processing.
-   *
-   * @param {object} params
-   * @param {string} params.pageUrl
-   * @param {string} params.model
-   * @returns {Promise<{
-   *   pageUrl: string,
-   *   model: string,
-   *   totalImages: number,
-   *   uniqueImages: number,
-   *   descriptions: Array<{ description: string, imageUrl: string }>
-   * }>}
-   */
-  async describePage({ pageUrl, model }) {
+  static supportsAsyncJobs(describer) {
+    return typeof describer?.createDescriptionJob === 'function'
+      && typeof describer?.getDescriptionJob === 'function';
+  }
+
+  async collectPageImages({ pageUrl, model }) {
     const describer = this.imageDescriberFactory.get(model);
     const { imageSources } = await this.scraperService.getImages(pageUrl);
     const filteredImageSources = typeof describer.filterSupportedImageSources === 'function'
       ? describer.filterSupportedImageSources(imageSources)
       : imageSources;
-    const uniqueImageSources = [...new Set(filteredImageSources)];
 
-    const settledDescriptions = new Map(
+    return {
+      describer,
+      filteredImageSources,
+      uniqueImageSources: [...new Set(filteredImageSources)],
+    };
+  }
+
+  async describeUniqueImages(uniqueImageSources, describeImage) {
+    return new Map(
       await mapWithConcurrencyLimit(
         uniqueImageSources,
         this.concurrency,
         async (imageSource) => {
           try {
-            return [imageSource, { status: 'fulfilled', value: await describer.describeImage(imageSource) }];
+            return [imageSource, {
+              status: 'fulfilled',
+              value: await describeImage(imageSource),
+            }];
           } catch (error) {
             return [imageSource, { status: 'rejected', reason: error }];
           }
         },
       ),
     );
+  }
+
+  async describeCollectedPage({
+    describer,
+    filteredImageSources,
+    uniqueImageSources,
+    pageUrl,
+    model,
+    describeImage,
+  }) {
+    const settledDescriptions = await this.describeUniqueImages(
+      uniqueImageSources,
+      describeImage,
+    );
+
+    return this.constructor.buildPageResult({
+      describer,
+      filteredImageSources,
+      settledDescriptions,
+      pageUrl,
+      model,
+    });
+  }
+
+  async waitForAsyncDescriptionJob({ describer, imageSource, providerJob }) {
+    if (providerJob.status === 'succeeded') {
+      return providerJob.result;
+    }
+
+    if (providerJob.status === 'failed' || providerJob.status === 'canceled') {
+      throw providerJob.error ?? new Error('Description job failed');
+    }
+
+    return this.pollAsyncDescriptionJob({
+      describer,
+      imageSource,
+      providerJobId: providerJob.providerJobId,
+    });
+  }
+
+  async pollAsyncDescriptionJob({ describer, imageSource, providerJobId }) {
+    await this.sleep(this.asyncPollIntervalMs);
+    const providerJob = await describer.getDescriptionJob(providerJobId, imageSource);
+
+    if (providerJob.status === 'succeeded') {
+      return providerJob.result;
+    }
+
+    if (providerJob.status === 'failed' || providerJob.status === 'canceled') {
+      throw providerJob.error ?? new Error('Description job failed');
+    }
+
+    return this.pollAsyncDescriptionJob({
+      describer,
+      imageSource,
+      providerJobId,
+    });
+  }
+
+  static buildPageResult({
+    describer,
+    filteredImageSources,
+    settledDescriptions,
+    pageUrl,
+    model,
+  }) {
     const successfulImageSources = [];
     const descriptions = [];
 
@@ -114,6 +198,91 @@ class PageDescriptionService {
       uniqueImages: new Set(successfulImageSources).size,
       descriptions,
     };
+  }
+
+  /**
+   * Describes the images found on a page while preserving their original order.
+   * Image-specific failures can be skipped when the provider exposes an
+   * explicit skip policy for page-level best-effort processing.
+   *
+   * @param {object} params
+   * @param {string} params.pageUrl
+   * @param {string} params.model
+   * @returns {Promise<{
+   *   pageUrl: string,
+   *   model: string,
+   *   totalImages: number,
+   *   uniqueImages: number,
+   *   descriptions: Array<{ description: string, imageUrl: string }>
+   * }>}
+   */
+  async describePage({ pageUrl, model }) {
+    const {
+      describer,
+      filteredImageSources,
+      uniqueImageSources,
+    } = await this.collectPageImages({ pageUrl, model });
+
+    return this.describeCollectedPage({
+      describer,
+      filteredImageSources,
+      uniqueImageSources,
+      pageUrl,
+      model,
+      describeImage: (imageSource) => describer.describeImage(imageSource),
+    });
+  }
+
+  async describePageWithResolver({ pageUrl, model, describeImage }) {
+    const {
+      describer,
+      filteredImageSources,
+      uniqueImageSources,
+    } = await this.collectPageImages({ pageUrl, model });
+
+    return this.describeCollectedPage({
+      describer,
+      filteredImageSources,
+      uniqueImageSources,
+      pageUrl,
+      model,
+      describeImage,
+    });
+  }
+
+  async describePageWithAsyncJobs({ pageUrl, model }) {
+    const {
+      describer,
+      filteredImageSources,
+      uniqueImageSources,
+    } = await this.collectPageImages({ pageUrl, model });
+
+    if (!this.constructor.supportsAsyncJobs(describer)) {
+      return this.describeCollectedPage({
+        describer,
+        filteredImageSources,
+        uniqueImageSources,
+        pageUrl,
+        model,
+        describeImage: (imageSource) => describer.describeImage(imageSource),
+      });
+    }
+
+    return this.describeCollectedPage({
+      describer,
+      filteredImageSources,
+      uniqueImageSources,
+      pageUrl,
+      model,
+      describeImage: async (imageSource) => {
+        const providerJob = await describer.createDescriptionJob(imageSource);
+        return this.waitForAsyncDescriptionJob({
+          describer,
+          imageSource,
+          providerJob,
+        });
+      },
+    });
   }
 }
 

@@ -3,6 +3,7 @@
 // All other modules read from here instead of process.env directly.
 
 const { buildRateLimitStoreConfig } = require('./rateLimitStore');
+const { buildDescriptionJobStoreConfig } = require('./descriptionJobStore');
 const { buildProviderConfigSections } = require('./providerCatalog');
 
 const toNumber = (value, fallback) => {
@@ -94,6 +95,8 @@ module.exports = {
   pageDescription: {
     concurrency: toNumber(process.env.PAGE_DESCRIPTION_CONCURRENCY, 3),
   },
+
+  descriptionJobs: buildDescriptionJobStoreConfig(process.env),
 
   outboundTls: {
     caBundleFile:

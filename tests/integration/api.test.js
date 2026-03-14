@@ -48,6 +48,9 @@ const secureGet = (app, path) => request(app)
 const buildTestApp = ({
   scraperService = {},
   imageDescriberFactory = new ImageDescriberFactory(),
+  descriptionJobService,
+  pageDescriptionJobService,
+  descriptionJobStore,
   config: appConfig,
   rateLimitStoreProvider,
   runtimeState,
@@ -59,6 +62,9 @@ const buildTestApp = ({
     requestLogger,
     scraperService,
     imageDescriberFactory,
+    descriptionJobService,
+    pageDescriptionJobService,
+    descriptionJobStore,
     config: appConfig,
     rateLimitStoreProvider,
     runtimeState,
@@ -426,6 +432,49 @@ describe('Integration | API', () => {
       }]);
     });
 
+    it('returns 202 with job metadata for pending async clip descriptions', async () => {
+      const asyncProvider = {
+        createDescriptionJob: jest.fn(),
+        getDescriptionJob: jest.fn(),
+      };
+      const descriptionJobService = {
+        resolveDescription: jest.fn().mockResolvedValue({
+          kind: 'pending',
+          job: {
+            id: 'job-clip',
+            status: 'processing',
+          },
+        }),
+        getJobStatus: jest.fn(),
+        buildJobResponse: jest.fn().mockReturnValue({
+          jobId: 'job-clip',
+          status: 'processing',
+          statusUrl: '/api/v1/accessibility/description-jobs/job-clip',
+          pollAfterMs: 1000,
+        }),
+      };
+      const factory = new ImageDescriberFactory().register('clip', asyncProvider);
+      const { app } = buildTestApp({
+        imageDescriberFactory: factory,
+        descriptionJobService,
+      });
+
+      const res = await secureGet(
+        app,
+        `/api/accessibility/description?image_source=${
+          encodeURIComponent('https://example.com/img.jpg')
+        }&model=clip`,
+      );
+
+      expect(res.status).toBe(202);
+      expect(res.body).toEqual({
+        jobId: 'job-clip',
+        status: 'processing',
+        statusUrl: '/api/v1/accessibility/description-jobs/job-clip',
+        pollAfterMs: 1000,
+      });
+    });
+
     it('serves Azure descriptions through the default runtime composition when configured', async () => {
       const appLogger = createAppLogger();
       const requestLogger = createRequestLogger();
@@ -639,6 +688,151 @@ describe('Integration | API', () => {
             imageUrl: 'https://example.com/a.jpg',
           },
         ],
+      });
+    });
+
+    it('returns 202 with page-job metadata for pending async clip page descriptions', async () => {
+      const asyncProvider = {
+        createDescriptionJob: jest.fn(),
+        getDescriptionJob: jest.fn(),
+      };
+      const pageDescriptionJobService = {
+        resolvePageDescription: jest.fn().mockResolvedValue({
+          kind: 'pending',
+          job: {
+            id: 'page-job-clip',
+            status: 'processing',
+          },
+        }),
+        getJobStatus: jest.fn(),
+        buildJobResponse: jest.fn().mockReturnValue({
+          jobId: 'page-job-clip',
+          status: 'processing',
+          statusUrl: '/api/v1/accessibility/page-description-jobs/page-job-clip',
+          pollAfterMs: 1000,
+        }),
+      };
+      const factory = new ImageDescriberFactory().register('clip', asyncProvider);
+      const { app } = buildTestApp({
+        imageDescriberFactory: factory,
+        pageDescriptionJobService,
+      });
+
+      const res = await secureGet(
+        app,
+        `/api/accessibility/descriptions?url=${
+          encodeURIComponent('https://example.com/page')
+        }&model=clip`,
+      );
+
+      expect(res.status).toBe(202);
+      expect(res.body).toEqual({
+        jobId: 'page-job-clip',
+        status: 'processing',
+        statusUrl: '/api/v1/accessibility/page-description-jobs/page-job-clip',
+        pollAfterMs: 1000,
+      });
+    });
+  });
+
+  describe('GET /api/accessibility/description-jobs/:jobId', () => {
+    it('returns a pending async job response', async () => {
+      const descriptionJobService = {
+        resolveDescription: jest.fn(),
+        getJobStatus: jest.fn().mockResolvedValue({
+          id: 'job-clip',
+          status: 'processing',
+        }),
+        buildJobResponse: jest.fn().mockReturnValue({
+          jobId: 'job-clip',
+          status: 'processing',
+          statusUrl: '/api/v1/accessibility/description-jobs/job-clip',
+          pollAfterMs: 1000,
+        }),
+      };
+      const { app } = buildTestApp({ descriptionJobService });
+
+      const res = await secureGet(app, '/api/accessibility/description-jobs/job-clip');
+
+      expect(res.status).toBe(202);
+      expect(res.body).toEqual({
+        jobId: 'job-clip',
+        status: 'processing',
+        statusUrl: '/api/v1/accessibility/description-jobs/job-clip',
+        pollAfterMs: 1000,
+      });
+    });
+  });
+
+  describe('GET /api/accessibility/page-description-jobs/:jobId', () => {
+    it('returns a completed async page-description job response', async () => {
+      const pageDescriptionJobService = {
+        resolvePageDescription: jest.fn(),
+        getJobStatus: jest.fn().mockResolvedValue({
+          id: 'page-job-clip',
+          status: 'succeeded',
+          result: {
+            pageUrl: 'https://example.com/page',
+            model: 'clip',
+            totalImages: 1,
+            uniqueImages: 1,
+            descriptions: [],
+          },
+        }),
+        buildJobResponse: jest.fn().mockReturnValue({
+          jobId: 'page-job-clip',
+          status: 'succeeded',
+          result: {
+            pageUrl: 'https://example.com/page',
+            model: 'clip',
+            totalImages: 1,
+            uniqueImages: 1,
+            descriptions: [],
+          },
+        }),
+      };
+      const { app } = buildTestApp({ pageDescriptionJobService });
+
+      const res = await secureGet(app, '/api/accessibility/page-description-jobs/page-job-clip');
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({
+        jobId: 'page-job-clip',
+        status: 'succeeded',
+        result: {
+          pageUrl: 'https://example.com/page',
+          model: 'clip',
+          totalImages: 1,
+          uniqueImages: 1,
+          descriptions: [],
+        },
+      });
+    });
+
+    it('returns a pending async page-description job response', async () => {
+      const pageDescriptionJobService = {
+        resolvePageDescription: jest.fn(),
+        getJobStatus: jest.fn().mockResolvedValue({
+          id: 'page-job-clip',
+          status: 'processing',
+        }),
+        buildJobResponse: jest.fn().mockReturnValue({
+          jobId: 'page-job-clip',
+          status: 'processing',
+          statusUrl: '/api/v1/accessibility/page-description-jobs/page-job-clip',
+          pollAfterMs: 1000,
+        }),
+      };
+      const { app } = buildTestApp({ pageDescriptionJobService });
+
+      const res = await secureGet(app, '/api/accessibility/page-description-jobs/page-job-clip');
+
+      expect(res.status).toBe(202);
+      expect(res.body).toEqual({
+        jobId: 'page-job-clip',
+        status: 'processing',
+        statusUrl: '/api/v1/accessibility/page-description-jobs/page-job-clip',
+        pollAfterMs: 1000,
       });
     });
   });

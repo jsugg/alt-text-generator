@@ -253,6 +253,7 @@ Allure workflow:
 API routes that generate descriptions require a `model` query parameter. Today the runtime registers:
 
 - `clip` (Replicate-backed)
+  - single-image and page-description requests can return `202 Accepted` with a job payload when the provider stays slow beyond the configured inline wait window
 - `azure` (Azure Computer Vision-backed, registered only when `ACV_API_ENDPOINT` and
   `ACV_SUBSCRIPTION_KEY` are set)
 - `ollama` (local/self-hosted Ollama, registered when `OLLAMA_MODEL` or `OLLAMA_BASE_URL` is set)
@@ -361,6 +362,22 @@ Development TLS behavior:
 | `SCRAPER_MAX_REDIRECTS` | No | `5` | Redirect limit for outbound page fetches. |
 | `SCRAPER_MAX_CONTENT_LENGTH_BYTES` | No | `2097152` | Maximum response body size accepted when scraping HTML. |
 
+### Async Description Job Controls
+
+These settings govern the single-image async handoff used by slow providers such as `clip`.
+
+| Variable | Required | Default | Description |
+| --- | --- | --- | --- |
+| `DESCRIPTION_JOB_STORE` | No | `auto` | Storage mode: `auto`, `memory`, or `redis`. `auto` promotes to Redis when a Redis URL is available. |
+| `DESCRIPTION_JOB_REDIS_URL` | No | falls back to `REDIS_URL`, then `RATE_LIMIT_REDIS_URL` | Explicit Redis URL for async description jobs. |
+| `DESCRIPTION_JOB_REDIS_PREFIX` | No | `alt-text-generator:description-jobs:` | Redis key prefix for stored description jobs. |
+| `DESCRIPTION_JOB_WAIT_TIMEOUT_MS` | No | `5000` | Inline wait budget before the API returns `202 Accepted` with a job payload. |
+| `DESCRIPTION_JOB_POLL_INTERVAL_MS` | No | `1000` | Poll cadence used while waiting for an async job to settle. |
+| `DESCRIPTION_JOB_PENDING_TTL_MS` | No | `900000` | TTL for pending async jobs. |
+| `DESCRIPTION_JOB_COMPLETED_TTL_MS` | No | `86400000` | TTL for completed async jobs. |
+| `DESCRIPTION_JOB_FAILED_TTL_MS` | No | `300000` | TTL for failed async jobs. |
+| `DESCRIPTION_JOB_CLAIM_TTL_MS` | No | `30000` | Lease window used to keep one runner responsible for a pending async description job while it is actively processing. |
+
 ### Replicate (clip provider)
 
 | Variable | Required | Default | Description |
@@ -370,6 +387,8 @@ Development TLS behavior:
 | `REPLICATE_MODEL_OWNER` | No | `rmokady` | Replicate model owner. |
 | `REPLICATE_MODEL_NAME` | No | `clip_prefix_caption` | Replicate model name. |
 | `REPLICATE_MODEL_VERSION` | No | pinned in `config/index.js` | Replicate model version. |
+| `REPLICATE_REQUEST_TIMEOUT_MS` | No | `15000` | Hard timeout for synchronous `describeImage()` calls before the prediction is canceled and surfaced as `DESCRIPTION_PROVIDER_TIMEOUT`. |
+| `REPLICATE_POLL_INTERVAL_MS` | No | `500` | Poll interval used while waiting on Replicate prediction status. |
 
 ### Azure Computer Vision (optional provider)
 
@@ -485,9 +504,9 @@ Do not collapse those into a single smoke test. Treat them as separate checks.
 | Docs | `GET /api-docs/` | `200 OK` | docs stack only |
 | Scraper preflight | `npm run doctor:tls -- <target>` | `200` or site-specific expected status | trust store / target policy |
 | Scraper API | `GET /api/scraper/images?...` | `200` with `imageSources` array | scraper logic or target policy |
-| Replicate execution | `GET /api/accessibility/description?...&model=clip` | `200` with non-empty description | vendor account / model execution |
+| Replicate execution | `GET /api/accessibility/description?...&model=clip` | `200` with non-empty description or `202` with a job payload | vendor account / model execution |
 | Azure execution | `GET /api/accessibility/description?...&model=azure` | `200` with non-empty description | Azure credentials / model execution |
-| Page orchestration | `GET /api/accessibility/descriptions?...&model=clip` | `200` with ordered `descriptions` array | orchestration / provider reuse |
+| Page orchestration | `GET /api/accessibility/descriptions?...&model=clip` | `200` with ordered `descriptions` array or `202` with a page-job payload | orchestration / provider reuse |
 
 ### Validation sequence (recommended)
 
@@ -517,6 +536,12 @@ curl -sk 'https://localhost:8443/api/scraper/images?url=https%3A%2F%2Fdeveloper.
 curl -sk 'https://localhost:8443/api/accessibility/description?image_source=https%3A%2F%2Fwww.google.com%2Fimages%2Fbranding%2Fgooglelogo%2F1x%2Fgooglelogo_color_272x92dp.png&model=clip'
 ```
 
+If the response is `202 Accepted`, poll the returned `statusUrl` until it becomes `200`:
+
+```bash
+curl -sk 'https://localhost:8443/api/accessibility/description-jobs/<job-id>'
+```
+
 6. If Azure is configured, validate the Azure provider through the app:
 
 ```bash
@@ -527,6 +552,12 @@ curl -sk 'https://localhost:8443/api/accessibility/description?image_source=http
 
 ```bash
 curl -sk 'https://localhost:8443/api/accessibility/descriptions?url=https%3A%2F%2Fdeveloper.chrome.com%2F&model=clip'
+```
+
+If the response is `202 Accepted`, poll the returned `statusUrl` until it becomes `200`:
+
+```bash
+curl -sk 'https://localhost:8443/api/accessibility/page-description-jobs/<job-id>'
 ```
 
 Expected properties:
@@ -547,6 +578,8 @@ Expected properties:
   - valid API path, but the account lacks credit
 - `429 Too Many Requests` from Replicate
   - valid API path, but the account is throttled
+- local `504 DESCRIPTION_PROVIDER_TIMEOUT`
+  - provider execution exceeded the app deadline; use the async job path or raise the timeout only with clear justification
 - local `500` with no upstream HTTP response
   - likely application bug or unhandled runtime issue
 

@@ -2,6 +2,15 @@ const Replicate = require('replicate');
 
 const ReplicateDescriberService = require('../../services/ReplicateDescriberService');
 
+const toPositiveIntegerOrUndefined = (value) => {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const parsedValue = Number(value);
+  return Number.isInteger(parsedValue) && parsedValue > 0 ? parsedValue : undefined;
+};
+
 const buildReplicateClient = (providerConfig, fetch) => new Replicate({
   auth: providerConfig.apiToken,
   baseUrl: providerConfig.apiEndpoint,
@@ -21,6 +30,8 @@ module.exports = {
     REPLICATE_MODEL_OWNER: Joi.string().optional(),
     REPLICATE_MODEL_NAME: Joi.string().optional(),
     REPLICATE_MODEL_VERSION: Joi.string().optional(),
+    REPLICATE_REQUEST_TIMEOUT_MS: Joi.number().integer().min(1).optional(),
+    REPLICATE_POLL_INTERVAL_MS: Joi.number().integer().min(1).optional(),
   }),
   buildConfig: (env) => ({
     enabled: Boolean(env.REPLICATE_API_TOKEN),
@@ -32,6 +43,8 @@ module.exports = {
     modelVersion:
       env.REPLICATE_MODEL_VERSION
       || '9a34a6339872a03f45236f114321fb51fc7aa8269d38ae0ce5334969981e4cd8',
+    requestTimeoutMs: toPositiveIntegerOrUndefined(env.REPLICATE_REQUEST_TIMEOUT_MS),
+    pollIntervalMs: toPositiveIntegerOrUndefined(env.REPLICATE_POLL_INTERVAL_MS),
   }),
   isConfiguredInEnv: (env = {}) => Boolean(env.REPLICATE_API_TOKEN),
   isConfiguredInConfig: (config = {}) => (
@@ -50,6 +63,7 @@ module.exports = {
     config,
     logger,
     outboundClients,
+    requestOptions,
     providerClient,
   }) => {
     const providerConfig = config.replicate;
@@ -62,6 +76,7 @@ module.exports = {
       logger,
       replicateClient,
       providerConfig,
+      requestOptions,
     });
   },
 };

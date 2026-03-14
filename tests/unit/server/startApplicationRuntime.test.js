@@ -14,6 +14,9 @@ describe('Unit | Server | Start Application Runtime', () => {
     const httpServer = { kind: 'http' };
     const httpsServer = { kind: 'https' };
     const shutdown = jest.fn();
+    const descriptionJobStore = {
+      close: jest.fn(),
+    };
     const rateLimitStoreProvider = {
       close: jest.fn(),
       createStore: jest.fn(),
@@ -21,6 +24,7 @@ describe('Unit | Server | Start Application Runtime', () => {
     };
     const createAppFn = jest.fn(() => ({ app }));
     const gracefulShutdownFn = jest.fn(() => shutdown);
+    const initializeDescriptionJobStoreFn = jest.fn(() => descriptionJobStore);
     const initializeRateLimitStoreProviderFn = jest.fn(() => rateLimitStoreProvider);
     const logger = {
       info: jest.fn(),
@@ -33,6 +37,7 @@ describe('Unit | Server | Start Application Runtime', () => {
       createHttpServerFn: jest.fn(() => httpServer),
       createHttpsServerFn: jest.fn(() => httpsServer),
       gracefulShutdownFn,
+      initializeDescriptionJobStoreFn,
       initializeRateLimitStoreProviderFn,
       loadTlsCredentialsFn: jest.fn().mockResolvedValue({ key: 'k', cert: 'c' }),
       processRef: createProcessRef(),
@@ -46,9 +51,14 @@ describe('Unit | Server | Start Application Runtime', () => {
     expect(createAppFn).toHaveBeenCalledWith(expect.objectContaining({
       config: { env: 'production' },
       appLogger: logger,
+      descriptionJobStore,
       rateLimitStoreProvider,
       runtimeState: result.runtimeState,
     }));
+    expect(initializeDescriptionJobStoreFn).toHaveBeenCalledWith({
+      config: { env: 'production' },
+      logger,
+    });
     expect(initializeRateLimitStoreProviderFn).toHaveBeenCalledWith({
       config: { env: 'production' },
       logger,
@@ -58,13 +68,16 @@ describe('Unit | Server | Start Application Runtime', () => {
       logger,
       result.runtimeState,
       expect.any(EventEmitter),
-      [expect.any(Function)],
+      [expect.any(Function), expect.any(Function)],
     );
   });
 
   it('cleans up fatal handlers when bootstrap fails before servers are ready', async () => {
     const processRef = createProcessRef();
     const removeListenerSpy = jest.spyOn(processRef, 'off');
+    const descriptionJobStore = {
+      close: jest.fn().mockResolvedValue(undefined),
+    };
     const close = jest.fn().mockResolvedValue(undefined);
 
     await expect(startApplicationRuntime({
@@ -75,6 +88,7 @@ describe('Unit | Server | Start Application Runtime', () => {
       },
       config: { env: 'production' },
       createAppFn: jest.fn(() => ({ app: {} })),
+      initializeDescriptionJobStoreFn: jest.fn().mockResolvedValue(descriptionJobStore),
       initializeRateLimitStoreProviderFn: jest.fn().mockResolvedValue({
         close,
         createStore: jest.fn(),
@@ -84,6 +98,7 @@ describe('Unit | Server | Start Application Runtime', () => {
       processRef,
     })).rejects.toThrow('tls failed');
 
+    expect(descriptionJobStore.close).toHaveBeenCalledTimes(1);
     expect(close).toHaveBeenCalledTimes(1);
     expect(removeListenerSpy).toHaveBeenCalledTimes(2);
     removeListenerSpy.mockRestore();
