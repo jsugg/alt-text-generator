@@ -40,30 +40,109 @@ function readEventPayload(eventPath) {
 }
 
 /**
+ * @param {string} apiBaseUrl
+ * @param {string} pathname
+ * @returns {string}
+ */
+function buildApiUrl(apiBaseUrl, pathname) {
+  return new URL(pathname, apiBaseUrl.endsWith('/') ? apiBaseUrl : `${apiBaseUrl}/`).toString();
+}
+
+/**
  * @param {{
+ *   fetchImpl?: typeof fetch,
+ *   repository?: string,
+ *   runId: string,
+ *   token?: string,
+ *   apiBaseUrl?: string,
+ * }} options
+ * @returns {Promise<Record<string, unknown>>}
+ */
+async function fetchWorkflowRun({
+  apiBaseUrl = process.env.GITHUB_API_URL || 'https://api.github.com/',
+  fetchImpl = fetch,
+  repository = process.env.GITHUB_REPOSITORY || '',
+  runId,
+  token = process.env.GITHUB_TOKEN || '',
+}) {
+  if (!repository) {
+    throw new Error('Missing required environment variable: GITHUB_REPOSITORY');
+  }
+
+  if (!token) {
+    throw new Error('Missing required environment variable: GITHUB_TOKEN');
+  }
+
+  const response = await fetchImpl(buildApiUrl(apiBaseUrl, `/repos/${repository}/actions/runs/${runId}`), {
+    headers: {
+      Accept: 'application/vnd.github+json',
+      Authorization: `Bearer ${token}`,
+      'User-Agent': 'alt-text-generator-pages-source-run',
+      'X-GitHub-Api-Version': '2022-11-28',
+    },
+    method: 'GET',
+    redirect: 'follow',
+  });
+  const text = await response.text();
+
+  if (!response.ok) {
+    throw new Error(`GitHub workflow run lookup failed with status ${response.status}: ${text.trim() || '<empty>'}`);
+  }
+
+  return text ? JSON.parse(text) : {};
+}
+
+/**
+ * @param {{
+ *   apiBaseUrl?: string,
  *   dispatchRunId?: string,
  *   eventName?: string,
  *   eventPayload?: Record<string, unknown>,
+ *   fetchImpl?: typeof fetch,
+ *   repository?: string,
+ *   token?: string,
  * }} options
- * @returns {{
+ * @returns {Promise<{
  *   headSha: string,
  *   runId: string,
  *   sourceEvent: string,
  *   workflowConclusion: string,
- * }}
+ * }>}
  */
-function resolveSourceRun({
+async function resolveSourceRun({
+  apiBaseUrl = process.env.GITHUB_API_URL || 'https://api.github.com/',
   dispatchRunId = '',
   eventName = process.env.GITHUB_EVENT_NAME || '',
   eventPayload = readEventPayload(process.env.GITHUB_EVENT_PATH || ''),
+  fetchImpl = fetch,
+  repository = process.env.GITHUB_REPOSITORY || '',
+  token = process.env.GITHUB_TOKEN || '',
 } = {}) {
-  const workflowRun = /** @type {{ conclusion?: string, head_sha?: string, id?: number }} */ (
-    eventPayload.workflow_run || {}
-  );
+  const workflowRun = eventPayload.workflow_run || {};
   const resolvedDispatchRunId = dispatchRunId.trim();
-  const runId = eventName === 'workflow_dispatch'
-    ? resolvedDispatchRunId
-    : String(workflowRun.id || '').trim();
+
+  if (eventName === 'workflow_dispatch') {
+    if (!resolvedDispatchRunId) {
+      throw new Error('Unable to resolve the source CI workflow run ID');
+    }
+
+    const sourceWorkflowRun = await fetchWorkflowRun({
+      apiBaseUrl,
+      fetchImpl,
+      repository,
+      runId: resolvedDispatchRunId,
+      token,
+    });
+
+    return {
+      headSha: String(sourceWorkflowRun.head_sha || '').trim(),
+      runId: resolvedDispatchRunId,
+      sourceEvent: String(sourceWorkflowRun.event || 'workflow_dispatch').trim(),
+      workflowConclusion: String(sourceWorkflowRun.conclusion || '').trim(),
+    };
+  }
+
+  const runId = String(workflowRun.id || '').trim();
 
   if (!runId) {
     throw new Error('Unable to resolve the source CI workflow run ID');
@@ -72,7 +151,7 @@ function resolveSourceRun({
   return {
     headSha: String(workflowRun.head_sha || '').trim(),
     runId,
-    sourceEvent: eventName,
+    sourceEvent: String(workflowRun.event || eventName).trim(),
     workflowConclusion: String(workflowRun.conclusion || '').trim(),
   };
 }
@@ -99,10 +178,28 @@ function writeGitHubOutputs({
   fs.appendFileSync(githubOutput, `head_sha=${sourceRun.headSha}\n`);
 }
 
-if (require.main === module) {
-  const { githubOutput } = parseArgs(process.argv.slice(2));
-  const sourceRun = resolveSourceRun({
-    dispatchRunId: process.env.DISPATCH_RUN_ID || '',
+/**
+ * @param {{
+ *   argv?: string[],
+ *   env?: NodeJS.ProcessEnv,
+ *   fetchImpl?: typeof fetch,
+ * }} [options]
+ * @returns {Promise<void>}
+ */
+async function main({
+  argv = process.argv.slice(2),
+  env = process.env,
+  fetchImpl = fetch,
+} = {}) {
+  const { githubOutput } = parseArgs(argv);
+  const sourceRun = await resolveSourceRun({
+    apiBaseUrl: env.GITHUB_API_URL || 'https://api.github.com/',
+    dispatchRunId: env.DISPATCH_RUN_ID || '',
+    eventName: env.GITHUB_EVENT_NAME || '',
+    eventPayload: readEventPayload(env.GITHUB_EVENT_PATH || ''),
+    fetchImpl,
+    repository: env.GITHUB_REPOSITORY || '',
+    token: env.GITHUB_TOKEN || '',
   });
 
   writeGitHubOutputs({
@@ -111,7 +208,18 @@ if (require.main === module) {
   });
 }
 
+if (require.main === module) {
+  main().catch((error) => {
+    // eslint-disable-next-line no-console
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
+  });
+}
+
 module.exports = {
+  buildApiUrl,
+  fetchWorkflowRun,
+  main,
   parseArgs,
   readEventPayload,
   resolveSourceRun,
