@@ -1,0 +1,103 @@
+name: Allure Pages Publish
+
+on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: CI workflow run ID that contains the prepared Allure Pages artifacts
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+  id-token: write
+  pages: write
+
+concurrency:
+  group: allure-pages-site
+  cancel-in-progress: false
+
+jobs:
+  publish-allure-pages:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: github-pages
+    steps:
+      - name: Resolve source workflow run
+        id: source-run
+        env:
+          DISPATCH_RUN_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.run_id || '' }}
+        run: >-
+          node scripts/github/resolve-pages-source-run.js
+          --github-output "${GITHUB_OUTPUT}"
+
+      - name: Download prepared GitHub Pages site
+        id: download-site
+        continue-on-error: true
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          github-token: ${{ github.token }}
+          name: allure-pages-site
+          path: reports/pages-site
+          run-id: ${{ steps.source-run.outputs.run_id }}
+
+      - name: Download GitHub Pages metadata
+        id: download-metadata
+        continue-on-error: true
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          github-token: ${{ github.token }}
+          name: allure-pages-metadata
+          path: reports/pages-metadata
+          run-id: ${{ steps.source-run.outputs.run_id }}
+
+      - name: Detect prepared GitHub Pages artifacts
+        id: detect
+        shell: bash
+        run: |
+          found=false
+          if [ -f reports/pages-metadata/page-metadata.json ] && [ -d reports/pages-site ]; then
+            found=true
+          fi
+          echo "found=${found}" >> "${GITHUB_OUTPUT}"
+
+      - name: Read GitHub Pages metadata
+        if: steps.detect.outputs.found == 'true'
+        id: metadata
+        run: >-
+          node scripts/github/read-pages-metadata.js
+          --metadata-path reports/pages-metadata/page-metadata.json
+          --github-output "${GITHUB_OUTPUT}"
+
+      - name: Upload GitHub Pages deployment artifact
+        if: steps.detect.outputs.found == 'true'
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
+        with:
+          path: reports/pages-site
+
+      - name: Deploy to GitHub Pages
+        if: steps.detect.outputs.found == 'true'
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
+
+      - name: Write GitHub Pages summary
+        if: always()
+        env:
+          PAGE_ARTIFACT_PREPARED: ${{ steps.detect.outputs.found || 'false' }}
+          PAGE_BUILD_VERSION: ${{ steps.source-run.outputs.head_sha || '' }}
+          PAGE_DEPLOYED: ${{ steps.detect.outputs.found == 'true' && 'true' || 'false' }}
+          PAGE_PATH: ${{ steps.metadata.outputs.page_path || '/' }}
+          PAGE_TRANSPORT: github-pages-deployment-workflow
+          PAGE_URL: ${{ steps.metadata.outputs.page_url || 'not-published' }}
+          REPORT_KIND: ${{ steps.metadata.outputs.report_kind || 'not-published' }}
+          SOURCE_EVENT: ${{ steps.source-run.outputs.source_event || github.event_name }}
+          SOURCE_RUN_CONCLUSION: ${{ steps.source-run.outputs.workflow_conclusion || 'not-available' }}
+          SOURCE_RUN_ID: ${{ steps.source-run.outputs.run_id || 'unknown' }}
+        run: bash scripts/github/write-pages-summary.sh "$GITHUB_STEP_SUMMARY"

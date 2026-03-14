@@ -4,12 +4,15 @@ const path = require('node:path');
 
 const {
   DEFAULT_DEPLOY_BASE_URL,
+  buildPagesPathUrl,
   buildPagesReportUrl,
   normalizeUrl,
+  normalizePublishPath,
   parseArgs,
   readEventPayload,
   resolveAllureHistoryPolicy,
   resolvePullRequestContext,
+  toOutputLines,
 } = require('../../scripts/reporting/resolve-allure-history-policy');
 
 describe('Unit | Allure History Policy', () => {
@@ -40,10 +43,25 @@ describe('Unit | Allure History Policy', () => {
     })).toBe('https://jsugg.github.io/alt-text-generator');
   });
 
+  it('builds report URLs for published Pages subpaths', () => {
+    expect(buildPagesPathUrl({
+      pagesReportUrl: 'https://jsugg.github.io/alt-text-generator/',
+      publishPath: '/pr/123/',
+    })).toBe('https://jsugg.github.io/alt-text-generator/pr/123');
+    expect(normalizePublishPath('/pr/123/')).toBe('pr/123');
+  });
+
   it('returns no GitHub Pages URL for non-public GitHub hosts', () => {
     expect(buildPagesReportUrl({
       repository: 'jsugg/alt-text-generator',
       serverUrl: 'https://ghe.example.com',
+    })).toBeNull();
+  });
+
+  it('returns no GitHub Pages URL for malformed repository identifiers', () => {
+    expect(buildPagesReportUrl({
+      repository: 'alt-text-generator',
+      serverUrl: 'https://github.com',
     })).toBeNull();
   });
 
@@ -57,6 +75,10 @@ describe('Unit | Allure History Policy', () => {
     } finally {
       await fs.rm(eventDir, { force: true, recursive: true });
     }
+  });
+
+  it('returns an empty payload when no event path is provided', () => {
+    expect(readEventPayload(null)).toEqual({});
   });
 
   it('rejects unsupported workflow kinds', () => {
@@ -99,6 +121,8 @@ describe('Unit | Allure History Policy', () => {
       history_fallback_report_url: 'https://jsugg.github.io/alt-text-generator',
       history_key: 'ci-main',
       history_retention_days: '90',
+      pages_path: '',
+      pages_report_url: 'https://jsugg.github.io/alt-text-generator',
       persist_history: 'true',
       publish_pages: 'true',
       report_kind: 'ci-main',
@@ -126,11 +150,13 @@ describe('Unit | Allure History Policy', () => {
       },
     })).toEqual({
       history_artifact_name: 'allure-history-ci-pr-456',
-      history_fallback_report_url: '',
+      history_fallback_report_url: 'https://jsugg.github.io/alt-text-generator/pr/456',
       history_key: 'ci-pr-456',
       history_retention_days: '14',
+      pages_path: 'pr/456',
+      pages_report_url: 'https://jsugg.github.io/alt-text-generator/pr/456',
       persist_history: 'true',
-      publish_pages: 'false',
+      publish_pages: 'true',
       report_kind: 'ci-pr',
       report_label: 'CI PR #456',
       restore_history: 'true',
@@ -159,6 +185,8 @@ describe('Unit | Allure History Policy', () => {
       history_fallback_report_url: '',
       history_key: '',
       history_retention_days: '',
+      pages_path: '',
+      pages_report_url: '',
       persist_history: 'false',
       publish_pages: 'false',
       report_kind: 'ci-pr-external',
@@ -179,10 +207,34 @@ describe('Unit | Allure History Policy', () => {
       history_fallback_report_url: '',
       history_key: '',
       history_retention_days: '',
+      pages_path: '',
+      pages_report_url: '',
       persist_history: 'false',
       publish_pages: 'false',
       report_kind: 'ci-production',
       report_label: 'CI Production Branch',
+      restore_history: 'false',
+    });
+  });
+
+  it('keeps non-main/non-production CI runs ephemeral', () => {
+    expect(resolveAllureHistoryPolicy({
+      workflowKind: 'ci',
+      env: {
+        GITHUB_EVENT_NAME: 'workflow_dispatch',
+        GITHUB_REF: 'refs/heads/feature/demo',
+      },
+    })).toEqual({
+      history_artifact_name: '',
+      history_fallback_report_url: '',
+      history_key: '',
+      history_retention_days: '',
+      pages_path: '',
+      pages_report_url: '',
+      persist_history: 'false',
+      publish_pages: 'false',
+      report_kind: 'ci-other',
+      report_label: 'CI',
       restore_history: 'false',
     });
   });
@@ -200,6 +252,8 @@ describe('Unit | Allure History Policy', () => {
       history_fallback_report_url: '',
       history_key: 'deploy-production',
       history_retention_days: '60',
+      pages_path: '',
+      pages_report_url: '',
       persist_history: 'true',
       publish_pages: 'false',
       report_kind: 'deploy-production',
@@ -221,10 +275,35 @@ describe('Unit | Allure History Policy', () => {
       history_fallback_report_url: '',
       history_key: '',
       history_retention_days: '',
+      pages_path: '',
+      pages_report_url: '',
       persist_history: 'false',
       publish_pages: 'false',
       report_kind: 'deploy-manual',
       report_label: 'Post Deploy Verification Manual',
+      restore_history: 'false',
+    });
+  });
+
+  it('keeps custom deploy verification URLs ephemeral', () => {
+    expect(resolveAllureHistoryPolicy({
+      workflowKind: 'deploy',
+      baseUrl: 'https://preview.example.com',
+      persistHistory: true,
+      env: {
+        GITHUB_EVENT_NAME: 'workflow_dispatch',
+      },
+    })).toEqual({
+      history_artifact_name: '',
+      history_fallback_report_url: '',
+      history_key: '',
+      history_retention_days: '',
+      pages_path: '',
+      pages_report_url: '',
+      persist_history: 'false',
+      publish_pages: 'false',
+      report_kind: 'deploy-custom',
+      report_label: 'Post Deploy Verification Custom URL',
       restore_history: 'false',
     });
   });
@@ -242,6 +321,8 @@ describe('Unit | Allure History Policy', () => {
       history_fallback_report_url: '',
       history_key: 'deploy-production',
       history_retention_days: '60',
+      pages_path: '',
+      pages_report_url: '',
       persist_history: 'true',
       publish_pages: 'false',
       report_kind: 'deploy-production',
@@ -263,11 +344,20 @@ describe('Unit | Allure History Policy', () => {
       history_fallback_report_url: '',
       history_key: '',
       history_retention_days: '',
+      pages_path: '',
+      pages_report_url: '',
       persist_history: 'false',
       publish_pages: 'false',
       report_kind: 'deploy-custom',
       report_label: 'Post Deploy Verification Custom URL',
       restore_history: 'false',
     });
+  });
+
+  it('serializes GitHub Actions outputs with trailing newlines', () => {
+    expect(toOutputLines({
+      foo: 'bar',
+      baz: 'qux',
+    })).toBe('foo=bar\nbaz=qux\n');
   });
 });

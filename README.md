@@ -132,10 +132,12 @@ Notes:
 - The combined report merges one canonical Jest run with the Newman harness so local and CI results follow the same structure.
 - CI uploads the generated HTML as the `allure-report` artifact.
 - The public Pages deployment is `https://jsugg.github.io/alt-text-generator/`; the suites view is `https://jsugg.github.io/alt-text-generator/#suites`.
-- Pushes to `main` publish the latest generated report through the `allure-pages` workflow deployment after the job finishes successfully.
+- Pushes to `main` publish the latest generated report at `https://jsugg.github.io/alt-text-generator/`.
+- Same-repository pull requests now publish a second public report at `https://jsugg.github.io/alt-text-generator/pr/<number>/`.
 - CI now keeps separate Allure history streams for `main` (`ci-main`) and same-repository pull requests (`ci-pr-<number>`), while deploy verification keeps its own `deploy-production` stream.
-- GitHub Pages remains the public HTML surface for `main` only; PR and post-deploy verification reports are action artifacts.
-- Same-repository PRs restore and persist their own history artifacts, so failure trends follow the PR instead of borrowing `main` history.
+- Same-repository PR reports restore and persist their own history stream, so each PR URL carries commit-to-commit trend data for that PR.
+- CI prepares the composed Pages site, and the follow-up `Allure Pages Publish` workflow performs the actual GitHub Pages deployment so PR refs never have to deploy directly to the protected `github-pages` environment. The publish workflow runs for completed CI workflows, not just successful ones, so failing test runs can still publish an Allure report when the report artifact was produced.
+- Fork PRs and post-deploy verification reports remain artifacts only; they do not publish to GitHub Pages.
 - Fork pull requests and custom post-deploy verification URLs stay ephemeral and do not restore or persist history artifacts.
 - Manual post-deploy verification against the canonical production URL only persists history when `persist_history=true` is selected in the workflow dispatch form.
 - CI only emits Jest Allure results from the Node 20 lane so unit tests do not appear three times in the merged report.

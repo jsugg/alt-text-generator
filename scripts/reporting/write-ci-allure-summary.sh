@@ -14,6 +14,7 @@ summary_file="${1:?summary file is required}"
     echo "- History restored from artifact: \`${HISTORY_RESTORED:-false}\`."
     echo "- History persisted as artifact: \`${PERSIST_HISTORY:?PERSIST_HISTORY is required}\`."
     echo "- GitHub Pages published: \`${PUBLISH_PAGES:?PUBLISH_PAGES is required}\`."
+    echo "- GitHub Pages report URL: \`${PAGES_REPORT_URL:-not-published}\`."
   else
     echo "- No Allure raw results were available to merge."
   fi

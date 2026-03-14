@@ -16,6 +16,43 @@ function normalizeUrl(url) {
 }
 
 /**
+ * Normalizes a Pages publish path by trimming leading/trailing slashes.
+ *
+ * @param {string} publishPath
+ * @returns {string}
+ */
+function normalizePublishPath(publishPath) {
+  return publishPath.replace(/^\/+|\/+$/gu, '');
+}
+
+/**
+ * Builds a public Pages report URL for a publish path.
+ *
+ * @param {{
+ *   pagesReportUrl: string,
+ *   publishPath: string,
+ * }} options
+ * @returns {string}
+ */
+function buildPagesPathUrl({
+  pagesReportUrl,
+  publishPath,
+}) {
+  const normalizedBaseUrl = normalizeUrl(pagesReportUrl);
+  const normalizedPublishPath = normalizePublishPath(publishPath);
+
+  if (!normalizedBaseUrl) {
+    return '';
+  }
+
+  if (!normalizedPublishPath) {
+    return normalizedBaseUrl;
+  }
+
+  return `${normalizedBaseUrl}/${normalizedPublishPath}`;
+}
+
+/**
  * Builds the public GitHub Pages report URL for the repository when possible.
  *
  * @param {{ repository?: string, serverUrl?: string }} options
@@ -23,7 +60,7 @@ function normalizeUrl(url) {
  */
 function buildPagesReportUrl({
   repository = process.env.GITHUB_REPOSITORY,
-  serverUrl = process.env.GITHUB_SERVER_URL,
+  serverUrl = process.env.GITHUB_SERVER_URL || 'https://github.com',
 } = {}) {
   if (!repository || serverUrl !== 'https://github.com') {
     return null;
@@ -163,6 +200,8 @@ function resolveCiPolicy({
       history_fallback_report_url: pagesReportUrl,
       history_key: 'ci-main',
       history_retention_days: '90',
+      pages_path: '',
+      pages_report_url: pagesReportUrl,
       persist_history: 'true',
       publish_pages: 'true',
       report_kind: 'ci-main',
@@ -178,13 +217,23 @@ function resolveCiPolicy({
     });
 
     if (isSameRepo && pullRequestNumber) {
+      const pagesPath = `pr/${pullRequestNumber}`;
+
       return {
         history_artifact_name: `allure-history-ci-pr-${pullRequestNumber}`,
-        history_fallback_report_url: '',
+        history_fallback_report_url: buildPagesPathUrl({
+          pagesReportUrl,
+          publishPath: pagesPath,
+        }),
         history_key: `ci-pr-${pullRequestNumber}`,
         history_retention_days: '14',
+        pages_path: pagesPath,
+        pages_report_url: buildPagesPathUrl({
+          pagesReportUrl,
+          publishPath: pagesPath,
+        }),
         persist_history: 'true',
-        publish_pages: 'false',
+        publish_pages: 'true',
         report_kind: 'ci-pr',
         report_label: `CI PR #${pullRequestNumber}`,
         restore_history: 'true',
@@ -196,6 +245,8 @@ function resolveCiPolicy({
       history_fallback_report_url: '',
       history_key: '',
       history_retention_days: '',
+      pages_path: '',
+      pages_report_url: '',
       persist_history: 'false',
       publish_pages: 'false',
       report_kind: 'ci-pr-external',
@@ -210,6 +261,8 @@ function resolveCiPolicy({
       history_fallback_report_url: '',
       history_key: '',
       history_retention_days: '',
+      pages_path: '',
+      pages_report_url: '',
       persist_history: 'false',
       publish_pages: 'false',
       report_kind: 'ci-production',
@@ -223,6 +276,8 @@ function resolveCiPolicy({
     history_fallback_report_url: '',
     history_key: '',
     history_retention_days: '',
+    pages_path: '',
+    pages_report_url: '',
     persist_history: 'false',
     publish_pages: 'false',
     report_kind: 'ci-other',
@@ -266,6 +321,8 @@ function resolveDeployPolicy({
       history_fallback_report_url: '',
       history_key: 'deploy-production',
       history_retention_days: '60',
+      pages_path: '',
+      pages_report_url: '',
       persist_history: 'true',
       publish_pages: 'false',
       report_kind: 'deploy-production',
@@ -280,6 +337,8 @@ function resolveDeployPolicy({
       history_fallback_report_url: '',
       history_key: 'deploy-production',
       history_retention_days: '60',
+      pages_path: '',
+      pages_report_url: '',
       persist_history: 'true',
       publish_pages: 'false',
       report_kind: 'deploy-production',
@@ -293,6 +352,8 @@ function resolveDeployPolicy({
     history_fallback_report_url: '',
     history_key: '',
     history_retention_days: '',
+    pages_path: '',
+    pages_report_url: '',
     persist_history: 'false',
     publish_pages: 'false',
     report_kind: isCanonicalBaseUrl ? 'deploy-manual' : 'deploy-custom',
@@ -371,7 +432,9 @@ if (require.main === module) {
 module.exports = {
   DEFAULT_DEPLOY_BASE_URL,
   buildPagesReportUrl,
+  buildPagesPathUrl,
   normalizeUrl,
+  normalizePublishPath,
   parseArgs,
   readEventPayload,
   resolveAllureHistoryPolicy,
