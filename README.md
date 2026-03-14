@@ -96,6 +96,7 @@ Notes:
 - Deploy verification also reads `PRODUCTION_API_AUTH_ENABLED` and `PRODUCTION_DEPLOY_VALIDATION_API_TOKEN` from the GitHub Actions environment so hosted protected-endpoint checks can verify the expected Render `API_AUTH_ENABLED` / `API_AUTH_TOKENS` state.
 - Provider-validation workflows use a single `LIVE_PROVIDER_SCOPE` enum: `auto`, `azure`, `replicate`, `huggingface`, `openai`, `openrouter`, or `all`.
 - `LIVE_PROVIDER_SCOPE=auto` keeps the provider-validation preference order: Azure, then Replicate, then Hugging Face, then OpenRouter, then OpenAI.
+- `provider_scope=all` runs every provider that is configured for that environment; it does not require every supported provider to be enabled everywhere.
 - Provider integration resolves public provider-validation fixtures from this repository and pins them to `GITHUB_SHA` in GitHub Actions when available.
 - Outside GitHub Actions, set `PROVIDER_VALIDATION_PUBLIC_REF=<pushed-sha-or-ref>` if you need provider-integration runs to use a branch-specific fixture revision before it lands on `main`.
 - Hosted live-provider validation derives public validation fixtures from the target `baseUrl` and refuses localhost/private-network targets.
@@ -147,6 +148,7 @@ Required at startup:
   - or `ACV_API_ENDPOINT` plus `ACV_SUBSCRIPTION_KEY` to register `azure`
   - or `OLLAMA_MODEL` / `OLLAMA_BASE_URL` to register `ollama`
   - or `OPENAI_API_KEY`, `HF_API_KEY` / `HF_TOKEN`, `OPENROUTER_API_KEY`, or `TOGETHER_API_KEY`
+- Set `REPLICATE_ENABLED=false` when you need to keep a Replicate token configured but temporarily remove `clip` from the runtime and validation scope.
 
 Required for live Azure descriptions:
 

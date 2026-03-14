@@ -50,6 +50,18 @@ const buildAllRequirementMessage = () => {
   return requirements.join(', ');
 };
 
+const resolveSelectedProviderScopes = (scope, configuredProviderScopes = null) => {
+  if (scope !== 'all') {
+    return [scope];
+  }
+
+  if (Array.isArray(configuredProviderScopes) && configuredProviderScopes.length > 0) {
+    return configuredProviderScopes.slice();
+  }
+
+  return getAvailableProviderValidationScopes();
+};
+
 /**
  * Normalizes a provider-scope string.
  *
@@ -152,13 +164,14 @@ function resolveProviderScope({
     );
   }
 
-  if (
-    desiredScope === 'all'
-    && resolvedProviderScopes.length !== getAvailableProviderValidationScopes().length
-  ) {
-    throw new Error(
-      `provider_scope=all requires ${buildAllRequirementMessage()}`,
-    );
+  if (desiredScope === 'all') {
+    if (resolvedProviderScopes.length === 0) {
+      throw new Error(
+        `provider validation requires ${buildAllRequirementMessage()}`,
+      );
+    }
+
+    return desiredScope;
   }
 
   if (desiredScope !== 'all' && !configuredProviderScopeSet.has(desiredScope)) {
@@ -182,10 +195,8 @@ function resolveProviderScope({
  *   runReplicate: boolean,
  * }}
  */
-function getSelectedProviders(scope) {
-  const selectedProviderScopes = scope === 'all'
-    ? getAvailableProviderValidationScopes()
-    : [scope];
+function getSelectedProviders(scope, { configuredProviderScopes } = {}) {
+  const selectedProviderScopes = resolveSelectedProviderScopes(scope, configuredProviderScopes);
 
   selectedProviderScopes.forEach((selectedScope) => {
     if (!getProviderValidationByScope(selectedScope)) {
@@ -207,8 +218,11 @@ function getSelectedProviders(scope) {
  * @param {{ mode?: 'live'|'provider-integration' }} [options]
  * @returns {{ folderName: string, envVars: string[], scopeKey: string }[]}
  */
-function getSelectedProviderPlans(scope, { mode = 'live' } = {}) {
-  const { selectedProviderScopes } = getSelectedProviders(scope);
+function getSelectedProviderPlans(scope, {
+  configuredProviderScopes,
+  mode = 'live',
+} = {}) {
+  const { selectedProviderScopes } = getSelectedProviders(scope, { configuredProviderScopes });
 
   return selectedProviderScopes.map((selectedScope) => {
     const provider = getProviderValidationByScope(selectedScope);

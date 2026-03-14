@@ -93,6 +93,7 @@ The repository uses a small workflow set with separate responsibilities:
   - runs `npm run postman:live -- --base-url <host>`
   - reuses `PRODUCTION_DEPLOY_VALIDATION_API_TOKEN` when `PRODUCTION_API_AUTH_ENABLED=true`
   - uses the `prod-validation` GitHub Actions variable `LIVE_PROVIDER_SCOPE` with `auto`, `azure`, `replicate`, `huggingface`, `openai`, `openrouter`, or `all`
+  - `provider_scope=all` expands to every provider configured in the `prod-validation` environment
   - requires GitHub Actions secrets, not Render env vars
   - requires `REPLICATE_API_TOKEN` only when the resolved scope includes Replicate
   - requires `ACV_API_ENDPOINT` plus `ACV_SUBSCRIPTION_KEY` only when the resolved scope includes Azure
@@ -307,6 +308,7 @@ Notes:
 | --- | --- | --- | --- |
 | `NODE_ENV` | No | `development` | Valid values: `development`, `production`, `test`. |
 | `REPLICATE_API_TOKEN` | No | none | Required only to register the `clip` provider and for real Replicate-backed descriptions. |
+| `REPLICATE_ENABLED` | No | derived from `REPLICATE_API_TOKEN` | Set to `false` to keep Replicate credentials present but disable the `clip` provider and its validation scope. |
 | `PAGE_DESCRIPTION_CONCURRENCY` | No | `3` | Max concurrent provider calls during one page-description request. |
 | `API_AUTH_ENABLED` | No | derived from `API_AUTH_TOKENS` | Explicitly enables or disables API auth. Defaults to `true` when `API_AUTH_TOKENS` contains at least one token, otherwise `false`. |
 | `API_AUTH_TOKENS` | No | unset | Optional comma-separated API tokens. When API auth is enabled, scraper and description endpoints require either `Authorization: Bearer <token>` or `X-API-Key: <token>`. |
@@ -355,6 +357,7 @@ Development TLS behavior:
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
+| `REPLICATE_ENABLED` | No | enabled when `REPLICATE_API_TOKEN` is present | Set to `false` to remove `clip` from runtime registration and provider-validation scope resolution without deleting the token. |
 | `REPLICATE_API_ENDPOINT` | No | Replicate SDK default | Override for stubs, proxies, or alternate environments. |
 | `REPLICATE_USER_AGENT` | No | `alt-text-generator/1.0.0` | Replicate client user agent. |
 | `REPLICATE_MODEL_OWNER` | No | `rmokady` | Replicate model owner. |

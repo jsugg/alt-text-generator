@@ -311,7 +311,9 @@ async function main() {
     );
   }
 
-  const providerPlans = getSelectedProviderPlans(providerScope);
+  const providerPlans = getSelectedProviderPlans(providerScope, {
+    configuredProviderScopes: availableProviders.configuredProviderScopes,
+  });
   const collection = readCollection(COLLECTION_PATH);
   const availableFolders = listTopLevelFolderNames(collection);
   const selectedFolders = Array.from(
