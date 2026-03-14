@@ -11,14 +11,16 @@ module.exports = buildOpenAiCompatibleProvider({
   defaultModel: 'google/gemma-3-4b-it:free',
   maxTokensEnvName: 'OPENROUTER_MAX_TOKENS',
   promptEnvName: 'OPENROUTER_PROMPT',
-  liveValidation: {
+  providerValidation: {
     scopeKey: 'openrouter',
     autoPriority: 40,
-    folderName: '90 Live Provider Validation',
+    folderName: '90 Provider Validation',
     requestEnvVars: [
       'model=openrouter',
-      'liveImageUrl=http://127.0.0.1:19090/assets/a.png',
-      'livePageUrl=http://127.0.0.1:19090/fixtures/page-with-images',
+    ],
+    providerIntegrationEnvVars: [
+      'providerValidationImageUrl=http://127.0.0.1:19090/assets/a.png',
+      'providerValidationPageUrl=http://127.0.0.1:19090/fixtures/page-with-images',
     ],
     scopeRequirement: 'OPENROUTER_API_KEY',
     allRequirement: 'OPENROUTER_API_KEY',

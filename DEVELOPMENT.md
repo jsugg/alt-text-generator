@@ -90,15 +90,22 @@ The repository uses a small workflow set with separate responsibilities:
   - uploads audit artifacts and fails when high or critical production dependency findings exist
 - `Live Provider Validation` in `.github/workflows/live-provider-validation.yml`
   - manual only
-  - runs `npm run postman:live`
-  - uses the `prod-validation` GitHub Actions variable `LIVE_PROVIDER_SCOPE` with `auto`, `azure`, `replicate`, `huggingface`, `openrouter`, or `all`
+  - runs `npm run postman:live -- --base-url <host>`
+  - uses the `prod-validation` GitHub Actions variable `LIVE_PROVIDER_SCOPE` with `auto`, `azure`, `replicate`, `huggingface`, `openai`, `openrouter`, or `all`
   - requires GitHub Actions secrets, not Render env vars
   - requires `REPLICATE_API_TOKEN` only when the resolved scope includes Replicate
   - requires `ACV_API_ENDPOINT` plus `ACV_SUBSCRIPTION_KEY` only when the resolved scope includes Azure
   - requires `HF_API_KEY` only when the resolved scope includes Hugging Face
+  - requires `OPENAI_API_KEY` only when the resolved scope includes OpenAI
   - requires `OPENROUTER_API_KEY` only when the resolved scope includes OpenRouter
   - also supports a guarded weekly schedule when the repository variable `ENABLE_SCHEDULED_LIVE_PROVIDER_VALIDATION` is set to `true`
   - uploads Newman artifacts and writes request, assertion, failure, and response-time metrics into the workflow summary
+- `Provider Integration Validation` in `.github/workflows/provider-integration-validation.yml`
+  - manual only
+  - runs `npm run postman:provider-integration`
+  - uses the same `LIVE_PROVIDER_SCOPE` enum as hosted live validation
+  - boots the local app and local fixture server, then exercises real provider credentials where available
+  - never targets the deployed Render service and should be interpreted as local provider-integration coverage only
 - `Deploy Verification` in `.github/workflows/deploy-verification.yml`
   - runs automatically on `production` pushes
   - runs `npm run postman:deploy -- --base-url <host>`
@@ -169,10 +176,15 @@ Modes:
 - `npm run postman:harness:allure`
   - runs the same deterministic harness with the Allure reporter enabled
   - appends raw Allure result files to `reports/allure-results/`
+- `npm run postman:provider-integration`
+  - optional local provider-integration validation
+  - uses the local app plus fixture server
+  - supports provider-scoped validation with real credentials without claiming hosted coverage
 - `npm run postman:live`
   - optional live-provider validation
-  - intended for explicit live-provider checks, not default CI
-  - supports Replicate-only, Azure-only, or combined validation through workflow env flags
+  - targets a deployed base URL and waits for rollout stabilization before starting Newman
+  - uses repo-controlled public provider-validation fixtures served from the target deployment
+  - supports `azure`, `replicate`, `huggingface`, `openai`, `openrouter`, or `all` through `LIVE_PROVIDER_SCOPE`
 - `npm run postman:deploy -- --base-url https://wcag.qcraft.com.br`
   - hosted deploy smoke verification
   - runs only the deploy folder from the shared Postman collection and writes `deploy.json` / `deploy.xml`
@@ -196,8 +208,10 @@ Generated artifacts:
 - `reports/newman/core.xml`
 - `reports/newman/routing.json`
 - `reports/newman/routing.xml`
-- `reports/newman/live-provider.json`
-- `reports/newman/live-provider.xml`
+- `reports/newman/provider-integration-<scope>.json`
+- `reports/newman/provider-integration-<scope>.xml`
+- `reports/newman/live-provider-<scope>.json`
+- `reports/newman/live-provider-<scope>.xml`
 - `reports/newman/deploy.json`
 - `reports/newman/deploy.xml`
 - `reports/jest/junit.xml`
@@ -205,7 +219,7 @@ Generated artifacts:
 - `reports/allure-report/*`
 - `reports/allure-history-artifact/*`
 
-Use the deterministic modes for routine validation and CI. Use the live mode only when you deliberately want to validate vendor connectivity and account readiness.
+Use the deterministic modes for routine validation and CI. Use provider integration when you want local app plus vendor coverage. Use hosted live mode when you deliberately want deployed-service plus real-provider coverage.
 
 Allure workflow:
 

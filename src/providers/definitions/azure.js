@@ -37,10 +37,14 @@ module.exports = {
 
     return [];
   },
-  liveValidation: {
+  providerValidation: {
     scopeKey: 'azure',
     autoPriority: 10,
-    folderName: '91 Live Azure Validation',
+    folderName: '91 Azure Provider Validation',
+    providerIntegrationEnvVars: [
+      'providerValidationAzureImageUrl=http://127.0.0.1:19090/assets/a.png',
+      'providerValidationAzurePageUrl=http://127.0.0.1:19090/fixtures/page-with-images',
+    ],
     scopeRequirement: 'ACV_API_ENDPOINT and ACV_SUBSCRIPTION_KEY',
     allRequirement: 'Azure credentials',
   },

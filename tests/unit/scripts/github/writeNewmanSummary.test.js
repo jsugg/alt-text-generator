@@ -169,10 +169,10 @@ describe('Unit | Scripts | GitHub | Write Newman Summary', () => {
     fs.writeFileSync(collectionPath, JSON.stringify({
       item: [
         {
-          name: '90 Live Provider Validation',
+          name: '90 Provider Validation',
           item: [
             {
-              name: 'Live clip single image',
+              name: 'Provider validation single image',
               request: {
                 method: 'GET',
               },
@@ -196,7 +196,7 @@ describe('Unit | Scripts | GitHub | Write Newman Summary', () => {
           {
             item: {
               id: 'generated-runtime-id',
-              name: 'Live clip single image',
+              name: 'Provider validation single image',
             },
             assertions: [
               { assertion: 'returns 200', error: { message: 'expected 200' } },
@@ -208,7 +208,7 @@ describe('Unit | Scripts | GitHub | Write Newman Summary', () => {
           {
             source: {
               id: 'generated-runtime-id',
-              name: 'Live clip single image',
+              name: 'Provider validation single image',
             },
             error: {
               message: 'expected 200',
@@ -225,7 +225,7 @@ describe('Unit | Scripts | GitHub | Write Newman Summary', () => {
 
     expect(Array.from(aggregate.folders.values())).toEqual([
       {
-        folder: '90 Live Provider Validation',
+        folder: '90 Provider Validation',
         requestTotal: 1,
         assertionTotal: 1,
         assertionFailed: 1,
@@ -236,8 +236,8 @@ describe('Unit | Scripts | GitHub | Write Newman Summary', () => {
     expect(aggregate.failures).toEqual([
       {
         source: 'live-provider',
-        folder: '90 Live Provider Validation',
-        requestName: 'Live clip single image',
+        folder: '90 Provider Validation',
+        requestName: 'Provider validation single image',
         message: 'expected 200',
       },
     ]);

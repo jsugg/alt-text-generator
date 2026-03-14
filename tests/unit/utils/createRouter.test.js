@@ -53,4 +53,28 @@ describe('Unit | Utils | Create Router', () => {
     expect(cachedDocsResponse.status).toBe(200);
     expect(swaggerUi.setup).toHaveBeenCalledTimes(1);
   });
+
+  it('serves public provider-validation fixtures before the API router', async () => {
+    const apiRouter = express.Router();
+    apiRouter.get('/ping', (req, res) => res.status(200).send('pong'));
+
+    const app = express();
+    app.use(createRouter(logger, apiRouter));
+
+    const pageResponse = await request(app)
+      .get('/provider-validation/page')
+      .set('Host', 'wcag.qcraft.com.br');
+
+    expect(pageResponse.status).toBe(200);
+    expect(pageResponse.headers['content-type']).toContain('text/html');
+    expect(pageResponse.text).toContain('/provider-validation/assets/a.png');
+    expect(pageResponse.text).toContain('http://wcag.qcraft.com.br/provider-validation/assets/b.png');
+
+    const assetResponse = await request(app).get('/provider-validation/assets/a.png');
+    expect(assetResponse.status).toBe(200);
+    expect(assetResponse.headers['content-type']).toContain('image/png');
+
+    const missingAssetResponse = await request(app).get('/provider-validation/assets/missing.png');
+    expect(missingAssetResponse.status).toBe(404);
+  });
 });

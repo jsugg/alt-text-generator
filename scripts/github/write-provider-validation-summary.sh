@@ -2,9 +2,10 @@
 set -euo pipefail
 
 summary_file="${1:?summary file is required}"
+summary_title="${VALIDATION_SUMMARY_TITLE:-Provider Validation}"
 
 {
-  echo "## Live Provider Validation"
+  echo "## ${summary_title}"
   echo
   echo "- Event: ${GITHUB_EVENT_NAME:-unknown}"
   echo "- Provider scope: ${LIVE_PROVIDER_SCOPE:-unresolved}"

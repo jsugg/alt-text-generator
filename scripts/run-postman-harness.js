@@ -20,7 +20,7 @@ const {
   getSelectedProviderPlans,
   getSelectedProviders,
   resolveProviderScope,
-} = require('./postman/live-provider-scope');
+} = require('./postman/provider-validation-scope');
 const {
   buildNewmanReporterArgs,
   resolveAllureResultsDir,
@@ -159,6 +159,7 @@ function spawnLogged(label, command, args, env = {}) {
  *   replicateApiToken?: string | null,
  *   azureApiEndpoint?: string | null,
  *   azureSubscriptionKey?: string | null,
+ *   openaiApiKey?: string | null,
  *   hfApiKey?: string | null,
  *   openrouterApiKey?: string | null,
  *   apiAuthTokens?: string | null,
@@ -173,6 +174,7 @@ function buildAppServerEnv({
   replicateApiToken = null,
   azureApiEndpoint = null,
   azureSubscriptionKey = null,
+  openaiApiKey = null,
   hfApiKey = null,
   openrouterApiKey = null,
   apiAuthTokens = null,
@@ -200,6 +202,10 @@ function buildAppServerEnv({
 
   if (azureSubscriptionKey) {
     env.ACV_SUBSCRIPTION_KEY = azureSubscriptionKey;
+  }
+
+  if (openaiApiKey) {
+    env.OPENAI_API_KEY = openaiApiKey;
   }
 
   if (hfApiKey) {
@@ -281,9 +287,13 @@ function runNewman(
     '--env-var',
     `expectedSwaggerServerUrl=https://localhost:${APP_HTTPS_PORT}`,
     '--env-var',
-    'liveAzureImageUrl=https://developer.chrome.com/static/images/ai-homepage-card.png',
+    'providerValidationImageUrl=https://upload.wikimedia.org/wikipedia/commons/3/3f/Fronalpstock_big.jpg',
     '--env-var',
-    'liveAzurePageUrl=https://developer.chrome.com/',
+    'providerValidationPageUrl=https://developer.chrome.com/',
+    '--env-var',
+    'providerValidationAzureImageUrl=https://developer.chrome.com/static/images/ai-homepage-card.png',
+    '--env-var',
+    'providerValidationAzurePageUrl=https://developer.chrome.com/',
     '--env-var',
     'model=azure',
     '--env-var',
@@ -366,49 +376,63 @@ function installSignalCleanup(children) {
  */
 async function main() {
   const mode = process.argv[2] || 'full';
+  if (!['smoke', 'full', 'provider-integration', 'live'].includes(mode)) {
+    throw new Error(`Unsupported harness mode "${mode}"`);
+  }
+  if (mode === 'live') {
+    throw new Error(
+      'The live mode moved to scripts/run-postman-live.js. Use npm run postman:live '
+      + 'for hosted validation or node scripts/run-postman-harness.js provider-integration '
+      + 'for the local provider-integration harness.',
+    );
+  }
   const allureResultsDir = resolveAllureResultsDir(process.env, ROOT);
-  const liveModeEnabled = mode === 'live';
+  const providerIntegrationModeEnabled = mode === 'provider-integration';
   const requiresAuthHarness = mode === 'smoke' || mode === 'full';
-  const liveProviderScopeInput = process.env.LIVE_PROVIDER_SCOPE || 'auto';
+  const providerScopeInput = process.env.LIVE_PROVIDER_SCOPE || 'auto';
   const liveAzureSubscriptionKey = process.env.ACV_SUBSCRIPTION_KEY || null;
   const availableLiveProviders = detectAvailableProviders({
     ...process.env,
   });
-  const liveProviderScope = liveModeEnabled
+  const providerValidationScope = providerIntegrationModeEnabled
     ? resolveProviderScope({
-      requestedScope: liveProviderScopeInput,
+      requestedScope: providerScopeInput,
       configuredProviderScopes: availableLiveProviders.configuredProviderScopes,
     })
     : null;
-  const selectedLiveProviders = liveProviderScope
-    ? getSelectedProviders(liveProviderScope)
+  const selectedProviderValidation = providerValidationScope
+    ? getSelectedProviders(providerValidationScope)
     : { selectedProviderScopes: [], runAzure: false, runReplicate: false };
-  const selectedLiveProviderPlans = liveProviderScope
-    ? getSelectedProviderPlans(liveProviderScope)
+  const selectedProviderPlans = providerValidationScope
+    ? getSelectedProviderPlans(providerValidationScope, { mode: 'provider-integration' })
     : [];
-  const selectedLiveProviderScopeSet = new Set(selectedLiveProviders.selectedProviderScopes);
+  const selectedProviderScopeSet = new Set(selectedProviderValidation.selectedProviderScopes);
   let appReplicateApiToken = 'test-token';
   let appAzureApiEndpoint = `http://${HOST}:${FIXTURE_PORT}/vision/v3.2/describe`;
   let appAzureSubscriptionKey = 'stub-key';
+  let appOpenAiApiKey = null;
   let appHfApiKey = null;
   let appOpenRouterApiKey = null;
-  const liveAppScraperRequestTimeoutMs = liveModeEnabled ? '30000' : null;
-  const liveAppPageDescriptionConcurrency = liveModeEnabled ? '1' : null;
+  const providerIntegrationScraperRequestTimeoutMs = providerIntegrationModeEnabled ? '30000' : null;
+  const providerIntegrationPageDescriptionConcurrency = providerIntegrationModeEnabled ? '1' : null;
 
-  if (liveModeEnabled) {
-    appReplicateApiToken = selectedLiveProviders.runReplicate
+  if (providerIntegrationModeEnabled) {
+    appReplicateApiToken = selectedProviderValidation.runReplicate
       ? process.env.REPLICATE_API_TOKEN
       : null;
-    appAzureApiEndpoint = selectedLiveProviders.runAzure
+    appAzureApiEndpoint = selectedProviderValidation.runAzure
       ? process.env.ACV_API_ENDPOINT
       : null;
-    appAzureSubscriptionKey = selectedLiveProviders.runAzure
+    appAzureSubscriptionKey = selectedProviderValidation.runAzure
       ? liveAzureSubscriptionKey
       : null;
-    appHfApiKey = selectedLiveProviderScopeSet.has('huggingface')
+    appOpenAiApiKey = selectedProviderScopeSet.has('openai')
+      ? process.env.OPENAI_API_KEY
+      : null;
+    appHfApiKey = selectedProviderScopeSet.has('huggingface')
       ? process.env.HF_API_KEY || process.env.HF_TOKEN
       : null;
-    appOpenRouterApiKey = selectedLiveProviderScopeSet.has('openrouter')
+    appOpenRouterApiKey = selectedProviderScopeSet.has('openrouter')
       ? process.env.OPENROUTER_API_KEY
       : null;
   }
@@ -446,10 +470,11 @@ async function main() {
       replicateApiToken: appReplicateApiToken,
       azureApiEndpoint: appAzureApiEndpoint,
       azureSubscriptionKey: appAzureSubscriptionKey,
+      openaiApiKey: appOpenAiApiKey,
       hfApiKey: appHfApiKey,
       openrouterApiKey: appOpenRouterApiKey,
-      scraperRequestTimeoutMs: liveAppScraperRequestTimeoutMs,
-      pageDescriptionConcurrency: liveAppPageDescriptionConcurrency,
+      scraperRequestTimeoutMs: providerIntegrationScraperRequestTimeoutMs,
+      pageDescriptionConcurrency: providerIntegrationPageDescriptionConcurrency,
     }),
   );
   managedChildren.add(appServer);
@@ -578,24 +603,27 @@ async function main() {
       );
     }
 
-    if (liveModeEnabled) {
+    if (providerIntegrationModeEnabled) {
       const liveFolders = Array.from(
-        new Set(selectedLiveProviderPlans.map((providerPlan) => providerPlan.folderName)),
+        new Set(selectedProviderPlans.map((providerPlan) => providerPlan.folderName)),
       );
 
-      if (selectedLiveProviderPlans.length === 0) {
-        throw new Error(`Live mode enabled but provider scope "${liveProviderScope}" selected no folders`);
+      if (selectedProviderPlans.length === 0) {
+        throw new Error(
+          'Provider-integration mode enabled but provider scope '
+          + `'${providerValidationScope}' selected no folders`,
+        );
       }
 
       assertTopLevelFoldersExist(
         availableFolders,
         liveFolders,
-        'live mode',
+        'provider-integration mode',
       );
 
-      await selectedLiveProviderPlans.reduce(
+      await selectedProviderPlans.reduce(
         (runPromise, providerPlan) => runPromise.then(() => runNewman(
-          `live-provider-${providerPlan.scopeKey}`,
+          `provider-integration-${providerPlan.scopeKey}`,
           [providerPlan.folderName],
           {
             allureResultsDir,

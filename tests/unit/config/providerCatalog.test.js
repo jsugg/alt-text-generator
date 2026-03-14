@@ -3,11 +3,11 @@ const Joi = require('joi');
 const {
   buildProviderConfigSections,
   buildProviderEnvSchema,
-  getAvailableLiveProviderScopes,
+  getAvailableProviderValidationScopes,
   getConfiguredProvidersFromConfig,
   getConfiguredProvidersFromEnv,
-  getLiveProviderByScope,
-  getLiveValidationProviders,
+  getProviderValidationByScope,
+  getProviderValidationProviders,
   getProviderCatalog,
   validateProviderEnv,
 } = require('../../../config/providerCatalog');
@@ -136,7 +136,7 @@ describe('Unit | Config | Provider Catalog', () => {
     }).map((provider) => provider.key)).toEqual(['clip', 'ollama', 'huggingface', 'openai']);
   });
 
-  it('validates provider-specific env rules and exposes live-provider metadata', () => {
+  it('validates provider-specific env rules and exposes provider-validation metadata', () => {
     const errors = validateProviderEnv({
       ACV_API_ENDPOINT: 'https://azure.example.com/vision/v3.2/describe',
     });
@@ -162,14 +162,16 @@ describe('Unit | Config | Provider Catalog', () => {
       'openrouter',
       'together',
     ]);
-    expect(getLiveValidationProviders().map((provider) => provider.liveValidation.scopeKey))
-      .toEqual(['replicate', 'azure', 'huggingface', 'openrouter']);
-    expect(getAvailableLiveProviderScopes()).toEqual([
+    expect(
+      getProviderValidationProviders().map((provider) => provider.providerValidation.scopeKey),
+    ).toEqual(['replicate', 'azure', 'huggingface', 'openai', 'openrouter']);
+    expect(getAvailableProviderValidationScopes()).toEqual([
       'replicate',
       'azure',
       'huggingface',
+      'openai',
       'openrouter',
     ]);
-    expect(getLiveProviderByScope('azure').displayName).toBe('Azure Computer Vision');
+    expect(getProviderValidationByScope('azure').displayName).toBe('Azure Computer Vision');
   });
 });

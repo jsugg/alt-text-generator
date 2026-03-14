@@ -76,7 +76,8 @@ Commands:
 ```bash
 npm run postman:smoke
 npm run postman:harness
-npm run postman:live
+npm run postman:provider-integration
+npm run postman:live -- --base-url https://wcag.qcraft.com.br
 npm run postman:deploy -- --base-url https://wcag.qcraft.com.br
 ```
 
@@ -85,15 +86,17 @@ Notes:
 - `postman:smoke` is the fast deterministic gate.
 - `postman:harness` runs the full deterministic suite, including protected-endpoint auth coverage, and writes JSON and JUnit reports under `reports/newman/`.
 - CI also emits `reports/jest/junit.xml` from the canonical Node 20 Jest lane and publishes one combined GitHub test report that joins Jest and Newman results.
-- `postman:live` is optional and reserved for explicit live-provider validation.
+- `postman:provider-integration` is the local provider-integration harness: it boots the app locally, uses deterministic fixtures when appropriate, and validates real provider credentials plus request/response wiring without claiming hosted coverage.
+- `postman:live` is optional and reserved for explicit hosted live-provider validation against a deployed base URL.
 - `postman:deploy` runs the hosted production-smoke folder from the same Postman collection against a supplied base URL.
 - Before Newman starts, `postman:deploy` waits for consecutive stable health/auth probes so zero-downtime rollout overlap does not create deploy-smoke false negatives.
 - CI runs `postman:smoke` on pull requests and `postman:harness` on `main` / `production` pushes.
 - Deploy verification runs `postman:deploy` on `production` pushes so hosted smoke checks stay inside the Newman contract layer.
 - Deploy verification also reads `PRODUCTION_API_AUTH_ENABLED` and `PRODUCTION_DEPLOY_VALIDATION_API_TOKEN` from the GitHub Actions environment so hosted protected-endpoint checks can verify the expected Render `API_AUTH_ENABLED` / `API_AUTH_TOKENS` state.
-- Live mode uses a single `LIVE_PROVIDER_SCOPE` enum: `auto`, `azure`, `replicate`, `huggingface`, `openrouter`, or `all`.
-- `LIVE_PROVIDER_SCOPE=auto` keeps the live-provider preference order: Azure, then Replicate, then Hugging Face, then OpenRouter.
-- Live-provider runs upload Newman artifacts and append request, assertion, failure, and response-time metrics to the GitHub Actions step summary.
+- Provider-validation workflows use a single `LIVE_PROVIDER_SCOPE` enum: `auto`, `azure`, `replicate`, `huggingface`, `openai`, `openrouter`, or `all`.
+- `LIVE_PROVIDER_SCOPE=auto` keeps the provider-validation preference order: Azure, then Replicate, then Hugging Face, then OpenRouter, then OpenAI.
+- Hosted live-provider validation derives public validation fixtures from the target `baseUrl` and refuses localhost/private-network targets.
+- Provider-validation runs upload Newman artifacts and append request, assertion, failure, and response-time metrics to the GitHub Actions step summary.
 - Local harness runs accept self-signed development TLS.
 - The deterministic harness uses a local Azure stub and can boot with a dummy Replicate token or Azure-only configuration.
 
@@ -254,7 +257,7 @@ Use the development guide for:
 - security and operational validation workflow guidance
 - TLS and outbound CA troubleshooting
 - lint, test, and live validation commands
-- real external-integration validation with live providers
+- repo-controlled hosted live-provider validation against real providers
 
 See [DEVELOPMENT.md](./DEVELOPMENT.md).
 

@@ -1,0 +1,86 @@
+const {
+  assertPublicHttpUrl,
+  buildLiveProviderEnvVars,
+  buildLiveProviderNewmanArgs,
+  isPrivateHostname,
+  parseArgs,
+} = require('../../../scripts/run-postman-live');
+
+describe('Unit | Scripts | Run Postman Live', () => {
+  describe('parseArgs', () => {
+    it('uses the canonical production base URL by default', () => {
+      expect(parseArgs([])).toEqual({
+        baseUrl: 'https://wcag.qcraft.com.br',
+      });
+    });
+
+    it('parses the supported base-url flag', () => {
+      expect(parseArgs(['--base-url', 'https://example.com/preview'])).toEqual({
+        baseUrl: 'https://example.com/preview',
+      });
+    });
+
+    it('rejects unsupported flags', () => {
+      expect(() => parseArgs(['--nope', 'value'])).toThrow('Unsupported argument: --nope');
+    });
+  });
+
+  describe('isPrivateHostname', () => {
+    it('recognizes localhost and RFC1918 addresses', () => {
+      expect(isPrivateHostname('localhost')).toBe(true);
+      expect(isPrivateHostname('127.0.0.1')).toBe(true);
+      expect(isPrivateHostname('10.0.0.4')).toBe(true);
+      expect(isPrivateHostname('192.168.1.10')).toBe(true);
+      expect(isPrivateHostname('wcag.qcraft.com.br')).toBe(false);
+    });
+  });
+
+  describe('assertPublicHttpUrl', () => {
+    it('accepts public https urls', () => {
+      expect(() => assertPublicHttpUrl('https://wcag.qcraft.com.br/provider-validation/page', 'baseUrl'))
+        .not.toThrow();
+    });
+
+    it('rejects localhost, private hosts, and non-http protocols', () => {
+      expect(() => assertPublicHttpUrl('http://127.0.0.1/provider-validation/page', 'baseUrl'))
+        .toThrow('baseUrl must not target localhost or a private-network host');
+      expect(() => assertPublicHttpUrl('file:///tmp/a.png', 'providerValidationImageUrl'))
+        .toThrow('providerValidationImageUrl must use http or https');
+    });
+  });
+
+  describe('buildLiveProviderEnvVars', () => {
+    it('derives stable provider-validation fixtures from the hosted base URL', () => {
+      expect(buildLiveProviderEnvVars('https://wcag.qcraft.com.br/')).toEqual({
+        baseUrl: 'https://wcag.qcraft.com.br',
+        expectedSwaggerServerUrl: 'https://wcag.qcraft.com.br',
+        providerValidationImageUrl: 'https://wcag.qcraft.com.br/provider-validation/assets/a.png',
+        providerValidationPageUrl: 'https://wcag.qcraft.com.br/provider-validation/page',
+        providerValidationAzureImageUrl: 'https://wcag.qcraft.com.br/provider-validation/assets/a.png',
+        providerValidationAzurePageUrl: 'https://wcag.qcraft.com.br/provider-validation/page',
+        maxResponseTimeMs: '30000',
+      });
+    });
+  });
+
+  describe('buildLiveProviderNewmanArgs', () => {
+    it('includes derived provider validation vars and requested folders', () => {
+      expect(buildLiveProviderNewmanArgs('https://wcag.qcraft.com.br', {
+        folders: ['90 Provider Validation'],
+        label: 'live-provider-openai',
+        providerEnvVars: ['model=openai'],
+      })).toEqual(expect.arrayContaining([
+        '--env-var',
+        'baseUrl=https://wcag.qcraft.com.br',
+        '--env-var',
+        'providerValidationImageUrl=https://wcag.qcraft.com.br/provider-validation/assets/a.png',
+        '--env-var',
+        'providerValidationPageUrl=https://wcag.qcraft.com.br/provider-validation/page',
+        '--env-var',
+        'model=openai',
+        '--folder',
+        '90 Provider Validation',
+      ]));
+    });
+  });
+});

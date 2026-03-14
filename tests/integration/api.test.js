@@ -688,6 +688,18 @@ describe('Integration | API', () => {
       });
     });
 
+    it('keeps provider validation fixtures public without authentication', async () => {
+      const { app } = buildTestApp({ config: buildAuthConfig() });
+
+      const pageResponse = await secureGet(app, '/provider-validation/page');
+      expect(pageResponse.status).toBe(200);
+      expect(pageResponse.headers['content-type']).toContain('text/html');
+
+      const assetResponse = await secureGet(app, '/provider-validation/assets/a.png');
+      expect(assetResponse.status).toBe(200);
+      expect(assetResponse.headers['content-type']).toContain('image/png');
+    });
+
     it('rejects protected endpoints without authentication', async () => {
       const { app } = buildTestApp({ config: buildAuthConfig() });
 

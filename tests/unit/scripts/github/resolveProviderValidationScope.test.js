@@ -5,9 +5,9 @@ const {
   appendGitHubEnv,
   appendSummary,
   resolveScopeFromEnv,
-} = require('../../../../scripts/github/resolve-live-provider-scope');
+} = require('../../../../scripts/github/resolve-provider-validation-scope');
 
-describe('Unit | Scripts | GitHub | Resolve Live Provider Scope', () => {
+describe('Unit | Scripts | GitHub | Resolve Provider Validation Scope', () => {
   describe('resolveScopeFromEnv', () => {
     it('respects an explicit manual scope override', () => {
       expect(resolveScopeFromEnv({
@@ -27,6 +27,7 @@ describe('Unit | Scripts | GitHub | Resolve Live Provider Scope', () => {
         ACV_API_ENDPOINT: 'https://azure.example.com',
         ACV_SUBSCRIPTION_KEY: 'azure-key',
         HF_API_KEY: 'hf-key',
+        OPENAI_API_KEY: 'openai-key',
         OPENROUTER_API_KEY: 'openrouter-key',
       })).toBe('all');
     });
@@ -41,6 +42,10 @@ describe('Unit | Scripts | GitHub | Resolve Live Provider Scope', () => {
     });
 
     it('resolves api-key multimodal providers when they are explicitly requested', () => {
+      expect(resolveScopeFromEnv({
+        INPUT_PROVIDER_SCOPE: 'openai',
+        OPENAI_API_KEY: 'openai-key',
+      })).toBe('openai');
       expect(resolveScopeFromEnv({
         INPUT_PROVIDER_SCOPE: 'openrouter',
         OPENROUTER_API_KEY: 'openrouter-key',
@@ -68,10 +73,10 @@ describe('Unit | Scripts | GitHub | Resolve Live Provider Scope', () => {
       const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'live-scope-summary-'));
       const summaryFile = path.join(tempDir, 'summary.md');
 
-      appendSummary(summaryFile, ['## Live Provider Validation', '', '- Resolved provider scope: azure']);
+      appendSummary(summaryFile, ['## Provider Validation', '', '- Resolved provider scope: azure']);
 
       expect(fs.readFileSync(summaryFile, 'utf8')).toBe(
-        '## Live Provider Validation\n\n- Resolved provider scope: azure\n',
+        '## Provider Validation\n\n- Resolved provider scope: azure\n',
       );
     });
   });
