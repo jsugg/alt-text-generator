@@ -19,8 +19,16 @@ const mockStdSerializers = {
       }
       : undefined,
   })),
-  req: Symbol('req'),
-  res: Symbol('res'),
+  req: jest.fn((request) => ({
+    id: request.id,
+    method: request.method,
+    headers: request.headers,
+    url: request.url,
+  })),
+  res: jest.fn((response) => ({
+    statusCode: response.statusCode,
+    headers: response.headers,
+  })),
 };
 
 const mockPino = jest.fn();
@@ -130,17 +138,71 @@ describe('Unit | Infrastructure | Logger', () => {
       logger: mockChildLogger,
       serializers: expect.objectContaining({
         err: expect.any(Function),
-        req: mockStdSerializers.req,
-        res: mockStdSerializers.res,
+        req: expect.any(Function),
+        res: expect.any(Function),
       }),
-      wrapSerializers: true,
+      wrapSerializers: false,
     }));
     expect(requestLoggerOptions.logger).toBe(mockChildLogger);
-    expect(requestLoggerOptions.serializers.req).toBe(mockStdSerializers.req);
-    expect(requestLoggerOptions.serializers.res).toBe(mockStdSerializers.res);
+    expect(requestLoggerOptions.serializers.req).toEqual(expect.any(Function));
+    expect(requestLoggerOptions.serializers.res).toEqual(expect.any(Function));
     expect(requestLoggerOptions.serializers.err).toEqual(expect.any(Function));
     expect(loggerModule.requestLogger).toBe(mockRequestLogger);
     expect(loggerModule.serverLogger).toBe(mockRequestLogger);
+  });
+
+  it('redacts sensitive request and response headers before logging', () => {
+    const { requestLoggerOptions } = loadLoggerModule({
+      env: {
+        NODE_ENV: 'production',
+      },
+    });
+
+    const serializedRequest = requestLoggerOptions.serializers.req({
+      id: 'req-123',
+      method: 'GET',
+      url: '/api/v1/accessibility/description',
+      headers: {
+        authorization: 'Bearer super-secret',
+        'x-api-key': 'deploy-validation-test-token-1',
+        'ocp-apim-subscription-key': 'azure-key',
+        cookie: 'session=secret',
+        accept: 'application/json',
+      },
+    });
+    const serializedResponse = requestLoggerOptions.serializers.res({
+      statusCode: 200,
+      headers: {
+        'set-cookie': ['session=secret'],
+        'content-type': 'application/json',
+      },
+    });
+
+    expect(mockStdSerializers.req).toHaveBeenCalledWith(expect.objectContaining({
+      method: 'GET',
+    }));
+    expect(mockStdSerializers.res).toHaveBeenCalledWith(expect.objectContaining({
+      statusCode: 200,
+    }));
+    expect(serializedRequest).toEqual({
+      id: 'req-123',
+      method: 'GET',
+      url: '/api/v1/accessibility/description',
+      headers: {
+        authorization: '[Redacted]',
+        'x-api-key': '[Redacted]',
+        'ocp-apim-subscription-key': '[Redacted]',
+        cookie: '[Redacted]',
+        accept: 'application/json',
+      },
+    });
+    expect(serializedResponse).toEqual({
+      statusCode: 200,
+      headers: {
+        'set-cookie': '[Redacted]',
+        'content-type': 'application/json',
+      },
+    });
   });
 
   it('sanitizes serialized errors before they reach the logger output', () => {
