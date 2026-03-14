@@ -370,12 +370,7 @@ jobs:
       cancel-in-progress: false
     permissions:
       actions: read
-      contents: read
-      id-token: write
-      pages: write
-    environment:
-      name: github-pages
-      url: ${{ needs.allure-report.outputs.pages_report_url }}
+      contents: write
     outputs:
       page-url: ${{ needs.allure-report.outputs.pages_report_url }}
     steps:
@@ -407,30 +402,23 @@ jobs:
           --publish-path "${{ needs.allure-report.outputs.pages_path }}"
           --report-dir reports/allure-report
 
-      - name: Pack GitHub Pages artifact
-        shell: bash
-        run: bash scripts/github/pack-pages-artifact.sh reports/pages-site-next "${RUNNER_TEMP}/github-pages.tar"
-
-      - name: Upload GitHub Pages artifact
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: github-pages
-          path: ${{ runner.temp }}/github-pages.tar
-          if-no-files-found: error
-          retention-days: 1
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        run: >-
-          node scripts/github/deploy-pages-artifact.js
-          --artifact-name github-pages
-          --pages-build-version "${GITHUB_SHA}"
-          --output-file "${GITHUB_OUTPUT}"
+      - name: Publish GitHub Pages branch
+        id: publish
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          PAGE_COMMIT_MESSAGE: >-
+            docs: publish ${{ needs.allure-report.outputs.report_kind }} report for ${{ github.sha }}
+        run: >-
+          node scripts/github/publish-pages-branch.js
+          --site-dir reports/pages-site-next
+          --branch gh-pages
+          --commit-message "${PAGE_COMMIT_MESSAGE}"
+          --output-file "${GITHUB_OUTPUT}"
 
       - name: Write GitHub Pages summary
         env:
+          PAGE_BRANCH: ${{ steps.publish.outputs.branch || 'gh-pages' }}
+          PAGE_CHANGED: ${{ steps.publish.outputs.changed || 'false' }}
+          PAGE_COMMIT_SHA: ${{ steps.publish.outputs.commit_sha || '' }}
           PAGE_PATH: ${{ needs.allure-report.outputs.pages_path || '/' }}
           PAGE_URL: ${{ needs.allure-report.outputs.pages_report_url }}
           REPORT_KIND: ${{ needs.allure-report.outputs.report_kind }}
