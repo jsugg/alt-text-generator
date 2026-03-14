@@ -29,7 +29,10 @@ const {
   buildPublicProviderValidationFixtureUrls,
 } = require('./postman/provider-validation-public-fixtures');
 const {
+  DEFAULT_MAX_RESPONSE_TIME_MS,
   DEFAULT_NEWMAN_TIMEOUT_REQUEST_MS,
+  PROVIDER_VALIDATION_APP_REQUEST_TIMEOUT_MS,
+  resolveMaxResponseTimeMs,
   resolveNewmanTimeoutRequestMs,
 } = require('./postman/harness-timeouts');
 
@@ -249,6 +252,7 @@ function buildAppServerEnv({
  *   envPath?: string,
  *   envVars?: string[],
  *   extraArgs?: string[],
+ *   maxResponseTimeMs?: number,
  *   timeoutRequestMs?: number,
  * }} options
  * @returns {Promise<void>}
@@ -261,6 +265,7 @@ function runNewman(
     envPath = ENV_PATH,
     envVars = [],
     extraArgs = [],
+    maxResponseTimeMs = DEFAULT_MAX_RESPONSE_TIME_MS,
     timeoutRequestMs = DEFAULT_NEWMAN_TIMEOUT_REQUEST_MS,
   } = {},
 ) {
@@ -307,7 +312,7 @@ function runNewman(
     '--env-var',
     'model=azure',
     '--env-var',
-    'maxResponseTimeMs=1500',
+    `maxResponseTimeMs=${maxResponseTimeMs}`,
     ...envVars.flatMap((envVar) => ['--env-var', envVar]),
     '--timeout-request',
     String(timeoutRequestMs),
@@ -428,7 +433,9 @@ async function main() {
   let appOpenAiApiKey = null;
   let appHfApiKey = null;
   let appOpenRouterApiKey = null;
-  const providerIntegrationScraperRequestTimeoutMs = providerIntegrationModeEnabled ? '30000' : null;
+  const providerIntegrationScraperRequestTimeoutMs = providerIntegrationModeEnabled
+    ? String(PROVIDER_VALIDATION_APP_REQUEST_TIMEOUT_MS)
+    : null;
   const providerIntegrationPageDescriptionConcurrency = providerIntegrationModeEnabled ? '1' : null;
 
   if (providerIntegrationModeEnabled) {
@@ -647,8 +654,11 @@ async function main() {
               ...providerPlan.envVars,
             ],
             extraArgs: ['--insecure'],
+            maxResponseTimeMs: resolveMaxResponseTimeMs({
+              providerValidationModeEnabled: providerIntegrationModeEnabled,
+            }),
             timeoutRequestMs: resolveNewmanTimeoutRequestMs({
-              providerIntegrationModeEnabled,
+              providerValidationModeEnabled: providerIntegrationModeEnabled,
             }),
           },
         )),

@@ -23,6 +23,10 @@ const {
   resolveAllureResultsDir,
 } = require('./postman/newman-reporting');
 const {
+  resolveMaxResponseTimeMs,
+  resolveNewmanTimeoutRequestMs,
+} = require('./postman/harness-timeouts');
+const {
   normalizeBaseUrl,
   resolveProductionDeployAuthConfig,
   waitForStableDeploy,
@@ -183,7 +187,9 @@ function buildLiveProviderEnvVars(
     providerValidationPageUrl,
     providerValidationAzureImageUrl: providerValidationImageUrl,
     providerValidationAzurePageUrl: providerValidationPageUrl,
-    maxResponseTimeMs: '30000',
+    maxResponseTimeMs: String(resolveMaxResponseTimeMs({
+      providerValidationModeEnabled: true,
+    })),
   };
 }
 
@@ -225,7 +231,9 @@ function buildLiveProviderNewmanArgs(
     ...envVarArgs,
     ...providerEnvVars.flatMap((envVar) => ['--env-var', envVar]),
     '--timeout-request',
-    '45000',
+    String(resolveNewmanTimeoutRequestMs({
+      providerValidationModeEnabled: true,
+    })),
     '--timeout-script',
     '10000',
     ...buildNewmanReporterArgs({
