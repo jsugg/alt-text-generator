@@ -2,6 +2,7 @@ const OpenAiCompatibleVisionDescriberService = require('../../../src/services/Op
 
 const mockLogger = {
   info: jest.fn(),
+  warn: jest.fn(),
   debug: jest.fn(),
   error: jest.fn(),
 };
@@ -142,6 +143,66 @@ describe('Unit | Services | OpenAI Compatible Vision Describer Service', () => {
     });
     expect(apiClient.post.mock.calls[1][1].messages[0].content[1].image_url.url)
       .toMatch(/^data:image\/png;base64,/);
+  });
+
+  it('retries retryable upstream errors before succeeding', async () => {
+    const retryableError = new Error('rate limited');
+    retryableError.code = 'ERR_BAD_REQUEST';
+    retryableError.response = {
+      status: 429,
+      headers: {
+        'retry-after': '1',
+      },
+    };
+    const apiClient = {
+      post: jest.fn()
+        .mockRejectedValueOnce(retryableError)
+        .mockResolvedValueOnce({
+          data: {
+            choices: [
+              {
+                message: {
+                  content: 'a retried caption',
+                },
+              },
+            ],
+          },
+        }),
+    };
+    const wait = jest.fn().mockResolvedValue();
+    const svc = new OpenAiCompatibleVisionDescriberService({
+      logger: mockLogger,
+      httpClient: {
+        get: jest.fn(),
+      },
+      apiClient,
+      providerConfig: mockProviderConfig,
+      providerKey: 'openrouter',
+      providerName: 'OpenRouter Vision',
+      requestOptions: {
+        timeout: 1500,
+      },
+      sleep: wait,
+    });
+
+    const result = await svc.describeImage('https://example.com/retry.png');
+
+    expect(result).toEqual({
+      description: 'a retried caption',
+      imageUrl: 'https://example.com/retry.png',
+    });
+    expect(apiClient.post).toHaveBeenCalledTimes(2);
+    expect(wait).toHaveBeenCalledWith(1000);
+    expect(mockLogger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        attemptNumber: 1,
+        delayMs: 1000,
+        maxAttempts: 3,
+        model: 'vision-model',
+        provider: 'openrouter',
+      }),
+      'OpenRouter Vision request failed, retrying',
+    );
   });
 
   it('marks image download failures as skippable after a fallback fetch', () => {

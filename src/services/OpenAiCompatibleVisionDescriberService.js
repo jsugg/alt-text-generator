@@ -12,10 +12,20 @@ const SUPPORTED_IMAGE_EXTENSIONS = new Set([
   '.bmp',
 ]);
 const UNSUPPORTED_CONTENT_TYPES = new Set(['image/svg+xml']);
+const RETRYABLE_STATUS_CODES = new Set([408, 409, 425, 429, 500, 502, 503, 504]);
+const RETRYABLE_ERROR_CODES = new Set(['ECONNRESET']);
+const DEFAULT_REQUEST_ATTEMPTS = 3;
+const RETRY_BASE_DELAY_MS = 1000;
+const RETRY_MAX_DELAY_MS = 5000;
+const RETRY_JITTER_MS = 250;
 
 const toDataUrl = ({ buffer, contentType }) => (
   `data:${contentType || 'application/octet-stream'};base64,${buffer.toString('base64')}`
 );
+
+const sleep = (ms) => new Promise((resolve) => {
+  setTimeout(resolve, ms);
+});
 
 const shouldRetryWithDataUrl = (error) => {
   const status = error?.response?.status;
@@ -85,6 +95,51 @@ const isSupportedImageSource = (imageUrl) => {
   return SUPPORTED_IMAGE_EXTENSIONS.has(imageExtension);
 };
 
+const parseRetryAfterMs = (error) => {
+  const retryAfterHeader = error?.response?.headers?.['retry-after'];
+  const retryAfterValue = Array.isArray(retryAfterHeader) ? retryAfterHeader[0] : retryAfterHeader;
+
+  if (typeof retryAfterValue !== 'string') {
+    return null;
+  }
+
+  const retryAfterSeconds = Number.parseInt(retryAfterValue, 10);
+  if (Number.isInteger(retryAfterSeconds) && retryAfterSeconds > 0) {
+    return retryAfterSeconds * 1000;
+  }
+
+  const retryAfterTimestamp = Date.parse(retryAfterValue);
+  if (Number.isNaN(retryAfterTimestamp)) {
+    return null;
+  }
+
+  return Math.max(retryAfterTimestamp - Date.now(), 0);
+};
+
+const isRetryableRequestError = (error) => {
+  const status = error?.response?.status;
+  if (RETRYABLE_STATUS_CODES.has(status)) {
+    return true;
+  }
+
+  return RETRYABLE_ERROR_CODES.has(error?.code);
+};
+
+const getRetryDelayMs = (error, attemptNumber) => {
+  const retryAfterMs = parseRetryAfterMs(error);
+  if (retryAfterMs !== null) {
+    return Math.min(retryAfterMs, RETRY_MAX_DELAY_MS);
+  }
+
+  const backoffDelayMs = Math.min(
+    RETRY_BASE_DELAY_MS * (2 ** Math.max(attemptNumber - 1, 0)),
+    RETRY_MAX_DELAY_MS,
+  );
+  const jitterMs = Math.floor(Math.random() * RETRY_JITTER_MS);
+
+  return Math.min(backoffDelayMs + jitterMs, RETRY_MAX_DELAY_MS);
+};
+
 /**
  * Multimodal describer for OpenAI-compatible chat-completions APIs.
  */
@@ -107,6 +162,7 @@ class OpenAiCompatibleVisionDescriberService {
     providerKey,
     providerName,
     requestOptions = {},
+    sleep: wait = sleep,
   }) {
     this.logger = logger;
     this.httpClient = httpClient;
@@ -120,6 +176,8 @@ class OpenAiCompatibleVisionDescriberService {
     this.prompt = providerConfig.prompt;
     this.headers = providerConfig.headers ?? {};
     this.requestOptions = requestOptions;
+    this.requestAttempts = providerConfig.requestAttempts ?? DEFAULT_REQUEST_ATTEMPTS;
+    this.sleep = wait;
 
     if (!this.endpoint || !this.apiKey || !this.model) {
       throw new Error(
@@ -157,27 +215,47 @@ class OpenAiCompatibleVisionDescriberService {
     };
   }
 
-  async requestCaption(imageInput, imageUrl) {
-    const response = await this.apiClient.post(
-      this.buildChatUrl(),
-      this.buildRequestBody(imageInput),
-      {
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json',
-          ...this.headers,
+  async requestCaption(imageInput, imageUrl, attemptNumber = 1) {
+    try {
+      const response = await this.apiClient.post(
+        this.buildChatUrl(),
+        this.buildRequestBody(imageInput),
+        {
+          headers: {
+            Authorization: `Bearer ${this.apiKey}`,
+            'Content-Type': 'application/json',
+            ...this.headers,
+          },
+          timeout: this.requestOptions.timeout,
         },
-        timeout: this.requestOptions.timeout,
-      },
-    );
+      );
 
-    const description = extractCaptionText(response?.data);
+      const description = extractCaptionText(response?.data);
 
-    if (!description) {
-      throw new Error(`${this.providerName} provider returned no caption text`);
+      if (!description) {
+        throw new Error(`${this.providerName} provider returned no caption text`);
+      }
+
+      return { description, imageUrl };
+    } catch (error) {
+      if (!isRetryableRequestError(error) || attemptNumber >= this.requestAttempts) {
+        throw error;
+      }
+
+      const delayMs = getRetryDelayMs(error, attemptNumber);
+      this.logger.warn?.({
+        provider: this.providerKey,
+        imageUrl,
+        model: this.model,
+        attemptNumber,
+        maxAttempts: this.requestAttempts,
+        delayMs,
+        upstream: getUpstreamErrorSummary(error),
+      }, `${this.providerName} request failed, retrying`);
+      await this.sleep(delayMs);
+
+      return this.requestCaption(imageInput, imageUrl, attemptNumber + 1);
     }
-
-    return { description, imageUrl };
   }
 
   static supportsImageSource(imageUrl) {

@@ -4,12 +4,24 @@ const {
   buildNewmanReporterArgs,
   resolveAllureResultsDir,
 } = require('../../scripts/postman/newman-reporting');
-const { resolveNewmanTimeoutRequestMs } = require('../../scripts/postman/harness-timeouts');
+const {
+  DEFAULT_MAX_RESPONSE_TIME_MS,
+  PROVIDER_VALIDATION_APP_REQUEST_TIMEOUT_MS,
+  PROVIDER_VALIDATION_MAX_RESPONSE_TIME_MS,
+  PROVIDER_VALIDATION_NEWMAN_TIMEOUT_REQUEST_MS,
+  resolveMaxResponseTimeMs,
+  resolveNewmanTimeoutRequestMs,
+} = require('../../scripts/postman/harness-timeouts');
 
 describe('Unit | Postman Harness Reporting', () => {
-  it('uses the longer Newman request timeout in provider-integration mode', () => {
+  it('uses provider-validation budgets only for provider-validation runs', () => {
+    expect(resolveMaxResponseTimeMs()).toBe(DEFAULT_MAX_RESPONSE_TIME_MS);
+    expect(resolveMaxResponseTimeMs({ providerValidationModeEnabled: true }))
+      .toBe(PROVIDER_VALIDATION_MAX_RESPONSE_TIME_MS);
     expect(resolveNewmanTimeoutRequestMs()).toBe(10000);
-    expect(resolveNewmanTimeoutRequestMs({ providerIntegrationModeEnabled: true })).toBe(45000);
+    expect(resolveNewmanTimeoutRequestMs({ providerValidationModeEnabled: true }))
+      .toBe(PROVIDER_VALIDATION_NEWMAN_TIMEOUT_REQUEST_MS);
+    expect(PROVIDER_VALIDATION_APP_REQUEST_TIMEOUT_MS).toBe(90000);
   });
 
   it('keeps the existing CLI, JSON, and JUnit reporters by default', () => {

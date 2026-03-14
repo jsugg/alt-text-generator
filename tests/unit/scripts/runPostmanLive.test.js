@@ -5,6 +5,10 @@ const {
   isPrivateHostname,
   parseArgs,
 } = require('../../../scripts/run-postman-live');
+const {
+  PROVIDER_VALIDATION_MAX_RESPONSE_TIME_MS,
+  PROVIDER_VALIDATION_NEWMAN_TIMEOUT_REQUEST_MS,
+} = require('../../../scripts/postman/harness-timeouts');
 
 describe('Unit | Scripts | Run Postman Live', () => {
   describe('parseArgs', () => {
@@ -63,7 +67,7 @@ describe('Unit | Scripts | Run Postman Live', () => {
         providerValidationPageUrl: 'https://wcag.qcraft.com.br/provider-validation/page',
         providerValidationAzureImageUrl: 'https://wcag.qcraft.com.br/provider-validation/assets/a.png',
         providerValidationAzurePageUrl: 'https://wcag.qcraft.com.br/provider-validation/page',
-        maxResponseTimeMs: '30000',
+        maxResponseTimeMs: String(PROVIDER_VALIDATION_MAX_RESPONSE_TIME_MS),
       });
     });
   });
@@ -91,6 +95,8 @@ describe('Unit | Scripts | Run Postman Live', () => {
         'providerValidationPageUrl=https://wcag.qcraft.com.br/provider-validation/page',
         '--env-var',
         'model=openai',
+        '--timeout-request',
+        String(PROVIDER_VALIDATION_NEWMAN_TIMEOUT_REQUEST_MS),
         '--folder',
         '90 Provider Validation',
       ]));
