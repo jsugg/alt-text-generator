@@ -1,0 +1,1 @@
+{"error":"Missing required query parameters: url and model","code":"QUERY_VALIDATION_ERROR","requestId":"23bb7cd4-10f0-433f-9cb7-7fce6d0d7ac2","details":[{"field":"url","issue":"required"}]}

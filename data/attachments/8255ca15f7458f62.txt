@@ -1,1 +1,0 @@
-{"error":"Unknown model 'unknownmodel'. Available models: clip, azure, huggingface, openai, openrouter","code":"UNKNOWN_MODEL","requestId":"17dd9dff-9717-4302-bd30-5ea05c01f844","details":[{"field":"model","issue":"unsupported_value"}]}
