@@ -149,14 +149,12 @@ describe('Unit | Scripts | Postman | Provider Validation Scope', () => {
       ]);
     });
 
-    it('adds provider-integration overrides only in provider-integration mode', () => {
+    it('keeps provider-specific request env vars in provider-integration mode', () => {
       expect(getSelectedProviderPlans('openai', { mode: 'provider-integration' })).toEqual([
         {
           folderName: '90 Provider Validation',
           envVars: [
             'model=openai',
-            'providerValidationImageUrl=http://127.0.0.1:19090/assets/a.png',
-            'providerValidationPageUrl=http://127.0.0.1:19090/fixtures/page-with-images',
           ],
           scopeKey: 'openai',
         },

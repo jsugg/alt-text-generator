@@ -25,6 +25,9 @@ const {
   buildNewmanReporterArgs,
   resolveAllureResultsDir,
 } = require('./postman/newman-reporting');
+const {
+  buildPublicProviderValidationFixtureUrls,
+} = require('./postman/provider-validation-public-fixtures');
 
 const ROOT = path.resolve(__dirname, '..');
 const COLLECTION_PATH = path.join(
@@ -256,6 +259,7 @@ function runNewman(
   } = {},
 ) {
   const folderArgs = folders.flatMap((folder) => ['--folder', folder]);
+  const publicProviderValidationFixtures = buildPublicProviderValidationFixtureUrls();
 
   const args = [
     '--no-install',
@@ -287,13 +291,13 @@ function runNewman(
     '--env-var',
     `expectedSwaggerServerUrl=https://localhost:${APP_HTTPS_PORT}`,
     '--env-var',
-    'providerValidationImageUrl=https://upload.wikimedia.org/wikipedia/commons/3/3f/Fronalpstock_big.jpg',
+    `providerValidationImageUrl=${publicProviderValidationFixtures.providerValidationImageUrl}`,
     '--env-var',
-    'providerValidationPageUrl=https://developer.chrome.com/',
+    `providerValidationPageUrl=${publicProviderValidationFixtures.providerValidationPageUrl}`,
     '--env-var',
-    'providerValidationAzureImageUrl=https://developer.chrome.com/static/images/ai-homepage-card.png',
+    `providerValidationAzureImageUrl=${publicProviderValidationFixtures.providerValidationAzureImageUrl}`,
     '--env-var',
-    'providerValidationAzurePageUrl=https://developer.chrome.com/',
+    `providerValidationAzurePageUrl=${publicProviderValidationFixtures.providerValidationAzurePageUrl}`,
     '--env-var',
     'model=azure',
     '--env-var',

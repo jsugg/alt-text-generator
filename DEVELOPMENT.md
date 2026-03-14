@@ -105,6 +105,8 @@ The repository uses a small workflow set with separate responsibilities:
   - runs `npm run postman:provider-integration`
   - uses the same `LIVE_PROVIDER_SCOPE` enum as hosted live validation
   - boots the local app and local fixture server, then exercises real provider credentials where available
+  - uses repo-owned public provider-validation fixtures, pinned to `GITHUB_SHA` in GitHub Actions when available
+  - for local ad hoc runs before merge, `PROVIDER_VALIDATION_PUBLIC_REF=<pushed-sha-or-ref>` pins the public fixture revision explicitly
   - never targets the deployed Render service and should be interpreted as local provider-integration coverage only
 - `Deploy Verification` in `.github/workflows/deploy-verification.yml`
   - runs automatically on `production` pushes

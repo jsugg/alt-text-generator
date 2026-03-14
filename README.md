@@ -86,7 +86,7 @@ Notes:
 - `postman:smoke` is the fast deterministic gate.
 - `postman:harness` runs the full deterministic suite, including protected-endpoint auth coverage, and writes JSON and JUnit reports under `reports/newman/`.
 - CI also emits `reports/jest/junit.xml` from the canonical Node 20 Jest lane and publishes one combined GitHub test report that joins Jest and Newman results.
-- `postman:provider-integration` is the local provider-integration harness: it boots the app locally, uses deterministic fixtures when appropriate, and validates real provider credentials plus request/response wiring without claiming hosted coverage.
+- `postman:provider-integration` is the local provider-integration harness: it boots the app locally, uses deterministic local fixtures for the core contract suite, and uses repo-owned public provider-validation fixtures for real vendor coverage without claiming hosted coverage.
 - `postman:live` is optional and reserved for explicit hosted live-provider validation against a deployed base URL.
 - `postman:deploy` runs the hosted production-smoke folder from the same Postman collection against a supplied base URL.
 - Before Newman starts, `postman:deploy` waits for consecutive stable health/auth probes so zero-downtime rollout overlap does not create deploy-smoke false negatives.
@@ -95,6 +95,8 @@ Notes:
 - Deploy verification also reads `PRODUCTION_API_AUTH_ENABLED` and `PRODUCTION_DEPLOY_VALIDATION_API_TOKEN` from the GitHub Actions environment so hosted protected-endpoint checks can verify the expected Render `API_AUTH_ENABLED` / `API_AUTH_TOKENS` state.
 - Provider-validation workflows use a single `LIVE_PROVIDER_SCOPE` enum: `auto`, `azure`, `replicate`, `huggingface`, `openai`, `openrouter`, or `all`.
 - `LIVE_PROVIDER_SCOPE=auto` keeps the provider-validation preference order: Azure, then Replicate, then Hugging Face, then OpenRouter, then OpenAI.
+- Provider integration resolves public provider-validation fixtures from this repository and pins them to `GITHUB_SHA` in GitHub Actions when available.
+- Outside GitHub Actions, set `PROVIDER_VALIDATION_PUBLIC_REF=<pushed-sha-or-ref>` if you need provider-integration runs to use a branch-specific fixture revision before it lands on `main`.
 - Hosted live-provider validation derives public validation fixtures from the target `baseUrl` and refuses localhost/private-network targets.
 - Provider-validation runs upload Newman artifacts and append request, assertion, failure, and response-time metrics to the GitHub Actions step summary.
 - Local harness runs accept self-signed development TLS.
