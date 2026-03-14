@@ -1,0 +1,1 @@
+[{"description":"openai stub caption","imageUrl":"http://127.0.0.1:19090/provider-validation/assets/a.png"}]

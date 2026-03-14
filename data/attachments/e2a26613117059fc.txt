@@ -1,1 +1,0 @@
-{"error":"Unknown model 'unknownmodel'. Available models: clip, azure","code":"UNKNOWN_MODEL","requestId":"4a71a55f-e9b1-48b8-896d-1127c22955fd","details":[{"field":"model","issue":"unsupported_value"}]}
