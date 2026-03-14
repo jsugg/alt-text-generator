@@ -10,15 +10,18 @@ describe('Unit | Workflows | Allure Pages Publish', () => {
     expect(workflowContents).toContain('workflow_dispatch:');
     expect(workflowContents).toContain('- CI');
     expect(workflowContents).toContain('run_id:');
+    expect(workflowContents).toContain('uses: actions/checkout@');
     expect(workflowContents).toContain('name: allure-pages-site');
     expect(workflowContents).toContain('name: allure-pages-metadata');
     expect(workflowContents).toContain('name: Resolve source workflow run');
     expect(workflowContents).toContain('node scripts/github/resolve-pages-source-run.js');
     expect(workflowContents).toContain('node scripts/github/read-pages-metadata.js');
+    expect(workflowContents).toContain('node scripts/github/sync-pages-state-branch.js');
     expect(workflowContents).toMatch(/run-id: \$\{\{ steps\.source-run\.outputs\.run_id \}\}/u);
     expect(workflowContents).toContain('actions/upload-pages-artifact@');
     expect(workflowContents).toContain('actions/deploy-pages@');
     expect(workflowContents).toContain('name: github-pages');
+    expect(workflowContents).toContain('contents: write');
     expect(workflowContents).not.toContain("if: github.event.workflow_run.conclusion == 'success'");
   });
 });

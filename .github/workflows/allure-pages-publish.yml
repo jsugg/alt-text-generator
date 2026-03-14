@@ -15,7 +15,7 @@ on:
 
 permissions:
   actions: read
-  contents: read
+  contents: write
   id-token: write
   pages: write
 
@@ -30,6 +30,9 @@ jobs:
     environment:
       name: github-pages
     steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
       - name: Resolve source workflow run
         id: source-run
         env:
@@ -87,6 +90,15 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
 
+      - name: Sync Pages state branch
+        if: steps.detect.outputs.found == 'true'
+        id: branch-sync
+        run: >-
+          node scripts/github/sync-pages-state-branch.js
+          --site-dir reports/pages-site
+          --commit-message "docs: sync allure pages site for ${{ steps.metadata.outputs.report_kind || 'not-published' }} from run ${{ steps.source-run.outputs.run_id }}"
+          --output-file "${GITHUB_OUTPUT}"
+
       - name: Write GitHub Pages summary
         if: always()
         env:
@@ -100,4 +112,7 @@ jobs:
           SOURCE_EVENT: ${{ steps.source-run.outputs.source_event || github.event_name }}
           SOURCE_RUN_CONCLUSION: ${{ steps.source-run.outputs.workflow_conclusion || 'not-available' }}
           SOURCE_RUN_ID: ${{ steps.source-run.outputs.run_id || 'unknown' }}
+          STATE_BRANCH: ${{ steps.branch-sync.outputs.branch || 'gh-pages' }}
+          STATE_BRANCH_CHANGED: ${{ steps.branch-sync.outputs.changed || 'false' }}
+          STATE_BRANCH_COMMIT_SHA: ${{ steps.branch-sync.outputs.commit_sha || '' }}
         run: bash scripts/github/write-pages-summary.sh "$GITHUB_STEP_SUMMARY"
