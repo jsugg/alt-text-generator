@@ -137,6 +137,24 @@ function remoteBranchRef(branch) {
  *   branch: string,
  *   repoDir: string,
  * }} options
+ * @returns {void}
+ */
+function fetchRemoteBranch({
+  branch,
+  repoDir,
+}) {
+  runGit({
+    allowFailure: true,
+    args: ['fetch', 'origin', `${branch}:${remoteBranchRef(branch)}`],
+    cwd: repoDir,
+  });
+}
+
+/**
+ * @param {{
+ *   branch: string,
+ *   repoDir: string,
+ * }} options
  * @returns {boolean}
  */
 function hasRemoteBranch({
@@ -222,6 +240,10 @@ async function syncPagesStateBranch({
   siteDir,
 }) {
   const worktreeDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'sync-pages-state-branch-'));
+  fetchRemoteBranch({
+    branch,
+    repoDir,
+  });
   const remoteBranchExists = hasRemoteBranch({
     branch,
     repoDir,
@@ -322,6 +344,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  fetchRemoteBranch,
   hasRemoteBranch,
   hasStagedChanges,
   parseArgs,

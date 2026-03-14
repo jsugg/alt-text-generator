@@ -4,6 +4,7 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 
 const {
+  fetchRemoteBranch,
   hasRemoteBranch,
   hasStagedChanges,
   parseArgs,
@@ -205,6 +206,65 @@ describe('Unit | Scripts | GitHub | Sync Pages State Branch', () => {
       expect(thirdSync.changed).toBe(true);
 
       runGit(publishedCloneDir, ['pull', '--ff-only']);
+      await expect(fs.readFile(path.join(publishedCloneDir, 'index.html'), 'utf8')).resolves.toBe('second-report');
+    } finally {
+      await fs.rm(rootDir, {
+        force: true,
+        recursive: true,
+      });
+    }
+  });
+
+  it('fetches and updates an existing remote state branch that is not present locally yet', async () => {
+    const {
+      repoDir,
+      rootDir,
+      siteDir,
+    } = await createRemoteRepo();
+
+    try {
+      await writeFile(path.join(siteDir, 'index.html'), 'first-report');
+      await writeFile(path.join(siteDir, '.nojekyll'), '');
+
+      await syncPagesStateBranch({
+        branch: 'gh-pages',
+        commitMessage: 'docs: sync first report',
+        repoDir,
+        siteDir,
+      });
+
+      const freshCloneDir = path.join(rootDir, 'fresh-clone');
+      runGit(rootDir, ['clone', path.join(rootDir, 'remote.git'), freshCloneDir]);
+      runGit(freshCloneDir, ['update-ref', '-d', 'refs/remotes/origin/gh-pages']);
+
+      expect(hasRemoteBranch({
+        branch: 'gh-pages',
+        repoDir: freshCloneDir,
+      })).toBe(false);
+
+      fetchRemoteBranch({
+        branch: 'gh-pages',
+        repoDir: freshCloneDir,
+      });
+
+      expect(hasRemoteBranch({
+        branch: 'gh-pages',
+        repoDir: freshCloneDir,
+      })).toBe(true);
+
+      await writeFile(path.join(siteDir, 'index.html'), 'second-report');
+
+      const syncResult = await syncPagesStateBranch({
+        branch: 'gh-pages',
+        commitMessage: 'docs: sync second report',
+        repoDir: freshCloneDir,
+        siteDir,
+      });
+
+      expect(syncResult.changed).toBe(true);
+
+      const publishedCloneDir = path.join(rootDir, 'published-state');
+      runGit(rootDir, ['clone', '--branch', 'gh-pages', path.join(rootDir, 'remote.git'), publishedCloneDir]);
       await expect(fs.readFile(path.join(publishedCloneDir, 'index.html'), 'utf8')).resolves.toBe('second-report');
     } finally {
       await fs.rm(rootDir, {
