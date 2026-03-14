@@ -28,6 +28,10 @@ const {
 const {
   buildPublicProviderValidationFixtureUrls,
 } = require('./postman/provider-validation-public-fixtures');
+const {
+  DEFAULT_NEWMAN_TIMEOUT_REQUEST_MS,
+  resolveNewmanTimeoutRequestMs,
+} = require('./postman/harness-timeouts');
 
 const ROOT = path.resolve(__dirname, '..');
 const COLLECTION_PATH = path.join(
@@ -245,6 +249,7 @@ function buildAppServerEnv({
  *   envPath?: string,
  *   envVars?: string[],
  *   extraArgs?: string[],
+ *   timeoutRequestMs?: number,
  * }} options
  * @returns {Promise<void>}
  */
@@ -256,6 +261,7 @@ function runNewman(
     envPath = ENV_PATH,
     envVars = [],
     extraArgs = [],
+    timeoutRequestMs = DEFAULT_NEWMAN_TIMEOUT_REQUEST_MS,
   } = {},
 ) {
   const folderArgs = folders.flatMap((folder) => ['--folder', folder]);
@@ -304,7 +310,7 @@ function runNewman(
     'maxResponseTimeMs=1500',
     ...envVars.flatMap((envVar) => ['--env-var', envVar]),
     '--timeout-request',
-    '10000',
+    String(timeoutRequestMs),
     '--timeout-script',
     '10000',
     ...buildNewmanReporterArgs({
@@ -641,6 +647,9 @@ async function main() {
               ...providerPlan.envVars,
             ],
             extraArgs: ['--insecure'],
+            timeoutRequestMs: resolveNewmanTimeoutRequestMs({
+              providerIntegrationModeEnabled,
+            }),
           },
         )),
         Promise.resolve(),

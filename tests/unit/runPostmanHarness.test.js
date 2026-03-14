@@ -4,8 +4,14 @@ const {
   buildNewmanReporterArgs,
   resolveAllureResultsDir,
 } = require('../../scripts/postman/newman-reporting');
+const { resolveNewmanTimeoutRequestMs } = require('../../scripts/postman/harness-timeouts');
 
 describe('Unit | Postman Harness Reporting', () => {
+  it('uses the longer Newman request timeout in provider-integration mode', () => {
+    expect(resolveNewmanTimeoutRequestMs()).toBe(10000);
+    expect(resolveNewmanTimeoutRequestMs({ providerIntegrationModeEnabled: true })).toBe(45000);
+  });
+
   it('keeps the existing CLI, JSON, and JUnit reporters by default', () => {
     const args = buildNewmanReporterArgs({
       label: 'smoke',
