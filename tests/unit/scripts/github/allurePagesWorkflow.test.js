@@ -32,5 +32,6 @@ describe('Unit | Workflows | CI Allure Pages', () => {
     expect(workflowContents).toContain('needs.allure-pages.result == \'success\'');
     expect(workflowContents).toContain('github.event.pull_request.head.repo.full_name == github.repository');
     expect(workflowContents).toContain('node scripts/github/dispatch-pages-publish.js');
+    expect(workflowContents).toContain('--ref "main"');
   });
 });

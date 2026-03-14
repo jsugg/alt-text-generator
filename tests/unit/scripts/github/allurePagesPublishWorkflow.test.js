@@ -16,6 +16,7 @@ describe('Unit | Workflows | Allure Pages Publish', () => {
     expect(workflowContents).toContain('name: allure-pages-metadata');
     expect(workflowContents).toContain('name: Resolve source workflow run');
     expect(workflowContents).toContain('node scripts/github/resolve-pages-source-run.js');
+    expect(workflowContents).toMatch(/GITHUB_TOKEN: \$\{\{ github\.token \}\}/u);
     expect(workflowContents).toContain('node scripts/github/read-pages-metadata.js');
     expect(workflowContents).toContain('node scripts/github/sync-pages-state-branch.js');
     expect(workflowContents).toMatch(/run-id: \$\{\{ steps\.source-run\.outputs\.run_id \}\}/u);

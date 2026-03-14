@@ -3,6 +3,8 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
 
+const PRESERVED_ROOT_ENTRIES = ['pr'];
+
 /**
  * @param {string[]} argv
  * @returns {{
@@ -105,6 +107,25 @@ async function copyDirectory(sourceDir, destinationDir) {
     force: true,
     recursive: true,
   });
+}
+
+/**
+ * @param {{
+ *   destinationDir: string,
+ *   entryNames: string[],
+ *   sourceDir: string,
+ * }} options
+ * @returns {Promise<void>}
+ */
+async function copyNamedEntries({
+  destinationDir,
+  entryNames,
+  sourceDir,
+}) {
+  await Promise.all(entryNames.map((entryName) => copyDirectory(
+    path.join(sourceDir, entryName),
+    path.join(destinationDir, entryName),
+  )));
 }
 
 /**
@@ -259,13 +280,22 @@ async function composePagesSite({
   });
   await fs.mkdir(outputDir, { recursive: true });
 
-  await copyDirectory(existingSiteDir, outputDir);
-  await fs.rm(targetDir, {
-    force: true,
-    recursive: true,
-  });
-  await fs.mkdir(path.dirname(targetDir), { recursive: true });
-  await copyDirectory(reportDir, targetDir);
+  if (normalizedPublishPath) {
+    await copyDirectory(existingSiteDir, outputDir);
+    await fs.rm(targetDir, {
+      force: true,
+      recursive: true,
+    });
+    await fs.mkdir(path.dirname(targetDir), { recursive: true });
+    await copyDirectory(reportDir, targetDir);
+  } else {
+    await copyDirectory(reportDir, outputDir);
+    await copyNamedEntries({
+      destinationDir: outputDir,
+      entryNames: PRESERVED_ROOT_ENTRIES,
+      sourceDir: existingSiteDir,
+    });
+  }
 
   await fs.writeFile(path.join(outputDir, '.nojekyll'), '', 'utf8');
   if (normalizedPublishPath) {

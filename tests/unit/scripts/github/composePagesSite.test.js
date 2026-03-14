@@ -88,6 +88,7 @@ describe('Unit | Scripts | GitHub | Compose Pages Site', () => {
 
     await writeFile(path.join(existingSiteDir, 'index.html'), 'old-main');
     await writeFile(path.join(existingSiteDir, 'history', 'old.json'), '{"history":true}');
+    await writeFile(path.join(existingSiteDir, 'pr', '111', 'index.html'), 'existing-pr');
     await writeFile(path.join(reportDir, 'index.html'), 'new-main');
     await writeFile(path.join(reportDir, 'data', 'widgets.json'), '{"widgets":true}');
 
@@ -100,6 +101,9 @@ describe('Unit | Scripts | GitHub | Compose Pages Site', () => {
 
     await expect(fs.readFile(path.join(outputDir, 'index.html'), 'utf8')).resolves.toBe('new-main');
     await expect(fs.readFile(path.join(outputDir, 'data', 'widgets.json'), 'utf8')).resolves.toBe('{"widgets":true}');
+    await expect(fs.readFile(path.join(outputDir, 'pr', '111', 'index.html'), 'utf8')).resolves.toBe('existing-pr');
+    await expect(fs.readFile(path.join(outputDir, 'pr', 'index.html'), 'utf8')).resolves.toContain('PR #111');
+    await expect(fs.access(path.join(outputDir, 'history', 'old.json'))).rejects.toThrow();
     await expect(fs.readFile(path.join(outputDir, '.nojekyll'), 'utf8')).resolves.toBe('');
     expect(result.publishPath).toBe('');
     expect(result.targetDir).toBe(outputDir);
