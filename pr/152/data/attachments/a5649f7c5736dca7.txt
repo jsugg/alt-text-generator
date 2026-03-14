@@ -1,0 +1,90 @@
+const maxResponseTimeMs = Number(
+  pm.request.headers.get('X-Max-Response-Time-Ms') ||
+  pm.environment.get('maxResponseTimeMs') ||
+  '1500'
+);
+
+const expectedStatusCodeRaw = pm.request.headers.get('X-Expected-Status-Code') || '';
+
+if (/^\d+$/.test(expectedStatusCodeRaw)) {
+  const expectedStatusCode = Number(expectedStatusCodeRaw);
+  pm.test(`response status is exactly ${expectedStatusCode}`, function () {
+    pm.expect(pm.response.code, `unexpected status ${pm.response.code}`).to.eql(expectedStatusCode);
+  });
+}
+
+pm.test(`response time is below ${maxResponseTimeMs}ms`, function () {
+  pm.expect(pm.response.responseTime).to.be.below(maxResponseTimeMs);
+});
+
+const requestId =
+  pm.response.headers.get('X-Request-Id') ||
+  pm.response.headers.get('x-request-id') ||
+  '';
+
+pm.test('response exposes x-request-id header', function () {
+  pm.expect(requestId).to.be.a('string').and.not.empty;
+});
+
+const contentType =
+  pm.response.headers.get('Content-Type') ||
+  pm.response.headers.get('content-type') ||
+  '';
+
+const acceptHeader = pm.request.headers.get('Accept') || '';
+const requestPath = typeof pm.request.url.getPath === 'function'
+  ? pm.request.url.getPath()
+  : `/${(pm.request.url.path || []).join('/')}`;
+
+if (pm.response.code >= 300 && pm.response.code < 400) {
+  const locationHeader =
+    pm.response.headers.get('Location') ||
+    pm.response.headers.get('location') ||
+    '';
+
+  pm.test('redirect responses include a Location header', function () {
+    pm.expect(locationHeader).to.be.a('string').and.not.empty;
+  });
+}
+
+if (requestPath.startsWith('/api') && (pm.response.code < 300 || pm.response.code >= 400)) {
+  pm.test('API responses expose rate-limit headers', function () {
+    pm.expect(pm.response.headers.has('X-RateLimit-Limit') || pm.response.headers.has('x-ratelimit-limit')).to.eql(true);
+    pm.expect(pm.response.headers.has('X-RateLimit-Remaining') || pm.response.headers.has('x-ratelimit-remaining')).to.eql(true);
+    pm.expect(pm.response.headers.has('X-RateLimit-Reset') || pm.response.headers.has('x-ratelimit-reset')).to.eql(true);
+  });
+}
+
+if (acceptHeader.includes('application/json')) {
+  pm.test('JSON requests return JSON responses', function () {
+    pm.expect(contentType).to.include('application/json');
+  });
+}
+
+let jsonBody = null;
+
+if (contentType.includes('application/json')) {
+  pm.test('response body is valid JSON', function () {
+    pm.expect(() => {
+      jsonBody = pm.response.json();
+    }).not.to.throw();
+  });
+}
+
+if (jsonBody && pm.response.code >= 400) {
+  pm.test('error responses expose the public error contract', function () {
+    pm.expect(jsonBody).to.have.property('error').that.is.a('string').and.not.empty;
+    pm.expect(jsonBody).to.have.property('code').that.is.a('string').and.match(/^[A-Z0-9_]+$/);
+    pm.expect(jsonBody).to.have.property('requestId').that.is.a('string').and.not.empty;
+  });
+
+  pm.test('error response requestId matches the x-request-id header', function () {
+    pm.expect(jsonBody.requestId).to.eql(requestId);
+  });
+
+  pm.test('error responses do not leak stack traces', function () {
+    const serializedBody = JSON.stringify(jsonBody);
+    pm.expect(serializedBody).not.to.include('stack');
+    pm.expect(serializedBody).not.to.include('AxiosError');
+  });
+}
