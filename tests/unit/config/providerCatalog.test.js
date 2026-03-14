@@ -89,7 +89,7 @@ describe('Unit | Config | Provider Catalog', () => {
       together: {
         apiKey: 'together-key',
         baseUrl: 'https://api.together.xyz/v1',
-        model: 'meta-llama/Llama-4-Scout-17B-16E-Instruct',
+        model: 'Qwen/Qwen3-VL-8B-Instruct',
         maxTokens: 160,
         prompt: expect.any(String),
         headers: {},
@@ -156,6 +156,9 @@ describe('Unit | Config | Provider Catalog', () => {
     expect(validateProviderEnv({
       OPENROUTER_TITLE: 'Alt Text 4 All',
     })[0]).toMatch(/OPENROUTER_API_KEY/);
+    expect(validateProviderEnv({
+      TOGETHER_MODEL: 'Qwen/Qwen3-VL-8B-Instruct',
+    })[0]).toMatch(/TOGETHER_API_KEY/);
     expect(getProviderCatalog().map((provider) => provider.key)).toEqual([
       'clip',
       'azure',
@@ -167,13 +170,14 @@ describe('Unit | Config | Provider Catalog', () => {
     ]);
     expect(
       getProviderValidationProviders().map((provider) => provider.providerValidation.scopeKey),
-    ).toEqual(['replicate', 'azure', 'huggingface', 'openai', 'openrouter']);
+    ).toEqual(['replicate', 'azure', 'huggingface', 'openai', 'openrouter', 'together']);
     expect(getAvailableProviderValidationScopes()).toEqual([
       'replicate',
       'azure',
       'huggingface',
       'openai',
       'openrouter',
+      'together',
     ]);
     expect(getProviderValidationByScope('azure').displayName).toBe('Azure Computer Vision');
   });

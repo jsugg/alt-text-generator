@@ -367,6 +367,7 @@ describe('Unit | Scripts | Run Postman Deploy', () => {
         HF_API_KEY: 'hf-key',
         OPENAI_API_KEY: 'openai-key',
         OPENROUTER_API_KEY: 'openrouter-key',
+        TOGETHER_API_KEY: 'together-key',
       })).toEqual({
         providerPlans: [
           {
@@ -378,6 +379,11 @@ describe('Unit | Scripts | Run Postman Deploy', () => {
             envVars: ['model=openai'],
             folderName: '90 Provider Validation',
             scopeKey: 'openai',
+          },
+          {
+            envVars: ['model=together'],
+            folderName: '90 Provider Validation',
+            scopeKey: 'together',
           },
         ],
         providerScope: 'all',
@@ -406,7 +412,7 @@ describe('Unit | Scripts | Run Postman Deploy', () => {
       expect(workflow).not.toContain('postman:deploy');
     });
 
-    it('pins release validation workflows to Hugging Face plus OpenAI', () => {
+    it('pins release validation workflows to Hugging Face, OpenAI, and Together', () => {
       const postDeployWorkflow = fs.readFileSync(
         path.join(ROOT, '.github/workflows/post-deploy-verification.yml'),
         'utf8',
@@ -422,6 +428,8 @@ describe('Unit | Scripts | Run Postman Deploy', () => {
       expect(postDeployWorkflow).toContain('OPENAI_API_KEY: $'
         + '{{ secrets.OPENAI_API_KEY }}');
       expect(postDeployWorkflow).toContain('OPENAI_MODEL: gpt-4.1-nano');
+      expect(postDeployWorkflow).toContain('TOGETHER_API_KEY: $'
+        + '{{ secrets.TOGETHER_API_KEY }}');
       expect(postDeployWorkflow).not.toContain('OPENROUTER_API_KEY');
       expect(postDeployWorkflow).not.toContain('OPENROUTER_MODEL');
 
@@ -431,6 +439,8 @@ describe('Unit | Scripts | Run Postman Deploy', () => {
       expect(promoteWorkflow).toContain('OPENAI_API_KEY: $'
         + '{{ secrets.OPENAI_API_KEY }}');
       expect(promoteWorkflow).toContain('OPENAI_MODEL: gpt-4.1-nano');
+      expect(promoteWorkflow).toContain('TOGETHER_API_KEY: $'
+        + '{{ secrets.TOGETHER_API_KEY }}');
       expect(promoteWorkflow).not.toContain('OPENROUTER_API_KEY');
       expect(promoteWorkflow).not.toContain('OPENROUTER_MODEL');
     });

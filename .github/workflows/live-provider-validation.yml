@@ -20,6 +20,7 @@ on:
           - huggingface
           - openai
           - openrouter
+          - together
           - all
   schedule:
     - cron: '23 8 * * 1'
@@ -71,6 +72,7 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           HF_API_KEY: ${{ secrets.HF_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
           PROVIDER_VALIDATION_PUBLIC_REF: production
         run: node scripts/github/resolve-provider-validation-scope.js
 
@@ -88,6 +90,7 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           HF_API_KEY: ${{ secrets.HF_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
 
       - name: Upload production description service artifacts
         if: always()

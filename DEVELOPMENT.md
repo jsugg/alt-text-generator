@@ -181,7 +181,7 @@ Modes:
   - appends raw Allure result files to `reports/allure-results/`
 - `npm run postman:pre-production-provider`
   - low-cost real-provider validation against the local app
-  - uses the Hugging Face plus OpenAI subset when both providers are configured
+  - uses the Hugging Face, OpenAI, and Together subset when configured
   - reuses repo-controlled public provider-validation fixtures so results can be compared directly with post-deploy validation
 - `npm run postman:live-provider`
   - production description-service validation
@@ -190,7 +190,7 @@ Modes:
   - supports `azure`, `replicate`, `huggingface`, `openai`, `openrouter`, or `all` through `LIVE_PROVIDER_SCOPE`
 - `npm run postman:post-deploy -- --base-url https://wcag.qcraft.com.br`
   - post-deploy smoke verification
-  - runs the post-deploy folders plus the same low-cost Hugging Face plus OpenAI subset and writes `post-deploy*.json` / `post-deploy*.xml`
+  - runs the post-deploy folders plus the same low-cost Hugging Face, OpenAI, and Together subset and writes `post-deploy*.json` / `post-deploy*.xml`
 
 Contribution standards for folder naming, tier placement, and assertion policy are documented in [docs/postman-standards.md](./docs/postman-standards.md).
 
@@ -411,9 +411,9 @@ At least one provider must be configured at startup: `REPLICATE_API_TOKEN`, Azur
 | `OPENROUTER_PROMPT` | No | shared alt-text prompt | Prompt sent with the image. |
 | `OPENROUTER_HTTP_REFERER` | No | unset | Optional OpenRouter attribution header. |
 | `OPENROUTER_TITLE` | No | unset | Optional OpenRouter application title header. |
-| `TOGETHER_API_KEY` | No | none | Registers `together`. |
+| `TOGETHER_API_KEY` | No | none | Together AI API key. Registers `together`. |
 | `TOGETHER_BASE_URL` | No | `https://api.together.xyz/v1` | Together AI base URL. |
-| `TOGETHER_MODEL` | No | `meta-llama/Llama-4-Scout-17B-16E-Instruct` | Default Together multimodal model. |
+| `TOGETHER_MODEL` | No | `Qwen/Qwen3-VL-8B-Instruct` | Default Together multimodal model. |
 | `TOGETHER_MAX_TOKENS` | No | `160` | Max completion tokens for `together`. |
 | `TOGETHER_PROMPT` | No | shared alt-text prompt | Prompt sent with the image. |
 

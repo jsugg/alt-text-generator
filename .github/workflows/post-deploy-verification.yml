@@ -25,6 +25,7 @@ on:
           - auto
           - huggingface
           - openai
+          - together
           - all
 
 permissions:
@@ -62,6 +63,7 @@ jobs:
           LIVE_PROVIDER_SCOPE: ${{ github.event_name == 'workflow_dispatch' && inputs.provider_scope || 'all' }}
           HF_API_KEY: ${{ secrets.HF_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
         run: node scripts/github/resolve-provider-validation-scope.js
 
       - name: Run post-deploy Newman verification
@@ -72,6 +74,7 @@ jobs:
           HF_MODEL: Qwen/Qwen3-VL-30B-A3B-Instruct:fastest
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_MODEL: gpt-4.1-nano
+          TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
           PROVIDER_VALIDATION_PUBLIC_REF: production
 
       - name: Write deploy summary

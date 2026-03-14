@@ -8,7 +8,17 @@ module.exports = buildOpenAiCompatibleProvider({
   baseUrlEnvName: 'TOGETHER_BASE_URL',
   defaultBaseUrl: 'https://api.together.xyz/v1',
   modelEnvName: 'TOGETHER_MODEL',
-  defaultModel: 'meta-llama/Llama-4-Scout-17B-16E-Instruct',
+  defaultModel: 'Qwen/Qwen3-VL-8B-Instruct',
   maxTokensEnvName: 'TOGETHER_MAX_TOKENS',
   promptEnvName: 'TOGETHER_PROMPT',
+  providerValidation: {
+    scopeKey: 'together',
+    autoPriority: 60,
+    folderName: '90 Provider Validation',
+    requestEnvVars: [
+      'model=together',
+    ],
+    scopeRequirement: 'TOGETHER_API_KEY',
+    allRequirement: 'TOGETHER_API_KEY',
+  },
 });

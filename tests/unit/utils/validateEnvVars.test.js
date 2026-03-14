@@ -110,6 +110,17 @@ describe('Unit | Utils | Validate Env Vars', () => {
     expect(() => validateEnvVars()).not.toThrow();
   });
 
+  it('accepts a Together-only provider configuration', () => {
+    const validateEnvVars = loadValidator({
+      overrides: {
+        TOGETHER_API_KEY: 'together-key',
+      },
+      remove: ['REPLICATE_API_TOKEN', 'ACV_API_ENDPOINT', 'ACV_SUBSCRIPTION_KEY'],
+    });
+
+    expect(() => validateEnvVars()).not.toThrow();
+  });
+
   it('rejects startup when no provider is configured', () => {
     const validateEnvVars = loadValidator({
       remove: ['REPLICATE_API_TOKEN', 'ACV_API_ENDPOINT', 'ACV_SUBSCRIPTION_KEY'],
