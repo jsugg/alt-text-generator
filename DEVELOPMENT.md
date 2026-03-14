@@ -88,9 +88,9 @@ The repository uses a small workflow set with separate responsibilities:
   - runs on a weekly schedule and by manual dispatch
   - executes `npm audit --omit=dev --audit-level=high`
   - uploads audit artifacts and fails when high or critical production dependency findings exist
-- `Live Provider Validation` in `.github/workflows/live-provider-validation.yml`
+- `Hosted Provider Validation` in `.github/workflows/live-provider-validation.yml`
   - manual only
-  - runs `npm run postman:live -- --base-url <host>`
+  - runs `npm run postman:hosted-provider -- --base-url <host>`
   - reuses `PRODUCTION_DEPLOY_VALIDATION_API_TOKEN` when `PRODUCTION_API_AUTH_ENABLED=true`
   - uses the `prod-validation` GitHub Actions variable `LIVE_PROVIDER_SCOPE` with `auto`, `azure`, `replicate`, `huggingface`, `openai`, `openrouter`, or `all`
   - `provider_scope=all` expands to every provider configured in the `prod-validation` environment
@@ -184,11 +184,12 @@ Modes:
   - optional local provider-integration validation
   - uses the local app plus fixture server
   - supports provider-scoped validation with real credentials without claiming hosted coverage
-- `npm run postman:live`
-  - optional live-provider validation
+- `npm run postman:hosted-provider`
+  - optional hosted provider validation
   - targets a deployed base URL and waits for rollout stabilization before starting Newman
   - uses repo-controlled public provider-validation fixtures served from the target deployment
   - supports `azure`, `replicate`, `huggingface`, `openai`, `openrouter`, or `all` through `LIVE_PROVIDER_SCOPE`
+  - `npm run postman:live` remains as a backward-compatible alias
 - `npm run postman:deploy -- --base-url https://wcag.qcraft.com.br`
   - hosted deploy smoke verification
   - runs only the deploy folder from the shared Postman collection and writes `deploy.json` / `deploy.xml`
@@ -391,7 +392,7 @@ At least one provider must be configured at startup: `REPLICATE_API_TOKEN`, Azur
 | --- | --- | --- | --- |
 | `OPENAI_API_KEY` | No | none | Registers `openai`. |
 | `OPENAI_BASE_URL` | No | `https://api.openai.com/v1` | Override for proxies or compatible gateways. |
-| `OPENAI_MODEL` | No | `gpt-4.1-mini` | Default OpenAI multimodal model. |
+| `OPENAI_MODEL` | No | `gpt-4.1-nano` | Default OpenAI multimodal model. |
 | `OPENAI_MAX_TOKENS` | No | `160` | Max completion tokens for `openai`. |
 | `OPENAI_PROMPT` | No | shared alt-text prompt | Prompt sent with the image. |
 | `HF_API_KEY` | No | none | Registers `huggingface`. `HF_TOKEN` is accepted as an alias. |

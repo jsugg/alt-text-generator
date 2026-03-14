@@ -77,7 +77,7 @@ Commands:
 npm run postman:smoke
 npm run postman:harness
 npm run postman:provider-integration
-npm run postman:live -- --base-url https://wcag.qcraft.com.br
+npm run postman:hosted-provider -- --base-url https://wcag.qcraft.com.br
 npm run postman:deploy -- --base-url https://wcag.qcraft.com.br
 ```
 
@@ -87,10 +87,11 @@ Notes:
 - `postman:harness` runs the full deterministic suite, including protected-endpoint auth coverage, and writes JSON and JUnit reports under `reports/newman/`.
 - CI also emits `reports/jest/junit.xml` from the canonical Node 20 Jest lane and publishes one combined GitHub test report that joins Jest and Newman results.
 - `postman:provider-integration` is the local provider-integration harness: it boots the app locally, uses deterministic local fixtures for the core contract suite, and uses repo-owned public provider-validation fixtures for real vendor coverage without claiming hosted coverage.
-- `postman:live` is optional and reserved for explicit hosted live-provider validation against a deployed base URL.
+- `postman:hosted-provider` is the canonical hosted provider-validation command for explicit deployed-service validation against a supplied base URL.
+- `postman:live` remains as a backward-compatible alias for `postman:hosted-provider`.
 - `postman:deploy` runs the hosted production-smoke folder from the same Postman collection against a supplied base URL.
 - Before Newman starts, `postman:deploy` waits for consecutive stable health/auth probes so zero-downtime rollout overlap does not create deploy-smoke false negatives.
-- When production auth is enabled, `postman:live` reuses `PRODUCTION_DEPLOY_VALIDATION_API_TOKEN` for provider-validation requests.
+- When production auth is enabled, `postman:hosted-provider` reuses `PRODUCTION_DEPLOY_VALIDATION_API_TOKEN` for provider-validation requests.
 - CI runs `postman:smoke` on pull requests and `postman:harness` on `main` / `production` pushes.
 - Deploy verification runs `postman:deploy` on `production` pushes so hosted smoke checks stay inside the Newman contract layer.
 - Deploy verification also reads `PRODUCTION_API_AUTH_ENABLED` and `PRODUCTION_DEPLOY_VALIDATION_API_TOKEN` from the GitHub Actions environment so hosted protected-endpoint checks can verify the expected Render `API_AUTH_ENABLED` / `API_AUTH_TOKENS` state.

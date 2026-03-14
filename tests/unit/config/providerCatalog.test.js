@@ -27,7 +27,7 @@ describe('Unit | Config | Provider Catalog', () => {
       ACV_LANGUAGE: 'pt-BR',
       ACV_MAX_CANDIDATES: '7',
       OPENAI_API_KEY: 'openai-key',
-      OPENAI_MODEL: 'gpt-4.1-mini',
+      OPENAI_MODEL: 'gpt-4.1-nano',
       HF_API_KEY: 'hf-key',
       OLLAMA_MODEL: 'llama3.2-vision',
       OPENROUTER_API_KEY: 'openrouter-key',
@@ -70,7 +70,7 @@ describe('Unit | Config | Provider Catalog', () => {
       openai: {
         apiKey: 'openai-key',
         baseUrl: 'https://api.openai.com/v1',
-        model: 'gpt-4.1-mini',
+        model: 'gpt-4.1-nano',
         maxTokens: 160,
         prompt: expect.any(String),
         headers: {},
@@ -151,7 +151,7 @@ describe('Unit | Config | Provider Catalog', () => {
       ACV_SUBSCRIPTION_KEY: 'azure-key',
     })).toEqual([]);
     expect(validateProviderEnv({
-      OPENAI_MODEL: 'gpt-4.1-mini',
+      OPENAI_MODEL: 'gpt-4.1-nano',
     })[0]).toMatch(/OPENAI_API_KEY/);
     expect(validateProviderEnv({
       OPENROUTER_TITLE: 'Alt Text 4 All',
