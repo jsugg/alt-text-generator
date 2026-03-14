@@ -2011,7 +2011,7 @@
               },
               {
                 "key": "X-Max-Response-Time-Ms",
-                "value": "30000"
+                "value": "{{maxResponseTimeMs}}"
               },
               {
                 "key": "Authorization",
@@ -2083,7 +2083,7 @@
               },
               {
                 "key": "X-Max-Response-Time-Ms",
-                "value": "30000"
+                "value": "{{maxResponseTimeMs}}"
               },
               {
                 "key": "Authorization",
@@ -2171,7 +2171,7 @@
               },
               {
                 "key": "X-Max-Response-Time-Ms",
-                "value": "15000"
+                "value": "{{maxResponseTimeMs}}"
               },
               {
                 "key": "Authorization",
@@ -2243,7 +2243,7 @@
               },
               {
                 "key": "X-Max-Response-Time-Ms",
-                "value": "15000"
+                "value": "{{maxResponseTimeMs}}"
               },
               {
                 "key": "Authorization",

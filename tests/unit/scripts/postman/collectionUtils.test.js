@@ -202,4 +202,26 @@ describe('Unit | Scripts | Postman | Collection Utils', () => {
       committedCollection,
     )).not.toThrow();
   });
+
+  it('keeps provider-validation response-time budgets configurable from the environment', () => {
+    const collectionPath = path.join(
+      __dirname,
+      '../../../../postman/collections/alt-text-generator.postman_collection.json',
+    );
+    const committedCollection = readCollection(collectionPath);
+    const providerValidationRequests = listRequestItems(committedCollection)
+      .filter(({ topLevelFolderName }) => (
+        topLevelFolderName === '90 Provider Validation'
+        || topLevelFolderName === '91 Azure Provider Validation'
+      ));
+
+    expect(providerValidationRequests).toHaveLength(4);
+    providerValidationRequests.forEach(({ item }) => {
+      const responseTimeHeader = item.request.header.find(
+        (header) => header.key.toLowerCase() === 'x-max-response-time-ms',
+      );
+
+      expect(responseTimeHeader?.value).toBe('{{maxResponseTimeMs}}');
+    });
+  });
 });
