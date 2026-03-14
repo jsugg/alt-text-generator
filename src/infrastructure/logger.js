@@ -3,6 +3,31 @@ const pino = require('pino');
 const pinoHttp = require('pino-http');
 const config = require('../../config');
 
+const REDACTED_HEADER_VALUE = '[Redacted]';
+const SENSITIVE_LOGGED_HEADERS = new Set([
+  'authorization',
+  'cookie',
+  'ocp-apim-subscription-key',
+  'proxy-authorization',
+  'set-cookie',
+  'x-api-key',
+]);
+
+const redactLoggedHeaders = (headers) => {
+  if (!headers || typeof headers !== 'object') {
+    return headers;
+  }
+
+  return Object.fromEntries(
+    Object.entries(headers).map(([name, value]) => [
+      name,
+      SENSITIVE_LOGGED_HEADERS.has(name.toLowerCase())
+        ? REDACTED_HEADER_VALUE
+        : value,
+    ]),
+  );
+};
+
 const serializeLoggedError = (error) => {
   const serialized = pinoHttp.stdSerializers.err(error);
   const serializedCause = error?.cause ? serializeLoggedError(error.cause) : undefined;
@@ -18,6 +43,32 @@ const serializeLoggedError = (error) => {
     ...(serialized.code ? { code: serialized.code } : {}),
     ...(serialized.signal ? { signal: serialized.signal } : {}),
     ...(serializedCause ? { cause: serializedCause } : {}),
+  };
+};
+
+const serializeLoggedRequest = (request) => {
+  const serialized = pinoHttp.stdSerializers.req(request);
+
+  if (!serialized || typeof serialized !== 'object') {
+    return serialized;
+  }
+
+  return {
+    ...serialized,
+    ...(serialized.headers ? { headers: redactLoggedHeaders(serialized.headers) } : {}),
+  };
+};
+
+const serializeLoggedResponse = (response) => {
+  const serialized = pinoHttp.stdSerializers.res(response);
+
+  if (!serialized || typeof serialized !== 'object') {
+    return serialized;
+  }
+
+  return {
+    ...serialized,
+    ...(serialized.headers ? { headers: redactLoggedHeaders(serialized.headers) } : {}),
   };
 };
 
@@ -40,10 +91,10 @@ const createRequestLogger = (appLogger) => pinoHttp({
   },
   serializers: {
     err: serializeLoggedError,
-    req: pinoHttp.stdSerializers.req,
-    res: pinoHttp.stdSerializers.res,
+    req: serializeLoggedRequest,
+    res: serializeLoggedResponse,
   },
-  wrapSerializers: true,
+  wrapSerializers: false,
   customLogLevel: (req, res, err) => {
     if (res.statusCode >= 400 && res.statusCode < 500) return 'warn';
     if (res.statusCode >= 500 || err) return 'error';
