@@ -1,1 +1,0 @@
-{"error":"Missing required query parameters: image_source and model","code":"QUERY_VALIDATION_ERROR","requestId":"4ad60cb1-9ee5-4458-abf9-7dcb0dc7ddba","details":[{"field":"image_source","issue":"required"}]}
