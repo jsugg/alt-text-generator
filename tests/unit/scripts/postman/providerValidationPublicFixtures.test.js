@@ -14,7 +14,10 @@ describe('Unit | Scripts | Postman | Provider Validation Public Fixtures', () =>
   });
 
   it('builds raw GitHub urls for the default repository and ref', () => {
-    expect(buildPublicProviderValidationFixtureUrls()).toEqual({
+    expect(buildPublicProviderValidationFixtureUrls({
+      repository: 'jsugg/alt-text-generator',
+      ref: 'main',
+    })).toEqual({
       providerValidationImageUrl: `https://raw.githubusercontent.com/jsugg/alt-text-generator/main/${encodeURIComponent(DEFAULT_PUBLIC_FIXTURE_IMAGE_PATH).replace(/%2F/g, '/')}`,
       providerValidationPageUrl: `https://raw.githubusercontent.com/jsugg/alt-text-generator/main/${encodeURIComponent(DEFAULT_PUBLIC_FIXTURE_PAGE_PATH).replace(/%2F/g, '/')}`,
       providerValidationAzureImageUrl: `https://raw.githubusercontent.com/jsugg/alt-text-generator/main/${encodeURIComponent(DEFAULT_PUBLIC_FIXTURE_IMAGE_PATH).replace(/%2F/g, '/')}`,
