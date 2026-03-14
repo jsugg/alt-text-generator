@@ -133,6 +133,7 @@ describe('Unit | Scripts | GitHub | Resolve Pages Source Run', () => {
 
   it('rejects workflow run lookup without GitHub context', async () => {
     await expect(fetchWorkflowRun({
+      repository: '',
       runId: '123456',
       token: 'test-token',
     })).rejects.toThrow('Missing required environment variable: GITHUB_REPOSITORY');

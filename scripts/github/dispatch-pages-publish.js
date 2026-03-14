@@ -65,6 +65,7 @@ function parseArgs(argv) {
 
   return {
     ...args,
+    apiBaseUrl: args.apiBaseUrl.endsWith('/') ? args.apiBaseUrl : `${args.apiBaseUrl}/`,
     runId: args.runId.trim(),
   };
 }
