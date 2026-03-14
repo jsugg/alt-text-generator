@@ -8,7 +8,7 @@ module.exports = buildOpenAiCompatibleProvider({
   baseUrlEnvName: 'OPENROUTER_BASE_URL',
   defaultBaseUrl: 'https://openrouter.ai/api/v1',
   modelEnvName: 'OPENROUTER_MODEL',
-  defaultModel: 'google/gemma-3-4b-it:free',
+  defaultModel: 'google/gemma-3-12b-it',
   maxTokensEnvName: 'OPENROUTER_MAX_TOKENS',
   promptEnvName: 'OPENROUTER_PROMPT',
   providerValidation: {

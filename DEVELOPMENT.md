@@ -401,7 +401,7 @@ At least one provider must be configured at startup: `REPLICATE_API_TOKEN`, Azur
 | `HF_PROMPT` | No | shared alt-text prompt | Prompt sent with the image. |
 | `OPENROUTER_API_KEY` | No | none | Registers `openrouter`. |
 | `OPENROUTER_BASE_URL` | No | `https://openrouter.ai/api/v1` | OpenRouter base URL. |
-| `OPENROUTER_MODEL` | No | `google/gemma-3-4b-it:free` | Default zero-cost OpenRouter image-caption model. |
+| `OPENROUTER_MODEL` | No | `google/gemma-3-12b-it` | Default low-cost OpenRouter image-caption model, chosen to avoid free-tier rate limiting. |
 | `OPENROUTER_MAX_TOKENS` | No | `160` | Max completion tokens for `openrouter`. |
 | `OPENROUTER_PROMPT` | No | shared alt-text prompt | Prompt sent with the image. |
 | `OPENROUTER_HTTP_REFERER` | No | unset | Optional OpenRouter attribution header. |
