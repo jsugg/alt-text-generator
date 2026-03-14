@@ -22,9 +22,16 @@ const {
   detectAvailableProviders,
 } = require('./postman/provider-validation-scope');
 const {
+  buildNewmanReportPaths,
   buildNewmanReporterArgs,
   resolveAllureResultsDir,
 } = require('./postman/newman-reporting');
+const {
+  assertProviderValidationFixturesReachable,
+} = require('./postman/provider-validation-fixture-probe');
+const {
+  runNewmanCommand,
+} = require('./postman/newman-runner');
 const {
   buildPublicProviderValidationFixtureUrls,
 } = require('./postman/provider-validation-public-fixtures');
@@ -324,8 +331,13 @@ function runNewman(
   } = {},
 ) {
   const folderArgs = folders.flatMap((folder) => ['--folder', folder]);
+  const { jsonReportPath } = buildNewmanReportPaths({
+    label,
+    reportsDir: REPORTS_DIR,
+  });
 
   const args = [
+    NPX,
     '--no-install',
     'newman',
     'run',
@@ -380,23 +392,13 @@ function runNewman(
     ...extraArgs,
   ];
 
-  return new Promise((resolve, reject) => {
-    const child = spawn(NPX, args, {
-      cwd: ROOT,
-      env: process.env,
-      stdio: 'inherit',
-    });
-
-    child.on('exit', (code) => {
-      if (code === 0) {
-        resolve();
-        return;
-      }
-
-      reject(new Error(`Newman run "${label}" failed with exit code ${code}`));
-    });
-
-    child.on('error', reject);
+  return runNewmanCommand({
+    args,
+    collectionPath: COLLECTION_PATH,
+    cwd: ROOT,
+    folders,
+    label,
+    reportPath: jsonReportPath,
   });
 }
 
@@ -510,6 +512,10 @@ async function main() {
   const providerValidationFixtureUrls = fullModeEnabled
     ? mockProviderValidationFixtureUrls
     : publicProviderValidationFixtures;
+
+  if (realProviderModeEnabled) {
+    await assertProviderValidationFixturesReachable(providerValidationFixtureUrls);
+  }
 
   if (realProviderModeEnabled) {
     appReplicateApiToken = selectedProviderScopeSet.has('replicate')

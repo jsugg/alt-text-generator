@@ -64,7 +64,6 @@ jobs:
           VALIDATION_SUMMARY_TITLE: Production Description Service Validation
           INPUT_PROVIDER_SCOPE: ${{ inputs.provider_scope }}
           LIVE_PROVIDER_SCOPE: ${{ vars.LIVE_PROVIDER_SCOPE }}
-          REPLICATE_ENABLED: ${{ vars.REPLICATE_ENABLED }}
           REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
           ACV_API_ENDPOINT: ${{ secrets.ACV_API_ENDPOINT }}
           ACV_SUBSCRIPTION_KEY: ${{ secrets.ACV_SUBSCRIPTION_KEY }}
@@ -81,7 +80,6 @@ jobs:
           PRODUCTION_API_AUTH_ENABLED: ${{ vars.PRODUCTION_API_AUTH_ENABLED }}
           PRODUCTION_DEPLOY_VALIDATION_API_TOKEN: ${{ secrets.PRODUCTION_DEPLOY_VALIDATION_API_TOKEN }}
           LIVE_PROVIDER_SCOPE: ${{ env.LIVE_PROVIDER_SCOPE }}
-          REPLICATE_ENABLED: ${{ vars.REPLICATE_ENABLED }}
           REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
           ACV_API_ENDPOINT: ${{ secrets.ACV_API_ENDPOINT }}
           ACV_SUBSCRIPTION_KEY: ${{ secrets.ACV_SUBSCRIPTION_KEY }}

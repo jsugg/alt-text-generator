@@ -3,7 +3,7 @@ const path = require('path');
 
 const PROVIDER_VALIDATION_ASSET_DIRECTORY = path.resolve(
   __dirname,
-  '../../provider-validation/public/assets',
+  '../../tests/fixtures/provider-validation/public/assets',
 );
 const PROVIDER_VALIDATION_ASSET_FILENAMES = Object.freeze({
   'a.png': 'a.png',

@@ -202,7 +202,7 @@ Deterministic harness characteristics:
 - `postman:smoke` and `postman:full` use `postman/environments/alt-text-generator.local.postman_environment.json`
 - `postman:live-provider` and `postman:post-deploy` use `postman/environments/alt-text-generator.live.postman_environment.json`
 - configures mocked Azure, Replicate, and OpenAI-compatible providers to point at the fixture server stub endpoints during `postman:full`
-- uses repo-controlled public provider-validation fixtures for `postman:pre-production-provider`, `postman:live-provider`, and `postman:post-deploy`
+- uses shared provider-validation fixtures from `tests/fixtures/provider-validation/public` for `postman:pre-production-provider`, `postman:live-provider`, and `postman:post-deploy`
 - runs Newman with insecure local TLS enabled because development certificates may be self-signed
 
 Generated artifacts:
@@ -313,7 +313,6 @@ Notes:
 | --- | --- | --- | --- |
 | `NODE_ENV` | No | `development` | Valid values: `development`, `production`, `test`. |
 | `REPLICATE_API_TOKEN` | No | none | Required only to register the `clip` provider and for real Replicate-backed descriptions. |
-| `REPLICATE_ENABLED` | No | derived from `REPLICATE_API_TOKEN` | Set to `false` to keep Replicate credentials present but disable the `clip` provider and its validation scope. |
 | `PAGE_DESCRIPTION_CONCURRENCY` | No | `3` | Max concurrent provider calls during one page-description request. |
 | `API_AUTH_ENABLED` | No | derived from `API_AUTH_TOKENS` | Explicitly enables or disables API auth. Defaults to `true` when `API_AUTH_TOKENS` contains at least one token, otherwise `false`. |
 | `API_AUTH_TOKENS` | No | unset | Optional comma-separated API tokens. When API auth is enabled, scraper and description endpoints require either `Authorization: Bearer <token>` or `X-API-Key: <token>`. |
@@ -362,7 +361,6 @@ Development TLS behavior:
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
-| `REPLICATE_ENABLED` | No | enabled when `REPLICATE_API_TOKEN` is present | Set to `false` to remove `clip` from runtime registration and provider-validation scope resolution without deleting the token. |
 | `REPLICATE_API_ENDPOINT` | No | Replicate SDK default | Override for stubs, proxies, or alternate environments. |
 | `REPLICATE_USER_AGENT` | No | `alt-text-generator/1.0.0` | Replicate client user agent. |
 | `REPLICATE_MODEL_OWNER` | No | `rmokady` | Replicate model owner. |

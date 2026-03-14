@@ -7,24 +7,6 @@ const toPositiveIntegerOrFallback = (value, fallback) => {
 
 const hasAnyEnvValue = (env = {}, keys = []) => keys.some((key) => Boolean(env[key]));
 
-const toOptionalBooleanString = (value) => {
-  if (value === undefined || value === null || value === '') {
-    return undefined;
-  }
-
-  if (value === true || value === 'true') {
-    return true;
-  }
-
-  if (value === false || value === 'false') {
-    return false;
-  }
-
-  return undefined;
-};
-
-const isExplicitlyDisabled = (envName, env = {}) => toOptionalBooleanString(env[envName]) === false;
-
 const validateApiKeyBackedProviderEnv = ({
   env = {},
   apiKeyEnvNames = [],
@@ -43,8 +25,6 @@ const validateApiKeyBackedProviderEnv = ({
 module.exports = {
   DEFAULT_ALT_TEXT_PROMPT,
   hasAnyEnvValue,
-  isExplicitlyDisabled,
-  toOptionalBooleanString,
   toPositiveIntegerOrFallback,
   validateApiKeyBackedProviderEnv,
 };

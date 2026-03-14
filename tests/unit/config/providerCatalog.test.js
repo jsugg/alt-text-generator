@@ -15,7 +15,6 @@ const {
 describe('Unit | Config | Provider Catalog', () => {
   it('builds provider config sections with documented defaults and explicit overrides', () => {
     const sections = buildProviderConfigSections({
-      REPLICATE_ENABLED: 'true',
       REPLICATE_API_TOKEN: 'replicate-token',
       REPLICATE_API_ENDPOINT: 'https://replicate.example.com',
       REPLICATE_USER_AGENT: 'alt-text-generator/test',
@@ -104,7 +103,6 @@ describe('Unit | Config | Provider Catalog', () => {
     const schema = buildProviderEnvSchema(Joi);
 
     expect(schema).toHaveProperty('REPLICATE_API_TOKEN');
-    expect(schema).toHaveProperty('REPLICATE_ENABLED');
     expect(schema).toHaveProperty('ACV_API_ENDPOINT');
     expect(schema).toHaveProperty('OPENAI_API_KEY');
     expect(schema).toHaveProperty('HF_API_KEY');
@@ -178,25 +176,17 @@ describe('Unit | Config | Provider Catalog', () => {
     expect(getProviderValidationByScope('azure').displayName).toBe('Azure Computer Vision');
   });
 
-  it('treats REPLICATE_ENABLED=false as a hard disable for clip', () => {
+  it('treats a Replicate token as sufficient enablement for clip', () => {
     const sections = buildProviderConfigSections({
-      REPLICATE_ENABLED: 'false',
       REPLICATE_API_TOKEN: 'replicate-token',
     });
 
     expect(sections.replicate).toMatchObject({
-      enabled: false,
+      enabled: true,
       apiToken: 'replicate-token',
     });
     expect(getConfiguredProvidersFromEnv({
-      REPLICATE_ENABLED: 'false',
       REPLICATE_API_TOKEN: 'replicate-token',
-    })).toEqual([]);
-    expect(getConfiguredProvidersFromConfig({
-      replicate: {
-        enabled: false,
-        apiToken: 'replicate-token',
-      },
-    })).toEqual([]);
+    }).map((provider) => provider.key)).toEqual(['clip']);
   });
 });

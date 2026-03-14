@@ -6,7 +6,6 @@
 
 const fs = require('node:fs/promises');
 const path = require('node:path');
-const { spawn } = require('node:child_process');
 const {
   assertTopLevelFoldersExist,
   listTopLevelFolderNames,
@@ -19,10 +18,18 @@ const {
   resolveProviderScope,
 } = require('./postman/provider-validation-scope');
 const {
+  buildNewmanReportPaths,
   buildNewmanReporterArgs,
   resolveAllureResultsDir,
 } = require('./postman/newman-reporting');
 const {
+  runNewmanCommand,
+} = require('./postman/newman-runner');
+const {
+  assertProviderValidationFixturesReachable,
+} = require('./postman/provider-validation-fixture-probe');
+const {
+  buildLiveProviderEnvVars,
   DEFAULT_BASE_URL,
   normalizeBaseUrl,
   runLiveProviderNewman,
@@ -572,24 +579,18 @@ function runNewman(
     folders,
     productionApiAuthEnabled,
   });
+  const { jsonReportPath } = buildNewmanReportPaths({
+    label: 'post-deploy',
+    reportsDir: REPORTS_DIR,
+  });
 
-  return new Promise((resolve, reject) => {
-    const child = spawn(NPX, args, {
-      cwd: ROOT,
-      env: process.env,
-      stdio: 'inherit',
-    });
-
-    child.on('exit', (code) => {
-      if (code === 0) {
-        resolve();
-        return;
-      }
-
-      reject(new Error(`Post-deploy Newman run failed with exit code ${code}`));
-    });
-
-    child.on('error', reject);
+  return runNewmanCommand({
+    args: [NPX, ...args],
+    collectionPath: COLLECTION_PATH,
+    cwd: ROOT,
+    folders,
+    label: 'post-deploy',
+    reportPath: jsonReportPath,
   });
 }
 
@@ -632,6 +633,9 @@ async function main() {
   if (allureResultsDir) {
     await fs.mkdir(allureResultsDir, { recursive: true });
   }
+  await assertProviderValidationFixturesReachable(
+    buildLiveProviderEnvVars(normalizedBaseUrl, authConfig),
+  );
   await waitForStableDeploy(normalizedBaseUrl, authConfig);
   await runNewman(normalizedBaseUrl, {
     allureResultsDir,

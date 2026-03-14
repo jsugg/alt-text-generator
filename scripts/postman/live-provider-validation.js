@@ -1,11 +1,14 @@
 const fs = require('node:fs/promises');
 const net = require('node:net');
 const path = require('node:path');
-const { spawn } = require('node:child_process');
 
 const {
+  buildNewmanReportPaths,
   buildNewmanReporterArgs,
 } = require('./newman-reporting');
+const {
+  runNewmanCommand,
+} = require('./newman-runner');
 const {
   resolveMaxResponseTimeMs,
   resolveNewmanTimeoutRequestMs,
@@ -255,24 +258,18 @@ function runLiveProviderNewman(
     label,
     providerEnvVars,
   });
+  const { jsonReportPath } = buildNewmanReportPaths({
+    label,
+    reportsDir: REPORTS_DIR,
+  });
 
-  return new Promise((resolve, reject) => {
-    const child = spawn(NPX, args, {
-      cwd: ROOT,
-      env: process.env,
-      stdio: 'inherit',
-    });
-
-    child.on('exit', (code) => {
-      if (code === 0) {
-        resolve();
-        return;
-      }
-
-      reject(new Error(`Live provider Newman run "${label}" failed with exit code ${code}`));
-    });
-
-    child.on('error', reject);
+  return runNewmanCommand({
+    args: [NPX, ...args],
+    collectionPath: COLLECTION_PATH,
+    cwd: ROOT,
+    folders,
+    label,
+    reportPath: jsonReportPath,
   });
 }
 

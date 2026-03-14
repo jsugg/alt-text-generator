@@ -56,15 +56,14 @@ describe('Unit | Scripts | Postman | Provider Validation Scope', () => {
       });
     });
 
-    it('excludes disabled replicate credentials from the configured scope list', () => {
+    it('treats a Replicate token as sufficient for the configured scope list', () => {
       expect(detectAvailableProviders({
-        REPLICATE_ENABLED: 'false',
         REPLICATE_API_TOKEN: 'replicate-token',
         OPENAI_API_KEY: 'openai-key',
       })).toEqual({
-        configuredProviderScopes: ['openai'],
+        configuredProviderScopes: ['replicate', 'openai'],
         hasAzureProvider: false,
-        hasReplicateProvider: false,
+        hasReplicateProvider: true,
       });
     });
 
