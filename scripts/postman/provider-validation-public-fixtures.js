@@ -1,6 +1,6 @@
 const DEFAULT_PUBLIC_FIXTURE_REPOSITORY = 'jsugg/alt-text-generator';
 const DEFAULT_PUBLIC_FIXTURE_REF = 'main';
-const DEFAULT_PUBLIC_FIXTURE_IMAGE_PATH = '.github/assets/alt-text-generator.png';
+const DEFAULT_PUBLIC_FIXTURE_IMAGE_PATH = 'provider-validation/public/assets/a.png';
 const DEFAULT_PUBLIC_FIXTURE_PAGE_PATH = 'provider-validation/public/page.html';
 
 const REPO_SLUG_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
