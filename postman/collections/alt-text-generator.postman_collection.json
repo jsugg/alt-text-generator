@@ -2012,6 +2012,10 @@
               {
                 "key": "X-Max-Response-Time-Ms",
                 "value": "30000"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{deployValidationApiToken}}"
               }
             ],
             "url": {
@@ -2080,6 +2084,10 @@
               {
                 "key": "X-Max-Response-Time-Ms",
                 "value": "30000"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{deployValidationApiToken}}"
               }
             ],
             "url": {
@@ -2164,6 +2172,10 @@
               {
                 "key": "X-Max-Response-Time-Ms",
                 "value": "15000"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{deployValidationApiToken}}"
               }
             ],
             "url": {
@@ -2232,6 +2244,10 @@
               {
                 "key": "X-Max-Response-Time-Ms",
                 "value": "15000"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{deployValidationApiToken}}"
               }
             ],
             "url": {

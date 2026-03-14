@@ -91,6 +91,7 @@ The repository uses a small workflow set with separate responsibilities:
 - `Live Provider Validation` in `.github/workflows/live-provider-validation.yml`
   - manual only
   - runs `npm run postman:live -- --base-url <host>`
+  - reuses `PRODUCTION_DEPLOY_VALIDATION_API_TOKEN` when `PRODUCTION_API_AUTH_ENABLED=true`
   - uses the `prod-validation` GitHub Actions variable `LIVE_PROVIDER_SCOPE` with `auto`, `azure`, `replicate`, `huggingface`, `openai`, `openrouter`, or `all`
   - requires GitHub Actions secrets, not Render env vars
   - requires `REPLICATE_API_TOKEN` only when the resolved scope includes Replicate
