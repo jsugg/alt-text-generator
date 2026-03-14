@@ -57,10 +57,10 @@ describe('Unit | Scripts | Postman | Collection Utils', () => {
   it('throws a helpful error when requested folders are missing', () => {
     expect(() => assertTopLevelFoldersExist(
       listTopLevelFolderNames(collection),
-      ['00 Core Smoke', '90 Live Provider Validation'],
+      ['00 Core Smoke', '90 Provider Validation'],
       'live mode',
     )).toThrow(
-      'Missing Postman folders for live mode: 90 Live Provider Validation. Available folders: 00 Core Smoke, 20 Single Description (Azure Stub)',
+      'Missing Postman folders for live mode: 90 Provider Validation. Available folders: 00 Core Smoke, 20 Single Description (Azure Stub)',
     );
   });
 

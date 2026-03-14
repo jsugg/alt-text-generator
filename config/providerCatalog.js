@@ -1,6 +1,6 @@
 /**
  * Provider metadata shared across config loading, startup validation, runtime
- * registration, and live-provider tooling.
+ * registration, and provider-validation tooling.
  */
 const PROVIDER_CATALOG = Object.freeze(require('../src/providers/definitions'));
 
@@ -36,23 +36,23 @@ const getConfiguredProvidersFromConfig = (config = {}) => getProviderCatalog()
 const validateProviderEnv = (env = process.env) => getProviderCatalog()
   .flatMap((provider) => provider.validateEnv(env));
 
-const getLiveValidationProviders = () => getProviderCatalog()
-  .filter((provider) => provider.liveValidation);
+const getProviderValidationProviders = () => getProviderCatalog()
+  .filter((provider) => provider.providerValidation);
 
-const getAvailableLiveProviderScopes = () => getLiveValidationProviders()
-  .map((provider) => provider.liveValidation.scopeKey);
+const getAvailableProviderValidationScopes = () => getProviderValidationProviders()
+  .map((provider) => provider.providerValidation.scopeKey);
 
-const getLiveProviderByScope = (scopeKey) => getLiveValidationProviders()
-  .find((provider) => provider.liveValidation.scopeKey === scopeKey);
+const getProviderValidationByScope = (scopeKey) => getProviderValidationProviders()
+  .find((provider) => provider.providerValidation.scopeKey === scopeKey);
 
 module.exports = {
+  getProviderCatalog,
   buildProviderConfigSections,
   buildProviderEnvSchema,
-  getAvailableLiveProviderScopes,
-  getConfiguredProvidersFromConfig,
-  getConfiguredProvidersFromEnv,
-  getLiveProviderByScope,
-  getLiveValidationProviders,
-  getProviderCatalog,
   validateProviderEnv,
+  getConfiguredProvidersFromEnv,
+  getConfiguredProvidersFromConfig,
+  getProviderValidationProviders,
+  getAvailableProviderValidationScopes,
+  getProviderValidationByScope,
 };

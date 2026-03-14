@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const {
   detectAvailableProviders,
   resolveProviderScope,
-} = require('../postman/live-provider-scope');
+} = require('../postman/provider-validation-scope');
 
 /**
  * Appends a single-line output to a GitHub Actions env file.
@@ -36,10 +36,10 @@ function appendSummary(summaryFile, lines) {
 }
 
 /**
- * Resolves the live provider scope from the current environment.
+ * Resolves the provider-validation scope from the current environment.
  *
  * @param {NodeJS.ProcessEnv} env
- * @returns {'azure'|'replicate'|'all'}
+ * @returns {'azure'|'replicate'|'huggingface'|'openai'|'openrouter'|'all'}
  */
 function resolveScopeFromEnv(env = process.env) {
   const availableProviders = detectAvailableProviders(env);
@@ -57,8 +57,9 @@ function resolveScopeFromEnv(env = process.env) {
 function main() {
   const scope = resolveScopeFromEnv(process.env);
   appendGitHubEnv(process.env.GITHUB_ENV, 'LIVE_PROVIDER_SCOPE', scope);
+  const summaryTitle = process.env.VALIDATION_SUMMARY_TITLE || 'Provider Validation';
   appendSummary(process.env.GITHUB_STEP_SUMMARY, [
-    '## Live Provider Validation',
+    `## ${summaryTitle}`,
     '',
     `- Resolved provider scope: ${scope}`,
   ]);

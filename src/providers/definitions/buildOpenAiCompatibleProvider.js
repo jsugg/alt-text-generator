@@ -24,7 +24,7 @@ const buildOpenAiCompatibleProvider = ({
   defaultModel,
   maxTokensEnvName,
   promptEnvName,
-  liveValidation = null,
+  providerValidation = null,
   additionalEnvSchema = () => ({}),
   buildAdditionalConfig = () => ({}),
   buildHeaders = () => ({}),
@@ -87,7 +87,7 @@ const buildOpenAiCompatibleProvider = ({
     providerName: displayName,
     requestOptions,
   }),
-  liveValidation,
+  providerValidation,
 });
 
 module.exports = {

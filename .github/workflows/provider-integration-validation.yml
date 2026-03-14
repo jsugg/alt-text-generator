@@ -1,15 +1,10 @@
-name: Live Provider Validation
+name: Provider Integration Validation
 
 on:
   workflow_dispatch:
     inputs:
-      base_url:
-        description: Base URL of the deployed API to validate against.
-        required: false
-        default: 'https://wcag.qcraft.com.br'
-        type: string
       provider_scope:
-        description: Select the live provider scope. Use auto to defer to the prod-validation LIVE_PROVIDER_SCOPE variable.
+        description: Select the provider scope. Use auto to defer to the prod-validation LIVE_PROVIDER_SCOPE variable.
         required: false
         default: auto
         type: choice
@@ -21,32 +16,16 @@ on:
           - openai
           - openrouter
           - all
-  schedule:
-    - cron: '23 8 * * 1'
 
 permissions:
   contents: read
 
 concurrency:
-  group: live-provider-${{ github.workflow }}-${{ github.ref }}
+  group: provider-integration-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  schedule-disabled:
-    if: github.event_name == 'schedule' && vars.ENABLE_SCHEDULED_LIVE_PROVIDER_VALIDATION != 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Write summary
-        run: |
-          {
-            echo "## Live Provider Validation"
-            echo
-            echo "- Scheduled run skipped because ENABLE_SCHEDULED_LIVE_PROVIDER_VALIDATION is not set to true."
-          } >> "$GITHUB_STEP_SUMMARY"
-
-  live-provider:
-    if: github.event_name != 'schedule' || vars.ENABLE_SCHEDULED_LIVE_PROVIDER_VALIDATION == 'true'
-    name: live-provider
+  provider-integration:
     runs-on: ubuntu-latest
     environment: prod-validation
     timeout-minutes: 20
@@ -61,7 +40,7 @@ jobs:
 
       - name: Resolve provider scope
         env:
-          VALIDATION_SUMMARY_TITLE: Live Provider Validation
+          VALIDATION_SUMMARY_TITLE: Provider Integration Validation
           INPUT_PROVIDER_SCOPE: ${{ inputs.provider_scope }}
           LIVE_PROVIDER_SCOPE: ${{ vars.LIVE_PROVIDER_SCOPE }}
           REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
@@ -72,12 +51,9 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: node scripts/github/resolve-provider-validation-scope.js
 
-      - name: Run live provider validation
-        run: npm run postman:live -- --base-url "${BASE_URL}"
+      - name: Run provider integration validation
+        run: npm run postman:provider-integration
         env:
-          BASE_URL: ${{ github.event_name == 'workflow_dispatch' && inputs.base_url || 'https://wcag.qcraft.com.br' }}
-          PRODUCTION_API_AUTH_ENABLED: ${{ vars.PRODUCTION_API_AUTH_ENABLED }}
-          PRODUCTION_DEPLOY_VALIDATION_API_TOKEN: ${{ secrets.PRODUCTION_DEPLOY_VALIDATION_API_TOKEN }}
           LIVE_PROVIDER_SCOPE: ${{ env.LIVE_PROVIDER_SCOPE }}
           REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
           ACV_API_ENDPOINT: ${{ secrets.ACV_API_ENDPOINT }}
@@ -86,11 +62,11 @@ jobs:
           HF_API_KEY: ${{ secrets.HF_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
 
-      - name: Upload live validation artifacts
+      - name: Upload provider integration artifacts
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: live-provider-artifacts
+          name: provider-integration-artifacts
           path: reports/newman/
           if-no-files-found: ignore
           retention-days: 7
@@ -99,4 +75,4 @@ jobs:
         if: always()
         run: bash scripts/github/write-provider-validation-summary.sh "$GITHUB_STEP_SUMMARY"
         env:
-          VALIDATION_SUMMARY_TITLE: Live Provider Validation
+          VALIDATION_SUMMARY_TITLE: Provider Integration Validation

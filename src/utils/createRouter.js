@@ -1,4 +1,5 @@
 const express = require('express');
+const { createProviderValidationRouter } = require('./createProviderValidationRouter');
 
 const createSwaggerRouter = () => {
   const swaggerRouter = express.Router();
@@ -55,8 +56,10 @@ const createSwaggerRouter = () => {
  */
 module.exports.createRouter = (logger, apiRouter) => {
   const mainRouter = express.Router();
+  const providerValidationRouter = createProviderValidationRouter();
   const swaggerRouter = createSwaggerRouter();
 
+  mainRouter.use(providerValidationRouter);
   mainRouter.use(swaggerRouter);
   mainRouter.use(apiRouter);
 

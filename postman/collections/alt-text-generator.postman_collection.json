@@ -1994,10 +1994,10 @@
       ]
     },
     {
-      "name": "90 Live Provider Validation",
+      "name": "90 Provider Validation",
       "item": [
         {
-          "name": "Live provider single image",
+          "name": "Provider validation single image",
           "request": {
             "method": "GET",
             "header": [
@@ -2028,7 +2028,7 @@
               "query": [
                 {
                   "key": "image_source",
-                  "value": "{{liveImageUrl}}"
+                  "value": "{{providerValidationImageUrl}}"
                 },
                 {
                   "key": "model",
@@ -2055,7 +2055,7 @@
                   "});",
                   "",
                   "pm.test('description is a non-empty string for the requested image', function () {",
-                  "  pm.expect(body[0].imageUrl).to.eql(pm.environment.get('liveImageUrl'));",
+                  "  pm.expect(body[0].imageUrl).to.eql(pm.environment.get('providerValidationImageUrl'));",
                   "  pm.expect(body[0].description).to.be.a('string');",
                   "  pm.expect(body[0].description.length).to.be.above(5);",
                   "});"
@@ -2065,7 +2065,7 @@
           ]
         },
         {
-          "name": "Live provider page descriptions",
+          "name": "Provider validation page descriptions",
           "request": {
             "method": "GET",
             "header": [
@@ -2096,7 +2096,7 @@
               "query": [
                 {
                   "key": "url",
-                  "value": "{{livePageUrl}}"
+                  "value": "{{providerValidationPageUrl}}"
                 },
                 {
                   "key": "model",
@@ -2119,7 +2119,7 @@
                   "const body = pm.response.json();",
                   "",
                   "pm.test('response includes page metadata', function () {",
-                  "  pm.expect(body.pageUrl).to.eql(pm.environment.get('livePageUrl'));",
+                  "  pm.expect(body.pageUrl).to.eql(pm.environment.get('providerValidationPageUrl'));",
                   "  pm.expect(body.model).to.eql(pm.environment.get('model'));",
                   "  pm.expect(body.totalImages).to.be.a('number');",
                   "  pm.expect(body.uniqueImages).to.be.a('number');",
@@ -2146,10 +2146,10 @@
       ]
     },
     {
-      "name": "91 Live Azure Validation",
+      "name": "91 Azure Provider Validation",
       "item": [
         {
-          "name": "Live azure single image",
+          "name": "Azure provider validation single image",
           "request": {
             "method": "GET",
             "header": [
@@ -2180,7 +2180,7 @@
               "query": [
                 {
                   "key": "image_source",
-                  "value": "{{liveAzureImageUrl}}"
+                  "value": "{{providerValidationAzureImageUrl}}"
                 },
                 {
                   "key": "model",
@@ -2207,7 +2207,7 @@
                   "});",
                   "",
                   "pm.test('azure description is a non-empty string for the requested image', function () {",
-                  "  pm.expect(body[0].imageUrl).to.eql(pm.environment.get('liveAzureImageUrl'));",
+                  "  pm.expect(body[0].imageUrl).to.eql(pm.environment.get('providerValidationAzureImageUrl'));",
                   "  pm.expect(body[0].description).to.be.a('string');",
                   "  pm.expect(body[0].description.length).to.be.above(0);",
                   "});"
@@ -2217,7 +2217,7 @@
           ]
         },
         {
-          "name": "Live azure page descriptions",
+          "name": "Azure provider validation page descriptions",
           "request": {
             "method": "GET",
             "header": [
@@ -2248,7 +2248,7 @@
               "query": [
                 {
                   "key": "url",
-                  "value": "{{liveAzurePageUrl}}"
+                  "value": "{{providerValidationAzurePageUrl}}"
                 },
                 {
                   "key": "model",
@@ -2271,7 +2271,7 @@
                   "const body = pm.response.json();",
                   "",
                   "pm.test('response includes azure page metadata', function () {",
-                  "  pm.expect(body.pageUrl).to.eql(pm.environment.get('liveAzurePageUrl'));",
+                  "  pm.expect(body.pageUrl).to.eql(pm.environment.get('providerValidationAzurePageUrl'));",
                   "  pm.expect(body.model).to.eql('azure');",
                   "  pm.expect(body.totalImages).to.be.a('number');",
                   "  pm.expect(body.uniqueImages).to.be.a('number');",

@@ -11,14 +11,16 @@ module.exports = buildOpenAiCompatibleProvider({
   defaultModel: 'Qwen/Qwen3-VL-30B-A3B-Instruct:novita',
   maxTokensEnvName: 'HF_MAX_TOKENS',
   promptEnvName: 'HF_PROMPT',
-  liveValidation: {
+  providerValidation: {
     scopeKey: 'huggingface',
     autoPriority: 30,
-    folderName: '90 Live Provider Validation',
+    folderName: '90 Provider Validation',
     requestEnvVars: [
       'model=huggingface',
-      'liveImageUrl=http://127.0.0.1:19090/assets/a.png',
-      'livePageUrl=http://127.0.0.1:19090/fixtures/page-with-images',
+    ],
+    providerIntegrationEnvVars: [
+      'providerValidationImageUrl=http://127.0.0.1:19090/assets/a.png',
+      'providerValidationPageUrl=http://127.0.0.1:19090/fixtures/page-with-images',
     ],
     scopeRequirement: 'HF_API_KEY or HF_TOKEN',
     allRequirement: 'HF_API_KEY or HF_TOKEN',

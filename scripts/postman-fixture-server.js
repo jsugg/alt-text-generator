@@ -12,6 +12,8 @@
 
 const express = require('express');
 
+const { getProviderValidationAsset } = require('../src/providerValidation/fixtures');
+
 const HOST = '127.0.0.1';
 const PORT = Number(process.env.POSTMAN_FIXTURE_PORT || 19090);
 const BASE_URL = `http://${HOST}:${PORT}`;
@@ -19,15 +21,8 @@ const BASE_URL = `http://${HOST}:${PORT}`;
 const app = express();
 app.use(express.json());
 
-const ASSET_A_PNG = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAqklEQVR4nOXOIQEAAAgDsKclLZ1OjAnE/JLZvsYDGg9oPKDxgMYDGg9oPKDxgMYDGg9oPKDxgMYDGg9oPKDxgMYDGg9oPKDxgMYDGg9oPKDxgMYDGg9oPKDxgMYDGg9oPKDxgMYDGg9oPKDxgMYDGg9oPKDxgMYDGg9oPKDxgMYDGg9oPKDxgMYDGg9oPKDxgMYDGg9oPKDxgMYDGg9oPKDxgMYDGg9oPIAdKkcSDtL9XfAAAAAASUVORK5CYII=',
-  'base64',
-);
-
-const ASSET_B_PNG = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAlklEQVR4nO3QMQ0AMAzAsPJnMLQtDB/L4T/K7Jv92egArQE6QGuADtAaoAO0BugArQE6QGuADtAaoAO0BugArQE6QGuADtAaoAO0BugArQE6QGuADtAaoAO0BugArQE6QGuADtAaoAO0BugArQE6QGuADtAaoAO0BugArQE6QGuADtAaoAO0BugArQE6QGuADtAaoAO0AwzPcmj9F9xNAAAAAElFTkSuQmCC',
-  'base64',
-);
+const ASSET_A_PNG = getProviderValidationAsset('a.png');
+const ASSET_B_PNG = getProviderValidationAsset('b.png');
 
 const ASSET_PROVIDER_FAILURE_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAl0lEQVR4nO3QMREAIAzAwHrCvwM8FRk/kOH3XObO2Z+NDtAaoAO0BugArQE6QGuADtAaoAO0BugArQE6QGuADtAaoAO0BugArQE6QGuADtAaoAO0BugArQE6QGuADtAaoAO0BugArQE6QGuADtAaoAO0BugArQE6QGuADtAaoAO0BugArQE6QGuADtAaoAO0BugArQE6QHvjH+HSo31RkQAAAABJRU5ErkJggg==',

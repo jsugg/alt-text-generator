@@ -5,9 +5,9 @@ const {
   getSelectedProviders,
   normalizeProviderScope,
   resolveProviderScope,
-} = require('../../../../scripts/postman/live-provider-scope');
+} = require('../../../../scripts/postman/provider-validation-scope');
 
-describe('Unit | Scripts | Postman | Live Provider Scope', () => {
+describe('Unit | Scripts | Postman | Provider Validation Scope', () => {
   describe('normalizeProviderScope', () => {
     it('falls back to auto when the value is empty', () => {
       expect(normalizeProviderScope(undefined)).toBe('auto');
@@ -20,7 +20,7 @@ describe('Unit | Scripts | Postman | Live Provider Scope', () => {
 
     it('rejects unsupported scope values', () => {
       expect(() => normalizeProviderScope('both')).toThrow(
-        'provider scope must be one of: auto, azure, replicate, huggingface, openrouter, all',
+        'provider scope must be one of: auto, azure, replicate, huggingface, openrouter, openai, all',
       );
     });
   });
@@ -44,9 +44,10 @@ describe('Unit | Scripts | Postman | Live Provider Scope', () => {
     it('detects api-key-backed multimodal providers', () => {
       expect(detectAvailableProviders({
         HF_API_KEY: 'hf-key',
+        OPENAI_API_KEY: 'openai-key',
         OPENROUTER_API_KEY: 'openrouter-key',
       })).toEqual({
-        configuredProviderScopes: ['huggingface', 'openrouter'],
+        configuredProviderScopes: ['huggingface', 'openai', 'openrouter'],
         hasAzureProvider: false,
         hasReplicateProvider: false,
       });
@@ -76,7 +77,7 @@ describe('Unit | Scripts | Postman | Live Provider Scope', () => {
       expect(resolveProviderScope({
         requestedScope: 'auto',
         configuredScope: 'all',
-        configuredProviderScopes: ['replicate', 'azure', 'huggingface', 'openrouter'],
+        configuredProviderScopes: ['replicate', 'azure', 'huggingface', 'openai', 'openrouter'],
       })).toBe('all');
     });
 
@@ -88,11 +89,11 @@ describe('Unit | Scripts | Postman | Live Provider Scope', () => {
       })).toBe('replicate');
     });
 
-    it('falls back to huggingface before openrouter in auto mode', () => {
+    it('falls back to huggingface before openai and openrouter in auto mode', () => {
       expect(resolveProviderScope({
         requestedScope: 'auto',
         configuredScope: 'auto',
-        configuredProviderScopes: ['openrouter', 'huggingface'],
+        configuredProviderScopes: ['openrouter', 'openai', 'huggingface'],
       })).toBe('huggingface');
     });
 
@@ -112,7 +113,7 @@ describe('Unit | Scripts | Postman | Live Provider Scope', () => {
         configuredScope: 'auto',
         configuredProviderScopes: ['azure'],
       })).toThrow(
-        'provider_scope=all requires Azure credentials, REPLICATE_API_TOKEN, HF_API_KEY or HF_TOKEN, OPENROUTER_API_KEY',
+        'provider_scope=all requires Azure credentials, REPLICATE_API_TOKEN, HF_API_KEY or HF_TOKEN, OPENROUTER_API_KEY, OPENAI_API_KEY',
       );
     });
   });
@@ -120,7 +121,7 @@ describe('Unit | Scripts | Postman | Live Provider Scope', () => {
   describe('getSelectedProviders', () => {
     it('maps all to both providers', () => {
       expect(getSelectedProviders('all')).toEqual({
-        selectedProviderScopes: ['replicate', 'azure', 'huggingface', 'openrouter'],
+        selectedProviderScopes: ['replicate', 'azure', 'huggingface', 'openai', 'openrouter'],
         runAzure: true,
         runReplicate: true,
       });
@@ -136,16 +137,28 @@ describe('Unit | Scripts | Postman | Live Provider Scope', () => {
   });
 
   describe('getSelectedProviderPlans', () => {
-    it('maps generic providers to the shared live folder with request env vars', () => {
+    it('maps generic providers to the shared neutral folder with hosted env vars', () => {
       expect(getSelectedProviderPlans('huggingface')).toEqual([
         {
-          folderName: '90 Live Provider Validation',
+          folderName: '90 Provider Validation',
           envVars: [
             'model=huggingface',
-            'liveImageUrl=http://127.0.0.1:19090/assets/a.png',
-            'livePageUrl=http://127.0.0.1:19090/fixtures/page-with-images',
           ],
           scopeKey: 'huggingface',
+        },
+      ]);
+    });
+
+    it('adds provider-integration overrides only in provider-integration mode', () => {
+      expect(getSelectedProviderPlans('openai', { mode: 'provider-integration' })).toEqual([
+        {
+          folderName: '90 Provider Validation',
+          envVars: [
+            'model=openai',
+            'providerValidationImageUrl=http://127.0.0.1:19090/assets/a.png',
+            'providerValidationPageUrl=http://127.0.0.1:19090/fixtures/page-with-images',
+          ],
+          scopeKey: 'openai',
         },
       ]);
     });
@@ -154,8 +167,8 @@ describe('Unit | Scripts | Postman | Live Provider Scope', () => {
   describe('getSelectedProviderFolders', () => {
     it('maps the all scope to every live provider folder', () => {
       expect(getSelectedProviderFolders('all')).toEqual([
-        '90 Live Provider Validation',
-        '91 Live Azure Validation',
+        '90 Provider Validation',
+        '91 Azure Provider Validation',
       ]);
     });
   });

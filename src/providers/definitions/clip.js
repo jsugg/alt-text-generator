@@ -35,10 +35,10 @@ module.exports = {
   isConfiguredInEnv: (env = {}) => Boolean(env.REPLICATE_API_TOKEN),
   isConfiguredInConfig: (config = {}) => Boolean(config.replicate?.apiToken),
   validateEnv: () => [],
-  liveValidation: {
+  providerValidation: {
     scopeKey: 'replicate',
     autoPriority: 20,
-    folderName: '90 Live Provider Validation',
+    folderName: '90 Provider Validation',
     requestEnvVars: ['model=clip'],
     scopeRequirement: 'REPLICATE_API_TOKEN',
     allRequirement: 'REPLICATE_API_TOKEN',
