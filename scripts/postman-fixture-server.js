@@ -23,7 +23,7 @@ const PORT = Number(process.env.POSTMAN_FIXTURE_PORT || 19090);
 const BASE_URL = `http://${HOST}:${PORT}`;
 const OPENAI_COMPATIBLE_JSON_LIMIT = '1mb';
 const REPLICATE_SUCCESS_POLL_COUNT = 6;
-const REPLICATE_FAILURE_POLL_COUNT = 4;
+const REPLICATE_FAILURE_POLL_COUNT = 8;
 
 const ASSET_A_PNG = getProviderValidationAsset('a.png');
 const ASSET_B_PNG = getProviderValidationAsset('b.png');
