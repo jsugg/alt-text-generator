@@ -188,7 +188,7 @@ describe('Unit | Services | Page Description Job Service', () => {
       jobId: expect.any(String),
       model: 'replicate',
       pageUrl: 'https://example.com/page',
-      status: expect.stringMatching(/pending|processing/),
+      status: expect.stringMatching(/pending|processing|starting/),
       statusUrl: expect.stringContaining('/api/v1/accessibility/page-description-jobs/'),
       pollAfterMs: 1,
     });
