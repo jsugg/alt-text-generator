@@ -1,1 +1,0 @@
-{"jobId":"2afd7cf2a510765163562a938cf883e195e08cb143c9ffc402d3b1bb16c858fd","model":"clip","imageUrl":"http://127.0.0.1:19090/provider-validation/assets/a.png","status":"processing","pollAfterMs":5,"statusUrl":"/api/v1/accessibility/description-jobs/2afd7cf2a510765163562a938cf883e195e08cb143c9ffc402d3b1bb16c858fd"}

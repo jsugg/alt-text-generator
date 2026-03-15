@@ -1,0 +1,1 @@
+{"jobId":"7c8de10b24743f1ec0eea128bf40ab5e290cb0be1f8527e18e8a37afc9661ecd","model":"replicate","imageUrl":"http://127.0.0.1:19090/provider-validation/assets/a.png","status":"succeeded","result":{"description":"replicate stub caption","imageUrl":"http://127.0.0.1:19090/provider-validation/assets/a.png"}}
