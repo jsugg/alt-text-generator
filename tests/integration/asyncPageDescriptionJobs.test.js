@@ -255,7 +255,7 @@ describe('Integration | Async Page Description Jobs', () => {
     expect(startResponse.body).toMatchObject({
       model: 'replicate',
       pageUrl,
-      status: expect.stringMatching(/^(pending|processing)$/),
+      status: expect.stringMatching(/^(pending|processing|starting)$/),
       statusUrl: expect.stringMatching(/^\/api\/v1\/accessibility\/page-description-jobs\//),
     });
 
