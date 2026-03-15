@@ -1,0 +1,1 @@
+{"jobId":"57a8b04a9e09131bcd518f305f1ce7249a3de502a2abd3df3d3023b7c54bd61c","model":"clip","pageUrl":"http://127.0.0.1:19090/provider-validation/page","status":"processing","pollAfterMs":5,"statusUrl":"/api/v1/accessibility/page-description-jobs/57a8b04a9e09131bcd518f305f1ce7249a3de502a2abd3df3d3023b7c54bd61c"}

@@ -1,1 +1,0 @@
-{"error":"Invalid image_source URL","code":"INVALID_IMAGE_SOURCE_URL","requestId":"4f65d96c-26bd-4537-8386-d3ab1e4d1216","details":[{"field":"image_source","issue":"invalid_url"}]}
