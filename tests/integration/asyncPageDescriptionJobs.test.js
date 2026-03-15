@@ -101,7 +101,7 @@ class StubAsyncClipDescriber {
   }
 
   static buildFailureError(imageUrl) {
-    const error = new Error(`stub clip provider failure for ${imageUrl}`);
+    const error = new Error(`stub replicate provider failure for ${imageUrl}`);
     error.code = 'STUB_CLIP_PROVIDER_FAILURE';
     return error;
   }
@@ -189,7 +189,7 @@ describe('Integration | Async Page Description Jobs', () => {
 
   const buildTestApp = () => {
     const imageDescriberFactory = new ImageDescriberFactory();
-    imageDescriberFactory.register('clip', new StubAsyncClipDescriber());
+    imageDescriberFactory.register('replicate', new StubAsyncClipDescriber());
 
     const appLogger = createAppLogger();
     const requestLogger = createRequestLogger();
@@ -243,17 +243,17 @@ describe('Integration | Async Page Description Jobs', () => {
     throw new Error(`Timed out waiting for terminal job status at ${statusUrl}`);
   };
 
-  it('returns 202, settles the page job, and serves cached results on repeat clip requests', async () => {
+  it('returns 202, settles the page job, and serves cached results on repeat replicate requests', async () => {
     const app = buildTestApp();
     const pageUrl = `${fixtureBaseUrl}/fixtures/page-with-images`;
     const startResponse = await secureGet(
       app,
-      `/api/v1/accessibility/descriptions?url=${encodeURIComponent(pageUrl)}&model=clip`,
+      `/api/v1/accessibility/descriptions?url=${encodeURIComponent(pageUrl)}&model=replicate`,
     );
 
     expect(startResponse.status).toBe(202);
     expect(startResponse.body).toMatchObject({
-      model: 'clip',
+      model: 'replicate',
       pageUrl,
       status: expect.stringMatching(/^(pending|processing)$/),
       statusUrl: expect.stringMatching(/^\/api\/v1\/accessibility\/page-description-jobs\//),
@@ -262,12 +262,12 @@ describe('Integration | Async Page Description Jobs', () => {
     const finalResponse = await pollJobUntilTerminal(app, startResponse.body.statusUrl);
 
     expect(finalResponse.body).toMatchObject({
-      model: 'clip',
+      model: 'replicate',
       pageUrl,
       status: 'succeeded',
       result: {
         pageUrl,
-        model: 'clip',
+        model: 'replicate',
         totalImages: 3,
         uniqueImages: 2,
       },
@@ -280,19 +280,19 @@ describe('Integration | Async Page Description Jobs', () => {
 
     const cachedResponse = await secureGet(
       app,
-      `/api/v1/accessibility/descriptions?url=${encodeURIComponent(pageUrl)}&model=clip`,
+      `/api/v1/accessibility/descriptions?url=${encodeURIComponent(pageUrl)}&model=replicate`,
     );
 
     expect(cachedResponse.status).toBe(200);
     expect(cachedResponse.body).toEqual(finalResponse.body.result);
   });
 
-  it('returns 202 and eventually exposes a terminal failed page job when a clip image job fails', async () => {
+  it('returns 202 and eventually exposes a terminal failed page job when a replicate image job fails', async () => {
     const app = buildTestApp();
     const pageUrl = `${fixtureBaseUrl}/fixtures/page-with-provider-failure`;
     const startResponse = await secureGet(
       app,
-      `/api/v1/accessibility/descriptions?url=${encodeURIComponent(pageUrl)}&model=clip`,
+      `/api/v1/accessibility/descriptions?url=${encodeURIComponent(pageUrl)}&model=replicate`,
     );
 
     expect(startResponse.status).toBe(202);
@@ -301,12 +301,12 @@ describe('Integration | Async Page Description Jobs', () => {
     const finalResponse = await pollJobUntilTerminal(app, startResponse.body.statusUrl);
 
     expect(finalResponse.body).toMatchObject({
-      model: 'clip',
+      model: 'replicate',
       pageUrl,
       status: 'failed',
       error: {
         code: 'STUB_CLIP_PROVIDER_FAILURE',
-        message: `stub clip provider failure for ${fixtureBaseUrl}/assets/provider-error.png`,
+        message: `stub replicate provider failure for ${fixtureBaseUrl}/assets/provider-error.png`,
       },
     });
     expect(finalResponse.body).not.toHaveProperty('result');

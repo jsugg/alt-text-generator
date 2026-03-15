@@ -74,7 +74,7 @@ const createApp = ({
       },
       providerClients: {
         ...(providerClients ?? {}),
-        ...(replicateClient ? { clip: replicateClient, replicate: replicateClient } : {}),
+        ...(replicateClient ? { replicate: replicateClient } : {}),
       },
     });
   const resolvedPageDescriptionService = pageDescriptionService

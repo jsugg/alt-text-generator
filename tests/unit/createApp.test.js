@@ -72,8 +72,8 @@ describe('Unit | Application Composition', () => {
       maxRedirects: 4,
       maxContentLength: 2048,
     });
-    expect(services.imageDescriberFactory.getAvailableModels()).toEqual(['clip', 'azure']);
-    expect(services.imageDescriberFactory.get('clip').replicate).toBe(replicateClient);
+    expect(services.imageDescriberFactory.getAvailableModels()).toEqual(['replicate', 'azure']);
+    expect(services.imageDescriberFactory.get('replicate').replicate).toBe(replicateClient);
     expect(services.imageDescriberFactory.get('azure').httpClient).toBe(httpClient);
     expect(services.pageDescriptionService.scraperService).toBe(services.scraperService);
     expect(services.pageDescriptionService.imageDescriberFactory)
@@ -109,8 +109,8 @@ describe('Unit | Application Composition', () => {
 
       expect(app).toBeDefined();
       expect(app.get('trust proxy')).toBe(1);
-      expect(services.imageDescriberFactory.getAvailableModels()).toEqual(['clip']);
-      expect(services.imageDescriberFactory.get('clip').replicate).toBeDefined();
+      expect(services.imageDescriberFactory.getAvailableModels()).toEqual(['replicate']);
+      expect(services.imageDescriberFactory.get('replicate').replicate).toBeDefined();
     } finally {
       defaultAppLogger.level = originalLevel;
     }
@@ -203,10 +203,10 @@ describe('Unit | Application Composition', () => {
       config,
     });
 
-    expect(services.imageDescriberFactory.getAvailableModels()).toEqual(['clip']);
+    expect(services.imageDescriberFactory.getAvailableModels()).toEqual(['replicate']);
   });
 
-  it('does not register clip when the Replicate token is missing', () => {
+  it('does not register replicate when the Replicate token is missing', () => {
     const config = {
       replicate: {
         apiEndpoint: 'https://replicate.example.com',
@@ -232,7 +232,7 @@ describe('Unit | Application Composition', () => {
     expect(services.imageDescriberFactory.getAvailableModels()).toEqual([]);
   });
 
-  it('does not register clip when Replicate is explicitly disabled', () => {
+  it('does not register replicate when Replicate is explicitly disabled', () => {
     const config = {
       replicate: {
         enabled: false,

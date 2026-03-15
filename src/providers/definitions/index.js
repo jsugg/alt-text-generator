@@ -1,4 +1,4 @@
-const clip = require('./clip');
+const replicate = require('./replicate');
 const azure = require('./azure');
 const ollama = require('./ollama');
 const huggingface = require('./huggingface');
@@ -7,7 +7,7 @@ const openrouter = require('./openrouter');
 const together = require('./together');
 
 module.exports = Object.freeze([
-  clip,
+  replicate,
   azure,
   ollama,
   huggingface,

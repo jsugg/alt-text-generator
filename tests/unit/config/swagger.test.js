@@ -117,7 +117,7 @@ describe('Unit | Config | Swagger', () => {
     expect(pageUrl.schema.example).toBe('https%3A%2F%2Fdeveloper.chrome.com%2F');
     expect(scraperUrl.schema.example).toBe('https%3A%2F%2Fdeveloper.chrome.com%2F');
     expect(descriptionModel.schema.enum).toEqual([
-      'clip',
+      'replicate',
       'azure',
       'ollama',
       'huggingface',

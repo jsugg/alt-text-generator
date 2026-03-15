@@ -40,7 +40,7 @@ describe('Unit | Controllers | Description Controller', () => {
 
     it('forwards a validation error when image_source is missing', async () => {
       const controller = createController(new ImageDescriberFactory());
-      const req = { query: { model: 'clip' } };
+      const req = { query: { model: 'replicate' } };
       const res = makeResMock();
       const next = jest.fn();
 
@@ -75,7 +75,7 @@ describe('Unit | Controllers | Description Controller', () => {
 
     it('forwards a validation error for an invalid image_source URL', async () => {
       const controller = createController(new ImageDescriberFactory());
-      const req = { query: { image_source: 'not-a-url', model: 'clip' } };
+      const req = { query: { image_source: 'not-a-url', model: 'replicate' } };
       const res = makeResMock();
       const next = jest.fn();
 
@@ -91,7 +91,7 @@ describe('Unit | Controllers | Description Controller', () => {
     });
 
     it('forwards a validation error for an unknown model', async () => {
-      const controller = createController(new ImageDescriberFactory().register('clip', {
+      const controller = createController(new ImageDescriberFactory().register('replicate', {
         describeImage: jest.fn(),
       }));
       const req = {
@@ -122,12 +122,12 @@ describe('Unit | Controllers | Description Controller', () => {
         }),
       };
       const controller = createController(
-        new ImageDescriberFactory().register('clip', mockDescriber),
+        new ImageDescriberFactory().register('replicate', mockDescriber),
       );
       const req = {
         query: {
           image_source: encodeURIComponent('https://example.com/img.jpg'),
-          model: 'clip',
+          model: 'replicate',
         },
         log: mockLogger,
       };
@@ -149,12 +149,12 @@ describe('Unit | Controllers | Description Controller', () => {
         describeImage: jest.fn().mockRejectedValue(error),
       };
       const controller = createController(
-        new ImageDescriberFactory().register('clip', mockDescriber),
+        new ImageDescriberFactory().register('replicate', mockDescriber),
       );
       const req = {
         query: {
           image_source: encodeURIComponent('https://example.com/img.jpg'),
-          model: 'clip',
+          model: 'replicate',
         },
         log: mockLogger,
       };
@@ -191,14 +191,14 @@ describe('Unit | Controllers | Description Controller', () => {
         }),
       };
       const controller = createController(
-        new ImageDescriberFactory().register('clip', asyncProvider),
+        new ImageDescriberFactory().register('replicate', asyncProvider),
         { describePage: jest.fn() },
         descriptionJobService,
       );
       const req = {
         query: {
           image_source: encodeURIComponent('https://example.com/img.jpg'),
-          model: 'clip',
+          model: 'replicate',
         },
         log: mockLogger,
       };
@@ -225,12 +225,12 @@ describe('Unit | Controllers | Description Controller', () => {
         describeImage: jest.fn().mockRejectedValue(error),
       };
       const controller = createController(
-        new ImageDescriberFactory().register('clip', mockDescriber),
+        new ImageDescriberFactory().register('replicate', mockDescriber),
       );
       const req = {
         query: {
           image_source: encodeURIComponent('https://example.com/img.jpg'),
-          model: 'clip',
+          model: 'replicate',
         },
         log: mockLogger,
       };
@@ -254,7 +254,7 @@ describe('Unit | Controllers | Description Controller', () => {
 
     it('forwards a validation error when url is missing', async () => {
       const controller = createController(new ImageDescriberFactory());
-      const req = { query: { model: 'clip' } };
+      const req = { query: { model: 'replicate' } };
       const res = makeResMock();
       const next = jest.fn();
 
@@ -271,7 +271,7 @@ describe('Unit | Controllers | Description Controller', () => {
 
     it('forwards a validation error when url is invalid', async () => {
       const controller = createController(new ImageDescriberFactory());
-      const req = { query: { url: 'not-a-url', model: 'clip' } };
+      const req = { query: { url: 'not-a-url', model: 'replicate' } };
       const res = makeResMock();
       const next = jest.fn();
 
@@ -289,12 +289,12 @@ describe('Unit | Controllers | Description Controller', () => {
     it('forwards a validation error for an unknown model', async () => {
       const controller = createController(
         new ImageDescriberFactory(),
-        { describePage: jest.fn().mockRejectedValue(new Error('Unknown model: clip')) },
+        { describePage: jest.fn().mockRejectedValue(new Error('Unknown model: replicate')) },
       );
       const req = {
         query: {
           url: encodeURIComponent('https://example.com/page'),
-          model: 'clip',
+          model: 'replicate',
         },
       };
       const res = makeResMock();
@@ -313,7 +313,7 @@ describe('Unit | Controllers | Description Controller', () => {
     it('returns ordered descriptions on success', async () => {
       const expected = {
         pageUrl: 'https://example.com/page',
-        model: 'clip',
+        model: 'replicate',
         totalImages: 3,
         uniqueImages: 2,
         descriptions: [
@@ -335,7 +335,7 @@ describe('Unit | Controllers | Description Controller', () => {
         describePage: jest.fn().mockResolvedValue(expected),
       };
       const controller = createController(
-        new ImageDescriberFactory().register('clip', {
+        new ImageDescriberFactory().register('replicate', {
           describeImage: jest.fn(),
         }),
         pageDescriptionService,
@@ -343,7 +343,7 @@ describe('Unit | Controllers | Description Controller', () => {
       const req = {
         query: {
           url: encodeURIComponent('https://example.com/page'),
-          model: 'clip',
+          model: 'replicate',
         },
         log: mockLogger,
       };
@@ -354,7 +354,7 @@ describe('Unit | Controllers | Description Controller', () => {
 
       expect(pageDescriptionService.describePage).toHaveBeenCalledWith({
         pageUrl: 'https://example.com/page',
-        model: 'clip',
+        model: 'replicate',
       });
       expect(res.json).toHaveBeenCalledWith(expected);
       expect(next).not.toHaveBeenCalled();
@@ -379,7 +379,7 @@ describe('Unit | Controllers | Description Controller', () => {
         }),
       };
       const controller = createController(
-        new ImageDescriberFactory().register('clip', asyncProvider),
+        new ImageDescriberFactory().register('replicate', asyncProvider),
         { describePage: jest.fn() },
         undefined,
         pageDescriptionJobService,
@@ -387,7 +387,7 @@ describe('Unit | Controllers | Description Controller', () => {
       const req = {
         query: {
           url: encodeURIComponent('https://example.com/page'),
-          model: 'clip',
+          model: 'replicate',
         },
         log: mockLogger,
       };
@@ -407,7 +407,7 @@ describe('Unit | Controllers | Description Controller', () => {
     it('forwards an internal error when page orchestration fails', async () => {
       const error = new Error('network error');
       const controller = createController(
-        new ImageDescriberFactory().register('clip', {
+        new ImageDescriberFactory().register('replicate', {
           describeImage: jest.fn(),
         }),
         { describePage: jest.fn().mockRejectedValue(error) },
@@ -415,7 +415,7 @@ describe('Unit | Controllers | Description Controller', () => {
       const req = {
         query: {
           url: encodeURIComponent('https://example.com/page'),
-          model: 'clip',
+          model: 'replicate',
         },
         log: mockLogger,
       };
@@ -440,7 +440,7 @@ describe('Unit | Controllers | Description Controller', () => {
         timeoutMs: 1000,
       });
       const controller = createController(
-        new ImageDescriberFactory().register('clip', {
+        new ImageDescriberFactory().register('replicate', {
           describeImage: jest.fn(),
         }),
         { describePage: jest.fn().mockRejectedValue(error) },
@@ -448,7 +448,7 @@ describe('Unit | Controllers | Description Controller', () => {
       const req = {
         query: {
           url: encodeURIComponent('https://example.com/page'),
-          model: 'clip',
+          model: 'replicate',
         },
         log: mockLogger,
       };
@@ -533,7 +533,7 @@ describe('Unit | Controllers | Description Controller', () => {
           status: 'succeeded',
           result: {
             pageUrl: 'https://example.com/page',
-            model: 'clip',
+            model: 'replicate',
             totalImages: 1,
             uniqueImages: 1,
             descriptions: [],
@@ -544,7 +544,7 @@ describe('Unit | Controllers | Description Controller', () => {
           status: 'succeeded',
           result: {
             pageUrl: 'https://example.com/page',
-            model: 'clip',
+            model: 'replicate',
             totalImages: 1,
             uniqueImages: 1,
             descriptions: [],
@@ -571,7 +571,7 @@ describe('Unit | Controllers | Description Controller', () => {
         status: 'succeeded',
         result: {
           pageUrl: 'https://example.com/page',
-          model: 'clip',
+          model: 'replicate',
           totalImages: 1,
           uniqueImages: 1,
           descriptions: [],

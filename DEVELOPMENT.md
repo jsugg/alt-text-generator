@@ -174,7 +174,7 @@ Modes:
   - covers core smoke, route aliases, protected-endpoint auth, scraper contract, one Azure-stubbed description, and routing checks
 - `npm run postman:full`
   - full local provider-integration suite
-  - includes protected-endpoint auth, page descriptions, negative-path coverage, deterministic async `clip` page-job success/failure coverage, and mocked provider-validation coverage for `clip`, `azure`, `huggingface`, `openai`, and `openrouter`
+  - includes protected-endpoint auth, page descriptions, negative-path coverage, deterministic async `replicate` page-job success/failure coverage, and mocked provider-validation coverage for `replicate`, `azure`, `huggingface`, `openai`, and `openrouter`
   - writes JSON and JUnit reports to `reports/newman/`
 - `npm run postman:full:allure`
   - runs the same local full suite with the Allure reporter enabled
@@ -188,11 +188,11 @@ Modes:
   - targets a deployed base URL and waits for rollout stabilization before starting Newman
   - uses repo-controlled public provider-validation fixtures
   - supports `azure`, `replicate`, `huggingface`, `openai`, `openrouter`, `together`, or `all` through `LIVE_PROVIDER_SCOPE`
-  - follows async `202 Accepted` job polling automatically for slow providers such as Replicate-backed `clip`
+  - follows async `202 Accepted` job polling automatically for slow providers such as Replicate-backed `replicate`
 - `npm run postman:post-deploy -- --base-url https://wcag.qcraft.com.br`
   - post-deploy smoke verification
   - runs the post-deploy folders plus the same low-cost Hugging Face, OpenAI, and Together subset and writes `post-deploy*.json` / `post-deploy*.xml`
-  - does not automatically run `clip`; deterministic async `clip` coverage stays in `postman:full`, while manual `postman:live-provider` can validate Replicate against production on demand
+  - does not automatically run `replicate`; deterministic async `replicate` coverage stays in `postman:full`, while manual `postman:live-provider` can validate Replicate against production on demand
 
 Contribution standards for folder naming, tier placement, and assertion policy are documented in [docs/postman-standards.md](./docs/postman-standards.md).
 
@@ -204,7 +204,7 @@ Deterministic harness characteristics:
 - `postman:smoke` and `postman:full` use `postman/environments/alt-text-generator.local.postman_environment.json`
 - `postman:live-provider` and `postman:post-deploy` use `postman/environments/alt-text-generator.live.postman_environment.json`
 - configures mocked Azure, Replicate, and OpenAI-compatible providers to point at the fixture server stub endpoints during `postman:full`
-- the Replicate fixture is stateful, so `postman:full` exercises real async `202 -> poll -> terminal` clip page-job behavior instead of an instant-success shortcut
+- the Replicate fixture is stateful, so `postman:full` exercises real async `202 -> poll -> terminal` replicate page-job behavior instead of an instant-success shortcut
 - uses shared provider-validation fixtures from `tests/fixtures/provider-validation/public` for `postman:pre-production-provider`, `postman:live-provider`, and `postman:post-deploy`
 - runs Newman with insecure local TLS enabled because development certificates may be self-signed
 
@@ -255,7 +255,7 @@ Allure workflow:
 
 API routes that generate descriptions require a `model` query parameter. Today the runtime registers:
 
-- `clip` (Replicate-backed)
+- `replicate` (Replicate-backed)
   - single-image and page-description requests can return `202 Accepted` with a job payload when the provider stays slow beyond the configured inline wait window
 - `azure` (Azure Computer Vision-backed, registered only when `ACV_API_ENDPOINT` and
   `ACV_SUBSCRIPTION_KEY` are set)
@@ -320,7 +320,7 @@ Notes:
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
 | `NODE_ENV` | No | `development` | Valid values: `development`, `production`, `test`. |
-| `REPLICATE_API_TOKEN` | No | none | Required only to register the `clip` provider and for real Replicate-backed descriptions. |
+| `REPLICATE_API_TOKEN` | No | none | Required only to register the `replicate` provider and for real Replicate-backed descriptions. |
 | `PAGE_DESCRIPTION_CONCURRENCY` | No | `3` | Max concurrent provider calls during one page-description request. |
 | `API_AUTH_ENABLED` | No | derived from `API_AUTH_TOKENS` | Explicitly enables or disables API auth. Defaults to `true` when `API_AUTH_TOKENS` contains at least one token, otherwise `false`. |
 | `API_AUTH_TOKENS` | No | unset | Optional comma-separated API tokens. When API auth is enabled, scraper and description endpoints require either `Authorization: Bearer <token>` or `X-API-Key: <token>`. |
@@ -367,7 +367,7 @@ Development TLS behavior:
 
 ### Async Description Job Controls
 
-These settings govern the single-image async handoff used by slow providers such as `clip`.
+These settings govern the single-image async handoff used by slow providers such as `replicate`.
 The current implementation uses provider polling rather than inbound webhooks.
 
 | Variable | Required | Default | Description |
@@ -382,7 +382,7 @@ The current implementation uses provider polling rather than inbound webhooks.
 | `DESCRIPTION_JOB_FAILED_TTL_MS` | No | `300000` | TTL for failed async jobs. |
 | `DESCRIPTION_JOB_CLAIM_TTL_MS` | No | `30000` | Lease window used to keep one runner responsible for a pending async description job while it is actively processing. |
 
-### Replicate (clip provider)
+### Replicate
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
@@ -508,9 +508,9 @@ Do not collapse those into a single smoke test. Treat them as separate checks.
 | Docs | `GET /api-docs/` | `200 OK` | docs stack only |
 | Scraper preflight | `npm run doctor:tls -- <target>` | `200` or site-specific expected status | trust store / target policy |
 | Scraper API | `GET /api/scraper/images?...` | `200` with `imageSources` array | scraper logic or target policy |
-| Replicate execution | `GET /api/accessibility/description?...&model=clip` | `200` with non-empty description or `202` with a job payload | vendor account / model execution |
+| Replicate execution | `GET /api/accessibility/description?...&model=replicate` | `200` with non-empty description or `202` with a job payload | vendor account / model execution |
 | Azure execution | `GET /api/accessibility/description?...&model=azure` | `200` with non-empty description | Azure credentials / model execution |
-| Page orchestration | `GET /api/accessibility/descriptions?...&model=clip` | `200` with ordered `descriptions` array or `202` with a page-job payload | orchestration / provider reuse |
+| Page orchestration | `GET /api/accessibility/descriptions?...&model=replicate` | `200` with ordered `descriptions` array or `202` with a page-job payload | orchestration / provider reuse |
 
 ### Validation sequence (recommended)
 
@@ -537,7 +537,7 @@ curl -sk 'https://localhost:8443/api/scraper/images?url=https%3A%2F%2Fdeveloper.
 5. Validate Replicate through the app with a public image URL:
 
 ```bash
-curl -sk 'https://localhost:8443/api/accessibility/description?image_source=https%3A%2F%2Fwww.google.com%2Fimages%2Fbranding%2Fgooglelogo%2F1x%2Fgooglelogo_color_272x92dp.png&model=clip'
+curl -sk 'https://localhost:8443/api/accessibility/description?image_source=https%3A%2F%2Fwww.google.com%2Fimages%2Fbranding%2Fgooglelogo%2F1x%2Fgooglelogo_color_272x92dp.png&model=replicate'
 ```
 
 If the response is `202 Accepted`, poll the returned `statusUrl` until it becomes `200`:
@@ -555,7 +555,7 @@ curl -sk 'https://localhost:8443/api/accessibility/description?image_source=http
 7. Validate the page-level orchestration route:
 
 ```bash
-curl -sk 'https://localhost:8443/api/accessibility/descriptions?url=https%3A%2F%2Fdeveloper.chrome.com%2F&model=clip'
+curl -sk 'https://localhost:8443/api/accessibility/descriptions?url=https%3A%2F%2Fdeveloper.chrome.com%2F&model=replicate'
 ```
 
 If the response is `202 Accepted`, poll the returned `statusUrl` until it becomes `200`:

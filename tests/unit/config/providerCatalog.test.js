@@ -120,7 +120,7 @@ describe('Unit | Config | Provider Catalog', () => {
       OPENROUTER_API_KEY: 'openrouter-key',
       TOGETHER_API_KEY: 'together-key',
     }).map((provider) => provider.key)).toEqual([
-      'clip',
+      'replicate',
       'azure',
       'ollama',
       'huggingface',
@@ -134,7 +134,7 @@ describe('Unit | Config | Provider Catalog', () => {
       openai: { apiKey: 'openai-key' },
       huggingface: { apiKey: 'hf-key' },
       ollama: { enabled: true },
-    }).map((provider) => provider.key)).toEqual(['clip', 'ollama', 'huggingface', 'openai']);
+    }).map((provider) => provider.key)).toEqual(['replicate', 'ollama', 'huggingface', 'openai']);
   });
 
   it('validates provider-specific env rules and exposes provider-validation metadata', () => {
@@ -158,7 +158,7 @@ describe('Unit | Config | Provider Catalog', () => {
       TOGETHER_MODEL: 'Qwen/Qwen3-VL-8B-Instruct',
     })[0]).toMatch(/TOGETHER_API_KEY/);
     expect(getProviderCatalog().map((provider) => provider.key)).toEqual([
-      'clip',
+      'replicate',
       'azure',
       'ollama',
       'huggingface',
@@ -180,7 +180,7 @@ describe('Unit | Config | Provider Catalog', () => {
     expect(getProviderValidationByScope('azure').displayName).toBe('Azure Computer Vision');
   });
 
-  it('treats a Replicate token as sufficient enablement for clip', () => {
+  it('treats a Replicate token as sufficient enablement for replicate', () => {
     const sections = buildProviderConfigSections({
       REPLICATE_API_TOKEN: 'replicate-token',
     });
@@ -191,6 +191,6 @@ describe('Unit | Config | Provider Catalog', () => {
     });
     expect(getConfiguredProvidersFromEnv({
       REPLICATE_API_TOKEN: 'replicate-token',
-    }).map((provider) => provider.key)).toEqual(['clip']);
+    }).map((provider) => provider.key)).toEqual(['replicate']);
   });
 });

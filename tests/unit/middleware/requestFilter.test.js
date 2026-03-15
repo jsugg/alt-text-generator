@@ -123,7 +123,7 @@ describe('Unit | Middleware | Request Filter', () => {
   it('passes secure requests through so endpoint validation can handle query semantics', () => {
     const { next, res } = invokeMiddleware({
       protocol: 'https',
-      url: '/api/accessibility/description?image_source=not-a-url&model=clip',
+      url: '/api/accessibility/description?image_source=not-a-url&model=replicate',
     });
 
     expect(next).toHaveBeenCalledTimes(1);

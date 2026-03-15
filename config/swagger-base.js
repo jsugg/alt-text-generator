@@ -86,7 +86,7 @@ const createSwaggerDefinition = () => ({
           },
           model: {
             type: 'string',
-            example: 'clip',
+            example: 'replicate',
           },
           imageUrl: {
             type: 'string',
@@ -143,7 +143,7 @@ const createSwaggerDefinition = () => ({
           },
           model: {
             type: 'string',
-            example: 'clip',
+            example: 'replicate',
           },
           pageUrl: {
             type: 'string',
@@ -171,7 +171,7 @@ const createSwaggerDefinition = () => ({
               },
               model: {
                 type: 'string',
-                example: 'clip',
+                example: 'replicate',
               },
               totalImages: {
                 type: 'integer',

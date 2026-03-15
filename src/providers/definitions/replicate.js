@@ -19,10 +19,10 @@ const buildReplicateClient = (providerConfig, fetch) => new Replicate({
 });
 
 module.exports = {
-  key: 'clip',
+  key: 'replicate',
   configKey: 'replicate',
-  displayName: 'Replicate CLIP',
-  startupHint: 'REPLICATE_API_TOKEN to enable clip',
+  displayName: 'Replicate',
+  startupHint: 'REPLICATE_API_TOKEN to enable replicate',
   buildEnvSchema: (Joi) => ({
     REPLICATE_API_TOKEN: Joi.string().optional(),
     REPLICATE_API_ENDPOINT: Joi.string().uri().optional(),
@@ -55,7 +55,7 @@ module.exports = {
     scopeKey: 'replicate',
     autoPriority: 20,
     folderName: '90 Provider Validation',
-    requestEnvVars: ['model=clip'],
+    requestEnvVars: ['model=replicate'],
     scopeRequirement: 'REPLICATE_API_TOKEN',
     allRequirement: 'REPLICATE_API_TOKEN',
   },

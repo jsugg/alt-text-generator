@@ -6,13 +6,13 @@ Updated: 2026-03-14 11:28:05Z
 
 - Project: `alt-text-generator`
 - Current production symptom:
-  - `clip` requests to `https://wcag.qcraft.com.br/api/v1/accessibility/description` hang for a long time and do not return a response body in a reasonable window.
+  - `replicate` requests to `https://wcag.qcraft.com.br/api/v1/accessibility/description` hang for a long time and do not return a response body in a reasonable window.
   - Verified behavior:
     - `azure`, `huggingface`, `openai`, `openrouter`, and `together` returned `200` with usable descriptions.
     - `ollama` is not enabled in production and returns `400 UNKNOWN_MODEL`.
-    - `clip` timed out at 20s, 45s, and 120s with `curl` receiving `0` bytes.
+    - `replicate` timed out at 20s, 45s, and 120s with `curl` receiving `0` bytes.
 - Current implementation:
-  - The Replicate provider is wired by `src/providers/definitions/clip.js`.
+  - The Replicate provider is wired by `src/providers/definitions/replicate.js`.
   - The request path blocks on `replicate.run()` inside `src/services/ReplicateDescriberService.js`.
   - The single-image controller awaits `describer.describeImage(imageSource)` directly inside the user request lifecycle.
   - The page-description controller and service also reuse the same provider path.
@@ -36,7 +36,7 @@ const output = await this.replicate.run(modelRef, {
 
 ### Production evidence
 
-- Render logs show `clip` requests reaching the app and logging `Generating alt text` with:
+- Render logs show `replicate` requests reaching the app and logging `Generating alt text` with:
   - model ref `rmokady/clip_prefix_caption:9a34a6339872a03f45236f114321fb51fc7aa8269d38ae0ce5334969981e4cd8`
 - The same logs show request completion only after the client had already disconnected, with null/unfinished response state on the app side.
 - This means the app is not rejecting the request quickly; it is waiting too long on upstream prediction completion.
@@ -75,7 +75,7 @@ const output = await this.replicate.run(modelRef, {
    - Good hardening step.
    - Still not the best final architecture.
 
-3. Switch `clip` to an asynchronous prediction workflow with job status and result caching.
+3. Switch `replicate` to an asynchronous prediction workflow with job status and result caching.
    - Best fit for long-running or bursty providers.
    - Clean separation between request lifecycle and prediction lifecycle.
    - Compatible with a future warm deployment if needed.
@@ -88,11 +88,11 @@ const output = await this.replicate.run(modelRef, {
 
 ### Goal
 
-Implement a robust async `clip` flow for single-image descriptions, while also hardening the legacy synchronous `clip` usage so it fails cleanly instead of hanging indefinitely.
+Implement a robust async `replicate` flow for single-image descriptions, while also hardening the legacy synchronous `replicate` usage so it fails cleanly instead of hanging indefinitely.
 
 ### Scope
 
-- Add durable description job orchestration for async-capable providers, starting with `clip`.
+- Add durable description job orchestration for async-capable providers, starting with `replicate`.
 - Keep existing synchronous behavior for fast providers.
 - Keep Swagger/OpenAPI docs current.
 - Add tests for controller behavior, job orchestration, and Replicate provider behavior.
@@ -116,7 +116,7 @@ Implement a robust async `clip` flow for single-image descriptions, while also h
 
 4. Update the single-image controller:
    - fast providers: unchanged `200`
-   - async providers like `clip`:
+   - async providers like `replicate`:
      - return cached result immediately if available
      - otherwise start/reuse a job
      - wait a short bounded window
@@ -146,7 +146,7 @@ Implement a robust async `clip` flow for single-image descriptions, while also h
 ### Validation plan
 
 - Run targeted unit tests for new services and controllers.
-- Run integration tests for the new async `clip` flow.
+- Run integration tests for the new async `replicate` flow.
 - Run full `npm test`.
 - Run `npm run lint`.
 - Regenerate and validate Swagger/OpenAPI docs.
