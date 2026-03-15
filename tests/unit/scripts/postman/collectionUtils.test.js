@@ -224,4 +224,29 @@ describe('Unit | Scripts | Postman | Collection Utils', () => {
       expect(responseTimeHeader?.value).toBe('{{maxResponseTimeMs}}');
     });
   });
+
+  it('keeps async provider-validation polling controls configurable from the environment', () => {
+    const collectionPath = path.join(
+      __dirname,
+      '../../../../postman/collections/alt-text-generator.postman_collection.json',
+    );
+    const committedCollection = readCollection(collectionPath);
+    const asyncProviderValidationRequests = listRequestItems(committedCollection)
+      .filter(({ item }) => (
+        item.name === 'Provider validation single image job status'
+        || item.name === 'Provider validation page description job status'
+      ));
+
+    expect(asyncProviderValidationRequests).toHaveLength(2);
+    asyncProviderValidationRequests.forEach(({ item }) => {
+      const testScript = item.event
+        .find((event) => event.listen === 'test')
+        ?.script?.exec
+        ?.join('\n');
+
+      expect(testScript).toContain("pm.environment.get('providerValidationMaxPollAttempts')");
+      expect(testScript).toContain("pm.environment.get('providerValidationMinPollDelayMs')");
+      expect(testScript).toContain('pm.execution.setNextRequest(null);');
+    });
+  });
 });
