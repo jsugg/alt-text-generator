@@ -16,14 +16,14 @@ Alt-Text 4 All is an HTTPS-first API that scrapes website images and generates A
 The service exposes these primary capabilities:
 
 - discover image URLs on a target page
-- generate alt text for a specific image with provider-backed models such as `clip`, `azure`, `ollama`, `huggingface`, `openai`, `openrouter`, and `together`
+- generate alt text for a specific image with provider-backed models such as `replicate`, `azure`, `ollama`, `huggingface`, `openai`, `openrouter`, and `together`
 - generate alt text for all images on a page while preserving duplicate entries
 
 ## Features
 
 - Website image scraping with relative URL resolution
 - AI-generated descriptions for image URLs
-- Async job handoff for slow single-image and page-description providers such as Replicate-backed `clip`
+- Async job handoff for slow single-image and page-description providers such as Replicate-backed `replicate`
 - HTTPS-first local runtime with automatic HTTP -> HTTPS redirect
 - Swagger UI for interactive API exploration
 - Lint and test automation in CI
@@ -36,7 +36,7 @@ The service exposes these primary capabilities:
 - `engines.node` allows Node 20 through 24; use Node 20 locally for the least friction.
 - npm 10+
 - At least one provider configuration:
-  - `REPLICATE_API_TOKEN` for the `clip` model
+  - `REPLICATE_API_TOKEN` for the `replicate` model
   - or `ACV_API_ENDPOINT` plus `ACV_SUBSCRIPTION_KEY` for the `azure` model
   - or `OLLAMA_MODEL` / `OLLAMA_BASE_URL` for the `ollama` model
   - or `OPENAI_API_KEY`, `HF_API_KEY` / `HF_TOKEN`, `OPENROUTER_API_KEY`, or `TOGETHER_API_KEY`
@@ -85,7 +85,7 @@ npm run postman:post-deploy -- --base-url https://wcag.qcraft.com.br
 Notes:
 
 - `postman:smoke` is the fast deterministic gate.
-- `postman:full` runs the full local provider-integration suite, including protected-endpoint auth coverage, deterministic async `clip` page-job success/failure scenarios, mocked provider-validation coverage, and JSON/JUnit reports under `reports/newman/`.
+- `postman:full` runs the full local provider-integration suite, including protected-endpoint auth coverage, deterministic async `replicate` page-job success/failure scenarios, mocked provider-validation coverage, and JSON/JUnit reports under `reports/newman/`.
 - CI also emits `reports/jest/junit.xml` from the canonical Node 20 Jest lane and publishes one combined GitHub test report that joins Jest and Newman results.
 - `postman:pre-production-provider` boots the app locally and runs the low-cost real-provider validation set used immediately before promotion, currently Hugging Face, OpenAI, and Together when configured.
 - `postman:live-provider` is the production description-service validation command for deployed-app plus live-provider checks against a supplied base URL.
@@ -99,13 +99,13 @@ Notes:
 - `LIVE_PROVIDER_SCOPE=auto` keeps the provider-validation preference order: Azure, then Replicate, then Hugging Face, then OpenRouter, then OpenAI, then Together AI.
 - `provider_scope=all` runs every provider that is configured for that environment; it does not require every supported provider to be enabled everywhere.
 - Local provider integration is fully mocked and never spends live provider credits.
-- Pre-production and post-deploy use the low-cost Hugging Face, OpenAI, and Together subset. The async `clip` page-job path is covered deterministically in `postman:full`, and manual production live-provider validation can still run Replicate end to end against the same repo-controlled public provider-validation fixtures.
+- Pre-production and post-deploy use the low-cost Hugging Face, OpenAI, and Together subset. The async `replicate` page-job path is covered deterministically in `postman:full`, and manual production live-provider validation can still run Replicate end to end against the same repo-controlled public provider-validation fixtures.
 - `postman:smoke` and `postman:full` use the local Postman environment; `postman:live-provider` and `postman:post-deploy` use the live Postman environment.
 - Outside GitHub Actions, set `PROVIDER_VALIDATION_PUBLIC_REF=<pushed-sha-or-ref>` if you need live-provider runs to use a branch-specific fixture revision before it lands on `main`.
 - Production live-provider validation refuses localhost/private-network targets.
 - Provider-validation runs upload Newman artifacts and append request, assertion, failure, and response-time metrics to the GitHub Actions step summary.
 - Local harness runs accept self-signed development TLS.
-- The deterministic full suite uses local stubs for Azure, Replicate, and OpenAI-compatible provider request shapes. The Replicate stub is stateful, so local clip validation exercises the real `202 Accepted` polling contract instead of an instant success shortcut.
+- The deterministic full suite uses local stubs for Azure, Replicate, and OpenAI-compatible provider request shapes. The Replicate stub is stateful, so local replicate validation exercises the real `202 Accepted` polling contract instead of an instant success shortcut.
 
 Contribution standards for the contract suite live in [docs/postman-standards.md](./docs/postman-standards.md).
 
@@ -148,7 +148,7 @@ Notes:
 Required at startup:
 
 - At least one provider configuration:
-  - `REPLICATE_API_TOKEN` to register `clip`
+  - `REPLICATE_API_TOKEN` to register `replicate`
   - or `ACV_API_ENDPOINT` plus `ACV_SUBSCRIPTION_KEY` to register `azure`
   - or `OLLAMA_MODEL` / `OLLAMA_BASE_URL` to register `ollama`
   - or `OPENAI_API_KEY`, `HF_API_KEY` / `HF_TOKEN`, `OPENROUTER_API_KEY`, or `TOGETHER_API_KEY`
@@ -233,15 +233,15 @@ GET `/api/accessibility/description` or `/api/v1/accessibility/description`
 - Summary: returns an alt-text description for a given image
 - Query params:
   - `image_source`: URL-encoded address of the image
-  - `model`: AI model identifier, such as `clip`, `azure`, `ollama`, `huggingface`, `openai`, `openrouter`, or `together`
+  - `model`: AI model identifier, such as `replicate`, `azure`, `ollama`, `huggingface`, `openai`, `openrouter`, or `together`
 - Notes:
   - fast providers return `200` with the description array immediately
-  - slow async providers such as `clip` can return `202` with `jobId`, `status`, `pollAfterMs`, and `statusUrl`
+  - slow async providers such as `replicate` can return `202` with `jobId`, `status`, `pollAfterMs`, and `statusUrl`
 
 Example:
 
 ```bash
-curl -sk "https://localhost:8443/api/accessibility/description?image_source=https%3A%2F%2Fwww.google.com%2Fimages%2Fbranding%2Fgooglelogo%2F1x%2Fgooglelogo_color_272x92dp.png&model=clip"
+curl -sk "https://localhost:8443/api/accessibility/description?image_source=https%3A%2F%2Fwww.google.com%2Fimages%2Fbranding%2Fgooglelogo%2F1x%2Fgooglelogo_color_272x92dp.png&model=replicate"
 ```
 
 GET `/api/accessibility/description-jobs/:jobId` or `/api/v1/accessibility/description-jobs/:jobId`
@@ -262,17 +262,17 @@ GET `/api/accessibility/descriptions` or `/api/v1/accessibility/descriptions`
 - Summary: scrapes a page and returns descriptions for its images
 - Query params:
   - `url`: URL-encoded address of the target website
-  - `model`: AI model identifier, such as `clip`, `azure`, `ollama`, `huggingface`, `openai`, `openrouter`, or `together`
+  - `model`: AI model identifier, such as `replicate`, `azure`, `ollama`, `huggingface`, `openai`, `openrouter`, or `together`
 - Notes:
   - fast providers return `200` with the completed page-description payload
-  - slow async providers such as `clip` can return `202` with `jobId`, `status`, `pollAfterMs`, and `statusUrl`
+  - slow async providers such as `replicate` can return `202` with `jobId`, `status`, `pollAfterMs`, and `statusUrl`
   - preserves duplicate image entries in page order
   - reuses one prediction per unique normalized image URL per request
 
 Example:
 
 ```bash
-curl -sk "https://localhost:8443/api/accessibility/descriptions?url=https%3A%2F%2Fdeveloper.chrome.com%2F&model=clip"
+curl -sk "https://localhost:8443/api/accessibility/descriptions?url=https%3A%2F%2Fdeveloper.chrome.com%2F&model=replicate"
 ```
 
 GET `/api/accessibility/page-description-jobs/:jobId` or `/api/v1/accessibility/page-description-jobs/:jobId`

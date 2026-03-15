@@ -23,7 +23,7 @@ describe('Unit | Services | Description Job Service', () => {
       getDescriptionJob: jest.fn(),
     };
     const service = new DescriptionJobService({
-      imageDescriberFactory: new ImageDescriberFactory().register('clip', describer),
+      imageDescriberFactory: new ImageDescriberFactory().register('replicate', describer),
       jobStore,
       logger: {},
       waitTimeoutMs: 10,
@@ -35,13 +35,13 @@ describe('Unit | Services | Description Job Service', () => {
     });
     const imageUrl = 'https://images.example.org/cat.jpg';
     const jobId = DescriptionJobService.buildJobId({
-      model: 'clip',
+      model: 'replicate',
       imageUrl,
     });
 
     await jobStore.set({
       id: jobId,
-      model: 'clip',
+      model: 'replicate',
       imageUrl,
       providerJobId: 'prediction-cached',
       status: 'succeeded',
@@ -55,7 +55,7 @@ describe('Unit | Services | Description Job Service', () => {
     });
 
     const outcome = await service.resolveDescription({
-      model: 'clip',
+      model: 'replicate',
       imageUrl,
     });
 
@@ -89,7 +89,7 @@ describe('Unit | Services | Description Job Service', () => {
       }),
     };
     const service = new DescriptionJobService({
-      imageDescriberFactory: new ImageDescriberFactory().register('clip', describer),
+      imageDescriberFactory: new ImageDescriberFactory().register('replicate', describer),
       jobStore,
       logger: {},
       waitTimeoutMs: 10,
@@ -101,7 +101,7 @@ describe('Unit | Services | Description Job Service', () => {
     });
 
     const outcome = await service.resolveDescription({
-      model: 'clip',
+      model: 'replicate',
       imageUrl: 'https://example.com/cat.jpg',
     });
 
@@ -127,7 +127,7 @@ describe('Unit | Services | Description Job Service', () => {
       }),
     };
     const service = new DescriptionJobService({
-      imageDescriberFactory: new ImageDescriberFactory().register('clip', describer),
+      imageDescriberFactory: new ImageDescriberFactory().register('replicate', describer),
       jobStore,
       logger: {},
       waitTimeoutMs: 0,
@@ -139,14 +139,14 @@ describe('Unit | Services | Description Job Service', () => {
     });
 
     const outcome = await service.resolveDescription({
-      model: 'clip',
+      model: 'replicate',
       imageUrl: 'https://example.com/cat.jpg',
     });
 
     expect(outcome.kind).toBe('pending');
     expect(service.buildJobResponse(outcome.job)).toMatchObject({
       jobId: expect.any(String),
-      model: 'clip',
+      model: 'replicate',
       imageUrl: 'https://example.com/cat.jpg',
       status: 'processing',
       pollAfterMs: 1,
@@ -168,7 +168,7 @@ describe('Unit | Services | Description Job Service', () => {
         },
       }),
     };
-    const factory = new ImageDescriberFactory().register('clip', describer);
+    const factory = new ImageDescriberFactory().register('replicate', describer);
     const service = new DescriptionJobService({
       imageDescriberFactory: factory,
       jobStore,
@@ -181,12 +181,12 @@ describe('Unit | Services | Description Job Service', () => {
       sleep: jest.fn().mockResolvedValue(undefined),
     });
     const jobId = DescriptionJobService.buildJobId({
-      model: 'clip',
+      model: 'replicate',
       imageUrl: 'https://example.com/cat.jpg',
     });
     await jobStore.set({
       id: jobId,
-      model: 'clip',
+      model: 'replicate',
       imageUrl: 'https://example.com/cat.jpg',
       providerJobId: 'prediction-3',
       status: 'processing',
@@ -220,7 +220,7 @@ describe('Unit | Services | Description Job Service', () => {
       getDescriptionJob: jest.fn(),
     };
     const service = new DescriptionJobService({
-      imageDescriberFactory: new ImageDescriberFactory().register('clip', describer),
+      imageDescriberFactory: new ImageDescriberFactory().register('replicate', describer),
       jobStore,
       logger: {},
       waitTimeoutMs: 10,
@@ -232,7 +232,7 @@ describe('Unit | Services | Description Job Service', () => {
     });
 
     const outcome = await service.resolveDescription({
-      model: 'clip',
+      model: 'replicate',
       imageUrl,
     });
 
@@ -262,7 +262,7 @@ describe('Unit | Services | Description Job Service', () => {
       getDescriptionJob: jest.fn(),
     };
     const service = new DescriptionJobService({
-      imageDescriberFactory: new ImageDescriberFactory().register('clip', describer),
+      imageDescriberFactory: new ImageDescriberFactory().register('replicate', describer),
       jobStore,
       logger: {},
       waitTimeoutMs: 10,
@@ -274,7 +274,7 @@ describe('Unit | Services | Description Job Service', () => {
     });
 
     await expect(service.resolveDescription({
-      model: 'clip',
+      model: 'replicate',
       imageUrl,
     })).rejects.toMatchObject({
       message: 'prediction failed',
@@ -291,7 +291,7 @@ describe('Unit | Services | Description Job Service', () => {
       getDescriptionJob: jest.fn(),
     };
     const service = new DescriptionJobService({
-      imageDescriberFactory: new ImageDescriberFactory().register('clip', describer),
+      imageDescriberFactory: new ImageDescriberFactory().register('replicate', describer),
       jobStore,
       logger: {},
       waitTimeoutMs: 10,
@@ -302,13 +302,13 @@ describe('Unit | Services | Description Job Service', () => {
       sleep: jest.fn().mockResolvedValue(undefined),
     });
     const failedJobId = DescriptionJobService.buildJobId({
-      model: 'clip',
+      model: 'replicate',
       imageUrl: 'https://images.example.org/failure.jpg',
     });
 
     await jobStore.set({
       id: failedJobId,
-      model: 'clip',
+      model: 'replicate',
       imageUrl: 'https://images.example.org/failure.jpg',
       providerJobId: 'prediction-failed',
       status: 'failed',

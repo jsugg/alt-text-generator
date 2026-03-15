@@ -377,7 +377,7 @@ describe('Integration | API', () => {
 
       const res = await secureGet(
         app,
-        '/api/accessibility/description?model=clip',
+        '/api/accessibility/description?model=replicate',
       );
 
       expect(res.status).toBe(400);
@@ -390,7 +390,7 @@ describe('Integration | API', () => {
     });
 
     it('returns 400 for an unknown model', async () => {
-      const factory = new ImageDescriberFactory().register('clip', {
+      const factory = new ImageDescriberFactory().register('replicate', {
         describeImage: jest.fn(),
       });
       const { app } = buildTestApp({ imageDescriberFactory: factory });
@@ -415,14 +415,14 @@ describe('Integration | API', () => {
           imageUrl: 'https://example.com/img.jpg',
         }),
       };
-      const factory = new ImageDescriberFactory().register('clip', mockDescriber);
+      const factory = new ImageDescriberFactory().register('replicate', mockDescriber);
       const { app } = buildTestApp({ imageDescriberFactory: factory });
 
       const res = await secureGet(
         app,
         `/api/accessibility/description?image_source=${
           encodeURIComponent('https://example.com/img.jpg')
-        }&model=clip`,
+        }&model=replicate`,
       );
 
       expect(res.status).toBe(200);
@@ -432,7 +432,7 @@ describe('Integration | API', () => {
       }]);
     });
 
-    it('returns 202 with job metadata for pending async clip descriptions', async () => {
+    it('returns 202 with job metadata for pending async replicate descriptions', async () => {
       const asyncProvider = {
         createDescriptionJob: jest.fn(),
         getDescriptionJob: jest.fn(),
@@ -441,19 +441,19 @@ describe('Integration | API', () => {
         resolveDescription: jest.fn().mockResolvedValue({
           kind: 'pending',
           job: {
-            id: 'job-clip',
+            id: 'job-replicate',
             status: 'processing',
           },
         }),
         getJobStatus: jest.fn(),
         buildJobResponse: jest.fn().mockReturnValue({
-          jobId: 'job-clip',
+          jobId: 'job-replicate',
           status: 'processing',
-          statusUrl: '/api/v1/accessibility/description-jobs/job-clip',
+          statusUrl: '/api/v1/accessibility/description-jobs/job-replicate',
           pollAfterMs: 1000,
         }),
       };
-      const factory = new ImageDescriberFactory().register('clip', asyncProvider);
+      const factory = new ImageDescriberFactory().register('replicate', asyncProvider);
       const { app } = buildTestApp({
         imageDescriberFactory: factory,
         descriptionJobService,
@@ -463,14 +463,14 @@ describe('Integration | API', () => {
         app,
         `/api/accessibility/description?image_source=${
           encodeURIComponent('https://example.com/img.jpg')
-        }&model=clip`,
+        }&model=replicate`,
       );
 
       expect(res.status).toBe(202);
       expect(res.body).toEqual({
-        jobId: 'job-clip',
+        jobId: 'job-replicate',
         status: 'processing',
-        statusUrl: '/api/v1/accessibility/description-jobs/job-clip',
+        statusUrl: '/api/v1/accessibility/description-jobs/job-replicate',
         pollAfterMs: 1000,
       });
     });
@@ -528,7 +528,7 @@ describe('Integration | API', () => {
         config: runtimeConfig,
       });
 
-      expect(services.imageDescriberFactory.getAvailableModels()).toEqual(['clip', 'azure']);
+      expect(services.imageDescriberFactory.getAvailableModels()).toEqual(['replicate', 'azure']);
 
       const res = await secureGet(
         app,
@@ -568,7 +568,7 @@ describe('Integration | API', () => {
 
       const res = await secureGet(
         app,
-        '/api/accessibility/descriptions?model=clip',
+        '/api/accessibility/descriptions?model=replicate',
       );
 
       expect(res.status).toBe(400);
@@ -598,7 +598,7 @@ describe('Integration | API', () => {
             imageUrl,
           })),
       };
-      const factory = new ImageDescriberFactory().register('clip', mockDescriber);
+      const factory = new ImageDescriberFactory().register('replicate', mockDescriber);
       const { app } = buildTestApp({
         scraperService,
         imageDescriberFactory: factory,
@@ -608,14 +608,14 @@ describe('Integration | API', () => {
         app,
         `/api/accessibility/descriptions?url=${
           encodeURIComponent('https://example.com/page')
-        }&model=clip`,
+        }&model=replicate`,
       );
 
       expect(res.status).toBe(200);
       expect(mockDescriber.describeImage).toHaveBeenCalledTimes(2);
       expect(res.body).toEqual({
         pageUrl: 'https://example.com/page',
-        model: 'clip',
+        model: 'replicate',
         totalImages: 3,
         uniqueImages: 2,
         descriptions: [
@@ -691,7 +691,7 @@ describe('Integration | API', () => {
       });
     });
 
-    it('returns 202 with page-job metadata for pending async clip page descriptions', async () => {
+    it('returns 202 with page-job metadata for pending async replicate page descriptions', async () => {
       const asyncProvider = {
         createDescriptionJob: jest.fn(),
         getDescriptionJob: jest.fn(),
@@ -700,19 +700,19 @@ describe('Integration | API', () => {
         resolvePageDescription: jest.fn().mockResolvedValue({
           kind: 'pending',
           job: {
-            id: 'page-job-clip',
+            id: 'page-job-replicate',
             status: 'processing',
           },
         }),
         getJobStatus: jest.fn(),
         buildJobResponse: jest.fn().mockReturnValue({
-          jobId: 'page-job-clip',
+          jobId: 'page-job-replicate',
           status: 'processing',
-          statusUrl: '/api/v1/accessibility/page-description-jobs/page-job-clip',
+          statusUrl: '/api/v1/accessibility/page-description-jobs/page-job-replicate',
           pollAfterMs: 1000,
         }),
       };
-      const factory = new ImageDescriberFactory().register('clip', asyncProvider);
+      const factory = new ImageDescriberFactory().register('replicate', asyncProvider);
       const { app } = buildTestApp({
         imageDescriberFactory: factory,
         pageDescriptionJobService,
@@ -722,14 +722,14 @@ describe('Integration | API', () => {
         app,
         `/api/accessibility/descriptions?url=${
           encodeURIComponent('https://example.com/page')
-        }&model=clip`,
+        }&model=replicate`,
       );
 
       expect(res.status).toBe(202);
       expect(res.body).toEqual({
-        jobId: 'page-job-clip',
+        jobId: 'page-job-replicate',
         status: 'processing',
-        statusUrl: '/api/v1/accessibility/page-description-jobs/page-job-clip',
+        statusUrl: '/api/v1/accessibility/page-description-jobs/page-job-replicate',
         pollAfterMs: 1000,
       });
     });
@@ -740,25 +740,25 @@ describe('Integration | API', () => {
       const descriptionJobService = {
         resolveDescription: jest.fn(),
         getJobStatus: jest.fn().mockResolvedValue({
-          id: 'job-clip',
+          id: 'job-replicate',
           status: 'processing',
         }),
         buildJobResponse: jest.fn().mockReturnValue({
-          jobId: 'job-clip',
+          jobId: 'job-replicate',
           status: 'processing',
-          statusUrl: '/api/v1/accessibility/description-jobs/job-clip',
+          statusUrl: '/api/v1/accessibility/description-jobs/job-replicate',
           pollAfterMs: 1000,
         }),
       };
       const { app } = buildTestApp({ descriptionJobService });
 
-      const res = await secureGet(app, '/api/accessibility/description-jobs/job-clip');
+      const res = await secureGet(app, '/api/accessibility/description-jobs/job-replicate');
 
       expect(res.status).toBe(202);
       expect(res.body).toEqual({
-        jobId: 'job-clip',
+        jobId: 'job-replicate',
         status: 'processing',
-        statusUrl: '/api/v1/accessibility/description-jobs/job-clip',
+        statusUrl: '/api/v1/accessibility/description-jobs/job-replicate',
         pollAfterMs: 1000,
       });
     });
@@ -769,22 +769,22 @@ describe('Integration | API', () => {
       const pageDescriptionJobService = {
         resolvePageDescription: jest.fn(),
         getJobStatus: jest.fn().mockResolvedValue({
-          id: 'page-job-clip',
+          id: 'page-job-replicate',
           status: 'succeeded',
           result: {
             pageUrl: 'https://example.com/page',
-            model: 'clip',
+            model: 'replicate',
             totalImages: 1,
             uniqueImages: 1,
             descriptions: [],
           },
         }),
         buildJobResponse: jest.fn().mockReturnValue({
-          jobId: 'page-job-clip',
+          jobId: 'page-job-replicate',
           status: 'succeeded',
           result: {
             pageUrl: 'https://example.com/page',
-            model: 'clip',
+            model: 'replicate',
             totalImages: 1,
             uniqueImages: 1,
             descriptions: [],
@@ -793,15 +793,15 @@ describe('Integration | API', () => {
       };
       const { app } = buildTestApp({ pageDescriptionJobService });
 
-      const res = await secureGet(app, '/api/accessibility/page-description-jobs/page-job-clip');
+      const res = await secureGet(app, '/api/accessibility/page-description-jobs/page-job-replicate');
 
       expect(res.status).toBe(200);
       expect(res.body).toEqual({
-        jobId: 'page-job-clip',
+        jobId: 'page-job-replicate',
         status: 'succeeded',
         result: {
           pageUrl: 'https://example.com/page',
-          model: 'clip',
+          model: 'replicate',
           totalImages: 1,
           uniqueImages: 1,
           descriptions: [],
@@ -813,25 +813,25 @@ describe('Integration | API', () => {
       const pageDescriptionJobService = {
         resolvePageDescription: jest.fn(),
         getJobStatus: jest.fn().mockResolvedValue({
-          id: 'page-job-clip',
+          id: 'page-job-replicate',
           status: 'processing',
         }),
         buildJobResponse: jest.fn().mockReturnValue({
-          jobId: 'page-job-clip',
+          jobId: 'page-job-replicate',
           status: 'processing',
-          statusUrl: '/api/v1/accessibility/page-description-jobs/page-job-clip',
+          statusUrl: '/api/v1/accessibility/page-description-jobs/page-job-replicate',
           pollAfterMs: 1000,
         }),
       };
       const { app } = buildTestApp({ pageDescriptionJobService });
 
-      const res = await secureGet(app, '/api/accessibility/page-description-jobs/page-job-clip');
+      const res = await secureGet(app, '/api/accessibility/page-description-jobs/page-job-replicate');
 
       expect(res.status).toBe(202);
       expect(res.body).toEqual({
-        jobId: 'page-job-clip',
+        jobId: 'page-job-replicate',
         status: 'processing',
-        statusUrl: '/api/v1/accessibility/page-description-jobs/page-job-clip',
+        statusUrl: '/api/v1/accessibility/page-description-jobs/page-job-replicate',
         pollAfterMs: 1000,
       });
     });
@@ -905,7 +905,7 @@ describe('Integration | API', () => {
         app,
         `/api/accessibility/description?image_source=${
           encodeURIComponent('https://example.com/img.jpg')
-        }&model=clip`,
+        }&model=replicate`,
       );
 
       expect(res.status).toBe(401);
@@ -917,7 +917,7 @@ describe('Integration | API', () => {
     });
 
     it('accepts X-API-Key authentication on protected endpoints', async () => {
-      const factory = new ImageDescriberFactory().register('clip', {
+      const factory = new ImageDescriberFactory().register('replicate', {
         describeImage: jest.fn().mockResolvedValue({
           description: 'authenticated description',
           imageUrl: 'https://example.com/img.jpg',
@@ -932,7 +932,7 @@ describe('Integration | API', () => {
         app,
         `/api/accessibility/description?image_source=${
           encodeURIComponent('https://example.com/img.jpg')
-        }&model=clip`,
+        }&model=replicate`,
       ).set('X-API-Key', 'dummy-2');
 
       expect(res.status).toBe(200);

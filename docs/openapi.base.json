@@ -75,7 +75,7 @@
           },
           "model": {
             "type": "string",
-            "example": "clip"
+            "example": "replicate"
           },
           "imageUrl": {
             "type": "string",
@@ -144,7 +144,7 @@
           },
           "model": {
             "type": "string",
-            "example": "clip"
+            "example": "replicate"
           },
           "pageUrl": {
             "type": "string",
@@ -179,7 +179,7 @@
               },
               "model": {
                 "type": "string",
-                "example": "clip"
+                "example": "replicate"
               },
               "totalImages": {
                 "type": "integer",
@@ -228,7 +228,7 @@
     "/api/accessibility/description": {
       "get": {
         "summary": "Returns a description for a given image",
-        "description": "Takes an image URL and sends it to the selected AI model to generate an alt-text description. Slow asynchronous providers such as `clip` can return `202 Accepted` with a job status payload.",
+        "description": "Takes an image URL and sends it to the selected AI model to generate an alt-text description. Slow asynchronous providers such as `replicate` can return `202 Accepted` with a job status payload.",
         "security": [
           {
             "bearerAuth": []
@@ -251,12 +251,12 @@
           {
             "name": "model",
             "in": "query",
-            "description": "The AI model to use, for example `clip`, `azure`, `ollama`, `huggingface`, `openai`, `openrouter`, or `together`.",
+            "description": "The AI model to use, for example `replicate`, `azure`, `ollama`, `huggingface`, `openai`, `openrouter`, or `together`.",
             "required": true,
             "schema": {
               "type": "string",
               "enum": [
-                "clip",
+                "replicate",
                 "azure",
                 "ollama",
                 "huggingface",
@@ -264,7 +264,7 @@
                 "openrouter",
                 "together"
               ],
-              "example": "clip"
+              "example": "replicate"
             }
           }
         ],
@@ -348,7 +348,7 @@
     "/api/accessibility/descriptions": {
       "get": {
         "summary": "Returns descriptions for images found on a page",
-        "description": "Scrapes a website, preserves duplicate image entries in page order, and reuses a single prediction per unique image URL. Slow asynchronous providers such as `clip` can return `202 Accepted` with a page-description job payload.",
+        "description": "Scrapes a website, preserves duplicate image entries in page order, and reuses a single prediction per unique image URL. Slow asynchronous providers such as `replicate` can return `202 Accepted` with a page-description job payload.",
         "security": [
           {
             "bearerAuth": []
@@ -371,12 +371,12 @@
           {
             "name": "model",
             "in": "query",
-            "description": "The AI model to use, for example `clip`, `azure`, `ollama`, `huggingface`, `openai`, `openrouter`, or `together`.",
+            "description": "The AI model to use, for example `replicate`, `azure`, `ollama`, `huggingface`, `openai`, `openrouter`, or `together`.",
             "required": true,
             "schema": {
               "type": "string",
               "enum": [
-                "clip",
+                "replicate",
                 "azure",
                 "ollama",
                 "huggingface",
@@ -384,7 +384,7 @@
                 "openrouter",
                 "together"
               ],
-              "example": "clip"
+              "example": "replicate"
             }
           }
         ],

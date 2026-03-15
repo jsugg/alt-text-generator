@@ -55,19 +55,19 @@ describe('Unit | Services | Page Description Job Service', () => {
     });
     const pageUrl = 'https://example.com/page';
     const jobId = PageDescriptionJobService.buildJobId({
-      model: 'clip',
+      model: 'replicate',
       pageUrl,
     });
 
     await jobStore.set({
       id: jobId,
       jobType: 'page-description',
-      model: 'clip',
+      model: 'replicate',
       pageUrl,
       status: 'succeeded',
       result: {
         pageUrl,
-        model: 'clip',
+        model: 'replicate',
         totalImages: 1,
         uniqueImages: 1,
         descriptions: [],
@@ -78,7 +78,7 @@ describe('Unit | Services | Page Description Job Service', () => {
     });
 
     const outcome = await service.resolvePageDescription({
-      model: 'clip',
+      model: 'replicate',
       pageUrl,
     });
 
@@ -86,7 +86,7 @@ describe('Unit | Services | Page Description Job Service', () => {
       kind: 'completed',
       result: {
         pageUrl,
-        model: 'clip',
+        model: 'replicate',
       },
     });
     expect(pageDescriptionService.describePageWithResolver).not.toHaveBeenCalled();
@@ -97,7 +97,7 @@ describe('Unit | Services | Page Description Job Service', () => {
     const pageDescriptionService = {
       describePageWithResolver: jest.fn().mockImplementation(async ({ describeImage }) => ({
         pageUrl: 'https://example.com/page',
-        model: 'clip',
+        model: 'replicate',
         totalImages: 1,
         uniqueImages: 1,
         descriptions: [
@@ -131,7 +131,7 @@ describe('Unit | Services | Page Description Job Service', () => {
     });
 
     const outcome = await service.resolvePageDescription({
-      model: 'clip',
+      model: 'replicate',
       pageUrl: 'https://example.com/page',
     });
 
@@ -139,13 +139,13 @@ describe('Unit | Services | Page Description Job Service', () => {
       kind: 'completed',
       result: {
         pageUrl: 'https://example.com/page',
-        model: 'clip',
+        model: 'replicate',
         totalImages: 1,
         uniqueImages: 1,
       },
     });
     expect(descriptionJobService.resolveDescription).toHaveBeenCalledWith({
-      model: 'clip',
+      model: 'replicate',
       imageUrl: 'https://example.com/a.jpg',
     });
   });
@@ -179,14 +179,14 @@ describe('Unit | Services | Page Description Job Service', () => {
     });
 
     const outcome = await service.resolvePageDescription({
-      model: 'clip',
+      model: 'replicate',
       pageUrl: 'https://example.com/page',
     });
 
     expect(outcome.kind).toBe('pending');
     expect(service.buildJobResponse(outcome.job)).toMatchObject({
       jobId: expect.any(String),
-      model: 'clip',
+      model: 'replicate',
       pageUrl: 'https://example.com/page',
       status: expect.stringMatching(/pending|processing/),
       statusUrl: expect.stringContaining('/api/v1/accessibility/page-description-jobs/'),
@@ -229,13 +229,13 @@ describe('Unit | Services | Page Description Job Service', () => {
     });
 
     const firstOutcome = await service.resolvePageDescription({
-      model: 'clip',
+      model: 'replicate',
       pageUrl: 'https://example.com/page',
     });
     expect(firstOutcome.kind).toBe('pending');
 
     const failedJobId = PageDescriptionJobService.buildJobId({
-      model: 'clip',
+      model: 'replicate',
       pageUrl: 'https://example.com/page',
     });
     await service.activeJobs.get(failedJobId);
@@ -250,7 +250,7 @@ describe('Unit | Services | Page Description Job Service', () => {
     await jobStore.set({
       id: failedJobId,
       jobType: 'page-description',
-      model: 'clip',
+      model: 'replicate',
       pageUrl: 'https://example.com/page',
       status: 'pending',
       createdAt: new Date().toISOString(),
@@ -297,7 +297,7 @@ describe('Unit | Services | Page Description Job Service', () => {
     await jobStore.set({
       id: 'page-job-no-claim',
       jobType: 'page-description',
-      model: 'clip',
+      model: 'replicate',
       pageUrl: 'https://example.com/page',
       status: 'pending',
       createdAt: new Date().toISOString(),
@@ -318,7 +318,7 @@ describe('Unit | Services | Page Description Job Service', () => {
     const pageDescriptionService = {
       describePageWithResolver: jest.fn().mockImplementation(async ({ describeImage }) => ({
         pageUrl: 'https://example.com/page',
-        model: 'clip',
+        model: 'replicate',
         totalImages: 1,
         uniqueImages: 1,
         descriptions: [
@@ -365,14 +365,14 @@ describe('Unit | Services | Page Description Job Service', () => {
     });
 
     const outcome = await service.resolvePageDescription({
-      model: 'clip',
+      model: 'replicate',
       pageUrl: 'https://example.com/page',
     });
 
     expect(outcome.kind).toBe('completed');
     expect(pageDescriptionService.describePageWithResolver).toHaveBeenCalledTimes(1);
     expect(descriptionJobService.resolveDescription).toHaveBeenCalledWith({
-      model: 'clip',
+      model: 'replicate',
       imageUrl: 'https://example.com/a.jpg',
     });
     expect(descriptionJobService.getJobStatus).toHaveBeenCalledWith('description-job-1');
@@ -382,7 +382,7 @@ describe('Unit | Services | Page Description Job Service', () => {
     const pageDescriptionService = {
       describePageWithResolver: jest.fn().mockImplementation(async ({ describeImage }) => ({
         pageUrl: 'https://example.com/page',
-        model: 'clip',
+        model: 'replicate',
         totalImages: 1,
         uniqueImages: 1,
         descriptions: [
@@ -424,7 +424,7 @@ describe('Unit | Services | Page Description Job Service', () => {
     });
 
     await expect(service.resolveImageDescription({
-      model: 'clip',
+      model: 'replicate',
       imageUrl: 'https://example.com/a.jpg',
     })).rejects.toMatchObject({
       message: 'upstream child job failed',
@@ -432,7 +432,7 @@ describe('Unit | Services | Page Description Job Service', () => {
     });
 
     await expect(service.resolveImageDescription({
-      model: 'clip',
+      model: 'replicate',
       imageUrl: 'https://example.com/a.jpg',
     })).rejects.toThrow('Description job failed');
   });

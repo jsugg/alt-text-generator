@@ -18,7 +18,7 @@ describe('Unit | Services | Page Description Service', () => {
         description: `description for ${imageUrl}`,
         imageUrl,
       }));
-    const imageDescriberFactory = new ImageDescriberFactory().register('clip', {
+    const imageDescriberFactory = new ImageDescriberFactory().register('replicate', {
       describeImage,
     });
     const service = new PageDescriptionService({
@@ -28,7 +28,7 @@ describe('Unit | Services | Page Description Service', () => {
 
     const result = await service.describePage({
       pageUrl: 'https://example.com/page',
-      model: 'clip',
+      model: 'replicate',
     });
 
     expect(scraperService.getImages).toHaveBeenCalledWith('https://example.com/page');
@@ -37,7 +37,7 @@ describe('Unit | Services | Page Description Service', () => {
     expect(describeImage).toHaveBeenNthCalledWith(2, 'https://example.com/b.jpg');
     expect(result).toEqual({
       pageUrl: 'https://example.com/page',
-      model: 'clip',
+      model: 'replicate',
       totalImages: 3,
       uniqueImages: 2,
       descriptions: [
@@ -206,7 +206,7 @@ describe('Unit | Services | Page Description Service', () => {
         imageUrl,
       };
     });
-    const imageDescriberFactory = new ImageDescriberFactory().register('clip', {
+    const imageDescriberFactory = new ImageDescriberFactory().register('replicate', {
       describeImage,
     });
     const service = new PageDescriptionService({
@@ -217,7 +217,7 @@ describe('Unit | Services | Page Description Service', () => {
 
     const result = await service.describePage({
       pageUrl: 'https://example.com/page',
-      model: 'clip',
+      model: 'replicate',
     });
 
     expect(maxInFlight).toBeLessThanOrEqual(2);
@@ -256,7 +256,7 @@ describe('Unit | Services | Page Description Service', () => {
           imageUrl,
         },
       }));
-    const imageDescriberFactory = new ImageDescriberFactory().register('clip', {
+    const imageDescriberFactory = new ImageDescriberFactory().register('replicate', {
       createDescriptionJob,
       getDescriptionJob,
     });
@@ -269,14 +269,14 @@ describe('Unit | Services | Page Description Service', () => {
 
     const result = await service.describePageWithAsyncJobs({
       pageUrl: 'https://example.com/page',
-      model: 'clip',
+      model: 'replicate',
     });
 
     expect(createDescriptionJob).toHaveBeenCalledTimes(2);
     expect(getDescriptionJob).toHaveBeenCalledTimes(2);
     expect(result).toEqual({
       pageUrl: 'https://example.com/page',
-      model: 'clip',
+      model: 'replicate',
       totalImages: 3,
       uniqueImages: 2,
       descriptions: [
@@ -343,7 +343,7 @@ describe('Unit | Services | Page Description Service', () => {
         ],
       }),
     };
-    const imageDescriberFactory = new ImageDescriberFactory().register('clip', {});
+    const imageDescriberFactory = new ImageDescriberFactory().register('replicate', {});
     const describeImage = jest.fn().mockImplementation(async (imageUrl) => ({
       description: `resolved by job ${imageUrl}`,
       imageUrl,
@@ -355,14 +355,14 @@ describe('Unit | Services | Page Description Service', () => {
 
     const result = await service.describePageWithResolver({
       pageUrl: 'https://example.com/page',
-      model: 'clip',
+      model: 'replicate',
       describeImage,
     });
 
     expect(describeImage).toHaveBeenCalledTimes(1);
     expect(result).toEqual({
       pageUrl: 'https://example.com/page',
-      model: 'clip',
+      model: 'replicate',
       totalImages: 2,
       uniqueImages: 1,
       descriptions: [

@@ -46,7 +46,7 @@ class DescriptionController {
    *     summary: Returns a description for a given image
    *     description: Takes an image URL and sends it to the selected AI model
    *       to generate an alt-text description. Slow asynchronous providers such
-   *       as `clip` can return `202 Accepted` with a job status payload.
+   *       as `replicate` can return `202 Accepted` with a job status payload.
    *     security:
    *       - bearerAuth: []
    *       - apiKeyAuth: []
@@ -60,20 +60,20 @@ class DescriptionController {
    *           example: https%3A%2F%2Fdeveloper.chrome.com%2Fstatic%2Fimages%2Fai-homepage-card.png
    *       - name: model
    *         in: query
-   *         description: The AI model to use, for example `clip`, `azure`,
+   *         description: The AI model to use, for example `replicate`, `azure`,
    *           `ollama`, `huggingface`, `openai`, `openrouter`, or `together`.
    *         required: true
    *         schema:
    *           type: string
    *           enum:
-   *             - clip
+   *             - replicate
    *             - azure
    *             - ollama
    *             - huggingface
    *             - openai
    *             - openrouter
    *             - together
-   *           example: clip
+   *           example: replicate
    *     responses:
    *       200:
    *         description: OK
@@ -195,7 +195,7 @@ class DescriptionController {
    *     summary: Returns descriptions for images found on a page
    *     description: Scrapes a website, preserves duplicate image entries in page
    *       order, and reuses a single prediction per unique image URL. Slow
-   *       asynchronous providers such as `clip` can return `202 Accepted` with
+   *       asynchronous providers such as `replicate` can return `202 Accepted` with
    *       a page-description job payload.
    *     security:
    *       - bearerAuth: []
@@ -210,20 +210,20 @@ class DescriptionController {
    *           example: https%3A%2F%2Fdeveloper.chrome.com%2F
    *       - name: model
    *         in: query
-   *         description: The AI model to use, for example `clip`, `azure`,
+   *         description: The AI model to use, for example `replicate`, `azure`,
    *           `ollama`, `huggingface`, `openai`, `openrouter`, or `together`.
    *         required: true
    *         schema:
    *           type: string
    *           enum:
-   *             - clip
+   *             - replicate
    *             - azure
    *             - ollama
    *             - huggingface
    *             - openai
    *             - openrouter
    *             - together
-   *           example: clip
+   *           example: replicate
    *     responses:
    *       200:
    *         description: OK
