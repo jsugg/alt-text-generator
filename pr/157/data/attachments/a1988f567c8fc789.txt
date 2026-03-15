@@ -1,0 +1,935 @@
+
+window.onload = function() {
+  // Build a system
+  var url = window.location.search.match(/url=([^&]+)/);
+  if (url && url.length > 1) {
+    url = decodeURIComponent(url[1]);
+  } else {
+    url = window.location.origin;
+  }
+  var options = {
+  "swaggerDoc": {
+    "openapi": "3.0.0",
+    "info": {
+      "title": "AI-Powered Alternative Text Provider API",
+      "version": "1.0.0",
+      "description": "This API provides descriptions to images, to contribute to the world-wide accessibility efforts."
+    },
+    "components": {
+      "securitySchemes": {
+        "bearerAuth": {
+          "type": "http",
+          "scheme": "bearer",
+          "bearerFormat": "API token"
+        },
+        "apiKeyAuth": {
+          "type": "apiKey",
+          "in": "header",
+          "name": "X-API-Key"
+        }
+      },
+      "schemas": {
+        "ApiErrorResponse": {
+          "type": "object",
+          "required": [
+            "error",
+            "code"
+          ],
+          "properties": {
+            "error": {
+              "type": "string",
+              "example": "Invalid image_source URL"
+            },
+            "code": {
+              "type": "string",
+              "example": "INVALID_IMAGE_SOURCE_URL"
+            },
+            "requestId": {
+              "type": "string",
+              "example": "d5c9fca2-bef2-4ff6-92ff-0227d219d67e"
+            },
+            "details": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "field",
+                  "issue"
+                ],
+                "properties": {
+                  "field": {
+                    "type": "string",
+                    "example": "image_source"
+                  },
+                  "issue": {
+                    "type": "string",
+                    "example": "invalid_url"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "DescriptionJobResponse": {
+          "type": "object",
+          "required": [
+            "jobId",
+            "model",
+            "imageUrl",
+            "status"
+          ],
+          "properties": {
+            "jobId": {
+              "type": "string",
+              "example": "8dbd0c163f9c85166abac1d449f5fe3e78244da0edb8ff6ea7f2e4c4cc6db83d"
+            },
+            "model": {
+              "type": "string",
+              "example": "clip"
+            },
+            "imageUrl": {
+              "type": "string",
+              "example": "https://developer.chrome.com/static/images/ai-homepage-card.png"
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "processing",
+                "starting",
+                "succeeded",
+                "failed",
+                "canceled"
+              ],
+              "example": "pending"
+            },
+            "pollAfterMs": {
+              "type": "integer",
+              "example": 1000
+            },
+            "statusUrl": {
+              "type": "string",
+              "example": "/api/v1/accessibility/description-jobs/8dbd0c163f9c85166abac1d449f5fe3e78244da0edb8ff6ea7f2e4c4cc6db83d"
+            },
+            "result": {
+              "type": "object",
+              "properties": {
+                "description": {
+                  "type": "string",
+                  "example": "A man with glasses is playing a violin."
+                },
+                "imageUrl": {
+                  "type": "string",
+                  "example": "https://developer.chrome.com/static/images/ai-homepage-card.png"
+                }
+              }
+            },
+            "error": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Replicate prediction failed"
+                },
+                "code": {
+                  "type": "string",
+                  "example": "DESCRIPTION_PROVIDER_TIMEOUT"
+                }
+              }
+            }
+          }
+        },
+        "PageDescriptionJobResponse": {
+          "type": "object",
+          "required": [
+            "jobId",
+            "model",
+            "pageUrl",
+            "status"
+          ],
+          "properties": {
+            "jobId": {
+              "type": "string",
+              "example": "51cc340310a52659fbe9f3d2b9ef754f17f4f2376eb138dfb2cd7f0142ae5db0"
+            },
+            "model": {
+              "type": "string",
+              "example": "clip"
+            },
+            "pageUrl": {
+              "type": "string",
+              "example": "https://developer.chrome.com/"
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "processing",
+                "starting",
+                "succeeded",
+                "failed",
+                "canceled"
+              ],
+              "example": "pending"
+            },
+            "pollAfterMs": {
+              "type": "integer",
+              "example": 1000
+            },
+            "statusUrl": {
+              "type": "string",
+              "example": "/api/v1/accessibility/page-description-jobs/51cc340310a52659fbe9f3d2b9ef754f17f4f2376eb138dfb2cd7f0142ae5db0"
+            },
+            "result": {
+              "type": "object",
+              "properties": {
+                "pageUrl": {
+                  "type": "string",
+                  "example": "https://developer.chrome.com/"
+                },
+                "model": {
+                  "type": "string",
+                  "example": "clip"
+                },
+                "totalImages": {
+                  "type": "integer",
+                  "example": 3
+                },
+                "uniqueImages": {
+                  "type": "integer",
+                  "example": 2
+                },
+                "descriptions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "description": {
+                        "type": "string",
+                        "example": "A man with glasses is playing a violin."
+                      },
+                      "imageUrl": {
+                        "type": "string",
+                        "example": "https://developer.chrome.com/static/images/ai-homepage-card.png"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "error": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Page description job failed"
+                },
+                "code": {
+                  "type": "string",
+                  "example": "PAGE_DESCRIPTION_JOB_FETCH_FAILED"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "paths": {
+      "/api/accessibility/description": {
+        "get": {
+          "summary": "Returns a description for a given image",
+          "description": "Takes an image URL and sends it to the selected AI model to generate an alt-text description. Slow asynchronous providers such as `clip` can return `202 Accepted` with a job status payload.",
+          "security": [
+            {
+              "bearerAuth": []
+            },
+            {
+              "apiKeyAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "image_source",
+              "in": "query",
+              "description": "URLEncoded address of the image.",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "example": "https%3A%2F%2Fdeveloper.chrome.com%2Fstatic%2Fimages%2Fai-homepage-card.png"
+              }
+            },
+            {
+              "name": "model",
+              "in": "query",
+              "description": "The AI model to use, for example `clip`, `azure`, `ollama`, `huggingface`, `openai`, `openrouter`, or `together`.",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "enum": [
+                  "clip",
+                  "azure",
+                  "ollama",
+                  "huggingface",
+                  "openai",
+                  "openrouter",
+                  "together"
+                ],
+                "example": "clip"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "OK",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "description": {
+                          "type": "string",
+                          "example": "A man with glasses is playing a violin."
+                        },
+                        "imageUrl": {
+                          "type": "string",
+                          "example": "https://developer.chrome.com/static/images/ai-homepage-card.png"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "202": {
+              "description": "Description job accepted and still processing",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/DescriptionJobResponse"
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Missing or invalid parameters, or unsupported model",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiErrorResponse"
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "Missing or invalid API authentication credentials",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiErrorResponse"
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Server error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiErrorResponse"
+                  }
+                }
+              }
+            },
+            "504": {
+              "description": "Description provider timed out before completing the request",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiErrorResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/accessibility/descriptions": {
+        "get": {
+          "summary": "Returns descriptions for images found on a page",
+          "description": "Scrapes a website, preserves duplicate image entries in page order, and reuses a single prediction per unique image URL. Slow asynchronous providers such as `clip` can return `202 Accepted` with a page-description job payload.",
+          "security": [
+            {
+              "bearerAuth": []
+            },
+            {
+              "apiKeyAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "url",
+              "in": "query",
+              "description": "URLEncoded address of the target website.",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "example": "https%3A%2F%2Fdeveloper.chrome.com%2F"
+              }
+            },
+            {
+              "name": "model",
+              "in": "query",
+              "description": "The AI model to use, for example `clip`, `azure`, `ollama`, `huggingface`, `openai`, `openrouter`, or `together`.",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "enum": [
+                  "clip",
+                  "azure",
+                  "ollama",
+                  "huggingface",
+                  "openai",
+                  "openrouter",
+                  "together"
+                ],
+                "example": "clip"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "OK"
+            },
+            "202": {
+              "description": "Page-description job accepted and still processing",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/PageDescriptionJobResponse"
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Missing or invalid parameters, or unsupported model",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiErrorResponse"
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "Missing or invalid API authentication credentials",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiErrorResponse"
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Server error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiErrorResponse"
+                  }
+                }
+              }
+            },
+            "504": {
+              "description": "Description provider timed out before completing the request",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiErrorResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/accessibility/page-description-jobs/{jobId}": {
+        "get": {
+          "summary": "Returns the current status of an asynchronous page-description job",
+          "description": "Poll this endpoint after a `202 Accepted` response from the page-description route.",
+          "security": [
+            {
+              "bearerAuth": []
+            },
+            {
+              "apiKeyAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "jobId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Job has completed or failed",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/PageDescriptionJobResponse"
+                  }
+                }
+              }
+            },
+            "202": {
+              "description": "Job is still processing",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/PageDescriptionJobResponse"
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "Missing or invalid API authentication credentials",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiErrorResponse"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Page-description job not found",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiErrorResponse"
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Server error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiErrorResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/accessibility/description-jobs/{jobId}": {
+        "get": {
+          "summary": "Returns the current status of an asynchronous description job",
+          "description": "Poll this endpoint after a `202 Accepted` response from the single-image description route.",
+          "security": [
+            {
+              "bearerAuth": []
+            },
+            {
+              "apiKeyAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "jobId",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Job has completed or failed",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/DescriptionJobResponse"
+                  }
+                }
+              }
+            },
+            "202": {
+              "description": "Job is still processing",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/DescriptionJobResponse"
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "Missing or invalid API authentication credentials",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiErrorResponse"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Description job not found",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiErrorResponse"
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Server error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiErrorResponse"
+                  }
+                }
+              }
+            },
+            "504": {
+              "description": "Description provider timed out while checking job status",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiErrorResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/": {
+        "get": {
+          "summary": "Get the public service index",
+          "description": "Returns a stable discovery document for the public API surface.",
+          "responses": {
+            "200": {
+              "description": "Public service metadata and discovery links",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "required": [
+                      "name",
+                      "version",
+                      "status",
+                      "links",
+                      "auth",
+                      "requestId"
+                    ],
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "example": "alt-text-generator"
+                      },
+                      "version": {
+                        "type": "string",
+                        "example": "1.0.0"
+                      },
+                      "status": {
+                        "type": "string",
+                        "example": "ok"
+                      },
+                      "links": {
+                        "type": "object",
+                        "required": [
+                          "api",
+                          "docs",
+                          "health",
+                          "ping"
+                        ],
+                        "properties": {
+                          "api": {
+                            "type": "string",
+                            "example": "/api/v1"
+                          },
+                          "docs": {
+                            "type": "string",
+                            "example": "/api-docs/"
+                          },
+                          "health": {
+                            "type": "string",
+                            "example": "/api/health"
+                          },
+                          "ping": {
+                            "type": "string",
+                            "example": "/api/ping"
+                          }
+                        }
+                      },
+                      "auth": {
+                        "type": "object",
+                        "required": [
+                          "schemes"
+                        ],
+                        "properties": {
+                          "schemes": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "example": [
+                              "X-API-Key",
+                              "Bearer"
+                            ]
+                          }
+                        }
+                      },
+                      "requestId": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Server error"
+            }
+          }
+        }
+      },
+      "/api/ping": {
+        "get": {
+          "summary": "Check if the API is available",
+          "responses": {
+            "200": {
+              "description": "API is online and listening",
+              "content": {
+                "text/plain": {
+                  "schema": {
+                    "type": "string",
+                    "example": "pong"
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Server error"
+            }
+          }
+        }
+      },
+      "/api/health": {
+        "get": {
+          "summary": "Check if the API is ready to serve traffic",
+          "responses": {
+            "200": {
+              "description": "API is online and ready",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "required": [
+                      "message",
+                      "ready",
+                      "timestamp",
+                      "uptime"
+                    ],
+                    "properties": {
+                      "uptime": {
+                        "type": "number"
+                      },
+                      "message": {
+                        "type": "string",
+                        "example": "OK"
+                      },
+                      "ready": {
+                        "type": "boolean",
+                        "example": true
+                      },
+                      "timestamp": {
+                        "type": "number"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "503": {
+              "description": "API is draining and should be removed from service",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "required": [
+                      "message",
+                      "ready",
+                      "timestamp",
+                      "uptime"
+                    ],
+                    "properties": {
+                      "uptime": {
+                        "type": "number"
+                      },
+                      "message": {
+                        "type": "string",
+                        "example": "DRAINING"
+                      },
+                      "ready": {
+                        "type": "boolean",
+                        "example": false
+                      },
+                      "timestamp": {
+                        "type": "number"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/scraper/images": {
+        "get": {
+          "summary": "Returns the list of images found in a website",
+          "description": "Visits the website, selects img elements, and returns their src URLs as JSON.",
+          "security": [
+            {
+              "bearerAuth": []
+            },
+            {
+              "apiKeyAuth": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "url",
+              "in": "query",
+              "description": "URLEncoded address of the target website.",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "example": "https%3A%2F%2Fdeveloper.chrome.com%2F"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "OK",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "imageSources": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": {
+              "description": "Missing or invalid url parameter",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiErrorResponse"
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "Missing or invalid API authentication credentials",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiErrorResponse"
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Server error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ApiErrorResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "tags": [],
+    "servers": [
+      {
+        "url": "https://localhost:8443",
+        "description": "Development server"
+      }
+    ]
+  },
+  "customOptions": {}
+};
+  url = options.swaggerUrl || url
+  var urls = options.swaggerUrls
+  var customOptions = options.customOptions
+  var spec1 = options.swaggerDoc
+  var swaggerOptions = {
+    spec: spec1,
+    url: url,
+    urls: urls,
+    dom_id: '#swagger-ui',
+    deepLinking: true,
+    presets: [
+      SwaggerUIBundle.presets.apis,
+      SwaggerUIStandalonePreset
+    ],
+    plugins: [
+      SwaggerUIBundle.plugins.DownloadUrl
+    ],
+    layout: "StandaloneLayout"
+  }
+  for (var attrname in customOptions) {
+    swaggerOptions[attrname] = customOptions[attrname];
+  }
+  var ui = SwaggerUIBundle(swaggerOptions)
+
+  if (customOptions.oauth) {
+    ui.initOAuth(customOptions.oauth)
+  }
+
+  if (customOptions.preauthorizeApiKey) {
+    const key = customOptions.preauthorizeApiKey.authDefinitionKey;
+    const value = customOptions.preauthorizeApiKey.apiKeyValue;
+    if (!!key && !!value) {
+      const pid = setInterval(() => {
+        const authorized = ui.preauthorizeApiKey(key, value);
+        if(!!authorized) clearInterval(pid);
+      }, 500)
+
+    }
+  }
+
+  if (customOptions.authAction) {
+    ui.authActions.authorize(customOptions.authAction)
+  }
+
+  window.ui = ui
+}
