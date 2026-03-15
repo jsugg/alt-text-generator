@@ -215,7 +215,7 @@ describe('Unit | Scripts | Postman | Collection Utils', () => {
         || topLevelFolderName === '91 Azure Provider Validation'
       ));
 
-    expect(providerValidationRequests).toHaveLength(4);
+    expect(providerValidationRequests).toHaveLength(6);
     providerValidationRequests.forEach(({ item }) => {
       const responseTimeHeader = item.request.header.find(
         (header) => header.key.toLowerCase() === 'x-max-response-time-ms',

@@ -22,6 +22,8 @@ const HOST = '127.0.0.1';
 const PORT = Number(process.env.POSTMAN_FIXTURE_PORT || 19090);
 const BASE_URL = `http://${HOST}:${PORT}`;
 const OPENAI_COMPATIBLE_JSON_LIMIT = '1mb';
+const REPLICATE_SUCCESS_POLL_COUNT = 6;
+const REPLICATE_FAILURE_POLL_COUNT = 4;
 
 const ASSET_A_PNG = getProviderValidationAsset('a.png');
 const ASSET_B_PNG = getProviderValidationAsset('b.png');
@@ -76,6 +78,105 @@ function buildProviderCaption(providerName) {
 }
 
 /**
+ * @param {string} imageUrl
+ * @returns {boolean}
+ */
+function isProviderFailureAssetUrl(imageUrl) {
+  return typeof imageUrl === 'string' && imageUrl.endsWith('/assets/provider-error.png');
+}
+
+/**
+ * @param {Record<string, unknown>} requestBody
+ * @returns {string}
+ */
+function extractReplicateImageUrl(requestBody) {
+  const maybeImageUrl = requestBody?.input?.image;
+  return typeof maybeImageUrl === 'string' ? maybeImageUrl : '';
+}
+
+/**
+ * @param {{
+ *   error?: string,
+ *   id: string,
+ *   imageUrl: string,
+ *   output?: string,
+ *   pollCount: number,
+ *   requiredPollCount: number,
+ *   status: string,
+ * }} prediction
+ * @returns {{
+ *   error?: string,
+ *   id: string,
+ *   input: { image: string },
+ *   output?: string,
+ *   status: string,
+ * }}
+ */
+function buildReplicatePredictionPayload(prediction) {
+  return {
+    id: prediction.id,
+    status: prediction.status,
+    input: {
+      image: prediction.imageUrl,
+    },
+    ...(prediction.status === 'succeeded' ? { output: prediction.output } : {}),
+    ...(prediction.status === 'failed' || prediction.status === 'canceled'
+      ? { error: prediction.error }
+      : {}),
+  };
+}
+
+/**
+ * @param {{
+ *   error?: string,
+ *   id: string,
+ *   imageUrl: string,
+ *   output?: string,
+ *   pollCount: number,
+ *   requiredPollCount: number,
+ *   status: string,
+ * }} prediction
+ * @returns {{
+ *   error?: string,
+ *   id: string,
+ *   imageUrl: string,
+ *   output?: string,
+ *   pollCount: number,
+ *   requiredPollCount: number,
+ *   status: string,
+ * }}
+ */
+function advanceReplicatePrediction(prediction) {
+  if (['failed', 'canceled', 'succeeded'].includes(prediction.status)) {
+    return prediction;
+  }
+
+  const nextPollCount = prediction.pollCount + 1;
+  if (nextPollCount < prediction.requiredPollCount) {
+    return {
+      ...prediction,
+      pollCount: nextPollCount,
+      status: 'processing',
+    };
+  }
+
+  if (prediction.error) {
+    return {
+      ...prediction,
+      pollCount: nextPollCount,
+      status: 'failed',
+    };
+  }
+
+  return {
+    ...prediction,
+    pollCount: nextPollCount,
+    status: 'succeeded',
+    output: buildProviderCaption('replicate'),
+  };
+}
+
+/**
  * @param {string} providerName
  * @returns {import('express').RequestHandler}
  */
@@ -103,6 +204,8 @@ function createOpenAiCompatibleStubHandler(providerName) {
 function createFixtureApp({ baseUrl = BASE_URL } = {}) {
   const app = express();
   app.use(express.json({ limit: OPENAI_COMPATIBLE_JSON_LIMIT }));
+  const replicatePredictions = new Map();
+  let nextReplicatePredictionId = 1;
 
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok', source: 'postman-fixture-server' });
@@ -210,12 +313,63 @@ function createFixtureApp({ baseUrl = BASE_URL } = {}) {
   app.post('/huggingface/v1/chat/completions', createOpenAiCompatibleStubHandler('huggingface'));
   app.post('/openrouter/v1/chat/completions', createOpenAiCompatibleStubHandler('openrouter'));
 
-  app.post('/predictions', (_req, res) => {
-    res.json({
-      id: 'stub-prediction',
-      status: 'succeeded',
-      output: buildProviderCaption('replicate'),
-    });
+  app.post('/predictions', (req, res) => {
+    const imageUrl = extractReplicateImageUrl(req.body);
+    const failingPrediction = isProviderFailureAssetUrl(imageUrl);
+    const prediction = {
+      id: `stub-prediction-${String(nextReplicatePredictionId).padStart(4, '0')}`,
+      imageUrl,
+      output: undefined,
+      error: failingPrediction ? 'stub replicate provider failure' : undefined,
+      pollCount: 0,
+      requiredPollCount: failingPrediction
+        ? REPLICATE_FAILURE_POLL_COUNT
+        : REPLICATE_SUCCESS_POLL_COUNT,
+      status: 'starting',
+    };
+
+    nextReplicatePredictionId += 1;
+    replicatePredictions.set(prediction.id, prediction);
+
+    res.status(201).json(buildReplicatePredictionPayload(prediction));
+  });
+
+  app.get('/predictions/:predictionId', (req, res) => {
+    const currentPrediction = replicatePredictions.get(req.params.predictionId);
+
+    if (!currentPrediction) {
+      res.status(404).json({
+        detail: 'prediction not found',
+        status: 404,
+        title: 'Not Found',
+      });
+      return;
+    }
+
+    const nextPrediction = advanceReplicatePrediction(currentPrediction);
+    replicatePredictions.set(nextPrediction.id, nextPrediction);
+    res.json(buildReplicatePredictionPayload(nextPrediction));
+  });
+
+  app.post('/predictions/:predictionId/cancel', (req, res) => {
+    const currentPrediction = replicatePredictions.get(req.params.predictionId);
+
+    if (!currentPrediction) {
+      res.status(404).json({
+        detail: 'prediction not found',
+        status: 404,
+        title: 'Not Found',
+      });
+      return;
+    }
+
+    const canceledPrediction = {
+      ...currentPrediction,
+      status: 'canceled',
+      error: 'stub replicate prediction canceled',
+    };
+    replicatePredictions.set(canceledPrediction.id, canceledPrediction);
+    res.json(buildReplicatePredictionPayload(canceledPrediction));
   });
 
   app.post('/vision/v3.2/describe', express.raw({ type: 'application/octet-stream' }), (req, res) => {

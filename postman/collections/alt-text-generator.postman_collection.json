@@ -1474,6 +1474,261 @@
       ]
     },
     {
+      "name": "35 Async Page Description Jobs (Clip Stub)",
+      "item": [
+        {
+          "name": "Start async clip page description success",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Expected-Status-Code",
+                "value": "202"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/accessibility/descriptions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accessibility",
+                "descriptions"
+              ],
+              "query": [
+                {
+                  "key": "url",
+                  "value": "{{samplePageUrl}}"
+                },
+                {
+                  "key": "model",
+                  "value": "clip"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('clip page descriptions return 202 while the async job is pending', function () {",
+                  "  pm.response.to.have.status(202);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('pending clip page job response contains expected metadata', function () {",
+                  "  pm.expect(body.model).to.eql('clip');",
+                  "  pm.expect(body.pageUrl).to.eql(pm.environment.get('samplePageUrl'));",
+                  "  pm.expect(body.status).to.match(/^(pending|processing)$/);",
+                  "  pm.expect(body.pollAfterMs).to.be.a('number');",
+                  "  pm.expect(body.statusUrl).to.match(/^\\/api\\/v1\\/accessibility\\/page-description-jobs\\//);",
+                  "});",
+                  "",
+                  "pm.collectionVariables.set('asyncClipSuccessPageJobStatusUrl', body.statusUrl);",
+                  "pm.collectionVariables.set('asyncClipSuccessPageJobPollCount', '0');",
+                  "pm.execution.setNextRequest('Poll async clip page description success');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Poll async clip page description success",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}{{asyncClipSuccessPageJobStatusUrl}}"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const expectedA = pm.environment.get('sampleImageAUrl');",
+                  "const expectedB = pm.environment.get('sampleImageBUrl');",
+                  "const expectedPageUrl = pm.environment.get('samplePageUrl');",
+                  "const attempt = Number(pm.collectionVariables.get('asyncClipSuccessPageJobPollCount') || '0') + 1;",
+                  "pm.collectionVariables.set('asyncClipSuccessPageJobPollCount', String(attempt));",
+                  "",
+                  "if (pm.response.code === 202) {",
+                  "  pm.test('clip page job stays pending until completion', function () {",
+                  "    pm.expect(body.status).to.match(/^(pending|processing)$/);",
+                  "    pm.expect(body.statusUrl).to.eql(pm.collectionVariables.get('asyncClipSuccessPageJobStatusUrl'));",
+                  "  });",
+                  "  pm.test('clip page job polling stays within the attempt budget', function () {",
+                  "    pm.expect(attempt).to.be.below(30);",
+                  "  });",
+                  "  const delayMs = Number(body.pollAfterMs || 0);",
+                  "  setTimeout(() => pm.execution.setNextRequest('Poll async clip page description success'), delayMs);",
+                  "} else {",
+                  "  pm.test('clip page job eventually returns 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "  });",
+                  "  pm.test('terminal clip page job succeeded with expected payload', function () {",
+                  "    pm.expect(body.status).to.eql('succeeded');",
+                  "    pm.expect(body.model).to.eql('clip');",
+                  "    pm.expect(body.pageUrl).to.eql(expectedPageUrl);",
+                  "    pm.expect(body.result.pageUrl).to.eql(expectedPageUrl);",
+                  "    pm.expect(body.result.model).to.eql('clip');",
+                  "    pm.expect(body.result.totalImages).to.eql(3);",
+                  "    pm.expect(body.result.uniqueImages).to.eql(2);",
+                  "    pm.expect(body.result.descriptions.map((item) => item.imageUrl)).to.eql([",
+                  "      expectedA,",
+                  "      expectedB,",
+                  "      expectedA",
+                  "    ]);",
+                  "    body.result.descriptions.forEach((item) => {",
+                  "      pm.expect(item.description).to.eql('replicate stub caption');",
+                  "    });",
+                  "  });",
+                  "  pm.collectionVariables.unset('asyncClipSuccessPageJobStatusUrl');",
+                  "  pm.collectionVariables.unset('asyncClipSuccessPageJobPollCount');",
+                  "  pm.execution.setNextRequest('Start async clip page description failure');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Start async clip page description failure",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Expected-Status-Code",
+                "value": "202"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/accessibility/descriptions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "accessibility",
+                "descriptions"
+              ],
+              "query": [
+                {
+                  "key": "url",
+                  "value": "{{sampleProviderFailurePageUrl}}"
+                },
+                {
+                  "key": "model",
+                  "value": "clip"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('clip provider failure page returns 202 while the async job is pending', function () {",
+                  "  pm.response.to.have.status(202);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('failed clip page job response contains expected metadata', function () {",
+                  "  pm.expect(body.model).to.eql('clip');",
+                  "  pm.expect(body.pageUrl).to.eql(pm.environment.get('sampleProviderFailurePageUrl'));",
+                  "  pm.expect(body.status).to.match(/^(pending|processing)$/);",
+                  "  pm.expect(body.statusUrl).to.match(/^\\/api\\/v1\\/accessibility\\/page-description-jobs\\//);",
+                  "});",
+                  "",
+                  "pm.collectionVariables.set('asyncClipFailurePageJobStatusUrl', body.statusUrl);",
+                  "pm.collectionVariables.set('asyncClipFailurePageJobPollCount', '0');",
+                  "pm.execution.setNextRequest('Poll async clip page description failure');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Poll async clip page description failure",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}{{asyncClipFailurePageJobStatusUrl}}"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const attempt = Number(pm.collectionVariables.get('asyncClipFailurePageJobPollCount') || '0') + 1;",
+                  "pm.collectionVariables.set('asyncClipFailurePageJobPollCount', String(attempt));",
+                  "",
+                  "if (pm.response.code === 202) {",
+                  "  pm.test('failed clip page job stays pending until it settles', function () {",
+                  "    pm.expect(body.status).to.match(/^(pending|processing)$/);",
+                  "    pm.expect(body.statusUrl).to.eql(pm.collectionVariables.get('asyncClipFailurePageJobStatusUrl'));",
+                  "  });",
+                  "  pm.test('failed clip page job polling stays within the attempt budget', function () {",
+                  "    pm.expect(attempt).to.be.below(30);",
+                  "  });",
+                  "  const delayMs = Number(body.pollAfterMs || 0);",
+                  "  setTimeout(() => pm.execution.setNextRequest('Poll async clip page description failure'), delayMs);",
+                  "} else {",
+                  "  pm.test('failed clip page job eventually returns 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "  });",
+                  "  pm.test('terminal clip page job exposes the provider failure', function () {",
+                  "    pm.expect(body.status).to.eql('failed');",
+                  "    pm.expect(body.model).to.eql('clip');",
+                  "    pm.expect(body.pageUrl).to.eql(pm.environment.get('sampleProviderFailurePageUrl'));",
+                  "    pm.expect(body.error).to.eql({ message: 'stub replicate provider failure' });",
+                  "    pm.expect(body).not.to.have.property('result');",
+                  "  });",
+                  "  pm.collectionVariables.unset('asyncClipFailurePageJobStatusUrl');",
+                  "  pm.collectionVariables.unset('asyncClipFailurePageJobPollCount');",
+                  "  pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "40 Negative Paths",
       "item": [
         {
@@ -2006,10 +2261,6 @@
                 "value": "application/json"
               },
               {
-                "key": "X-Expected-Status-Code",
-                "value": "200"
-              },
-              {
                 "key": "X-Max-Response-Time-Ms",
                 "value": "{{maxResponseTimeMs}}"
               },
@@ -2048,21 +2299,94 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('returns 200', function () {",
-                  "  pm.response.to.have.status(200);",
-                  "});",
-                  "",
+                  "if (pm.response.code === 202) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test('async provider validation single-image request returns a pending job payload', function () {",
+                  "    pm.expect(body.model).to.eql(pm.environment.get('model'));",
+                  "    pm.expect(body.imageUrl).to.eql(pm.environment.get('providerValidationImageUrl'));",
+                  "    pm.expect(body.status).to.match(/^(pending|processing)$/);",
+                  "    pm.expect(body.statusUrl).to.match(/^\\/api\\/v1\\/accessibility\\/description-jobs\\//);",
+                  "  });",
+                  "  pm.collectionVariables.set('providerValidationDescriptionStatusUrl', body.statusUrl);",
+                  "  pm.collectionVariables.set('providerValidationDescriptionPollCount', '0');",
+                  "  pm.execution.setNextRequest('Provider validation single image job status');",
+                  "} else {",
+                  "  pm.test('returns 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "  });",
+                  "  const body = pm.response.json();",
+                  "  pm.test('response is a one-item array', function () {",
+                  "    pm.expect(body).to.be.an('array').with.lengthOf(1);",
+                  "  });",
+                  "  pm.test('description is a non-empty string for the requested image', function () {",
+                  "    pm.expect(body[0].imageUrl).to.eql(pm.environment.get('providerValidationImageUrl'));",
+                  "    pm.expect(body[0].description).to.be.a('string');",
+                  "    pm.expect(body[0].description.length).to.be.above(5);",
+                  "  });",
+                  "  pm.execution.setNextRequest('Provider validation page descriptions');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Provider validation single image job status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Max-Response-Time-Ms",
+                "value": "{{maxResponseTimeMs}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{deployValidationApiToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}{{providerValidationDescriptionStatusUrl}}"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
                   "const body = pm.response.json();",
+                  "const attempt = Number(pm.collectionVariables.get('providerValidationDescriptionPollCount') || '0') + 1;",
+                  "pm.collectionVariables.set('providerValidationDescriptionPollCount', String(attempt));",
                   "",
-                  "pm.test('response is a one-item array', function () {",
-                  "  pm.expect(body).to.be.an('array').with.lengthOf(1);",
-                  "});",
-                  "",
-                  "pm.test('description is a non-empty string for the requested image', function () {",
-                  "  pm.expect(body[0].imageUrl).to.eql(pm.environment.get('providerValidationImageUrl'));",
-                  "  pm.expect(body[0].description).to.be.a('string');",
-                  "  pm.expect(body[0].description.length).to.be.above(5);",
-                  "});"
+                  "if (pm.response.code === 202) {",
+                  "  pm.test('single-image async job remains pending until the provider completes', function () {",
+                  "    pm.expect(body.status).to.match(/^(pending|processing)$/);",
+                  "    pm.expect(body.statusUrl).to.eql(pm.collectionVariables.get('providerValidationDescriptionStatusUrl'));",
+                  "  });",
+                  "  pm.test('single-image provider validation stays within the polling budget', function () {",
+                  "    pm.expect(attempt).to.be.below(40);",
+                  "  });",
+                  "  const delayMs = Number(body.pollAfterMs || 0);",
+                  "  setTimeout(() => pm.execution.setNextRequest('Provider validation single image job status'), delayMs);",
+                  "} else {",
+                  "  pm.test('single-image async job eventually returns 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "  });",
+                  "  pm.test('single-image async job succeeded with a usable description', function () {",
+                  "    pm.expect(body.status).to.eql('succeeded');",
+                  "    pm.expect(body.model).to.eql(pm.environment.get('model'));",
+                  "    pm.expect(body.imageUrl).to.eql(pm.environment.get('providerValidationImageUrl'));",
+                  "    pm.expect(body.result.imageUrl).to.eql(pm.environment.get('providerValidationImageUrl'));",
+                  "    pm.expect(body.result.description).to.be.a('string');",
+                  "    pm.expect(body.result.description.length).to.be.above(5);",
+                  "  });",
+                  "  pm.collectionVariables.unset('providerValidationDescriptionStatusUrl');",
+                  "  pm.collectionVariables.unset('providerValidationDescriptionPollCount');",
+                  "  pm.execution.setNextRequest('Provider validation page descriptions');",
+                  "}"
                 ]
               }
             }
@@ -2076,10 +2400,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "X-Expected-Status-Code",
-                "value": "200"
               },
               {
                 "key": "X-Max-Response-Time-Ms",
@@ -2120,32 +2440,113 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('returns 200', function () {",
-                  "  pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "const body = pm.response.json();",
-                  "",
-                  "pm.test('response includes page metadata', function () {",
-                  "  pm.expect(body.pageUrl).to.eql(pm.environment.get('providerValidationPageUrl'));",
-                  "  pm.expect(body.model).to.eql(pm.environment.get('model'));",
-                  "  pm.expect(body.totalImages).to.be.a('number');",
-                  "  pm.expect(body.uniqueImages).to.be.a('number');",
-                  "  pm.expect(body.descriptions).to.be.an('array');",
-                  "});",
-                  "",
-                  "pm.test('at least one description is returned', function () {",
-                  "  pm.expect(body.descriptions.length).to.be.above(0);",
-                  "});",
-                  "",
-                  "pm.test('each description has the expected shape', function () {",
-                  "  body.descriptions.forEach((item) => {",
-                  "    pm.expect(item).to.have.property('imageUrl');",
-                  "    pm.expect(item).to.have.property('description');",
-                  "    pm.expect(item.imageUrl).to.be.a('string');",
-                  "    pm.expect(item.description).to.be.a('string');",
+                  "if (pm.response.code === 202) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test('async provider validation page request returns a pending page job payload', function () {",
+                  "    pm.expect(body.model).to.eql(pm.environment.get('model'));",
+                  "    pm.expect(body.pageUrl).to.eql(pm.environment.get('providerValidationPageUrl'));",
+                  "    pm.expect(body.status).to.match(/^(pending|processing)$/);",
+                  "    pm.expect(body.statusUrl).to.match(/^\\/api\\/v1\\/accessibility\\/page-description-jobs\\//);",
                   "  });",
-                  "});"
+                  "  pm.collectionVariables.set('providerValidationPageStatusUrl', body.statusUrl);",
+                  "  pm.collectionVariables.set('providerValidationPagePollCount', '0');",
+                  "  pm.execution.setNextRequest('Provider validation page description job status');",
+                  "} else {",
+                  "  pm.test('returns 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "  });",
+                  "  const body = pm.response.json();",
+                  "  pm.test('response includes page metadata', function () {",
+                  "    pm.expect(body.pageUrl).to.eql(pm.environment.get('providerValidationPageUrl'));",
+                  "    pm.expect(body.model).to.eql(pm.environment.get('model'));",
+                  "    pm.expect(body.totalImages).to.be.a('number');",
+                  "    pm.expect(body.uniqueImages).to.be.a('number');",
+                  "    pm.expect(body.descriptions).to.be.an('array');",
+                  "  });",
+                  "  pm.test('at least one description is returned', function () {",
+                  "    pm.expect(body.descriptions.length).to.be.above(0);",
+                  "  });",
+                  "  pm.test('each description has the expected shape', function () {",
+                  "    body.descriptions.forEach((item) => {",
+                  "      pm.expect(item).to.have.property('imageUrl');",
+                  "      pm.expect(item).to.have.property('description');",
+                  "      pm.expect(item.imageUrl).to.be.a('string');",
+                  "      pm.expect(item.description).to.be.a('string');",
+                  "    });",
+                  "  });",
+                  "  pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Provider validation page description job status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Max-Response-Time-Ms",
+                "value": "{{maxResponseTimeMs}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{deployValidationApiToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}{{providerValidationPageStatusUrl}}"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const attempt = Number(pm.collectionVariables.get('providerValidationPagePollCount') || '0') + 1;",
+                  "pm.collectionVariables.set('providerValidationPagePollCount', String(attempt));",
+                  "",
+                  "if (pm.response.code === 202) {",
+                  "  pm.test('page async job remains pending until the provider completes', function () {",
+                  "    pm.expect(body.status).to.match(/^(pending|processing)$/);",
+                  "    pm.expect(body.statusUrl).to.eql(pm.collectionVariables.get('providerValidationPageStatusUrl'));",
+                  "  });",
+                  "  pm.test('page provider validation stays within the polling budget', function () {",
+                  "    pm.expect(attempt).to.be.below(40);",
+                  "  });",
+                  "  const delayMs = Number(body.pollAfterMs || 0);",
+                  "  setTimeout(() => pm.execution.setNextRequest('Provider validation page description job status'), delayMs);",
+                  "} else {",
+                  "  pm.test('page async job eventually returns 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "  });",
+                  "  pm.test('page async job succeeded with page metadata and descriptions', function () {",
+                  "    pm.expect(body.status).to.eql('succeeded');",
+                  "    pm.expect(body.model).to.eql(pm.environment.get('model'));",
+                  "    pm.expect(body.pageUrl).to.eql(pm.environment.get('providerValidationPageUrl'));",
+                  "    pm.expect(body.result.pageUrl).to.eql(pm.environment.get('providerValidationPageUrl'));",
+                  "    pm.expect(body.result.model).to.eql(pm.environment.get('model'));",
+                  "    pm.expect(body.result.totalImages).to.be.a('number');",
+                  "    pm.expect(body.result.uniqueImages).to.be.a('number');",
+                  "    pm.expect(body.result.descriptions).to.be.an('array');",
+                  "    pm.expect(body.result.descriptions.length).to.be.above(0);",
+                  "    body.result.descriptions.forEach((item) => {",
+                  "      pm.expect(item).to.have.property('imageUrl');",
+                  "      pm.expect(item).to.have.property('description');",
+                  "      pm.expect(item.imageUrl).to.be.a('string');",
+                  "      pm.expect(item.description).to.be.a('string');",
+                  "    });",
+                  "  });",
+                  "  pm.collectionVariables.unset('providerValidationPageStatusUrl');",
+                  "  pm.collectionVariables.unset('providerValidationPagePollCount');",
+                  "  pm.execution.setNextRequest(null);",
+                  "}"
                 ]
               }
             }

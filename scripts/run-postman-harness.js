@@ -70,6 +70,9 @@ const AUTH_APP_HTTP_PORT = String(process.env.POSTMAN_AUTH_HTTP_PORT || 18080);
 const AUTH_APP_HTTPS_PORT = String(process.env.POSTMAN_AUTH_HTTPS_PORT || 18443);
 const FIXTURE_PORT = String(process.env.POSTMAN_FIXTURE_PORT || 19090);
 const API_AUTH_TOKEN = process.env.POSTMAN_API_AUTH_TOKEN || 'postman-api-token';
+const FULL_MODE_DESCRIPTION_JOB_WAIT_TIMEOUT_MS = '25';
+const FULL_MODE_DESCRIPTION_JOB_POLL_INTERVAL_MS = '5';
+const FULL_MODE_REPLICATE_POLL_INTERVAL_MS = '5';
 
 const NODE = process.execPath;
 const NPX = process.platform === 'win32' ? 'npx.cmd' : 'npx';
@@ -194,6 +197,9 @@ function spawnLogged(label, command, args, env = {}) {
  *   apiAuthTokens?: string | null,
  *   scraperRequestTimeoutMs?: string | null,
  *   pageDescriptionConcurrency?: string | null,
+ *   descriptionJobWaitTimeoutMs?: string | null,
+ *   descriptionJobPollIntervalMs?: string | null,
+ *   replicatePollIntervalMs?: string | null,
  * }} options
  * @returns {Record<string, string>}
  */
@@ -216,6 +222,9 @@ function buildAppServerEnv({
   apiAuthTokens = null,
   scraperRequestTimeoutMs = null,
   pageDescriptionConcurrency = null,
+  descriptionJobWaitTimeoutMs = null,
+  descriptionJobPollIntervalMs = null,
+  replicatePollIntervalMs = null,
 }) {
   const env = {
     NODE_ENV: 'development',
@@ -291,6 +300,18 @@ function buildAppServerEnv({
 
   if (pageDescriptionConcurrency) {
     env.PAGE_DESCRIPTION_CONCURRENCY = pageDescriptionConcurrency;
+  }
+
+  if (descriptionJobWaitTimeoutMs) {
+    env.DESCRIPTION_JOB_WAIT_TIMEOUT_MS = descriptionJobWaitTimeoutMs;
+  }
+
+  if (descriptionJobPollIntervalMs) {
+    env.DESCRIPTION_JOB_POLL_INTERVAL_MS = descriptionJobPollIntervalMs;
+  }
+
+  if (replicatePollIntervalMs) {
+    env.REPLICATE_POLL_INTERVAL_MS = replicatePollIntervalMs;
   }
 
   return env;
@@ -509,6 +530,15 @@ async function main() {
     ? String(PROVIDER_VALIDATION_APP_REQUEST_TIMEOUT_MS)
     : null;
   const providerIntegrationPageDescriptionConcurrency = providerValidationModeEnabled ? '1' : null;
+  const fullModeDescriptionJobWaitTimeoutMs = fullModeEnabled
+    ? FULL_MODE_DESCRIPTION_JOB_WAIT_TIMEOUT_MS
+    : null;
+  const fullModeDescriptionJobPollIntervalMs = fullModeEnabled
+    ? FULL_MODE_DESCRIPTION_JOB_POLL_INTERVAL_MS
+    : null;
+  const fullModeReplicatePollIntervalMs = fullModeEnabled
+    ? FULL_MODE_REPLICATE_POLL_INTERVAL_MS
+    : null;
   const providerValidationFixtureUrls = fullModeEnabled
     ? mockProviderValidationFixtureUrls
     : publicProviderValidationFixtures;
@@ -612,6 +642,9 @@ async function main() {
       openrouterModel: appOpenRouterModel,
       scraperRequestTimeoutMs: providerIntegrationScraperRequestTimeoutMs,
       pageDescriptionConcurrency: providerIntegrationPageDescriptionConcurrency,
+      descriptionJobWaitTimeoutMs: fullModeDescriptionJobWaitTimeoutMs,
+      descriptionJobPollIntervalMs: fullModeDescriptionJobPollIntervalMs,
+      replicatePollIntervalMs: fullModeReplicatePollIntervalMs,
     }),
   );
   managedChildren.add(appServer);
@@ -702,6 +735,7 @@ async function main() {
           '10 Scraper Contract',
           '20 Single Description (Azure Stub)',
           '30 Page Descriptions (Azure Stub)',
+          '35 Async Page Description Jobs (Clip Stub)',
           '40 Negative Paths',
         ],
         'full mode',
@@ -715,6 +749,7 @@ async function main() {
           '10 Scraper Contract',
           '20 Single Description (Azure Stub)',
           '30 Page Descriptions (Azure Stub)',
+          '35 Async Page Description Jobs (Clip Stub)',
           '40 Negative Paths',
         ],
         {
