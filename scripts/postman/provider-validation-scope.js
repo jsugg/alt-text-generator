@@ -251,6 +251,9 @@ function getSelectedProviderPlans(scope, {
 
     const envVars = [
       ...(provider.providerValidation.requestEnvVars || []),
+      ...(mode === 'live'
+        ? provider.providerValidation.liveEnvVars || []
+        : []),
       ...(mode === 'provider-integration'
         ? provider.providerValidation.providerIntegrationEnvVars || []
         : []),

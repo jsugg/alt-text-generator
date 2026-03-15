@@ -56,6 +56,10 @@ module.exports = {
     autoPriority: 20,
     folderName: '90 Provider Validation',
     requestEnvVars: ['model=replicate'],
+    liveEnvVars: [
+      'providerValidationMaxPollAttempts=80',
+      'providerValidationMinPollDelayMs=5000',
+    ],
     scopeRequirement: 'REPLICATE_API_TOKEN',
     allRequirement: 'REPLICATE_API_TOKEN',
   },

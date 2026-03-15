@@ -174,6 +174,20 @@ describe('Unit | Scripts | Postman | Provider Validation Scope', () => {
   });
 
   describe('getSelectedProviderPlans', () => {
+    it('applies live-only Replicate polling overrides in live mode', () => {
+      expect(getSelectedProviderPlans('replicate')).toEqual([
+        {
+          folderName: '90 Provider Validation',
+          envVars: [
+            'model=replicate',
+            'providerValidationMaxPollAttempts=80',
+            'providerValidationMinPollDelayMs=5000',
+          ],
+          scopeKey: 'replicate',
+        },
+      ]);
+    });
+
     it('maps generic providers to the shared neutral folder with production env vars', () => {
       expect(getSelectedProviderPlans('huggingface')).toEqual([
         {
@@ -187,13 +201,13 @@ describe('Unit | Scripts | Postman | Provider Validation Scope', () => {
     });
 
     it('keeps provider-specific request env vars in provider-integration mode', () => {
-      expect(getSelectedProviderPlans('openai', { mode: 'provider-integration' })).toEqual([
+      expect(getSelectedProviderPlans('replicate', { mode: 'provider-integration' })).toEqual([
         {
           folderName: '90 Provider Validation',
           envVars: [
-            'model=openai',
+            'model=replicate',
           ],
-          scopeKey: 'openai',
+          scopeKey: 'replicate',
         },
       ]);
     });

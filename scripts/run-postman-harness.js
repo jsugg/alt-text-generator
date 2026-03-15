@@ -506,6 +506,7 @@ async function main() {
   const selectedProviderPlans = providerValidationScope
     ? getSelectedProviderPlans(providerValidationScope, {
       configuredProviderScopes,
+      mode: fullModeEnabled ? 'provider-integration' : 'live',
     })
     : [];
   const selectedProviderScopeSet = new Set(
