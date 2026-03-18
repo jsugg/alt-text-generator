@@ -1,5 +1,12 @@
+const path = require('node:path');
+
 const ORIGINAL_ENV = process.env;
+const NO_PROVIDER_OVERRIDES_FILE = path.join(
+  __dirname,
+  '../../fixtures/provider-overrides.missing.yaml',
+);
 const PROVIDER_ENV_KEYS = [
+  'PROVIDER_OVERRIDES_FILE',
   'REPLICATE_API_TOKEN',
   'REPLICATE_API_ENDPOINT',
   'REPLICATE_USER_AGENT',
@@ -58,6 +65,8 @@ const loadValidator = ({ overrides = {}, remove = [] } = {}) => {
     delete process.env[key];
   });
 
+  process.env.PROVIDER_OVERRIDES_FILE = NO_PROVIDER_OVERRIDES_FILE;
+
   remove.forEach((key) => {
     delete process.env[key];
   });
@@ -97,6 +106,25 @@ describe('Unit | Utils | Validate Env Vars', () => {
     });
 
     expect(() => validateEnvVars()).not.toThrow();
+  });
+
+  it('logs a warning and ignores Azure when its config is partial', () => {
+    const logger = {
+      warn: jest.fn(),
+    };
+    const validateEnvVars = loadValidator({
+      overrides: {
+        REPLICATE_API_TOKEN: 'test-token',
+        ACV_API_ENDPOINT: 'https://azure.example.com/vision/v3.2/describe',
+      },
+    });
+
+    expect(() => validateEnvVars({ logger })).not.toThrow();
+    expect(logger.warn).toHaveBeenCalledWith(
+      { provider: 'azure' },
+      'Azure provider disabled for this run because ACV_API_ENDPOINT and '
+        + 'ACV_SUBSCRIPTION_KEY must both be set and non-empty.',
+    );
   });
 
   it('accepts an OpenAI-only provider configuration', () => {

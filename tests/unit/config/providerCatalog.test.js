@@ -8,6 +8,7 @@ const {
   getConfiguredProvidersFromEnv,
   getProviderValidationByScope,
   getProviderValidationProviders,
+  getProviderStartupWarnings,
   getProviderCatalog,
   validateProviderEnv,
 } = require('../../../config/providerCatalog');
@@ -46,6 +47,7 @@ describe('Unit | Config | Provider Catalog', () => {
         modelVersion: 'version',
       },
       azure: {
+        enabled: true,
         apiEndpoint: 'https://azure.example.com/vision/v3.2/describe',
         subscriptionKey: 'azure-key',
         language: 'pt-BR',
@@ -135,15 +137,21 @@ describe('Unit | Config | Provider Catalog', () => {
       huggingface: { apiKey: 'hf-key' },
       ollama: { enabled: true },
     }).map((provider) => provider.key)).toEqual(['replicate', 'ollama', 'huggingface', 'openai']);
+    expect(getConfiguredProvidersFromConfig({
+      providerOverrides: {
+        azure: { enabled: false },
+      },
+      replicate: { apiToken: 'replicate-token' },
+      azure: {
+        enabled: true,
+        apiEndpoint: 'https://azure.example.com/vision/v3.2/describe',
+        subscriptionKey: 'azure-key',
+      },
+      openai: { apiKey: 'openai-key' },
+    }).map((provider) => provider.key)).toEqual(['replicate', 'openai']);
   });
 
   it('validates provider-specific env rules and exposes provider-validation metadata', () => {
-    const errors = validateProviderEnv({
-      ACV_API_ENDPOINT: 'https://azure.example.com/vision/v3.2/describe',
-    });
-
-    expect(errors).toHaveLength(1);
-    expect(errors[0]).toMatch(/ACV_API_ENDPOINT and ACV_SUBSCRIPTION_KEY/);
     expect(validateProviderEnv({
       ACV_API_ENDPOINT: 'https://azure.example.com/vision/v3.2/describe',
       ACV_SUBSCRIPTION_KEY: 'azure-key',
@@ -178,6 +186,23 @@ describe('Unit | Config | Provider Catalog', () => {
       'together',
     ]);
     expect(getProviderValidationByScope('azure').displayName).toBe('Azure Computer Vision');
+  });
+
+  it('surfaces non-fatal startup warnings for partial azure configuration', () => {
+    expect(getProviderStartupWarnings({
+      ACV_API_ENDPOINT: 'https://azure.example.com/vision/v3.2/describe',
+    })).toEqual([{
+      provider: 'azure',
+      message: 'Azure provider disabled for this run because ACV_API_ENDPOINT and '
+        + 'ACV_SUBSCRIPTION_KEY must both be set and non-empty.',
+    }]);
+    expect(getProviderStartupWarnings({
+      ACV_API_ENDPOINT: 'https://azure.example.com/vision/v3.2/describe',
+    }, {
+      providerOverrides: {
+        azure: { enabled: false },
+      },
+    })).toEqual([]);
   });
 
   it('treats a Replicate token as sufficient enablement for replicate', () => {

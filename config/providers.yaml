@@ -1,0 +1,6 @@
+# Optional provider overrides.
+# enabled: false disables a provider even when its env vars are present.
+# enabled: auto defers to the normal env-driven runtime behavior.
+providers:
+  azure:
+    enabled: false

@@ -8,12 +8,10 @@ const cluster = require('cluster');
 
 // Config & validation
 const config = require('../config');
+const { appLogger } = require('./infrastructure/logger');
 const { validateEnvVars } = require('./utils/validateEnvVars');
 
-validateEnvVars();
-
-// Infrastructure
-const { appLogger } = require('./infrastructure/logger');
+validateEnvVars({ logger: appLogger });
 
 // Server
 const { setupCluster } = require('./server/clusterManager');

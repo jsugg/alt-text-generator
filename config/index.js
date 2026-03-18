@@ -5,6 +5,7 @@
 const { buildRateLimitStoreConfig } = require('./rateLimitStore');
 const { buildDescriptionJobStoreConfig } = require('./descriptionJobStore');
 const { buildProviderConfigSections } = require('./providerCatalog');
+const { loadProviderOverrides } = require('./providerOverrides');
 
 const toNumber = (value, fallback) => {
   const parsedValue = Number(value);
@@ -50,6 +51,7 @@ const toList = (value) => {
 const authTokens = toList(process.env.API_AUTH_TOKENS);
 const explicitApiAuthEnabled = toOptionalBoolean(process.env.API_AUTH_ENABLED);
 const rateLimitStore = buildRateLimitStoreConfig(process.env);
+const providerOverrides = loadProviderOverrides(process.env);
 
 module.exports = {
   env: process.env.NODE_ENV || 'development',
@@ -103,6 +105,8 @@ module.exports = {
       process.env.OUTBOUND_CA_BUNDLE_FILE
       || process.env.NODE_EXTRA_CA_CERTS,
   },
+
+  providerOverrides: providerOverrides.providers,
 
   ...buildProviderConfigSections(process.env),
 

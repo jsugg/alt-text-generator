@@ -1,5 +1,8 @@
 const AzureDescriberService = require('../../services/AzureDescriberService');
-const { toPositiveIntegerOrFallback } = require('./helpers');
+const {
+  hasNonEmptyStringValue,
+  toPositiveIntegerOrFallback,
+} = require('./helpers');
 
 module.exports = {
   key: 'azure',
@@ -13,29 +16,37 @@ module.exports = {
     ACV_MAX_CANDIDATES: Joi.number().integer().min(1).optional(),
   }),
   buildConfig: (env) => ({
+    enabled:
+      hasNonEmptyStringValue(env.ACV_API_ENDPOINT)
+      && hasNonEmptyStringValue(env.ACV_SUBSCRIPTION_KEY),
     apiEndpoint: env.ACV_API_ENDPOINT,
     subscriptionKey: env.ACV_SUBSCRIPTION_KEY,
     language: env.ACV_LANGUAGE || 'en',
     maxCandidates: toPositiveIntegerOrFallback(env.ACV_MAX_CANDIDATES, 4),
   }),
   isConfiguredInEnv: (env = {}) => Boolean(
-    env.ACV_API_ENDPOINT && env.ACV_SUBSCRIPTION_KEY,
+    hasNonEmptyStringValue(env.ACV_API_ENDPOINT)
+    && hasNonEmptyStringValue(env.ACV_SUBSCRIPTION_KEY),
   ),
   isConfiguredInConfig: (config = {}) => Boolean(
-    config.azure?.apiEndpoint && config.azure?.subscriptionKey,
+    config.azure?.enabled !== false
+    && hasNonEmptyStringValue(config.azure?.apiEndpoint)
+    && hasNonEmptyStringValue(config.azure?.subscriptionKey),
   ),
-  validateEnv: (env = {}) => {
-    const hasAzureEndpoint = Boolean(env.ACV_API_ENDPOINT);
-    const hasAzureCredential = Boolean(env.ACV_SUBSCRIPTION_KEY);
+  validateEnv: () => [],
+  getStartupWarnings: (env = {}) => {
+    const hasAzureEndpoint = hasNonEmptyStringValue(env.ACV_API_ENDPOINT);
+    const hasAzureCredential = hasNonEmptyStringValue(env.ACV_SUBSCRIPTION_KEY);
 
-    if (hasAzureEndpoint !== hasAzureCredential) {
-      return [
-        'Config validation error: ACV_API_ENDPOINT and ACV_SUBSCRIPTION_KEY '
-          + 'must be set together to enable the Azure provider',
-      ];
+    if (hasAzureEndpoint === hasAzureCredential) {
+      return [];
     }
 
-    return [];
+    return [{
+      provider: 'azure',
+      message: 'Azure provider disabled for this run because ACV_API_ENDPOINT and '
+        + 'ACV_SUBSCRIPTION_KEY must both be set and non-empty.',
+    }];
   },
   providerValidation: {
     scopeKey: 'azure',

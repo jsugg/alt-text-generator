@@ -1,8 +1,10 @@
 const {
+  getConfiguredProvidersFromEnv,
   getAvailableProviderValidationScopes,
   getProviderValidationByScope,
   getProviderValidationProviders,
 } = require('../../config/providerCatalog');
+const { loadProviderOverrides } = require('../../config/providerOverrides');
 
 const getSortedProviderValidationProviders = () => getProviderValidationProviders()
   .sort(
@@ -110,13 +112,19 @@ function normalizeProviderScope(
  *   hasReplicateProvider: boolean,
  * }}
  */
-function detectAvailableProviders(env = process.env, { allowedProviderScopes = null } = {}) {
+function detectAvailableProviders(
+  env = process.env,
+  { allowedProviderScopes = null, providerOverrides = null } = {},
+) {
   const allowedProviderScopeSet = Array.isArray(allowedProviderScopes)
     ? new Set(allowedProviderScopes)
     : null;
-  const configuredProviderScopes = getProviderValidationProviders()
+  const resolvedProviderOverrides = providerOverrides ?? loadProviderOverrides(env).providers;
+  const configuredProviderScopes = getConfiguredProvidersFromEnv(env, {
+    providerOverrides: resolvedProviderOverrides,
+  })
     .filter((provider) => (
-      provider.isConfiguredInEnv(env)
+      provider.providerValidation
       && (
         allowedProviderScopeSet === null
         || allowedProviderScopeSet.has(provider.providerValidation.scopeKey)

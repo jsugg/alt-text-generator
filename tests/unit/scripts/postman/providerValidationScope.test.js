@@ -34,6 +34,7 @@ describe('Unit | Scripts | Postman | Provider Validation Scope', () => {
         OPENROUTER_API_KEY: 'openrouter-key',
       }, {
         allowedProviderScopes: LOW_COST_PROVIDER_VALIDATION_SCOPES,
+        providerOverrides: {},
       })).toEqual({
         configuredProviderScopes: ['huggingface', 'openai'],
         hasAzureProvider: false,
@@ -49,6 +50,8 @@ describe('Unit | Scripts | Postman | Provider Validation Scope', () => {
         REPLICATE_API_TOKEN: 'replicate-token',
         ACV_API_ENDPOINT: 'https://azure.example.com',
         ACV_SUBSCRIPTION_KEY: 'azure-key',
+      }, {
+        providerOverrides: {},
       })).toEqual({
         configuredProviderScopes: ['replicate', 'azure'],
         hasAzureProvider: true,
@@ -60,6 +63,8 @@ describe('Unit | Scripts | Postman | Provider Validation Scope', () => {
       expect(detectAvailableProviders({
         REPLICATE_API_TOKEN: 'replicate-token',
         OPENAI_API_KEY: 'openai-key',
+      }, {
+        providerOverrides: {},
       })).toEqual({
         configuredProviderScopes: ['replicate', 'openai'],
         hasAzureProvider: false,
@@ -73,6 +78,8 @@ describe('Unit | Scripts | Postman | Provider Validation Scope', () => {
         OPENAI_API_KEY: 'openai-key',
         OPENROUTER_API_KEY: 'openrouter-key',
         TOGETHER_API_KEY: 'together-key',
+      }, {
+        providerOverrides: {},
       })).toEqual({
         configuredProviderScopes: ['huggingface', 'openai', 'openrouter', 'together'],
         hasAzureProvider: false,
@@ -83,6 +90,23 @@ describe('Unit | Scripts | Postman | Provider Validation Scope', () => {
     it('requires both azure endpoint and credential', () => {
       expect(detectAvailableProviders({
         ACV_API_ENDPOINT: 'https://azure.example.com',
+      }, {
+        providerOverrides: {},
+      })).toEqual({
+        configuredProviderScopes: [],
+        hasAzureProvider: false,
+        hasReplicateProvider: false,
+      });
+    });
+
+    it('respects provider overrides when a configured provider is disabled', () => {
+      expect(detectAvailableProviders({
+        ACV_API_ENDPOINT: 'https://azure.example.com',
+        ACV_SUBSCRIPTION_KEY: 'azure-key',
+      }, {
+        providerOverrides: {
+          azure: { enabled: false },
+        },
       })).toEqual({
         configuredProviderScopes: [],
         hasAzureProvider: false,

@@ -5,6 +5,14 @@ const toPositiveIntegerOrFallback = (value, fallback) => {
   return Number.isFinite(parsedValue) && parsedValue > 0 ? parsedValue : fallback;
 };
 
+const hasNonEmptyStringValue = (value) => {
+  if (typeof value === 'string') {
+    return value.trim().length > 0;
+  }
+
+  return Boolean(value);
+};
+
 const hasAnyEnvValue = (env = {}, keys = []) => keys.some((key) => Boolean(env[key]));
 
 const validateApiKeyBackedProviderEnv = ({
@@ -25,6 +33,7 @@ const validateApiKeyBackedProviderEnv = ({
 module.exports = {
   DEFAULT_ALT_TEXT_PROMPT,
   hasAnyEnvValue,
+  hasNonEmptyStringValue,
   toPositiveIntegerOrFallback,
   validateApiKeyBackedProviderEnv,
 };
