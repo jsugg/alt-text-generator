@@ -1,3 +1,7 @@
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+
 const ORIGINAL_ENV = process.env;
 const {
   DEFAULT_DESCRIPTION_JOB_CLAIM_TTL_MS,
@@ -17,6 +21,10 @@ const {
 const loadConfig = ({ overrides = {}, remove = [] } = {}) => {
   jest.resetModules();
   process.env = { ...ORIGINAL_ENV };
+  process.env.PROVIDER_OVERRIDES_FILE = path.join(
+    __dirname,
+    '../../fixtures/provider-overrides.missing.yaml',
+  );
 
   remove.forEach((key) => {
     delete process.env[key];
@@ -249,6 +257,30 @@ describe('Unit | Config | Index', () => {
       redisTopology: 'external',
       redisPrefix: DEFAULT_RATE_LIMIT_REDIS_PREFIX,
       redisUrl: 'redis://shared.example:6379',
+    });
+  });
+
+  it('loads provider overrides from YAML when configured', () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'provider-overrides-'));
+    const providerOverridesFile = path.join(tempDir, 'providers.yaml');
+    fs.writeFileSync(providerOverridesFile, [
+      'providers:',
+      '  azure:',
+      '    enabled: false',
+      '  openai:',
+      '    enabled: auto',
+      '',
+    ].join('\n'));
+
+    const config = loadConfig({
+      overrides: {
+        PROVIDER_OVERRIDES_FILE: providerOverridesFile,
+      },
+    });
+
+    expect(config.providerOverrides).toEqual({
+      azure: { enabled: false },
+      openai: { enabled: 'auto' },
     });
   });
 

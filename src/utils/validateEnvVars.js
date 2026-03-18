@@ -2,9 +2,11 @@ const Joi = require('joi');
 const {
   buildProviderEnvSchema,
   getConfiguredProvidersFromEnv,
+  getProviderStartupWarnings,
   getProviderCatalog,
   validateProviderEnv,
 } = require('../../config/providerCatalog');
+const { loadProviderOverrides } = require('../../config/providerOverrides');
 
 const {
   buildDescriptionJobStoreConfig,
@@ -100,17 +102,24 @@ const envVarsSchema = Joi.object({
   // Swagger
   SWAGGER_DEV_URL: Joi.string().uri().optional(),
   SWAGGER_PROD_URL: Joi.string().uri().optional(),
+  PROVIDER_OVERRIDES_FILE: Joi.string().optional(),
   ...buildProviderEnvSchema(Joi),
 }).unknown();
 
-const validateEnvVars = () => {
+const validateEnvVars = ({ logger = null } = {}) => {
   const { error } = envVarsSchema.validate(process.env);
   if (error) {
     throw new Error(`Config validation error: ${error.message}`);
   }
 
+  const { providers: providerOverrides } = loadProviderOverrides(process.env);
   const providerValidationErrors = validateProviderEnv(process.env);
-  const configuredProviders = getConfiguredProvidersFromEnv(process.env);
+  const configuredProviders = getConfiguredProvidersFromEnv(process.env, {
+    providerOverrides,
+  });
+  const providerStartupWarnings = getProviderStartupWarnings(process.env, {
+    providerOverrides,
+  });
   const authTokens = parseAuthTokens(process.env.API_AUTH_TOKENS);
   const workerCount = Number(process.env.WORKER_COUNT ?? 1);
   const descriptionJobs = buildDescriptionJobStoreConfig(process.env);
@@ -119,6 +128,10 @@ const validateEnvVars = () => {
   if (providerValidationErrors.length > 0) {
     throw new Error(providerValidationErrors[0]);
   }
+
+  providerStartupWarnings.forEach((warning) => {
+    logger?.warn?.({ provider: warning.provider }, warning.message);
+  });
 
   if (configuredProviders.length === 0) {
     const providerHints = getProviderCatalog()
@@ -193,6 +206,11 @@ const validateEnvVars = () => {
         + 'configure RATE_LIMIT_REDIS_URL or REDIS_URL',
     );
   }
+
+  return {
+    configuredProviders: configuredProviders.map((provider) => provider.key),
+    providerStartupWarnings,
+  };
 };
 
 module.exports = { validateEnvVars };

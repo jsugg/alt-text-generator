@@ -6,6 +6,15 @@ const PROVIDER_CATALOG = Object.freeze(require('../src/providers/definitions'));
 
 const getProviderCatalog = () => PROVIDER_CATALOG.slice();
 
+const getProviderOverrideMode = (provider, providerOverrides = {}) => (
+  providerOverrides[provider.key]?.enabled
+  ?? providerOverrides[provider.configKey]?.enabled
+);
+
+const isProviderEnabledByOverride = (provider, providerOverrides = {}) => (
+  getProviderOverrideMode(provider, providerOverrides) !== false
+);
+
 /**
  * Builds the provider-specific sections merged into the runtime config object.
  *
@@ -27,14 +36,38 @@ const buildProviderEnvSchema = (Joi) => getProviderCatalog().reduce((schema, pro
   ...provider.buildEnvSchema(Joi),
 }), {});
 
-const getConfiguredProvidersFromEnv = (env = process.env) => getProviderCatalog()
-  .filter((provider) => provider.isConfiguredInEnv(env));
+const getConfiguredProvidersFromEnv = (env = process.env, { providerOverrides = {} } = {}) => (
+  getProviderCatalog()
+    .filter((provider) => (
+      isProviderEnabledByOverride(provider, providerOverrides)
+      && provider.isConfiguredInEnv(env)
+    ))
+);
 
-const getConfiguredProvidersFromConfig = (config = {}) => getProviderCatalog()
-  .filter((provider) => provider.isConfiguredInConfig(config));
+const getConfiguredProvidersFromConfig = (config = {}) => {
+  const providerOverrides = config.providerOverrides || {};
+
+  return getProviderCatalog()
+    .filter((provider) => (
+      isProviderEnabledByOverride(provider, providerOverrides)
+      && provider.isConfiguredInConfig(config)
+    ));
+};
 
 const validateProviderEnv = (env = process.env) => getProviderCatalog()
   .flatMap((provider) => provider.validateEnv(env));
+
+const getProviderStartupWarnings = (env = process.env, { providerOverrides = {} } = {}) => (
+  getProviderCatalog().flatMap((provider) => {
+    if (!isProviderEnabledByOverride(provider, providerOverrides)) {
+      return [];
+    }
+
+    return typeof provider.getStartupWarnings === 'function'
+      ? provider.getStartupWarnings(env)
+      : [];
+  })
+);
 
 const getProviderValidationProviders = () => getProviderCatalog()
   .filter((provider) => provider.providerValidation);
@@ -49,6 +82,7 @@ module.exports = {
   getProviderCatalog,
   buildProviderConfigSections,
   buildProviderEnvSchema,
+  getProviderStartupWarnings,
   validateProviderEnv,
   getConfiguredProvidersFromEnv,
   getConfiguredProvidersFromConfig,
