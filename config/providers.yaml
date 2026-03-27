@@ -3,4 +3,4 @@
 # enabled: auto defers to the normal env-driven runtime behavior.
 providers:
   azure:
-    enabled: false
+    enabled: auto
