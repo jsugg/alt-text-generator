@@ -390,6 +390,7 @@ async function main() {
     ? String(PROVIDER_VALIDATION_APP_REQUEST_TIMEOUT_MS)
     : null;
   const providerIntegrationPageDescriptionConcurrency = providerValidationModeEnabled ? '1' : null;
+  const localFixtureAllowedHost = `${HOST}:${FIXTURE_PORT}`;
   const fullModeDescriptionJobWaitTimeoutMs = fullModeEnabled
     ? FULL_MODE_DESCRIPTION_JOB_WAIT_TIMEOUT_MS
     : null;
@@ -505,6 +506,7 @@ async function main() {
       descriptionJobWaitTimeoutMs: fullModeDescriptionJobWaitTimeoutMs,
       descriptionJobPollIntervalMs: fullModeDescriptionJobPollIntervalMs,
       replicatePollIntervalMs: fullModeReplicatePollIntervalMs,
+      outboundAllowedHosts: localFixtureAllowedHost,
     }),
   );
   managedChildren.add(appServer);
@@ -523,6 +525,7 @@ async function main() {
         azureApiEndpoint: `http://${HOST}:${FIXTURE_PORT}/vision/v3.2/describe`,
         azureSubscriptionKey: 'stub-key',
         apiAuthTokens: API_AUTH_TOKEN,
+        outboundAllowedHosts: localFixtureAllowedHost,
       }),
     );
     managedChildren.add(authAppServer);

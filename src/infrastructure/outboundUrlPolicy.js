@@ -112,36 +112,72 @@ const assertPublicAddress = (address) => {
 
 const normalizeHostnameForAddressCheck = (hostname) => hostname.replace(/^\[|\]$/g, '');
 
+const normalizeAllowedHost = (value) => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  return normalized || null;
+};
+
+const createAllowedHostSet = (allowedHosts) => new Set(
+  (allowedHosts ?? [])
+    .map(normalizeAllowedHost)
+    .filter(Boolean),
+);
+
+const isAllowedHost = (parsedUrl, allowedHosts) => {
+  if (allowedHosts.size === 0) {
+    return false;
+  }
+
+  const hostname = normalizeAllowedHost(parsedUrl.hostname);
+  const host = normalizeAllowedHost(parsedUrl.host);
+
+  return allowedHosts.has(host) || allowedHosts.has(hostname);
+};
+
 const createOutboundUrlPolicy = ({
+  allowedHosts = [],
   lookup = dns.promises.lookup,
   maxUrlLength = DEFAULT_MAX_URL_LENGTH,
-} = {}) => async (value) => {
-  const parsedUrl = parseUrl(value, maxUrlLength);
-  const hostname = normalizeHostnameForAddressCheck(parsedUrl.hostname);
-  const literalFamily = net.isIP(hostname);
+} = {}) => {
+  const allowedHostSet = createAllowedHostSet(allowedHosts);
 
-  if (literalFamily) {
-    assertPublicAddress(hostname);
-    return parsedUrl;
-  }
+  return async (value) => {
+    const parsedUrl = parseUrl(value, maxUrlLength);
 
-  const records = await lookup(hostname, {
-    all: true,
-    verbatim: true,
-  });
-
-  if (!Array.isArray(records) || records.length === 0) {
-    throw new Error(`Outbound URL hostname did not resolve: ${hostname}`);
-  }
-
-  records.forEach((record) => {
-    if (!record || typeof record.address !== 'string') {
-      throw new Error(`Outbound URL hostname returned an invalid DNS record: ${hostname}`);
+    if (isAllowedHost(parsedUrl, allowedHostSet)) {
+      return parsedUrl;
     }
-    assertPublicAddress(record.address);
-  });
 
-  return parsedUrl;
+    const hostname = normalizeHostnameForAddressCheck(parsedUrl.hostname);
+    const literalFamily = net.isIP(hostname);
+
+    if (literalFamily) {
+      assertPublicAddress(hostname);
+      return parsedUrl;
+    }
+
+    const records = await lookup(hostname, {
+      all: true,
+      verbatim: true,
+    });
+
+    if (!Array.isArray(records) || records.length === 0) {
+      throw new Error(`Outbound URL hostname did not resolve: ${hostname}`);
+    }
+
+    records.forEach((record) => {
+      if (!record || typeof record.address !== 'string') {
+        throw new Error(`Outbound URL hostname returned an invalid DNS record: ${hostname}`);
+      }
+      assertPublicAddress(record.address);
+    });
+
+    return parsedUrl;
+  };
 };
 
 const defaultOutboundUrlPolicy = createOutboundUrlPolicy();

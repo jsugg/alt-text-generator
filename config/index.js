@@ -106,6 +106,10 @@ module.exports = {
       || process.env.NODE_EXTRA_CA_CERTS,
   },
 
+  outboundUrlPolicy: {
+    allowedHosts: toList(process.env.OUTBOUND_ALLOWED_HOSTS),
+  },
+
   providerOverrides: providerOverrides.providers,
 
   ...buildProviderConfigSections(process.env),

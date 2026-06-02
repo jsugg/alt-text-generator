@@ -49,6 +49,29 @@ describe('Unit | Infrastructure | Outbound URL Policy', () => {
       .toThrow('blocked network address: 127.0.0.1');
   });
 
+  it('allows explicitly configured host and port pairs without DNS resolution', async () => {
+    const lookup = jest.fn();
+    const policy = createOutboundUrlPolicy({
+      allowedHosts: ['127.0.0.1:19090'],
+      lookup,
+    });
+
+    await expect(policy('http://127.0.0.1:19090/assets/a.png'))
+      .resolves
+      .toBeInstanceOf(URL);
+    expect(lookup).not.toHaveBeenCalled();
+  });
+
+  it('does not allow private addresses on unlisted ports', async () => {
+    const policy = createOutboundUrlPolicy({
+      allowedHosts: ['127.0.0.1:19090'],
+    });
+
+    await expect(policy('http://127.0.0.1:19091/assets/a.png'))
+      .rejects
+      .toThrow('blocked network address: 127.0.0.1');
+  });
+
   it('validates each redirect before following it', async () => {
     const policy = jest.fn()
       .mockResolvedValueOnce()
