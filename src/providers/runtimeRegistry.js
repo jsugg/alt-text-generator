@@ -16,6 +16,7 @@ const resolveProviderClient = (provider, providerClients = {}) => (
  * @param {object} params.logger
  * @param {object} params.httpClient
  * @param {object} params.outboundClients
+ * @param {Function} params.outboundUrlPolicy
  * @param {object} params.requestOptions
  * @param {Record<string, object>} [params.providerClients]
  * @returns {ImageDescriberFactory}
@@ -25,6 +26,7 @@ const buildImageDescriberFactory = ({
   logger,
   httpClient,
   outboundClients,
+  outboundUrlPolicy,
   requestOptions,
   providerClients = {},
 }) => {
@@ -40,6 +42,7 @@ const buildImageDescriberFactory = ({
       logger,
       httpClient,
       outboundClients,
+      outboundUrlPolicy,
       requestOptions,
       providerClient: resolveProviderClient(provider, providerClients),
     });

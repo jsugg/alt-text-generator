@@ -5,7 +5,6 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const https = require('https');
-const tls = require('tls');
 const { execFileSync } = require('child_process');
 const { X509Certificate } = require('crypto');
 
@@ -192,51 +191,40 @@ const probeUrl = (targetUrl, bundleFile) => new Promise((resolve) => {
 
 const inspectCertificateChain = (targetUrl) => new Promise((resolve, reject) => {
   const url = new URL(targetUrl);
-  const socket = tls.connect({
-    host: url.hostname,
-    port: Number(url.port) || 443,
-    rejectUnauthorized: false,
-    servername: url.hostname,
-  });
 
-  socket.once('secureConnect', () => {
-    try {
-      const chain = [];
-      const seenFingerprints = new Set();
-      let certificate = socket.getPeerCertificate(true);
+  try {
+    const output = execFileSync('openssl', [
+      's_client',
+      '-connect',
+      `${url.hostname}:${Number(url.port) || 443}`,
+      '-servername',
+      url.hostname,
+      '-showcerts',
+    ], {
+      encoding: 'utf8',
+      input: '',
+      stdio: ['pipe', 'pipe', 'ignore'],
+      timeout: 15000,
+    });
+    const chain = splitPemCertificates(output).map((pemText) => {
+      const certificate = new X509Certificate(pemText);
+      return {
+        fingerprint256: getFingerprint(pemText),
+        issuer: certificate.issuer,
+        pemText,
+        subject: certificate.subject,
+      };
+    });
 
-      while (certificate && certificate.raw) {
-        const pemText = rawToPem(certificate.raw);
-        const fingerprint = certificate.fingerprint256;
-        if (seenFingerprints.has(fingerprint)) {
-          break;
-        }
-
-        seenFingerprints.add(fingerprint);
-        chain.push({
-          fingerprint256: fingerprint,
-          issuer: certificate.issuer,
-          pemText,
-          subject: certificate.subject,
-        });
-
-        if (!certificate.issuerCertificate
-          || certificate.issuerCertificate.fingerprint256 === fingerprint) {
-          break;
-        }
-
-        certificate = certificate.issuerCertificate;
-      }
-
-      resolve(chain);
-    } catch (error) {
-      reject(error);
-    } finally {
-      socket.end();
+    if (chain.length === 0) {
+      reject(new Error(`No certificates found for ${targetUrl}`));
+      return;
     }
-  });
 
-  socket.once('error', reject);
+    resolve(chain);
+  } catch (error) {
+    reject(error);
+  }
 });
 
 const loadCertificatesFromPemText = (pemText, expectedCertificate) => (

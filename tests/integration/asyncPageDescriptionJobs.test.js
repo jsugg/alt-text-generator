@@ -200,6 +200,7 @@ describe('Integration | Async Page Description Jobs', () => {
       requestLogger,
       imageDescriberFactory,
       descriptionJobStore,
+      outboundUrlPolicy: jest.fn().mockResolvedValue(),
       runtimeState,
       config: {
         ...config,

@@ -4,6 +4,13 @@ const {
 } = require('../../../../src/providers/shared/fetchImageAsset');
 
 describe('Unit | Providers | Shared | Fetch Image Asset', () => {
+  const allowOutboundUrl = jest.fn().mockResolvedValue();
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    allowOutboundUrl.mockResolvedValue();
+  });
+
   it('normalizes content types and preserves existing buffers', async () => {
     const httpClient = {
       get: jest.fn().mockResolvedValue({
@@ -17,6 +24,7 @@ describe('Unit | Providers | Shared | Fetch Image Asset', () => {
     const asset = await fetchImageAsset({
       httpClient,
       imageUrl: 'https://example.com/image.png',
+      outboundUrlPolicy: allowOutboundUrl,
       requestOptions: {
         timeout: 500,
         maxRedirects: 1,
@@ -29,6 +37,15 @@ describe('Unit | Providers | Shared | Fetch Image Asset', () => {
       contentType: 'image/png',
       imageUrl: 'https://example.com/image.png',
     });
+    expect(httpClient.get).toHaveBeenCalledWith('https://example.com/image.png', {
+      timeout: 500,
+      maxRedirects: 0,
+      maxContentLength: 1024,
+      maxBodyLength: 1024,
+      responseType: 'arraybuffer',
+      validateStatus: expect.any(Function),
+    });
+    expect(allowOutboundUrl).toHaveBeenCalledWith('https://example.com/image.png');
   });
 
   it('creates a buffer from non-buffer payloads and tolerates missing content type', async () => {
@@ -42,6 +59,7 @@ describe('Unit | Providers | Shared | Fetch Image Asset', () => {
     const asset = await fetchImageAsset({
       httpClient,
       imageUrl: 'https://example.com/image.bin',
+      outboundUrlPolicy: allowOutboundUrl,
     });
 
     expect(Buffer.isBuffer(asset.buffer)).toBe(true);

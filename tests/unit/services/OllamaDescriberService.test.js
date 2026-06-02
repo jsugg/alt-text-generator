@@ -12,10 +12,12 @@ const mockProviderConfig = {
   prompt: 'Describe this image.',
   keepAlive: '5m',
 };
+const allowOutboundUrl = jest.fn().mockResolvedValue();
 
 describe('Unit | Services | Ollama Describer Service', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    allowOutboundUrl.mockResolvedValue();
   });
 
   it('downloads the image and submits it to the Ollama chat api', async () => {
@@ -37,6 +39,7 @@ describe('Unit | Services | Ollama Describer Service', () => {
     const svc = new OllamaDescriberService({
       logger: mockLogger,
       httpClient,
+      outboundUrlPolicy: allowOutboundUrl,
       providerConfig: mockProviderConfig,
       requestOptions: {
         timeout: 700,
@@ -53,10 +56,11 @@ describe('Unit | Services | Ollama Describer Service', () => {
     });
     expect(httpClient.get).toHaveBeenCalledWith('https://example.com/surfer.jpg', {
       timeout: 700,
-      maxRedirects: 3,
+      maxRedirects: 0,
       maxContentLength: 4096,
       maxBodyLength: 4096,
       responseType: 'arraybuffer',
+      validateStatus: expect.any(Function),
     });
     expect(httpClient.post).toHaveBeenCalledWith(
       'http://127.0.0.1:11434/api/chat',

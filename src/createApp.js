@@ -10,6 +10,7 @@ const {
   requestLogger: defaultRequestLogger,
 } = require('./infrastructure/logger');
 const { createOutboundClients } = require('./infrastructure/outboundTrust');
+const { defaultOutboundUrlPolicy } = require('./infrastructure/outboundUrlPolicy');
 const { DescriptionJobService } = require('./services/DescriptionJobService');
 const { PageDescriptionJobService } = require('./services/PageDescriptionJobService');
 const ScraperService = require('./services/ScraperService');
@@ -41,6 +42,7 @@ const createApp = ({
   descriptionJobStore,
   health,
   outboundClients,
+  outboundUrlPolicy = defaultOutboundUrlPolicy,
   rateLimitStoreProvider,
   providerClients,
   replicateClient,
@@ -55,6 +57,7 @@ const createApp = ({
   const resolvedScraperService = scraperService ?? new ScraperService({
     logger: appLogger,
     httpClient: resolvedHttpClient,
+    outboundUrlPolicy,
     requestOptions: {
       timeout: scraperConfig.requestTimeoutMs,
       maxRedirects: scraperConfig.maxRedirects,
@@ -67,6 +70,7 @@ const createApp = ({
       logger: appLogger,
       httpClient: resolvedHttpClient,
       outboundClients: resolvedOutboundClients,
+      outboundUrlPolicy,
       requestOptions: {
         timeout: scraperConfig.requestTimeoutMs,
         maxRedirects: scraperConfig.maxRedirects,
