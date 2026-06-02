@@ -12,8 +12,14 @@ const mockProviderConfig = {
   language: 'en',
   maxCandidates: 4,
 };
+const allowOutboundUrl = jest.fn().mockResolvedValue();
 
 describe('Unit | Services | Azure Describer Service', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    allowOutboundUrl.mockResolvedValue();
+  });
+
   it('returns joined captions as description', async () => {
     const mockHttpClient = {
       get: jest.fn().mockResolvedValue({
@@ -36,6 +42,7 @@ describe('Unit | Services | Azure Describer Service', () => {
     const svc = new AzureDescriberService({
       logger: mockLogger,
       httpClient: mockHttpClient,
+      outboundUrlPolicy: allowOutboundUrl,
       providerConfig: mockProviderConfig,
     });
 
@@ -62,6 +69,7 @@ describe('Unit | Services | Azure Describer Service', () => {
     const svc = new AzureDescriberService({
       logger: mockLogger,
       httpClient: mockHttpClient,
+      outboundUrlPolicy: allowOutboundUrl,
       providerConfig: mockProviderConfig,
     });
 
@@ -69,10 +77,11 @@ describe('Unit | Services | Azure Describer Service', () => {
 
     expect(mockHttpClient.get).toHaveBeenCalledWith('https://example.com/img.jpg', {
       timeout: undefined,
-      maxRedirects: undefined,
+      maxRedirects: 0,
       maxContentLength: undefined,
       maxBodyLength: undefined,
       responseType: 'arraybuffer',
+      validateStatus: expect.any(Function),
     });
     const [url, data, axiosConfig] = mockHttpClient.post.mock.calls[0];
     expect(url).toBe(
@@ -98,6 +107,7 @@ describe('Unit | Services | Azure Describer Service', () => {
     const svc = new AzureDescriberService({
       logger: mockLogger,
       httpClient: mockHttpClient,
+      outboundUrlPolicy: allowOutboundUrl,
       providerConfig: mockProviderConfig,
     });
 
@@ -136,6 +146,7 @@ describe('Unit | Services | Azure Describer Service', () => {
     const svc = new AzureDescriberService({
       logger: mockLogger,
       httpClient: mockHttpClient,
+      outboundUrlPolicy: allowOutboundUrl,
       providerConfig: mockProviderConfig,
     });
 
@@ -177,6 +188,7 @@ describe('Unit | Services | Azure Describer Service', () => {
     const svc = new AzureDescriberService({
       logger: mockLogger,
       httpClient: mockHttpClient,
+      outboundUrlPolicy: allowOutboundUrl,
       providerConfig: mockProviderConfig,
     });
 

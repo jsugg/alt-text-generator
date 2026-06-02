@@ -12,6 +12,7 @@ class OllamaDescriberService {
    * @param {object} deps.logger
    * @param {object} deps.httpClient
    * @param {object} [deps.apiClient]
+   * @param {Function} [deps.outboundUrlPolicy]
    * @param {object} deps.providerConfig
    * @param {object} [deps.requestOptions]
    */
@@ -19,12 +20,14 @@ class OllamaDescriberService {
     logger,
     httpClient,
     apiClient = httpClient,
+    outboundUrlPolicy,
     providerConfig,
     requestOptions = {},
   }) {
     this.logger = logger;
     this.httpClient = httpClient;
     this.apiClient = apiClient;
+    this.outboundUrlPolicy = outboundUrlPolicy;
     this.endpoint = providerConfig.baseUrl?.replace(/\/+$/, '');
     this.model = providerConfig.model;
     this.prompt = providerConfig.prompt;
@@ -63,6 +66,7 @@ class OllamaDescriberService {
       const imageAsset = await fetchImageAsset({
         httpClient: this.httpClient,
         imageUrl,
+        outboundUrlPolicy: this.outboundUrlPolicy,
         requestOptions: this.requestOptions,
       });
 

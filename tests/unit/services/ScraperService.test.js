@@ -12,15 +12,18 @@ const defaultRequestOptions = {
   maxRedirects: 3,
   maxContentLength: 1024,
 };
+const allowOutboundUrl = jest.fn().mockResolvedValue();
 
 const makeService = (httpClientOverride, requestOptionsOverride) => new ScraperService({
   logger: mockLogger,
   httpClient: httpClientOverride || { get: jest.fn() },
+  outboundUrlPolicy: allowOutboundUrl,
   requestOptions: requestOptionsOverride || defaultRequestOptions,
 });
 
 beforeEach(() => {
   jest.clearAllMocks();
+  allowOutboundUrl.mockResolvedValue();
 });
 
 describe('Unit | Services | Scraper Service', () => {
@@ -104,10 +107,38 @@ describe('Unit | Services | Scraper Service', () => {
         headers: { Origin: 'https://example.com' },
         maxBodyLength: 1024,
         maxContentLength: 1024,
-        maxRedirects: 3,
+        maxRedirects: 0,
         responseType: 'text',
         timeout: 1000,
+        validateStatus: expect.any(Function),
       });
+      expect(allowOutboundUrl).toHaveBeenCalledWith('https://example.com');
+    });
+
+    it('validates redirect targets before following them', async () => {
+      const html = '<html><body><img src="https://example.com/photo.jpg"></body></html>';
+      const mockHttpClient = {
+        get: jest.fn()
+          .mockResolvedValueOnce({
+            status: 302,
+            headers: {
+              location: 'https://cdn.example.com/page',
+            },
+          })
+          .mockResolvedValueOnce({
+            status: 200,
+            data: html,
+            headers: {},
+          }),
+      };
+      const svc = makeService(mockHttpClient);
+
+      const result = await svc.getImages('https://example.com');
+
+      expect(result.imageSources).toContain('https://example.com/photo.jpg');
+      expect(allowOutboundUrl).toHaveBeenCalledWith('https://example.com');
+      expect(allowOutboundUrl).toHaveBeenCalledWith('https://cdn.example.com/page');
+      expect(mockHttpClient.get).toHaveBeenCalledTimes(2);
     });
 
     it('throws when the HTTP client rejects', async () => {

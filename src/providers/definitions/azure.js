@@ -59,10 +59,12 @@ module.exports = {
     config,
     logger,
     httpClient,
+    outboundUrlPolicy,
     requestOptions,
   }) => new AzureDescriberService({
     logger,
     httpClient,
+    outboundUrlPolicy,
     providerConfig: config.azure,
     requestOptions,
   }),

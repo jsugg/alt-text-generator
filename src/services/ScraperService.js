@@ -1,6 +1,11 @@
 const path = require('path');
 const cheerio = require('cheerio');
 
+const {
+  defaultOutboundUrlPolicy,
+  requestWithOutboundUrlPolicy,
+} = require('../infrastructure/outboundUrlPolicy');
+
 /**
  * Scrapes images from a given website URL.
  *
@@ -11,11 +16,18 @@ class ScraperService {
    * @param {object} deps
    * @param {object} deps.logger - pino logger instance
    * @param {object} deps.httpClient - axios-compatible HTTP client
+   * @param {Function} deps.outboundUrlPolicy - validates user-controlled outbound URLs
    * @param {object} deps.requestOptions - bounded axios request options
    */
-  constructor({ logger, httpClient, requestOptions = {} }) {
+  constructor({
+    logger,
+    httpClient,
+    outboundUrlPolicy = defaultOutboundUrlPolicy,
+    requestOptions = {},
+  }) {
     this.logger = logger;
     this.httpClient = httpClient;
+    this.outboundUrlPolicy = outboundUrlPolicy;
     this.requestOptions = requestOptions;
   }
 
@@ -49,13 +61,18 @@ class ScraperService {
    * @returns {Promise<string>}
    */
   async fetchHtml(targetUrl) {
-    const response = await this.httpClient.get(targetUrl, {
-      headers: { Origin: targetUrl },
-      timeout: this.requestOptions.timeout,
-      maxRedirects: this.requestOptions.maxRedirects,
-      maxContentLength: this.requestOptions.maxContentLength,
-      maxBodyLength: this.requestOptions.maxContentLength,
-      responseType: 'text',
+    const response = await requestWithOutboundUrlPolicy({
+      httpClient: this.httpClient,
+      url: targetUrl,
+      outboundUrlPolicy: this.outboundUrlPolicy,
+      options: {
+        headers: { Origin: targetUrl },
+        timeout: this.requestOptions.timeout,
+        maxRedirects: this.requestOptions.maxRedirects,
+        maxContentLength: this.requestOptions.maxContentLength,
+        maxBodyLength: this.requestOptions.maxContentLength,
+        responseType: 'text',
+      },
     });
     return response.data;
   }
@@ -110,7 +127,7 @@ class ScraperService {
 
   /**
    * Scrapes images from a website.
-   * Throws on failure — callers are responsible for error handling.
+   * Throws on failure; callers are responsible for error handling.
    * @param {string} targetUrl
    * @returns {Promise<{ imageSources: string[] }>}
    */

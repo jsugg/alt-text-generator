@@ -1,3 +1,8 @@
+const {
+  defaultOutboundUrlPolicy,
+  requestWithOutboundUrlPolicy,
+} = require('../../infrastructure/outboundUrlPolicy');
+
 const normalizeContentType = (value) => {
   if (!value || typeof value !== 'string') {
     return null;
@@ -12,20 +17,27 @@ const normalizeContentType = (value) => {
  * @param {object} params
  * @param {object} params.httpClient - axios-compatible HTTP client
  * @param {string} params.imageUrl
+ * @param {Function} [params.outboundUrlPolicy] - validates user-controlled outbound URLs
  * @param {object} [params.requestOptions]
  * @returns {Promise<{ buffer: Buffer, contentType: string | null, imageUrl: string }>}
  */
 const fetchImageAsset = async ({
   httpClient,
   imageUrl,
+  outboundUrlPolicy = defaultOutboundUrlPolicy,
   requestOptions = {},
 }) => {
-  const response = await httpClient.get(imageUrl, {
-    timeout: requestOptions.timeout,
-    maxRedirects: requestOptions.maxRedirects,
-    maxContentLength: requestOptions.maxContentLength,
-    maxBodyLength: requestOptions.maxContentLength,
-    responseType: 'arraybuffer',
+  const response = await requestWithOutboundUrlPolicy({
+    httpClient,
+    url: imageUrl,
+    outboundUrlPolicy,
+    options: {
+      timeout: requestOptions.timeout,
+      maxRedirects: requestOptions.maxRedirects,
+      maxContentLength: requestOptions.maxContentLength,
+      maxBodyLength: requestOptions.maxContentLength,
+      responseType: 'arraybuffer',
+    },
   });
 
   const buffer = Buffer.isBuffer(response.data)

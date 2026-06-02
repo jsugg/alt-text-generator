@@ -524,6 +524,7 @@ describe('Integration | API', () => {
         appLogger,
         requestLogger,
         httpClient,
+        outboundUrlPolicy: jest.fn().mockResolvedValue(),
         replicateClient,
         config: runtimeConfig,
       });
@@ -544,10 +545,11 @@ describe('Integration | API', () => {
       }]);
       expect(httpClient.get).toHaveBeenCalledWith('https://example.com/azure-image.jpg', {
         timeout: 1500,
-        maxRedirects: 4,
+        maxRedirects: 0,
         maxContentLength: 2048,
         maxBodyLength: 2048,
         responseType: 'arraybuffer',
+        validateStatus: expect.any(Function),
       });
       expect(httpClient.post).toHaveBeenCalledWith(
         'https://azure.example.com/vision/v3.2/describe?maxCandidates=4&language=en&model-version=latest&overload=stream',

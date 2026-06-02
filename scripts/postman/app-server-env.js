@@ -30,6 +30,7 @@ function buildAppServerEnv({
   descriptionJobWaitTimeoutMs = null,
   descriptionJobPollIntervalMs = null,
   replicatePollIntervalMs = null,
+  outboundAllowedHosts = null,
 }) {
   const env = {
     NODE_ENV: 'development',
@@ -118,6 +119,10 @@ function buildAppServerEnv({
 
   if (replicatePollIntervalMs) {
     env.REPLICATE_POLL_INTERVAL_MS = replicatePollIntervalMs;
+  }
+
+  if (outboundAllowedHosts) {
+    env.OUTBOUND_ALLOWED_HOSTS = outboundAllowedHosts;
   }
 
   return env;

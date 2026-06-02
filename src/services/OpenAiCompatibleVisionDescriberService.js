@@ -152,12 +152,14 @@ class OpenAiCompatibleVisionDescriberService {
    * @param {object} deps.providerConfig
    * @param {string} deps.providerKey
    * @param {string} deps.providerName
+   * @param {Function} [deps.outboundUrlPolicy] - validates user-controlled outbound URLs
    * @param {object} [deps.requestOptions]
    */
   constructor({
     logger,
     httpClient,
     apiClient = httpClient,
+    outboundUrlPolicy,
     providerConfig,
     providerKey,
     providerName,
@@ -167,6 +169,7 @@ class OpenAiCompatibleVisionDescriberService {
     this.logger = logger;
     this.httpClient = httpClient;
     this.apiClient = apiClient;
+    this.outboundUrlPolicy = outboundUrlPolicy;
     this.providerKey = providerKey;
     this.providerName = providerName;
     this.endpoint = providerConfig.baseUrl?.replace(/\/+$/, '');
@@ -295,6 +298,7 @@ class OpenAiCompatibleVisionDescriberService {
     const imageAsset = await fetchImageAsset({
       httpClient: this.httpClient,
       imageUrl,
+      outboundUrlPolicy: this.outboundUrlPolicy,
       requestOptions: this.requestOptions,
     });
 

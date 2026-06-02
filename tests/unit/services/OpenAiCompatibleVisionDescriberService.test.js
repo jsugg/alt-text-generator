@@ -17,10 +17,12 @@ const mockProviderConfig = {
     'X-Test': 'true',
   },
 };
+const allowOutboundUrl = jest.fn().mockResolvedValue();
 
 describe('Unit | Services | OpenAI Compatible Vision Describer Service', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    allowOutboundUrl.mockResolvedValue();
   });
 
   it('sends a chat completion request with the remote image url', async () => {
@@ -118,6 +120,7 @@ describe('Unit | Services | OpenAI Compatible Vision Describer Service', () => {
       logger: mockLogger,
       httpClient,
       apiClient,
+      outboundUrlPolicy: allowOutboundUrl,
       providerConfig: mockProviderConfig,
       providerKey: 'openai',
       providerName: 'OpenAI Vision',
@@ -136,10 +139,11 @@ describe('Unit | Services | OpenAI Compatible Vision Describer Service', () => {
     });
     expect(httpClient.get).toHaveBeenCalledWith('https://example.com/fallback.png', {
       timeout: 900,
-      maxRedirects: 2,
+      maxRedirects: 0,
       maxContentLength: 2048,
       maxBodyLength: 2048,
       responseType: 'arraybuffer',
+      validateStatus: expect.any(Function),
     });
     expect(apiClient.post.mock.calls[1][1].messages[0].content[1].image_url.url)
       .toMatch(/^data:image\/png;base64,/);
@@ -253,6 +257,7 @@ describe('Unit | Services | OpenAI Compatible Vision Describer Service', () => {
       logger: mockLogger,
       httpClient,
       apiClient,
+      outboundUrlPolicy: allowOutboundUrl,
       providerConfig: mockProviderConfig,
       providerKey: 'openrouter',
       providerName: 'OpenRouter Vision',
@@ -269,10 +274,11 @@ describe('Unit | Services | OpenAI Compatible Vision Describer Service', () => {
     });
     expect(httpClient.get).toHaveBeenCalledWith('http://127.0.0.1:19090/assets/a.png', {
       timeout: 700,
-      maxRedirects: undefined,
+      maxRedirects: 0,
       maxContentLength: undefined,
       maxBodyLength: undefined,
       responseType: 'arraybuffer',
+      validateStatus: expect.any(Function),
     });
     expect(apiClient.post).toHaveBeenCalledTimes(1);
     expect(apiClient.post.mock.calls[0][1].messages[0].content[1].image_url.url)
