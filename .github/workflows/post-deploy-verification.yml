@@ -83,7 +83,7 @@ jobs:
 
       - name: Upload Newman artifacts
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: post-deploy-verification-artifacts
           path: reports/newman/
@@ -92,7 +92,7 @@ jobs:
 
       - name: Upload Newman Allure results
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: post-deploy-verification-allure-results
           path: reports/allure-results/
@@ -194,7 +194,7 @@ jobs:
           always() &&
           steps.allure-inputs.outputs.has-results == 'true' &&
           steps.history-policy.outputs.persist_history == 'true'
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ steps.history-policy.outputs.history_artifact_name }}
           path: reports/allure-history-artifact/
@@ -203,7 +203,7 @@ jobs:
 
       - name: Upload Allure report
         if: always() && steps.allure-inputs.outputs.has-results == 'true'
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: post-deploy-verification-allure-report
           path: reports/allure-report/
