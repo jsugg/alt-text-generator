@@ -1,0 +1,1 @@
+{"jobId":"26d8dbe93a39e2f984cab2cc1e806f32ef19a87ee27bb50ce3c3fc24b1d01ec1","model":"replicate","pageUrl":"http://127.0.0.1:19090/fixtures/page-with-provider-failure","status":"processing","pollAfterMs":5,"statusUrl":"/api/v1/accessibility/page-description-jobs/26d8dbe93a39e2f984cab2cc1e806f32ef19a87ee27bb50ce3c3fc24b1d01ec1"}
