@@ -65,7 +65,7 @@
     "replicate": "^0.25.2",
     "selfsigned": "^5.5.0",
     "swagger-jsdoc": "^6.2.8",
-    "swagger-ui-express": "^4.6.2",
+    "swagger-ui-express": "^5.0.1",
     "undici": "^6.24.0"
   },
   "overrides": {
