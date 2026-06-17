@@ -1,1 +1,0 @@
-{"message":"OK","ready":true,"timestamp":1781679818199,"uptime":1.968853396}
