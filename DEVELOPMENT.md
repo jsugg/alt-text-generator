@@ -56,7 +56,9 @@ npm run dev:test-env
 
 # quality
 npm run lint
-NODE_ENV=test REPLICATE_API_TOKEN=test-token npm test -- --runInBand
+NODE_ENV=test REPLICATE_API_TOKEN=test-token npm test
+NODE_ENV=test REPLICATE_API_TOKEN=test-token npm run test:integration
+NODE_ENV=test REPLICATE_API_TOKEN=test-token npm run test:integration:redis
 NODE_ENV=test REPLICATE_API_TOKEN=test-token npm run test:integration:scripts
 npm run postman:smoke
 npm run postman:full
@@ -67,7 +69,7 @@ npm run doctor:tls -- https://example.com
 npm run doctor:tls -- https://example.com --fix --write-env --env-file .env.test
 ```
 
-`npm test` is the fast Jest lane for `tests/unit`. Run `npm run test:integration:scripts` for git/filesystem subprocess coverage; it uses a 30s timeout because real clone/worktree/push/fetch flows cross process and filesystem boundaries. Full CI-style Jest runs still need `redis-server` for the Redis-backed integration suite.
+`npm test` is the fast, deterministic Jest lane for `tests/unit` (no coverage or reporters). Every tier has its own package script and Jest config under `config/jest/`: `test:integration` (HTTP surface with in-memory adapters), `test:integration:redis` (Redis-backed rate limiting; skips locally without a `redis-server` binary, required in CI), and `test:integration:scripts` (git/filesystem subprocess flows; runs in-band with a 30s timeout because real clone/worktree/push/fetch flows cross process and filesystem boundaries). `test:coverage` composes every tier as Jest projects and enforces the coverage gate; `test:ci` adds JUnit (and Allure when `ALLURE_RESULTS_DIR` is set). CI step names map one-to-one to these scripts so a red step tells you exactly which `npm run` reproduces it.
 
 ## GitHub Workflows
 
@@ -483,7 +485,8 @@ Run these before pushing:
 
 ```bash
 npm run lint
-NODE_ENV=test REPLICATE_API_TOKEN=test-token npm test -- --runInBand
+NODE_ENV=test REPLICATE_API_TOKEN=test-token npm test
+NODE_ENV=test REPLICATE_API_TOKEN=test-token npm run test:integration
 NODE_ENV=test REPLICATE_API_TOKEN=test-token npm run test:integration:scripts
 npm ci --dry-run
 ```

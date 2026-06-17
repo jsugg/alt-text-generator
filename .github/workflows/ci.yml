@@ -84,21 +84,35 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
-      - name: Run fast unit tests
+      - name: 'test:unit'
         if: matrix.node-version != '20'
-        run: npm test -- --ci
+        run: npm run test:unit -- --ci
         env:
           NODE_ENV: test
           REPLICATE_API_TOKEN: test-token
 
-      - name: Run script integration tests
+      - name: 'test:integration'
+        if: matrix.node-version != '20'
+        run: npm run test:integration -- --ci
+        env:
+          NODE_ENV: test
+          REPLICATE_API_TOKEN: test-token
+
+      - name: 'test:integration:redis'
+        if: matrix.node-version != '20'
+        run: npm run test:integration:redis -- --ci
+        env:
+          NODE_ENV: test
+          REPLICATE_API_TOKEN: test-token
+
+      - name: 'test:integration:scripts'
         if: matrix.node-version != '20'
         run: npm run test:integration:scripts -- --ci
         env:
           NODE_ENV: test
           REPLICATE_API_TOKEN: test-token
 
-      - name: Run tests with JUnit and Allure reporting
+      - name: 'test:ci'
         if: matrix.node-version == '20'
         run: npm run test:ci
         env:
