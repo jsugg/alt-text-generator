@@ -25,7 +25,7 @@
     "allure:open": "allure open reports/allure-report",
     "doctor:tls": "node scripts/doctor-tls.js",
     "dev:test-env": "ENV_FILE=.env.test NODE_ENV=development nodemon src/app.js | pino-pretty -i streams,options",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings=0",
     "openapi:generate": "node scripts/generate-openapi-spec.js",
     "postman:full:allure": "ALLURE_RESULTS_DIR=reports/allure-results node scripts/run-postman-harness.js full",
     "postman:smoke": "node scripts/run-postman-harness.js smoke",
@@ -42,6 +42,7 @@
     "test:coverage": "jest --config config/jest/jest.coverage.cjs",
     "test:allure": "ALLURE_RESULTS_DIR=reports/allure-results jest",
     "test:ci": "jest --config config/jest/jest.ci.cjs --ci",
+    "validate:fast": "npm run lint && NODE_ENV=test REPLICATE_API_TOKEN=test-token npm test",
     "prod": "NODE_ENV=production node src/app.js",
     "dev": "NODE_ENV=development nodemon src/app.js | pino-pretty -i streams,options"
   },

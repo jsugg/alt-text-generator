@@ -21,6 +21,7 @@ class DescriptionJobService {
    * @param {number} deps.pendingTtlMs
    * @param {number} deps.completedTtlMs
    * @param {number} deps.failedTtlMs
+   * @param {Function} [deps.now]
    * @param {Function} [deps.sleep]
    */
   constructor({
@@ -32,6 +33,7 @@ class DescriptionJobService {
     pendingTtlMs,
     completedTtlMs,
     failedTtlMs,
+    now: nowFn = Date.now,
     sleep: wait = sleep,
   }) {
     this.imageDescriberFactory = imageDescriberFactory;
@@ -42,6 +44,7 @@ class DescriptionJobService {
     this.pendingTtlMs = pendingTtlMs;
     this.completedTtlMs = completedTtlMs;
     this.failedTtlMs = failedTtlMs;
+    this.now = nowFn;
     this.sleep = wait;
   }
 
@@ -76,8 +79,12 @@ class DescriptionJobService {
     };
   }
 
-  static buildExpirationIso(ttlMs) {
-    return new Date(Date.now() + ttlMs).toISOString();
+  static buildExpirationIso(ttlMs, nowEpochMs = Date.now()) {
+    return new Date(nowEpochMs + ttlMs).toISOString();
+  }
+
+  buildTimestampIso(nowEpochMs = this.now()) {
+    return new Date(nowEpochMs).toISOString();
   }
 
   async saveJob(job) {
@@ -86,17 +93,21 @@ class DescriptionJobService {
   }
 
   async buildSucceededJob(existingJob, result) {
+    const nowEpochMs = this.now();
+
     return this.saveJob({
       ...existingJob,
       status: 'succeeded',
       result,
       error: undefined,
-      updatedAt: new Date().toISOString(),
-      expiresAt: this.constructor.buildExpirationIso(this.completedTtlMs),
+      updatedAt: this.buildTimestampIso(nowEpochMs),
+      expiresAt: this.constructor.buildExpirationIso(this.completedTtlMs, nowEpochMs),
     });
   }
 
   async buildFailedJob(existingJob, error) {
+    const nowEpochMs = this.now();
+
     return this.saveJob({
       ...existingJob,
       status: 'failed',
@@ -105,8 +116,8 @@ class DescriptionJobService {
         message: error.message,
         ...(error.code ? { code: error.code } : {}),
       },
-      updatedAt: new Date().toISOString(),
-      expiresAt: this.constructor.buildExpirationIso(this.failedTtlMs),
+      updatedAt: this.buildTimestampIso(nowEpochMs),
+      expiresAt: this.constructor.buildExpirationIso(this.failedTtlMs, nowEpochMs),
     });
   }
 
@@ -117,7 +128,8 @@ class DescriptionJobService {
     providerJobId,
     status,
   }) {
-    const timestamp = new Date().toISOString();
+    const nowEpochMs = this.now();
+    const timestamp = this.buildTimestampIso(nowEpochMs);
 
     return this.saveJob({
       id,
@@ -127,7 +139,7 @@ class DescriptionJobService {
       status,
       createdAt: timestamp,
       updatedAt: timestamp,
-      expiresAt: this.constructor.buildExpirationIso(this.pendingTtlMs),
+      expiresAt: this.constructor.buildExpirationIso(this.pendingTtlMs, nowEpochMs),
     });
   }
 
@@ -143,20 +155,22 @@ class DescriptionJobService {
       return this.buildFailedJob(job, error);
     }
 
+    const nowEpochMs = this.now();
+
     return this.saveJob({
       ...job,
       status: providerJob.status,
-      updatedAt: new Date().toISOString(),
-      expiresAt: this.constructor.buildExpirationIso(this.pendingTtlMs),
+      updatedAt: this.buildTimestampIso(nowEpochMs),
+      expiresAt: this.constructor.buildExpirationIso(this.pendingTtlMs, nowEpochMs),
     });
   }
 
   async waitForJob(job, describer, waitTimeoutMs) {
-    return this.pollJobUntilDeadline(job, describer, Date.now() + waitTimeoutMs);
+    return this.pollJobUntilDeadline(job, describer, this.now() + waitTimeoutMs);
   }
 
   async pollJobUntilDeadline(job, describer, deadline) {
-    if (Date.now() >= deadline) {
+    if (this.now() >= deadline) {
       return job;
     }
 
@@ -165,7 +179,7 @@ class DescriptionJobService {
       return refreshedJob;
     }
 
-    const remainingMs = deadline - Date.now();
+    const remainingMs = deadline - this.now();
     if (remainingMs <= 0) {
       return refreshedJob;
     }
@@ -211,7 +225,7 @@ class DescriptionJobService {
         imageUrl,
         model,
         providerJobId: providerJob.providerJobId,
-        createdAt: new Date().toISOString(),
+        createdAt: this.buildTimestampIso(),
       }, providerJob.result);
 
       return {

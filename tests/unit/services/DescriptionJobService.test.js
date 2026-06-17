@@ -1,5 +1,8 @@
 const ImageDescriberFactory = require('../../../src/services/ImageDescriberFactory');
 const { DescriptionJobService } = require('../../../src/services/DescriptionJobService');
+const { createDeterministicScheduler } = require('../../helpers/deterministicScheduler');
+
+const DEFAULT_NOW = Date.parse('2026-01-01T00:00:00.000Z');
 
 const createJobStore = () => {
   const jobs = new Map();
@@ -15,24 +18,36 @@ const createJobStore = () => {
   };
 };
 
+const createService = ({
+  describer,
+  jobStore = createJobStore(),
+  scheduler = createDeterministicScheduler({ initialNow: DEFAULT_NOW }),
+  serviceOverrides = {},
+}) => ({
+  jobStore,
+  scheduler,
+  service: new DescriptionJobService({
+    imageDescriberFactory: new ImageDescriberFactory().register('replicate', describer),
+    jobStore,
+    logger: {},
+    waitTimeoutMs: 10,
+    pollIntervalMs: 1,
+    pendingTtlMs: 1000,
+    completedTtlMs: 1000,
+    failedTtlMs: 1000,
+    now: scheduler.now,
+    sleep: (durationMs) => scheduler.sleep(durationMs),
+    ...serviceOverrides,
+  }),
+});
+
 describe('Unit | Services | Description Job Service', () => {
   it('returns a cached completed result without creating a new provider job', async () => {
-    const jobStore = createJobStore();
     const describer = {
       createDescriptionJob: jest.fn(),
       getDescriptionJob: jest.fn(),
     };
-    const service = new DescriptionJobService({
-      imageDescriberFactory: new ImageDescriberFactory().register('replicate', describer),
-      jobStore,
-      logger: {},
-      waitTimeoutMs: 10,
-      pollIntervalMs: 1,
-      pendingTtlMs: 1000,
-      completedTtlMs: 1000,
-      failedTtlMs: 1000,
-      sleep: jest.fn().mockResolvedValue(undefined),
-    });
+    const { jobStore, scheduler, service } = createService({ describer });
     const imageUrl = 'https://images.example.org/cat.jpg';
     const jobId = DescriptionJobService.buildJobId({
       model: 'replicate',
@@ -49,9 +64,9 @@ describe('Unit | Services | Description Job Service', () => {
         description: 'cached caption',
         imageUrl,
       },
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      expiresAt: new Date(Date.now() + 1000).toISOString(),
+      createdAt: scheduler.isoString(),
+      updatedAt: scheduler.isoString(),
+      expiresAt: scheduler.isoString(1000),
     });
 
     const outcome = await service.resolveDescription({
@@ -71,39 +86,39 @@ describe('Unit | Services | Description Job Service', () => {
   });
 
   it('returns a completed result when an async provider finishes within the wait window', async () => {
-    const jobStore = createJobStore();
+    const scheduler = createDeterministicScheduler({ initialNow: DEFAULT_NOW });
     const describer = {
       createDescriptionJob: jest.fn().mockResolvedValue({
         providerJobId: 'prediction-1',
         imageUrl: 'https://example.com/cat.jpg',
         status: 'processing',
       }),
-      getDescriptionJob: jest.fn().mockResolvedValue({
-        providerJobId: 'prediction-1',
-        imageUrl: 'https://example.com/cat.jpg',
-        status: 'succeeded',
-        result: {
-          description: 'a cat sitting on a mat',
-          imageUrl: 'https://example.com/cat.jpg',
-        },
-      }),
+      getDescriptionJob: jest.fn(async () => (
+        scheduler.now() >= DEFAULT_NOW + 2
+          ? {
+            providerJobId: 'prediction-1',
+            imageUrl: 'https://example.com/cat.jpg',
+            status: 'succeeded',
+            result: {
+              description: 'a cat sitting on a mat',
+              imageUrl: 'https://example.com/cat.jpg',
+            },
+          }
+          : {
+            providerJobId: 'prediction-1',
+            imageUrl: 'https://example.com/cat.jpg',
+            status: 'processing',
+          }
+      )),
     };
-    const service = new DescriptionJobService({
-      imageDescriberFactory: new ImageDescriberFactory().register('replicate', describer),
-      jobStore,
-      logger: {},
-      waitTimeoutMs: 10,
-      pollIntervalMs: 1,
-      pendingTtlMs: 1000,
-      completedTtlMs: 1000,
-      failedTtlMs: 1000,
-      sleep: jest.fn().mockResolvedValue(undefined),
-    });
+    const { service } = createService({ describer, scheduler });
 
-    const outcome = await service.resolveDescription({
+    const outcomePromise = service.resolveDescription({
       model: 'replicate',
       imageUrl: 'https://example.com/cat.jpg',
     });
+    await scheduler.advanceBy(3);
+    const outcome = await outcomePromise;
 
     expect(outcome.kind).toBe('completed');
     expect(outcome.result).toEqual({
@@ -113,7 +128,7 @@ describe('Unit | Services | Description Job Service', () => {
   });
 
   it('returns a pending job when the provider does not finish within the wait window', async () => {
-    const jobStore = createJobStore();
+    const scheduler = createDeterministicScheduler({ initialNow: DEFAULT_NOW });
     const describer = {
       createDescriptionJob: jest.fn().mockResolvedValue({
         providerJobId: 'prediction-2',
@@ -126,22 +141,20 @@ describe('Unit | Services | Description Job Service', () => {
         status: 'processing',
       }),
     };
-    const service = new DescriptionJobService({
-      imageDescriberFactory: new ImageDescriberFactory().register('replicate', describer),
-      jobStore,
-      logger: {},
-      waitTimeoutMs: 0,
-      pollIntervalMs: 1,
-      pendingTtlMs: 1000,
-      completedTtlMs: 1000,
-      failedTtlMs: 1000,
-      sleep: jest.fn().mockResolvedValue(undefined),
+    const { service } = createService({
+      describer,
+      scheduler,
+      serviceOverrides: {
+        waitTimeoutMs: 1,
+      },
     });
 
-    const outcome = await service.resolveDescription({
+    const outcomePromise = service.resolveDescription({
       model: 'replicate',
       imageUrl: 'https://example.com/cat.jpg',
     });
+    await scheduler.advanceBy(1);
+    const outcome = await outcomePromise;
 
     expect(outcome.kind).toBe('pending');
     expect(service.buildJobResponse(outcome.job)).toMatchObject({
@@ -155,7 +168,6 @@ describe('Unit | Services | Description Job Service', () => {
   });
 
   it('refreshes pending jobs when status is requested', async () => {
-    const jobStore = createJobStore();
     const describer = {
       createDescriptionJob: jest.fn(),
       getDescriptionJob: jest.fn().mockResolvedValue({
@@ -168,18 +180,7 @@ describe('Unit | Services | Description Job Service', () => {
         },
       }),
     };
-    const factory = new ImageDescriberFactory().register('replicate', describer);
-    const service = new DescriptionJobService({
-      imageDescriberFactory: factory,
-      jobStore,
-      logger: {},
-      waitTimeoutMs: 10,
-      pollIntervalMs: 1,
-      pendingTtlMs: 1000,
-      completedTtlMs: 1000,
-      failedTtlMs: 1000,
-      sleep: jest.fn().mockResolvedValue(undefined),
-    });
+    const { jobStore, scheduler, service } = createService({ describer });
     const jobId = DescriptionJobService.buildJobId({
       model: 'replicate',
       imageUrl: 'https://example.com/cat.jpg',
@@ -190,9 +191,9 @@ describe('Unit | Services | Description Job Service', () => {
       imageUrl: 'https://example.com/cat.jpg',
       providerJobId: 'prediction-3',
       status: 'processing',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      expiresAt: new Date(Date.now() + 1000).toISOString(),
+      createdAt: scheduler.isoString(),
+      updatedAt: scheduler.isoString(),
+      expiresAt: scheduler.isoString(1000),
     });
 
     const job = await service.getJobStatus(jobId);
@@ -205,7 +206,6 @@ describe('Unit | Services | Description Job Service', () => {
   });
 
   it('stores an immediately completed provider job as a completed job response', async () => {
-    const jobStore = createJobStore();
     const imageUrl = 'https://images.example.org/completed.jpg';
     const describer = {
       createDescriptionJob: jest.fn().mockResolvedValue({
@@ -219,17 +219,7 @@ describe('Unit | Services | Description Job Service', () => {
       }),
       getDescriptionJob: jest.fn(),
     };
-    const service = new DescriptionJobService({
-      imageDescriberFactory: new ImageDescriberFactory().register('replicate', describer),
-      jobStore,
-      logger: {},
-      waitTimeoutMs: 10,
-      pollIntervalMs: 1,
-      pendingTtlMs: 1000,
-      completedTtlMs: 1000,
-      failedTtlMs: 1000,
-      sleep: jest.fn().mockResolvedValue(undefined),
-    });
+    const { jobStore, service } = createService({ describer });
 
     const outcome = await service.resolveDescription({
       model: 'replicate',
@@ -250,7 +240,6 @@ describe('Unit | Services | Description Job Service', () => {
   });
 
   it('throws immediate provider job failures without persisting a pending job', async () => {
-    const jobStore = createJobStore();
     const imageUrl = 'https://images.example.org/failed.jpg';
     const describer = {
       createDescriptionJob: jest.fn().mockResolvedValue({
@@ -261,17 +250,7 @@ describe('Unit | Services | Description Job Service', () => {
       }),
       getDescriptionJob: jest.fn(),
     };
-    const service = new DescriptionJobService({
-      imageDescriberFactory: new ImageDescriberFactory().register('replicate', describer),
-      jobStore,
-      logger: {},
-      waitTimeoutMs: 10,
-      pollIntervalMs: 1,
-      pendingTtlMs: 1000,
-      completedTtlMs: 1000,
-      failedTtlMs: 1000,
-      sleep: jest.fn().mockResolvedValue(undefined),
-    });
+    const { jobStore, service } = createService({ describer });
 
     await expect(service.resolveDescription({
       model: 'replicate',
@@ -285,22 +264,11 @@ describe('Unit | Services | Description Job Service', () => {
   });
 
   it('returns null for unknown job ids and skips provider refresh for failed jobs', async () => {
-    const jobStore = createJobStore();
     const describer = {
       createDescriptionJob: jest.fn(),
       getDescriptionJob: jest.fn(),
     };
-    const service = new DescriptionJobService({
-      imageDescriberFactory: new ImageDescriberFactory().register('replicate', describer),
-      jobStore,
-      logger: {},
-      waitTimeoutMs: 10,
-      pollIntervalMs: 1,
-      pendingTtlMs: 1000,
-      completedTtlMs: 1000,
-      failedTtlMs: 1000,
-      sleep: jest.fn().mockResolvedValue(undefined),
-    });
+    const { jobStore, scheduler, service } = createService({ describer });
     const failedJobId = DescriptionJobService.buildJobId({
       model: 'replicate',
       imageUrl: 'https://images.example.org/failure.jpg',
@@ -313,9 +281,9 @@ describe('Unit | Services | Description Job Service', () => {
       providerJobId: 'prediction-failed',
       status: 'failed',
       error: { message: 'failed previously' },
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      expiresAt: new Date(Date.now() + 1000).toISOString(),
+      createdAt: scheduler.isoString(),
+      updatedAt: scheduler.isoString(),
+      expiresAt: scheduler.isoString(1000),
     });
 
     await expect(service.getJobStatus('missing-job-id')).resolves.toBeNull();

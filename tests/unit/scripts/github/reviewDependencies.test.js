@@ -32,13 +32,12 @@ function createResponse({
   };
 }
 
-describe('Unit | Scripts | GitHub | Review Dependencies', () => {
-  beforeEach(() => {
-    jest.spyOn(console, 'error').mockImplementation(() => {});
-    jest.spyOn(console, 'log').mockImplementation(() => {});
-    jest.spyOn(console, 'warn').mockImplementation(() => {});
-  });
+const createSilentWriters = () => ({
+  writeStderr: jest.fn(),
+  writeStdout: jest.fn(),
+});
 
+describe('Unit | Scripts | GitHub | Review Dependencies', () => {
   afterEach(() => {
     jest.restoreAllMocks();
   });
@@ -291,6 +290,7 @@ describe('Unit | Scripts | GitHub | Review Dependencies', () => {
         summaryFile: null,
       }, {}, {
         fetchImpl: jest.fn(),
+        ...createSilentWriters(),
       })).rejects.toThrow('Missing required environment variable: GITHUB_TOKEN');
     });
 
@@ -311,6 +311,7 @@ describe('Unit | Scripts | GitHub | Review Dependencies', () => {
         GITHUB_TOKEN: 'github-token',
       }, {
         fetchImpl: jest.fn().mockResolvedValue(createResponse({ body: [] })),
+        ...createSilentWriters(),
       })).resolves.toMatchObject({
         changes: [],
         vulnerableChanges: [],
@@ -349,6 +350,7 @@ describe('Unit | Scripts | GitHub | Review Dependencies', () => {
             }],
           }],
         })),
+        ...createSilentWriters(),
       })).resolves.toMatchObject({
         vulnerableChanges: [],
       });
@@ -383,6 +385,7 @@ describe('Unit | Scripts | GitHub | Review Dependencies', () => {
             }],
           }],
         })),
+        ...createSilentWriters(),
       })).rejects.toThrow('Dependency review detected vulnerable packages.');
     });
   });

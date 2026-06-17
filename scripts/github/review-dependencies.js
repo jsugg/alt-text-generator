@@ -251,7 +251,15 @@ function formatVulnerabilitySummary(vulnerableChanges, severity) {
   return lines.join('\n');
 }
 
-async function reviewDependencies(args, env = process.env, { fetchImpl = fetch } = {}) {
+async function reviewDependencies(
+  args,
+  env = process.env,
+  {
+    fetchImpl = fetch,
+    writeStderr = (message) => process.stderr.write(`${message}\n`),
+    writeStdout = (message) => process.stdout.write(`${message}\n`),
+  } = {},
+) {
   const token = requireEnv('GITHUB_TOKEN', env);
   const { changes, snapshotWarnings } = await listDependencyChanges(args, {
     fetchImpl,
@@ -259,13 +267,13 @@ async function reviewDependencies(args, env = process.env, { fetchImpl = fetch }
   });
 
   if (snapshotWarnings.trim()) {
-    console.warn(snapshotWarnings);
+    writeStderr(snapshotWarnings);
   }
 
   if (changes.length === 0) {
     const summary = formatVulnerabilitySummary([], args.failOnSeverity);
 
-    console.log('No dependency changes found.');
+    writeStdout('No dependency changes found.');
     appendStepSummary(args.summaryFile, summary);
     return {
       changes,
@@ -280,7 +288,7 @@ async function reviewDependencies(args, env = process.env, { fetchImpl = fetch }
   appendStepSummary(args.summaryFile, summary);
 
   if (vulnerableChanges.length === 0) {
-    console.log(
+    writeStdout(
       `Dependency review did not detect added vulnerabilities with severity "${args.failOnSeverity}" or higher.`,
     );
 
@@ -292,11 +300,11 @@ async function reviewDependencies(args, env = process.env, { fetchImpl = fetch }
 
   vulnerableChanges.forEach((change) => {
     change.vulnerabilities.forEach((vulnerability) => {
-      console.error(
+      writeStderr(
         `${change.manifest} » ${change.name}@${change.version} [${change.scope || 'runtime'}] – `
         + `${vulnerability.advisory_summary} (${vulnerability.severity})`,
       );
-      console.error(`  ↪ ${vulnerability.advisory_url}`);
+      writeStderr(`  ↪ ${vulnerability.advisory_url}`);
     });
   });
 
@@ -309,7 +317,7 @@ async function main() {
 
 if (require.main === module) {
   main().catch((error) => {
-    console.error(error.message);
+    process.stderr.write(`${error.message}\n`);
     process.exitCode = 1;
   });
 }

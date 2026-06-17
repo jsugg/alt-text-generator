@@ -46,12 +46,15 @@ class ReplicateDescriberService {
    * @param {object} deps.replicateClient - instantiated Replicate SDK client
    * @param {object} deps.providerConfig - provider config section
    * @param {object} [deps.requestOptions]
+   * @param {Function} [deps.now]
+   * @param {Function} [deps.sleep]
    */
   constructor({
     logger,
     replicateClient,
     providerConfig,
     requestOptions = {},
+    now: nowFn = Date.now,
     sleep: wait = sleep,
   }) {
     this.logger = logger;
@@ -67,6 +70,7 @@ class ReplicateDescriberService {
       providerConfig.pollIntervalMs,
       DEFAULT_POLL_INTERVAL_MS,
     );
+    this.now = nowFn;
     this.sleep = wait;
     this.supportsAsyncJobs = true;
   }
@@ -139,7 +143,7 @@ class ReplicateDescriberService {
 
   async waitForPrediction(predictionId, imageUrl, timeoutMs) {
     return this.pollPredictionUntilDeadline({
-      deadline: Date.now() + timeoutMs,
+      deadline: this.now() + timeoutMs,
       imageUrl,
       predictionId,
       timeoutMs,
@@ -157,7 +161,7 @@ class ReplicateDescriberService {
       return this.constructor.normalizePrediction(prediction, imageUrl);
     }
 
-    if (Date.now() >= deadline) {
+    if (this.now() >= deadline) {
       await this.cancelPrediction(predictionId, imageUrl);
       throw new ProviderTimeoutError({
         provider: 'replicate',
@@ -169,7 +173,7 @@ class ReplicateDescriberService {
       });
     }
 
-    const remainingMs = deadline - Date.now();
+    const remainingMs = deadline - this.now();
     await this.sleep(Math.min(this.pollIntervalMs, remainingMs));
     return this.pollPredictionUntilDeadline({
       deadline,

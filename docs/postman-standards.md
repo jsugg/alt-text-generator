@@ -41,6 +41,8 @@ Use the Postman/Newman layer for external HTTP contract validation, not for re-t
 ## Assertions
 
 - Prefer asserting the public contract shape, not internal implementation details.
+- Prefix response-time assertions with `[performance]` so Newman summaries can separate performance-budget failures from HTTP contract failures.
+- Keep Swagger status/content/server-url assertions blocking; local smoke/full harnesses warm docs routes before Newman so docs cold-start work stays outside steady-state response budgets.
 - For error responses, assert:
   - `error`
   - `code`
@@ -64,5 +66,7 @@ Use the Postman/Newman layer for external HTTP contract validation, not for re-t
 - Folder placement matches the intended tier.
 - The request name is user-facing and precise.
 - Assertions validate the contract shape, not just status code.
+- Performance assertions use the `[performance]` prefix and are not mixed with HTTP contract assertions.
+- Failure diagnostics include Newman output plus app/fixture logs for local harness runs.
 - New negative paths do not weaken the deterministic suite.
 - Live validations remain opt-in and credential-gated.
