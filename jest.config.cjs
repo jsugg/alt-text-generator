@@ -1,31 +1,21 @@
-const path = require('node:path');
+const {
+  COVERAGE_THRESHOLD,
+  resolveTestEnvironment,
+} = require('./config/jest/jest.base.cjs');
 
-const allureResultsDir = process.env.ALLURE_RESULTS_DIR?.trim();
-const resolvedAllureResultsDir = allureResultsDir
-  ? path.resolve(__dirname, allureResultsDir)
-  : null;
-
+// Default Jest config (bare `jest`) and the reporting lane (`npm run test:allure`,
+// `npm run report:allure`). Runs every spec and switches to the Allure
+// environment when ALLURE_RESULTS_DIR is set. Lane-scoped configs live in
+// config/jest/ and are selected through dedicated package scripts.
 /** @type {import('jest').Config} */
 const config = {
-  testEnvironment: resolvedAllureResultsDir ? 'allure-jest/node' : 'node',
   collectCoverage: true,
   coverageDirectory: 'coverage',
-  coverageThreshold: {
-    global: {
-      lines: 80,
-      functions: 80,
-      branches: 70,
-    },
-  },
+  coverageThreshold: COVERAGE_THRESHOLD,
   testMatch: [
     '**/tests/**/*.test.js',
   ],
+  ...resolveTestEnvironment(),
 };
-
-if (resolvedAllureResultsDir) {
-  config.testEnvironmentOptions = {
-    resultsDir: resolvedAllureResultsDir,
-  };
-}
 
 module.exports = config;
