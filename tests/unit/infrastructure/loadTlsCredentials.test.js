@@ -21,9 +21,16 @@ describe('Unit | Infrastructure | Load TLS Credentials', () => {
   };
 
   it('generates self-signed localhost credentials outside production', async () => {
+    const generate = jest.fn().mockResolvedValue({
+      private: '-----BEGIN PRIVATE KEY-----\nkey\n-----END PRIVATE KEY-----',
+      cert: '-----BEGIN CERTIFICATE-----\ncert\n-----END CERTIFICATE-----',
+    });
     jest.doMock('fs', () => ({
       ...jest.requireActual('fs'),
       existsSync: jest.fn(() => false),
+    }));
+    jest.doMock('selfsigned', () => ({
+      generate,
     }));
     const { loadTlsCredentials } = loadModule({
       env: 'development',
@@ -37,6 +44,7 @@ describe('Unit | Infrastructure | Load TLS Credentials', () => {
 
     expect(credentials.key).toContain('BEGIN PRIVATE KEY');
     expect(credentials.cert).toContain('BEGIN CERTIFICATE');
+    expect(generate).toHaveBeenCalledTimes(1);
   });
 
   it('loads configured certificate files when paths are provided', async () => {
@@ -62,6 +70,10 @@ describe('Unit | Infrastructure | Load TLS Credentials', () => {
   });
 
   it('uses inline PEM values when they are provided', async () => {
+    const selfsignedModule = jest.fn(() => ({
+      generate: jest.fn(),
+    }));
+    jest.doMock('selfsigned', selfsignedModule);
     const { loadTlsCredentials } = loadModule({
       env: 'development',
       https: {
@@ -74,6 +86,7 @@ describe('Unit | Infrastructure | Load TLS Credentials', () => {
 
     expect(credentials.key).toBe('-----BEGIN PRIVATE KEY-----\nkey\n-----END PRIVATE KEY-----');
     expect(credentials.cert).toBe('-----BEGIN CERTIFICATE-----\ncert\n-----END CERTIFICATE-----');
+    expect(selfsignedModule).not.toHaveBeenCalled();
   });
 
   it('uses base64-encoded PEM values when they are provided', async () => {
