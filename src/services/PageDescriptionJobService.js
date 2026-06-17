@@ -23,7 +23,10 @@ class PageDescriptionJobService {
    * @param {number} deps.completedTtlMs
    * @param {number} deps.failedTtlMs
    * @param {number} deps.claimTtlMs
+   * @param {Function} [deps.now]
    * @param {Function} [deps.sleep]
+   * @param {Function} [deps.setInterval]
+   * @param {Function} [deps.clearInterval]
    * @param {string} [deps.runnerId]
    */
   constructor({
@@ -37,7 +40,10 @@ class PageDescriptionJobService {
     completedTtlMs,
     failedTtlMs,
     claimTtlMs,
+    now: nowFn = Date.now,
     sleep: wait = sleep,
+    setInterval: scheduleInterval = setInterval,
+    clearInterval: cancelInterval = clearInterval,
     runnerId = crypto.randomUUID(),
   }) {
     this.pageDescriptionService = pageDescriptionService;
@@ -50,7 +56,10 @@ class PageDescriptionJobService {
     this.completedTtlMs = completedTtlMs;
     this.failedTtlMs = failedTtlMs;
     this.claimTtlMs = claimTtlMs;
+    this.now = nowFn;
     this.sleep = wait;
+    this.setInterval = scheduleInterval;
+    this.clearInterval = cancelInterval;
     this.runnerId = runnerId;
     this.activeJobs = new Map();
     this.leaseRefreshIntervalMs = Math.max(
@@ -71,8 +80,12 @@ class PageDescriptionJobService {
     return `/api/v1/accessibility/page-description-jobs/${jobId}`;
   }
 
-  static buildExpirationIso(ttlMs) {
-    return new Date(Date.now() + ttlMs).toISOString();
+  static buildExpirationIso(ttlMs, nowEpochMs = Date.now()) {
+    return new Date(nowEpochMs + ttlMs).toISOString();
+  }
+
+  buildTimestampIso(nowEpochMs = this.now()) {
+    return new Date(nowEpochMs).toISOString();
   }
 
   buildJobResponse(job) {
@@ -96,7 +109,8 @@ class PageDescriptionJobService {
   }
 
   async buildPendingJob({ id, model, pageUrl }) {
-    const timestamp = new Date().toISOString();
+    const nowEpochMs = this.now();
+    const timestamp = this.buildTimestampIso(nowEpochMs);
 
     return this.saveJob({
       id,
@@ -106,21 +120,25 @@ class PageDescriptionJobService {
       status: 'pending',
       createdAt: timestamp,
       updatedAt: timestamp,
-      expiresAt: this.constructor.buildExpirationIso(this.pendingTtlMs),
+      expiresAt: this.constructor.buildExpirationIso(this.pendingTtlMs, nowEpochMs),
     });
   }
 
   async buildProcessingJob(job) {
+    const nowEpochMs = this.now();
+
     return this.saveJob({
       ...job,
       status: 'processing',
       runnerId: this.runnerId,
-      updatedAt: new Date().toISOString(),
-      expiresAt: this.constructor.buildExpirationIso(this.pendingTtlMs),
+      updatedAt: this.buildTimestampIso(nowEpochMs),
+      expiresAt: this.constructor.buildExpirationIso(this.pendingTtlMs, nowEpochMs),
     });
   }
 
   async buildSucceededJob(job, result) {
+    const nowEpochMs = this.now();
+
     return this.saveJob({
       ...job,
       status: 'succeeded',
@@ -129,12 +147,14 @@ class PageDescriptionJobService {
       runnerId: undefined,
       leaseExpiresAt: undefined,
       leaseExpiresAtEpochMs: undefined,
-      updatedAt: new Date().toISOString(),
-      expiresAt: this.constructor.buildExpirationIso(this.completedTtlMs),
+      updatedAt: this.buildTimestampIso(nowEpochMs),
+      expiresAt: this.constructor.buildExpirationIso(this.completedTtlMs, nowEpochMs),
     });
   }
 
   async buildFailedJob(job, error) {
+    const nowEpochMs = this.now();
+
     return this.saveJob({
       ...job,
       status: 'failed',
@@ -146,8 +166,8 @@ class PageDescriptionJobService {
       runnerId: undefined,
       leaseExpiresAt: undefined,
       leaseExpiresAtEpochMs: undefined,
-      updatedAt: new Date().toISOString(),
-      expiresAt: this.constructor.buildExpirationIso(this.failedTtlMs),
+      updatedAt: this.buildTimestampIso(nowEpochMs),
+      expiresAt: this.constructor.buildExpirationIso(this.failedTtlMs, nowEpochMs),
     });
   }
 
@@ -190,7 +210,7 @@ class PageDescriptionJobService {
   }
 
   startLeaseHeartbeat(jobId) {
-    const intervalHandle = setInterval(() => {
+    const intervalHandle = this.setInterval(() => {
       this.refreshJobLease(jobId).catch((error) => {
         this.logger.warn?.({
           err: error,
@@ -279,7 +299,7 @@ class PageDescriptionJobService {
       }, 'Page-description job failed');
     } finally {
       if (heartbeat) {
-        clearInterval(heartbeat);
+        this.clearInterval(heartbeat);
       }
     }
   }
@@ -307,19 +327,19 @@ class PageDescriptionJobService {
   }
 
   async waitForJob(jobId, waitTimeoutMs) {
-    return this.pollJobUntilDeadline(jobId, Date.now() + waitTimeoutMs);
+    return this.pollJobUntilDeadline(jobId, this.now() + waitTimeoutMs);
   }
 
   async pollJobUntilDeadline(jobId, deadline) {
     const job = await this.jobStore.get(jobId);
 
-    if (!job || isTerminalStatus(job.status) || Date.now() >= deadline) {
+    if (!job || isTerminalStatus(job.status) || this.now() >= deadline) {
       return job;
     }
 
     await this.ensureExecution(job);
 
-    const remainingMs = deadline - Date.now();
+    const remainingMs = deadline - this.now();
     if (remainingMs <= 0) {
       return this.jobStore.get(jobId);
     }
