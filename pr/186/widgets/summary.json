@@ -1,1 +1,1 @@
-{"reportName":"CI Allure Report","testRuns":[],"statistic":{"failed":0,"broken":0,"skipped":0,"passed":589,"unknown":0,"total":589},"time":{"start":1781680844522,"stop":1781680865737,"duration":21215,"minDuration":0,"maxDuration":733,"sumDuration":8310}}
+{"reportName":"CI Allure Report","testRuns":[],"statistic":{"failed":0,"broken":0,"skipped":0,"passed":589,"unknown":0,"total":589},"time":{"start":1781681179275,"stop":1781681209255,"duration":29980,"minDuration":0,"maxDuration":830,"sumDuration":9901}}
