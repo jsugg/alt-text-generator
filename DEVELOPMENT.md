@@ -57,6 +57,7 @@ npm run dev:test-env
 # quality
 npm run lint
 NODE_ENV=test REPLICATE_API_TOKEN=test-token npm test -- --runInBand
+NODE_ENV=test REPLICATE_API_TOKEN=test-token npm run test:integration:scripts
 npm run postman:smoke
 npm run postman:full
 npm run postman:post-deploy -- --base-url https://wcag.qcraft.com.br
@@ -66,7 +67,7 @@ npm run doctor:tls -- https://example.com
 npm run doctor:tls -- https://example.com --fix --write-env --env-file .env.test
 ```
 
-`npm test` now includes a real Redis-backed integration suite. Install `redis-server` locally to exercise the full rate-limit concurrency path; CI installs it explicitly on the Jest matrix.
+`npm test` is the fast Jest lane for `tests/unit`. Run `npm run test:integration:scripts` for git/filesystem subprocess coverage; it uses a 30s timeout because real clone/worktree/push/fetch flows cross process and filesystem boundaries. Full CI-style Jest runs still need `redis-server` for the Redis-backed integration suite.
 
 ## GitHub Workflows
 
@@ -483,6 +484,7 @@ Run these before pushing:
 ```bash
 npm run lint
 NODE_ENV=test REPLICATE_API_TOKEN=test-token npm test -- --runInBand
+NODE_ENV=test REPLICATE_API_TOKEN=test-token npm run test:integration:scripts
 npm ci --dry-run
 ```
 
