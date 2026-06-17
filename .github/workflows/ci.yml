@@ -111,7 +111,7 @@ jobs:
 
       - name: Upload Jest test results
         if: always() && matrix.node-version == '20'
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: jest-results-node-${{ matrix.node-version }}
           path: reports/jest/
@@ -120,7 +120,7 @@ jobs:
 
       - name: Upload Jest coverage
         if: always() && matrix.node-version == '20'
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: jest-coverage-node-${{ matrix.node-version }}
           path: coverage/
@@ -129,7 +129,7 @@ jobs:
 
       - name: Upload Jest Allure results
         if: always() && matrix.node-version == '20'
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: jest-allure-results-node-${{ matrix.node-version }}
           path: reports/allure-results/
@@ -161,7 +161,7 @@ jobs:
 
       - name: Upload Newman artifacts
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: newman-artifacts-${{ env.NEWMAN_MODE }}
           path: reports/newman/
@@ -170,7 +170,7 @@ jobs:
 
       - name: Upload Newman Allure results
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: newman-allure-results-${{ env.NEWMAN_MODE }}
           path: reports/allure-results/
@@ -334,7 +334,7 @@ jobs:
           always() &&
           steps.allure-inputs.outputs.has-results == 'true' &&
           steps.history-policy.outputs.persist_history == 'true'
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ steps.history-policy.outputs.history_artifact_name }}
           path: reports/allure-history-artifact/
@@ -343,7 +343,7 @@ jobs:
 
       - name: Upload Allure report
         if: always() && steps.allure-inputs.outputs.has-results == 'true'
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: allure-report
           path: reports/allure-report/
@@ -418,7 +418,7 @@ jobs:
           --report-kind "${{ needs.allure-report.outputs.report_kind }}"
 
       - name: Upload prepared GitHub Pages site
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: allure-pages-site
           path: reports/pages-site-next/
@@ -426,7 +426,7 @@ jobs:
           retention-days: 1
 
       - name: Upload GitHub Pages metadata
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: allure-pages-metadata
           path: reports/pages-metadata/page-metadata.json
