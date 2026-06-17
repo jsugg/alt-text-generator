@@ -84,7 +84,7 @@
     "jest-junit": "^16.0.0",
     "newman": "^6.2.2",
     "newman-reporter-allure": "^3.6.0",
-    "nodemon": "^3.0.1",
+    "nodemon": "^3.1.14",
     "supertest": "^6.3.4"
   },
   "nodemonConfig": {
