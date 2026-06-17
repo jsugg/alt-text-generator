@@ -5,7 +5,8 @@
  * then executes Newman folders and writes JSON/JUnit artifacts.
  */
 
-const fs = require('node:fs/promises');
+const fs = require('node:fs');
+const fsp = require('node:fs/promises');
 const path = require('node:path');
 const http = require('node:http');
 const https = require('node:https');
@@ -63,6 +64,7 @@ const ENV_PATH = path.join(
   'alt-text-generator.local.postman_environment.json',
 );
 const REPORTS_DIR = path.join(ROOT, 'reports', 'newman');
+const DIAGNOSTICS_DIR = path.join(REPORTS_DIR, 'diagnostics');
 
 const HOST = '127.0.0.1';
 const APP_HTTP_PORT = '8080';
@@ -74,9 +76,15 @@ const API_AUTH_TOKEN = process.env.POSTMAN_API_AUTH_TOKEN || 'postman-api-token'
 const FULL_MODE_DESCRIPTION_JOB_WAIT_TIMEOUT_MS = '25';
 const FULL_MODE_DESCRIPTION_JOB_POLL_INTERVAL_MS = '5';
 const FULL_MODE_REPLICATE_POLL_INTERVAL_MS = '5';
+const DOCS_WARMUP_TIMEOUT_MS = 30000;
 
 const NODE = process.execPath;
-const NPX = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+const NEWMAN_BIN = path.join(
+  ROOT,
+  'node_modules',
+  '.bin',
+  process.platform === 'win32' ? 'newman.cmd' : 'newman',
+);
 const SIGNAL_EXIT_CODES = {
   SIGINT: 130,
   SIGTERM: 143,
@@ -150,15 +158,90 @@ async function waitForUrl(
 }
 
 /**
+ * Fetches a URL, following the same TLS settings Newman uses locally.
+ *
+ * @param {string} urlString
+ * @param {{ insecure?: boolean, timeoutMs?: number }} options
+ * @returns {Promise<{ body: string, durationMs: number, statusCode: number }>}
+ */
+function fetchUrl(urlString, { insecure = false, timeoutMs = DOCS_WARMUP_TIMEOUT_MS } = {}) {
+  return new Promise((resolve, reject) => {
+    const startedAt = Date.now();
+    const url = new URL(urlString);
+    const client = url.protocol === 'https:' ? https : http;
+    const req = client.request(
+      url,
+      {
+        method: 'GET',
+        rejectUnauthorized: !insecure,
+      },
+      (res) => {
+        const chunks = [];
+
+        res.on('data', (chunk) => chunks.push(chunk));
+        res.on('end', () => {
+          resolve({
+            body: Buffer.concat(chunks).toString('utf8'),
+            durationMs: Date.now() - startedAt,
+            statusCode: res.statusCode || 0,
+          });
+        });
+      },
+    );
+
+    req.setTimeout(timeoutMs, () => {
+      req.destroy(new Error(`Timed out after ${timeoutMs}ms fetching ${urlString}`));
+    });
+    req.on('error', reject);
+    req.end();
+  });
+}
+
+/**
+ * Warms documentation routes before Newman enforces steady-state response budgets.
+ *
+ * @param {string} baseUrl
+ * @returns {Promise<void>}
+ */
+async function warmUpSwaggerDocs(baseUrl) {
+  const docsUrl = `${baseUrl}/api-docs/`;
+  const initUrl = `${baseUrl}/api-docs/swagger-ui-init.js`;
+  const docs = await fetchUrl(docsUrl, { insecure: true });
+
+  if (docs.statusCode !== 200 || docs.body.length <= 100) {
+    throw new Error(`Swagger UI warm-up failed with status ${docs.statusCode}`);
+  }
+
+  process.stdout.write(
+    `[warm-up] Swagger UI cold start completed in ${docs.durationMs}ms outside Newman budgets\n`,
+  );
+
+  const init = await fetchUrl(initUrl, { insecure: true });
+  if (init.statusCode !== 200 || !init.body.includes('"servers"')) {
+    throw new Error(`Swagger init warm-up failed with status ${init.statusCode}`);
+  }
+
+  process.stdout.write(
+    `[warm-up] Swagger init cold start completed in ${init.durationMs}ms outside Newman budgets\n`,
+  );
+}
+
+/**
  * Spawns a child process and streams logs with a prefix.
  *
  * @param {string} label
  * @param {string} command
  * @param {string[]} args
  * @param {Record<string, string>} env
+ * @param {{ logPath?: string | null }} options
  * @returns {import('node:child_process').ChildProcess}
  */
-function spawnLogged(label, command, args, env = {}) {
+function spawnLogged(label, command, args, env = {}, { logPath = null } = {}) {
+  if (logPath) {
+    fs.mkdirSync(path.dirname(logPath), { recursive: true });
+    fs.writeFileSync(logPath, '');
+  }
+
   const child = spawn(command, args, {
     cwd: ROOT,
     env: { ...process.env, ...env },
@@ -166,11 +249,25 @@ function spawnLogged(label, command, args, env = {}) {
   });
 
   child.stdout.on('data', (chunk) => {
-    process.stdout.write(`[${label}] ${chunk}`);
+    const line = `[${label}] ${chunk}`;
+    process.stdout.write(line);
+    if (logPath) {
+      fs.appendFileSync(logPath, line);
+    }
   });
 
   child.stderr.on('data', (chunk) => {
-    process.stderr.write(`[${label}] ${chunk}`);
+    const line = `[${label}] ${chunk}`;
+    process.stderr.write(line);
+    if (logPath) {
+      fs.appendFileSync(logPath, line);
+    }
+  });
+
+  child.on('exit', (code, signal) => {
+    if (logPath) {
+      fs.appendFileSync(logPath, `[${label}] exited code=${code ?? 'null'} signal=${signal ?? 'null'}\n`);
+    }
   });
 
   return child;
@@ -193,6 +290,7 @@ function spawnLogged(label, command, args, env = {}) {
  *     providerValidationImageUrl: string,
  *     providerValidationPageUrl: string,
  *   },
+ *   diagnosticLogs?: { label: string, path: string }[],
  *   timeoutRequestMs?: number,
  * }} options
  * @returns {Promise<void>}
@@ -206,6 +304,7 @@ function runNewman(
     envVars = [],
     extraArgs = [],
     maxResponseTimeMs = DEFAULT_MAX_RESPONSE_TIME_MS,
+    diagnosticLogs = [],
     providerValidationFixtureUrls = buildPublicProviderValidationFixtureUrls(),
     timeoutRequestMs = DEFAULT_NEWMAN_TIMEOUT_REQUEST_MS,
   } = {},
@@ -217,9 +316,7 @@ function runNewman(
   });
 
   const args = [
-    NPX,
-    '--no-install',
-    'newman',
+    NEWMAN_BIN,
     'run',
     COLLECTION_PATH,
     '-e',
@@ -276,8 +373,10 @@ function runNewman(
     args,
     collectionPath: COLLECTION_PATH,
     cwd: ROOT,
+    diagnosticLogs,
     folders,
     label,
+    newmanLogPath: path.join(DIAGNOSTICS_DIR, `newman-${label}.log`),
     reportPath: jsonReportPath,
   });
 }
@@ -286,13 +385,48 @@ function runNewman(
  * Terminates a child process if it is still alive.
  *
  * @param {import('node:child_process').ChildProcess | undefined} child
+ * @returns {Promise<void>}
  */
 function terminate(child) {
-  if (!child || child.killed) {
+  if (!child || child.exitCode !== null || child.signalCode !== null) {
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve) => {
+    const timeout = setTimeout(() => {
+      if (child.exitCode === null && child.signalCode === null) {
+        child.kill('SIGKILL');
+      }
+      resolve();
+    }, 5000);
+
+    child.once('exit', () => {
+      clearTimeout(timeout);
+      resolve();
+    });
+    child.kill('SIGTERM');
+  });
+}
+
+/**
+ * Emits child process log locations when the harness fails outside Newman.
+ *
+ * @param {Error} error
+ * @param {{ label: string, path: string }[]} diagnosticLogs
+ */
+function emitHarnessFailureDiagnostics(error, diagnosticLogs) {
+  if (diagnosticLogs.length === 0) {
     return;
   }
 
-  child.kill('SIGTERM');
+  process.stderr.write('::group::Postman Harness Process Diagnostics\n');
+  process.stderr.write(`[harness] ${error.message}\n`);
+  diagnosticLogs.forEach((diagnosticLog) => {
+    const relativeLogPath = path.relative(ROOT, diagnosticLog.path)
+      || path.basename(diagnosticLog.path);
+    process.stderr.write(`- ${diagnosticLog.label}: ${relativeLogPath}\n`);
+  });
+  process.stderr.write('::endgroup::\n');
 }
 
 /**
@@ -465,10 +599,16 @@ async function main() {
     `apiAuthToken=${API_AUTH_TOKEN}`,
   ];
 
-  await fs.mkdir(REPORTS_DIR, { recursive: true });
+  await fsp.mkdir(REPORTS_DIR, { recursive: true });
+  await fsp.rm(DIAGNOSTICS_DIR, { force: true, recursive: true });
+  await fsp.mkdir(DIAGNOSTICS_DIR, { recursive: true });
   if (allureResultsDir) {
-    await fs.mkdir(allureResultsDir, { recursive: true });
+    await fsp.mkdir(allureResultsDir, { recursive: true });
   }
+  const childDiagnosticLogs = [];
+  const fixtureLogPath = path.join(DIAGNOSTICS_DIR, 'fixture.log');
+  const appLogPath = path.join(DIAGNOSTICS_DIR, 'app.log');
+  const authAppLogPath = path.join(DIAGNOSTICS_DIR, 'app-auth.log');
 
   const fixtureServer = spawnLogged(
     'fixture',
@@ -477,7 +617,9 @@ async function main() {
     {
       POSTMAN_FIXTURE_PORT: FIXTURE_PORT,
     },
+    { logPath: fixtureLogPath },
   );
+  childDiagnosticLogs.push({ label: 'fixture', path: fixtureLogPath });
   managedChildren.add(fixtureServer);
   fixtureServer.once('exit', () => managedChildren.delete(fixtureServer));
 
@@ -508,7 +650,9 @@ async function main() {
       replicatePollIntervalMs: fullModeReplicatePollIntervalMs,
       outboundAllowedHosts: localFixtureAllowedHost,
     }),
+    { logPath: appLogPath },
   );
+  childDiagnosticLogs.push({ label: 'app', path: appLogPath });
   managedChildren.add(appServer);
   appServer.once('exit', () => managedChildren.delete(appServer));
 
@@ -527,11 +671,17 @@ async function main() {
         apiAuthTokens: API_AUTH_TOKEN,
         outboundAllowedHosts: localFixtureAllowedHost,
       }),
+      { logPath: authAppLogPath },
     );
+    childDiagnosticLogs.push({ label: 'app-auth', path: authAppLogPath });
     managedChildren.add(authAppServer);
     authAppServer.once('exit', () => managedChildren.delete(authAppServer));
   }
   const cleanupSignalHandlers = installSignalCleanup(managedChildren);
+  const runHarnessNewman = (label, folders, options = {}) => runNewman(label, folders, {
+    diagnosticLogs: childDiagnosticLogs,
+    ...options,
+  });
 
   try {
     await waitForUrl(`http://${HOST}:${FIXTURE_PORT}/health`);
@@ -542,6 +692,9 @@ async function main() {
       await waitForUrl(`https://${HOST}:${AUTH_APP_HTTPS_PORT}/api/health`, {
         insecure: true,
       });
+    }
+    if (mode === 'smoke' || fullModeEnabled) {
+      await warmUpSwaggerDocs(`https://${HOST}:${APP_HTTPS_PORT}`);
     }
 
     if (mode === 'smoke') {
@@ -556,7 +709,7 @@ async function main() {
         ],
         'smoke mode',
       );
-      await runNewman(
+      await runHarnessNewman(
         'smoke',
         [
           '00 Core Smoke',
@@ -577,7 +730,7 @@ async function main() {
         ['05 Routing & Redirects'],
         'smoke routing verification',
       );
-      await runNewman(
+      await runHarnessNewman(
         'routing',
         ['05 Routing & Redirects'],
         {
@@ -603,7 +756,7 @@ async function main() {
         ],
         'full mode',
       );
-      await runNewman(
+      await runHarnessNewman(
         'core',
         [
           '00 Core Smoke',
@@ -627,7 +780,7 @@ async function main() {
         ['05 Routing & Redirects'],
         'full routing verification',
       );
-      await runNewman(
+      await runHarnessNewman(
         'routing',
         ['05 Routing & Redirects'],
         {
@@ -660,7 +813,7 @@ async function main() {
       );
 
       await selectedProviderPlans.reduce(
-        (runPromise, providerPlan) => runPromise.then(() => runNewman(
+        (runPromise, providerPlan) => runPromise.then(() => runHarnessNewman(
           `${providerValidationLabelPrefix}-${providerPlan.scopeKey}`,
           [providerPlan.folderName],
           {
@@ -682,11 +835,16 @@ async function main() {
         Promise.resolve(),
       );
     }
+  } catch (error) {
+    emitHarnessFailureDiagnostics(error, childDiagnosticLogs);
+    throw error;
   } finally {
     cleanupSignalHandlers();
-    terminate(fixtureServer);
-    terminate(appServer);
-    terminate(authAppServer);
+    await Promise.all([
+      terminate(fixtureServer),
+      terminate(appServer),
+      terminate(authAppServer),
+    ]);
   }
 }
 

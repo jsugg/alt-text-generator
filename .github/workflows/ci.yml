@@ -84,9 +84,16 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
-      - name: Run tests
+      - name: Run fast unit tests
         if: matrix.node-version != '20'
         run: npm test -- --ci
+        env:
+          NODE_ENV: test
+          REPLICATE_API_TOKEN: test-token
+
+      - name: Run script integration tests
+        if: matrix.node-version != '20'
+        run: npm run test:integration:scripts -- --ci
         env:
           NODE_ENV: test
           REPLICATE_API_TOKEN: test-token

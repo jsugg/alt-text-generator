@@ -2,7 +2,14 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 
-const { buildReportSummary } = require('./newman-summary');
+const {
+  FAILURE_CATEGORY_HTTP_CONTRACT,
+  FAILURE_CATEGORY_PERFORMANCE_BUDGET,
+  buildReportSummary,
+} = require('./newman-summary');
+
+const DIAGNOSTIC_LOG_TAIL_BYTES = 6000;
+const DIAGNOSTIC_LOG_TAIL_LINES = 30;
 
 /**
  * @param {string[]} folders
@@ -13,6 +20,91 @@ function formatFolderList(folders) {
 }
 
 /**
+ * @param {object[]} failures
+ * @param {string} category
+ * @returns {object[]}
+ */
+function filterFailuresByCategory(failures, category) {
+  return failures.filter((failure) => failure.category === category);
+}
+
+/**
+ * @param {object} failure
+ * @returns {string}
+ */
+function formatFailureDiagnosticLine(failure) {
+  const assertionSuffix = failure.assertion ? ` (${failure.assertion})` : '';
+  return `  - ${failure.folder} / ${failure.requestName}${assertionSuffix}: ${failure.message}`;
+}
+
+/**
+ * @param {string[]} lines
+ * @param {string} heading
+ * @param {object[]} failures
+ */
+function appendFailureDiagnostics(lines, heading, failures) {
+  if (failures.length === 0) {
+    lines.push(`- ${heading}: none`);
+    return;
+  }
+
+  lines.push(`- ${heading}:`);
+  failures.slice(0, 5).forEach((failure) => {
+    lines.push(formatFailureDiagnosticLine(failure));
+  });
+}
+
+/**
+ * @param {string} logPath
+ * @param {number} [maxBytes]
+ * @returns {string[]}
+ */
+function readDiagnosticLogTail(logPath, maxBytes = DIAGNOSTIC_LOG_TAIL_BYTES) {
+  if (!fs.existsSync(logPath)) {
+    return ['(missing)'];
+  }
+
+  const stats = fs.statSync(logPath);
+  const size = Math.min(stats.size, maxBytes);
+  const buffer = Buffer.alloc(size);
+  const fd = fs.openSync(logPath, 'r');
+
+  try {
+    fs.readSync(fd, buffer, 0, size, Math.max(0, stats.size - size));
+  } finally {
+    fs.closeSync(fd);
+  }
+
+  const logText = buffer.toString('utf8').trimEnd();
+  if (!logText) {
+    return ['(empty)'];
+  }
+
+  return logText.split(/\r?\n/u).slice(-DIAGNOSTIC_LOG_TAIL_LINES);
+}
+
+/**
+ * @param {string[]} lines
+ * @param {{ label: string, path: string }[]} diagnosticLogs
+ * @param {string} cwd
+ */
+function appendDiagnosticLogs(lines, diagnosticLogs, cwd) {
+  if (diagnosticLogs.length === 0) {
+    return;
+  }
+
+  lines.push('- diagnostic logs:');
+  diagnosticLogs.forEach((diagnosticLog) => {
+    const relativeLogPath = path.relative(cwd, diagnosticLog.path)
+      || path.basename(diagnosticLog.path);
+    lines.push(`  - ${diagnosticLog.label}: ${relativeLogPath}`);
+    readDiagnosticLogTail(diagnosticLog.path).forEach((line) => {
+      lines.push(`    ${line}`);
+    });
+  });
+}
+
+/**
  * @param {{
  *   collectionPath: string,
  *   cwd: string,
@@ -20,12 +112,14 @@ function formatFolderList(folders) {
  *   folders: string[],
  *   label: string,
  *   reportPath: string,
+ *   diagnosticLogs?: { label: string, path: string }[],
  * }} options
  * @returns {string[]}
  */
 function buildFailureDiagnosticLines({
   collectionPath,
   cwd,
+  diagnosticLogs = [],
   exitCode,
   folders,
   label,
@@ -41,6 +135,7 @@ function buildFailureDiagnosticLines({
 
   if (!fs.existsSync(reportPath)) {
     lines.push('- summary: no JSON report was produced; inspect Newman CLI output above.');
+    appendDiagnosticLogs(lines, diagnosticLogs, cwd);
     return lines;
   }
 
@@ -57,16 +152,21 @@ function buildFailureDiagnosticLines({
         + `${reportSummary.durationMs}ms`,
     );
 
-    if (reportSummary.failures.length === 0) {
-      lines.push('- top failures: none reported in the Newman JSON report');
-    } else {
-      lines.push('- top failures:');
-      reportSummary.failures.slice(0, 5).forEach((failure) => {
-        lines.push(
-          `  - ${failure.folder} / ${failure.requestName}: ${failure.message}`,
-        );
-      });
-    }
+    const httpContractFailures = filterFailuresByCategory(
+      reportSummary.failures,
+      FAILURE_CATEGORY_HTTP_CONTRACT,
+    );
+    const performanceBudgetFailures = filterFailuresByCategory(
+      reportSummary.failures,
+      FAILURE_CATEGORY_PERFORMANCE_BUDGET,
+    );
+
+    lines.push(
+      `- failure categories: ${httpContractFailures.length} HTTP contract, `
+        + `${performanceBudgetFailures.length} performance budget`,
+    );
+    appendFailureDiagnostics(lines, 'top HTTP contract failures', httpContractFailures);
+    appendFailureDiagnostics(lines, 'top performance budget failures', performanceBudgetFailures);
   }
 
   if (issues.length > 0) {
@@ -76,6 +176,7 @@ function buildFailureDiagnosticLines({
     });
   }
 
+  appendDiagnosticLogs(lines, diagnosticLogs, cwd);
   return lines;
 }
 
@@ -94,6 +195,10 @@ function emitDiagnosticLines(lines, writeLog) {
  */
 function removeStaleReports(paths) {
   paths.forEach((reportPath) => {
+    if (!reportPath) {
+      return;
+    }
+
     try {
       fs.rmSync(reportPath, { force: true });
     } catch (error) {
@@ -112,7 +217,9 @@ function removeStaleReports(paths) {
  *   env?: NodeJS.ProcessEnv,
  *   folders: string[],
  *   label: string,
+ *   newmanLogPath?: string | null,
  *   reportPath: string,
+ *   diagnosticLogs?: { label: string, path: string }[],
  *   writeLog?: (message: string) => void,
  * }} options
  * @returns {Promise<void>}
@@ -124,13 +231,21 @@ function runNewmanCommand({
   env = process.env,
   folders,
   label,
+  newmanLogPath = null,
   reportPath,
+  diagnosticLogs = [],
   writeLog = (message) => process.stdout.write(`${message}\n`),
 }) {
   removeStaleReports([
     reportPath,
     reportPath.replace(/\.json$/, '.xml'),
+    newmanLogPath,
   ]);
+
+  if (newmanLogPath) {
+    fs.mkdirSync(path.dirname(newmanLogPath), { recursive: true });
+    fs.writeFileSync(newmanLogPath, '');
+  }
 
   writeLog(
     `[newman] starting ${label} for ${formatFolderList(folders)} `
@@ -141,8 +256,22 @@ function runNewmanCommand({
     const child = spawn(args[0], args.slice(1), {
       cwd,
       env,
-      stdio: 'inherit',
+      stdio: newmanLogPath ? ['ignore', 'pipe', 'pipe'] : 'inherit',
     });
+    const failureDiagnosticLogs = newmanLogPath
+      ? [{ label: 'newman', path: newmanLogPath }, ...diagnosticLogs]
+      : diagnosticLogs;
+
+    if (newmanLogPath && child.stdout && child.stderr) {
+      child.stdout.on('data', (chunk) => {
+        process.stdout.write(chunk);
+        fs.appendFileSync(newmanLogPath, chunk);
+      });
+      child.stderr.on('data', (chunk) => {
+        process.stderr.write(chunk);
+        fs.appendFileSync(newmanLogPath, chunk);
+      });
+    }
 
     child.on('exit', (code) => {
       if (code === 0) {
@@ -154,6 +283,7 @@ function runNewmanCommand({
       const lines = buildFailureDiagnosticLines({
         collectionPath,
         cwd,
+        diagnosticLogs: failureDiagnosticLogs,
         exitCode: code,
         folders,
         label,
@@ -173,5 +303,6 @@ function runNewmanCommand({
 module.exports = {
   buildFailureDiagnosticLines,
   emitDiagnosticLines,
+  readDiagnosticLogTail,
   runNewmanCommand,
 };

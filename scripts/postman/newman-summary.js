@@ -7,6 +7,8 @@ const {
 } = require('./collection-utils');
 
 const NO_REPORTS_MESSAGE = 'No Newman JSON reports were available. The Newman run may have exited before reporter output was written.';
+const FAILURE_CATEGORY_HTTP_CONTRACT = 'http-contract';
+const FAILURE_CATEGORY_PERFORMANCE_BUDGET = 'performance-budget';
 
 /**
  * @param {string} collectionPath
@@ -45,6 +47,71 @@ function getReportDurationMs(report) {
 }
 
 /**
+ * @param {string} assertionName
+ * @returns {string}
+ */
+function classifyAssertionFailure(assertionName) {
+  return assertionName.startsWith('[performance]')
+    ? FAILURE_CATEGORY_PERFORMANCE_BUDGET
+    : FAILURE_CATEGORY_HTTP_CONTRACT;
+}
+
+/**
+ * @param {object} item
+ * @returns {string}
+ */
+function getItemKey(item) {
+  return `${item?.id ?? ''}\u0000${item?.name ?? ''}`;
+}
+
+/**
+ * @param {object[]} executions
+ * @returns {Map<string, object[]>}
+ */
+function buildAssertionFailureIndex(executions) {
+  const assertionFailureIndex = new Map();
+
+  executions.forEach((execution) => {
+    (execution.assertions ?? []).forEach((assertion) => {
+      if (!assertion.error) {
+        return;
+      }
+
+      const assertionName = assertion.assertion ?? 'unknown assertion';
+      const key = `${getItemKey(execution.item)}\u0000${assertion.error.message ?? ''}`;
+      const matches = assertionFailureIndex.get(key) ?? [];
+      matches.push({
+        assertion: assertionName,
+        category: classifyAssertionFailure(assertionName),
+      });
+      assertionFailureIndex.set(key, matches);
+    });
+  });
+
+  return assertionFailureIndex;
+}
+
+/**
+ * @param {object} failure
+ * @param {Map<string, object[]>} assertionFailureIndex
+ * @returns {{ assertion: string|null, category: string }}
+ */
+function resolveFailureMetadata(failure, assertionFailureIndex) {
+  const key = `${getItemKey(failure.source)}\u0000${failure.error?.message ?? ''}`;
+  const matches = assertionFailureIndex.get(key) ?? [];
+  const match = matches.shift();
+
+  if (matches.length === 0) {
+    assertionFailureIndex.delete(key);
+  }
+
+  return match ?? {
+    assertion: null,
+    category: FAILURE_CATEGORY_HTTP_CONTRACT,
+  };
+}
+
+/**
  * @param {object} report
  * @param {Map<string, string>} itemFolderMap
  * @returns {object}
@@ -52,8 +119,9 @@ function getReportDurationMs(report) {
 function summarizeReport(report, itemFolderMap) {
   const label = path.basename(report.reportPath, '.json');
   const folderBreakdown = new Map();
+  const executions = report.run?.executions ?? [];
 
-  (report.run?.executions ?? []).forEach((execution) => {
+  executions.forEach((execution) => {
     const folder = itemFolderMap.get(execution.item?.id)
       ?? itemFolderMap.get(execution.item?.name)
       ?? 'unknown';
@@ -79,14 +147,21 @@ function summarizeReport(report, itemFolderMap) {
     folderBreakdown.set(folder, current);
   });
 
-  const failures = (report.run?.failures ?? []).map((failure) => ({
-    source: label,
-    folder: itemFolderMap.get(failure.source?.id)
-      ?? itemFolderMap.get(failure.source?.name)
-      ?? 'unknown',
-    requestName: failure.source?.name ?? 'unknown',
-    message: failure.error?.message ?? 'Unknown failure',
-  }));
+  const assertionFailureIndex = buildAssertionFailureIndex(executions);
+  const failures = (report.run?.failures ?? []).map((failure) => {
+    const metadata = resolveFailureMetadata(failure, assertionFailureIndex);
+
+    return {
+      source: label,
+      folder: itemFolderMap.get(failure.source?.id)
+        ?? itemFolderMap.get(failure.source?.name)
+        ?? 'unknown',
+      requestName: failure.source?.name ?? 'unknown',
+      assertion: metadata.assertion,
+      category: metadata.category,
+      message: failure.error?.message ?? 'Unknown failure',
+    };
+  });
 
   return {
     label,
@@ -146,6 +221,42 @@ function aggregateSummaries(reports) {
 }
 
 /**
+ * @param {object[]} failures
+ * @param {string} category
+ * @returns {object[]}
+ */
+function filterFailuresByCategory(failures, category) {
+  return failures.filter((failure) => failure.category === category);
+}
+
+/**
+ * @param {object} failure
+ * @returns {string}
+ */
+function formatFailureLine(failure) {
+  const assertionSuffix = failure.assertion ? ` (${failure.assertion})` : '';
+  return `- [${failure.source}] ${failure.folder} / ${failure.requestName}${assertionSuffix}: ${failure.message}`;
+}
+
+/**
+ * @param {string[]} lines
+ * @param {string} heading
+ * @param {object[]} failures
+ */
+function appendFailureSection(lines, heading, failures) {
+  lines.push('', heading);
+
+  if (failures.length === 0) {
+    lines.push('- none');
+    return;
+  }
+
+  failures.slice(0, 10).forEach((failure) => {
+    lines.push(formatFailureLine(failure));
+  });
+}
+
+/**
  * @param {object} aggregate
  * @param {string[]} [issues]
  * @param {number} [reportDiscoveryCount]
@@ -165,6 +276,19 @@ function formatSummaryLines(
     `- Assertions: ${aggregate.assertionTotal}`,
     `- Failed assertions: ${aggregate.assertionFailed}`,
   ];
+  const httpContractFailures = filterFailuresByCategory(
+    aggregate.failures,
+    FAILURE_CATEGORY_HTTP_CONTRACT,
+  );
+  const performanceBudgetFailures = filterFailuresByCategory(
+    aggregate.failures,
+    FAILURE_CATEGORY_PERFORMANCE_BUDGET,
+  );
+
+  lines.push(
+    `- HTTP contract failures: ${httpContractFailures.length}`,
+    `- Performance budget failures: ${performanceBudgetFailures.length}`,
+  );
 
   if (issues.length > 0) {
     lines.push(`- Summary issues: ${issues.length}`);
@@ -206,17 +330,8 @@ function formatSummaryLines(
     });
   }
 
-  lines.push('', '### Top Failing Requests');
-
-  if (aggregate.failures.length === 0) {
-    lines.push('- none');
-  } else {
-    aggregate.failures.slice(0, 10).forEach((failure) => {
-      lines.push(
-        `- [${failure.source}] ${failure.folder} / ${failure.requestName}: ${failure.message}`,
-      );
-    });
-  }
+  appendFailureSection(lines, '### Top HTTP Contract Failures', httpContractFailures);
+  appendFailureSection(lines, '### Top Performance Budget Failures', performanceBudgetFailures);
 
   if (issues.length > 0) {
     lines.push('', '### Summary Issues');
@@ -305,9 +420,12 @@ function buildReportSummary(args) {
 
 module.exports = {
   NO_REPORTS_MESSAGE,
+  FAILURE_CATEGORY_HTTP_CONTRACT,
+  FAILURE_CATEGORY_PERFORMANCE_BUDGET,
   aggregateSummaries,
   buildReportSummary,
   buildSummary,
+  classifyAssertionFailure,
   formatSummaryLines,
   getReportDurationMs,
   listReportPaths,

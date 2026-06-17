@@ -1,6 +1,6 @@
 const fs = require('fs');
+const { createRequire } = require('node:module');
 const path = require('path');
-const selfsigned = require('selfsigned');
 const config = require('../../config');
 
 const INLINE_PEM_PATTERN = /-----BEGIN [A-Z ]+-----/;
@@ -10,6 +10,16 @@ const DEFAULT_LOCAL_TLS_PATHS = {
 };
 
 let generatedDevelopmentCredentialsPromise;
+let selfsignedModule;
+const requireFromHere = createRequire(__filename);
+
+const getSelfsigned = () => {
+  if (!selfsignedModule) {
+    selfsignedModule = requireFromHere('selfsigned');
+  }
+
+  return selfsignedModule;
+};
 
 const resolveInlineCredential = (source) => {
   const trimmedSource = source.trim();
@@ -60,7 +70,7 @@ const readLocalDevelopmentCredentials = () => {
 const generateDevelopmentCredentials = async () => {
   if (!generatedDevelopmentCredentialsPromise) {
     const attributes = [{ name: 'commonName', value: 'localhost' }];
-    generatedDevelopmentCredentialsPromise = selfsigned.generate(attributes, {
+    generatedDevelopmentCredentialsPromise = getSelfsigned().generate(attributes, {
       algorithm: 'sha256',
       days: 30,
       keySize: 2048,
