@@ -55,7 +55,7 @@
     "cheerio": "^1.0.0-rc.12",
     "cors": "^2.8.5",
     "dotenv": "^16.0.3",
-    "express": "^4.22.2",
+    "express": "^5.2.1",
     "express-rate-limit": "^8.5.2",
     "follow-redirects": "^1.16.0",
     "helmet": "^7.0.0",
@@ -72,9 +72,6 @@
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
     "undici": "^6.24.0"
-  },
-  "overrides": {
-    "path-to-regexp": "0.1.13"
   },
   "devDependencies": {
     "allure-commandline": "^2.37.0",
