@@ -1,3 +1,4 @@
+const fs = require('node:fs');
 const path = require('node:path');
 
 const {
@@ -6,6 +7,13 @@ const {
   resolveAllureResultsDir,
 } = require('../../scripts/postman/newman-reporting');
 const { buildAppServerEnv } = require('../../scripts/postman/app-server-env');
+
+const COLLECTION_PATH = path.join(
+  process.cwd(),
+  'postman',
+  'collections',
+  'alt-text-generator.postman_collection.json',
+);
 const {
   DEFAULT_MAX_RESPONSE_TIME_MS,
   PROVIDER_VALIDATION_APP_REQUEST_TIMEOUT_MS,
@@ -24,6 +32,29 @@ describe('Unit | Postman Harness Reporting', () => {
     expect(resolveNewmanTimeoutRequestMs({ providerValidationModeEnabled: true }))
       .toBe(PROVIDER_VALIDATION_NEWMAN_TIMEOUT_REQUEST_MS);
     expect(PROVIDER_VALIDATION_APP_REQUEST_TIMEOUT_MS).toBe(90000);
+  });
+
+  it('keeps response-time assertions categorized separately from contract checks', () => {
+    const collection = JSON.parse(fs.readFileSync(COLLECTION_PATH, 'utf8'));
+    const globalTestScript = collection.event
+      .find((event) => event.listen === 'test')
+      .script.exec.join('\n');
+    const coreSmoke = collection.item.find((item) => item.name === '00 Core Smoke');
+    const swaggerUi = coreSmoke.item.find((item) => item.name === 'Swagger UI');
+    const swaggerSpec = coreSmoke.item.find((item) => item.name === 'Swagger Spec');
+    const swaggerUiTests = swaggerUi.event[0].script.exec.join('\n');
+    const swaggerSpecTests = swaggerSpec.event[0].script.exec.join('\n');
+
+    expect(globalTestScript).toContain(
+      'pm.test(`[performance] response time is below $'
+        + '{maxResponseTimeMs}ms`',
+    );
+    expect(swaggerUiTests).toContain("pm.test('swagger docs return 200'");
+    expect(swaggerUiTests).toContain("pm.test('swagger docs are HTML'");
+    expect(swaggerUiTests).toContain("pm.test('swagger docs body is non-empty'");
+    expect(swaggerSpecTests).toContain("pm.test('swagger init returns 200'");
+    expect(swaggerSpecTests).toContain("pm.test('swagger init exposes an embedded servers array'");
+    expect(swaggerSpecTests).toContain("pm.test('swagger spec advertises only the expected local server'");
   });
 
   it('keeps the existing CLI, JSON, and JUnit reporters by default', () => {

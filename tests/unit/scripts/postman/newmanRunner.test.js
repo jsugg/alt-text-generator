@@ -119,10 +119,12 @@ describe('Unit | Scripts | Postman | Newman Runner', () => {
     expect(lines).toContain('- folders: 90 Provider Validation');
     expect(lines).toContain(`- report: ${path.join('reports', 'live-provider-openai.json')}`);
     expect(lines).toContain('- stats: 1 requests, 2 assertions, 1 failed, 75ms');
-    expect(lines).toContain('- top failures:');
+    expect(lines).toContain('- failure categories: 1 HTTP contract, 0 performance budget');
+    expect(lines).toContain('- top HTTP contract failures:');
     expect(lines).toContain(
-      '  - 90 Provider Validation / Provider validation single image: expected 200 but got 500',
+      '  - 90 Provider Validation / Provider validation single image (returns 200): expected 200 but got 500',
     );
+    expect(lines).toContain('- top performance budget failures: none');
   });
 
   it('reports when Newman exits before writing a JSON report', () => {
@@ -177,7 +179,9 @@ describe('Unit | Scripts | Postman | Newman Runner', () => {
 
     expect(lines[0]).toBe('[newman] provider-integration-openai failed with exit code unknown');
     expect(lines).toContain('- stats: 1 requests, 1 assertions, 0 failed, 0ms');
-    expect(lines).toContain('- top failures: none reported in the Newman JSON report');
+    expect(lines).toContain('- failure categories: 0 HTTP contract, 0 performance budget');
+    expect(lines).toContain('- top HTTP contract failures: none');
+    expect(lines).toContain('- top performance budget failures: none');
     expect(lines).toContain('- summary issues:');
     expect(lines).toEqual(expect.arrayContaining([
       expect.stringContaining('Unable to read collection metadata from'),
@@ -309,9 +313,122 @@ describe('Unit | Scripts | Postman | Newman Runner', () => {
 
     expect(writes).toEqual(expect.arrayContaining([
       '::group::Newman Failure Diagnostics',
-      '- top failures:',
-      '  - 90 Provider Validation / Provider validation single image: expected 200 but got 500',
+      '- top HTTP contract failures:',
+      '  - 90 Provider Validation / Provider validation single image (returns 200): expected 200 but got 500',
+      '- top performance budget failures: none',
       '::endgroup::',
+    ]));
+  });
+
+  it('captures Newman and child process diagnostic logs on failure', async () => {
+    const tempDir = createTempDir();
+    const collectionPath = path.join(tempDir, 'collection.json');
+    const reportPath = path.join(tempDir, 'reports', 'smoke.json');
+    const newmanLogPath = path.join(tempDir, 'reports', 'diagnostics', 'newman-smoke.log');
+    const appLogPath = path.join(tempDir, 'reports', 'diagnostics', 'app.log');
+    const child = new EventEmitter();
+    child.stdout = new EventEmitter();
+    child.stderr = new EventEmitter();
+    const spawnMock = jest.fn(() => {
+      process.nextTick(() => {
+        fs.mkdirSync(path.dirname(reportPath), { recursive: true });
+        fs.mkdirSync(path.dirname(appLogPath), { recursive: true });
+        fs.writeFileSync(appLogPath, '[app] route failed\n', 'utf8');
+        fs.writeFileSync(collectionPath, JSON.stringify({
+          item: [
+            {
+              name: '00 Core Smoke',
+              item: [
+                { id: 'ping-id', name: 'Ping' },
+              ],
+            },
+          ],
+        }), 'utf8');
+        fs.writeFileSync(reportPath, JSON.stringify({
+          run: {
+            stats: {
+              requests: { total: 1 },
+              assertions: { total: 1, failed: 1 },
+            },
+            timings: {
+              started: 100,
+              completed: 150,
+            },
+            executions: [
+              {
+                item: {
+                  id: 'ping-id',
+                  name: 'Ping',
+                },
+                assertions: [
+                  {
+                    assertion: '[performance] response time is below 1ms',
+                    error: { message: 'expected 25 to be below 1' },
+                  },
+                ],
+                response: { responseTime: 25 },
+              },
+            ],
+            failures: [
+              {
+                source: {
+                  id: 'ping-id',
+                  name: 'Ping',
+                },
+                error: {
+                  message: 'expected 25 to be below 1',
+                },
+              },
+            ],
+          },
+        }), 'utf8');
+        child.stdout.emit('data', Buffer.from('newman stdout\n'));
+        child.stderr.emit('data', Buffer.from('newman stderr\n'));
+        child.emit('exit', 1);
+      });
+      return child;
+    });
+    const writes = [];
+    const { runNewmanCommand } = loadRunnerModule({ spawnImpl: spawnMock });
+    const stdoutSpy = jest.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    const stderrSpy = jest.spyOn(process.stderr, 'write').mockImplementation(() => true);
+
+    try {
+      await expect(runNewmanCommand({
+        args: ['npx', 'newman', 'run'],
+        collectionPath,
+        cwd: tempDir,
+        diagnosticLogs: [{ label: 'app', path: appLogPath }],
+        folders: ['00 Core Smoke'],
+        label: 'smoke',
+        newmanLogPath,
+        reportPath,
+        writeLog: (line) => writes.push(line),
+      })).rejects.toThrow(
+        `[newman] smoke failed with exit code 1 (report: ${path.join('reports', 'smoke.json')})`,
+      );
+    } finally {
+      stdoutSpy.mockRestore();
+      stderrSpy.mockRestore();
+    }
+
+    expect(spawnMock).toHaveBeenCalledWith('npx', ['newman', 'run'], {
+      cwd: tempDir,
+      env: process.env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    expect(fs.readFileSync(newmanLogPath, 'utf8')).toContain('newman stderr');
+    expect(writes).toEqual(expect.arrayContaining([
+      '- failure categories: 0 HTTP contract, 1 performance budget',
+      '- top HTTP contract failures: none',
+      '- top performance budget failures:',
+      '  - 00 Core Smoke / Ping ([performance] response time is below 1ms): expected 25 to be below 1',
+      '- diagnostic logs:',
+      `  - newman: ${path.join('reports', 'diagnostics', 'newman-smoke.log')}`,
+      '    newman stdout',
+      '    newman stderr',
+      `  - app: ${path.join('reports', 'diagnostics', 'app.log')}`,
+      '    [app] route failed',
     ]));
   });
 

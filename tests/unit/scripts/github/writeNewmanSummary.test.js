@@ -59,7 +59,7 @@ describe('Unit | Scripts | GitHub | Write Newman Summary', () => {
       run: {
         stats: {
           requests: { total: 1 },
-          assertions: { total: 4, failed: 0 },
+          assertions: { total: 4, failed: 1 },
         },
         timings: {
           started: 100,
@@ -72,12 +72,25 @@ describe('Unit | Scripts | GitHub | Write Newman Summary', () => {
               { assertion: 'returns 200' },
               { assertion: 'returns pong' },
               { assertion: 'not 5xx' },
-              { assertion: 'fast enough' },
+              {
+                assertion: '[performance] response time is below 1ms',
+                error: { message: 'expected 90 to be below 1' },
+              },
             ],
             response: { responseTime: 90 },
           },
         ],
-        failures: [],
+        failures: [
+          {
+            source: {
+              id: 'ping-id',
+              name: 'Ping',
+            },
+            error: {
+              message: 'expected 90 to be below 1',
+            },
+          },
+        ],
       },
     }), 'utf8');
 
@@ -124,13 +137,23 @@ describe('Unit | Scripts | GitHub | Write Newman Summary', () => {
     expect(aggregate.reportCount).toBe(2);
     expect(aggregate.requestTotal).toBe(2);
     expect(aggregate.assertionTotal).toBe(7);
-    expect(aggregate.assertionFailed).toBe(1);
+    expect(aggregate.assertionFailed).toBe(2);
     expect(aggregate.failures).toEqual([
       {
         source: 'core',
         folder: '40 Negative Paths',
         requestName: 'Scraper missing url',
+        assertion: 'matches error',
+        category: 'http-contract',
         message: 'expected 400',
+      },
+      {
+        source: 'smoke',
+        folder: '00 Core Smoke',
+        requestName: 'Ping',
+        assertion: '[performance] response time is below 1ms',
+        category: 'performance-budget',
+        message: 'expected 90 to be below 1',
       },
     ]);
     expect(Array.from(aggregate.folders.values()).sort((left, right) => (
@@ -140,7 +163,7 @@ describe('Unit | Scripts | GitHub | Write Newman Summary', () => {
         folder: '00 Core Smoke',
         requestTotal: 1,
         assertionTotal: 4,
-        assertionFailed: 0,
+        assertionFailed: 1,
         totalResponseTimeMs: 90,
         maxResponseTimeMs: 90,
       },
@@ -155,9 +178,16 @@ describe('Unit | Scripts | GitHub | Write Newman Summary', () => {
     ]);
     expect(lines).toContain('- Reports discovered: 2');
     expect(lines).toContain('- Reports parsed: 2');
-    expect(lines).toContain('- smoke: 1 requests, 4 assertions, 0 failed, 120ms');
-    expect(lines).toContain('- 00 Core Smoke: 1 requests, 4 assertions, 0 failed, avg 90ms, max 90ms');
-    expect(lines).toContain('- [core] 40 Negative Paths / Scraper missing url: expected 400');
+    expect(lines).toContain('- HTTP contract failures: 1');
+    expect(lines).toContain('- Performance budget failures: 1');
+    expect(lines).toContain('- smoke: 1 requests, 4 assertions, 1 failed, 120ms');
+    expect(lines).toContain('- 00 Core Smoke: 1 requests, 4 assertions, 1 failed, avg 90ms, max 90ms');
+    expect(lines).toContain(
+      '- [core] 40 Negative Paths / Scraper missing url (matches error): expected 400',
+    );
+    expect(lines).toContain(
+      '- [smoke] 00 Core Smoke / Ping ([performance] response time is below 1ms): expected 90 to be below 1',
+    );
   });
 
   it('falls back to request names when collection ids are unavailable', () => {
@@ -238,6 +268,8 @@ describe('Unit | Scripts | GitHub | Write Newman Summary', () => {
         source: 'live-provider',
         folder: '90 Provider Validation',
         requestName: 'Provider validation single image',
+        assertion: 'returns 200',
+        category: 'http-contract',
         message: 'expected 200',
       },
     ]);
