@@ -72,10 +72,12 @@ class DescriptionJobService {
       status: job.status,
       ...(job.result ? { result: job.result } : {}),
       ...(job.error ? { error: job.error } : {}),
-      ...(isPendingStatus(job.status) ? {
-        pollAfterMs: this.pollIntervalMs,
-        statusUrl: this.constructor.buildStatusUrl(job.id),
-      } : {}),
+      ...(isPendingStatus(job.status)
+        ? {
+            pollAfterMs: this.pollIntervalMs,
+            statusUrl: this.constructor.buildStatusUrl(job.id),
+          }
+        : {}),
     };
   }
 

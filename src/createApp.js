@@ -60,8 +60,8 @@ const createApp = ({
   const resolvedOutboundUrlPolicy = outboundUrlPolicy ?? (
     config.outboundUrlPolicy?.allowedHosts?.length
       ? createOutboundUrlPolicy({
-        allowedHosts: config.outboundUrlPolicy.allowedHosts,
-      })
+          allowedHosts: config.outboundUrlPolicy.allowedHosts,
+        })
       : defaultOutboundUrlPolicy
   );
   const resolvedScraperService = scraperService ?? new ScraperService({

@@ -4,7 +4,7 @@ const ROOT_DIR = path.resolve(__dirname, '../..');
 const LANE_DIR = path.join(ROOT_DIR, 'config', 'jest');
 
 function loadLaneConfig(fileName) {
-  // eslint-disable-next-line global-require, import/no-dynamic-require
+  // eslint-disable-next-line import/no-dynamic-require
   return require(path.join(LANE_DIR, fileName));
 }
 

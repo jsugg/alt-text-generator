@@ -53,7 +53,7 @@ function listRequestItems(collection) {
 function hasExpectedStatusCodeHeader(item) {
   return Boolean((item?.request?.header ?? []).some((header) => (
     header?.key === 'X-Expected-Status-Code'
-      && /^\d+$/u.test(String(header.value ?? '').trim())
+    && /^\d+$/u.test(String(header.value ?? '').trim())
   )));
 }
 
@@ -133,7 +133,7 @@ function assertTopLevelFoldersExist(availableFolders, requiredFolders, context) 
 
   throw new Error(
     `Missing Postman folders for ${context}: ${missingFolders.join(', ')}. `
-      + `Available folders: ${availableFolders.join(', ')}`,
+    + `Available folders: ${availableFolders.join(', ')}`,
   );
 }
 

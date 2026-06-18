@@ -293,7 +293,7 @@ async function requestDeployProbe(fetchFn, url, options = {}) {
     if (contentType.includes('application/json')) {
       try {
         jsonBody = JSON.parse(responseText);
-      } catch (error) {
+      } catch {
         jsonBody = undefined;
       }
     }
@@ -451,15 +451,15 @@ async function waitForStableDeploy(
     );
     const authenticatedProtectedProbe = authConfig.protectedVerificationEnabled
       ? await requestDeployProbe(
-        fetchFn,
-        probeUrls.authenticatedProtectedUrl,
-        {
-          headers: {
-            Accept: 'application/json',
-            'X-API-Key': authConfig.deployValidationApiToken,
+          fetchFn,
+          probeUrls.authenticatedProtectedUrl,
+          {
+            headers: {
+              Accept: 'application/json',
+              'X-API-Key': authConfig.deployValidationApiToken,
+            },
           },
-        },
-      )
+        )
       : null;
     const issues = collectDeployStabilizationIssues({
       authenticatedProtectedProbe,

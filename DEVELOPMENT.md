@@ -205,7 +205,7 @@ Deterministic harness characteristics:
 - starts the local app on `https://127.0.0.1:8443` and `http://127.0.0.1:8080`
 - starts an auth-enabled local app on `https://127.0.0.1:18443` for protected-endpoint contract checks
 - starts a local fixture server on `http://127.0.0.1:19090`
-- warms `/api-docs/` and `/api-docs/swagger-ui-init.js` before Newman so docs cold-start work does not fail steady-state response budgets
+- warms `/api-docs/` and `/api-docs/swagger-ui-init.js` before Newman so docs cold-start work does not fail the 15s Newman performance budget
 - `postman:smoke` and `postman:full` use `postman/environments/alt-text-generator.local.postman_environment.json`
 - `postman:live-provider` and `postman:post-deploy` use `postman/environments/alt-text-generator.live.postman_environment.json`
 - configures mocked Azure, Replicate, and OpenAI-compatible providers to point at the fixture server stub endpoints during `postman:full`

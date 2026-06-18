@@ -96,19 +96,19 @@ describe('Unit | Services | Description Job Service', () => {
       getDescriptionJob: jest.fn(async () => (
         scheduler.now() >= DEFAULT_NOW + 2
           ? {
-            providerJobId: 'prediction-1',
-            imageUrl: 'https://example.com/cat.jpg',
-            status: 'succeeded',
-            result: {
-              description: 'a cat sitting on a mat',
+              providerJobId: 'prediction-1',
               imageUrl: 'https://example.com/cat.jpg',
-            },
-          }
+              status: 'succeeded',
+              result: {
+                description: 'a cat sitting on a mat',
+                imageUrl: 'https://example.com/cat.jpg',
+              },
+            }
           : {
-            providerJobId: 'prediction-1',
-            imageUrl: 'https://example.com/cat.jpg',
-            status: 'processing',
-          }
+              providerJobId: 'prediction-1',
+              imageUrl: 'https://example.com/cat.jpg',
+              status: 'processing',
+            }
       )),
     };
     const { service } = createService({ describer, scheduler });

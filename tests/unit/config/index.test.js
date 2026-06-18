@@ -34,7 +34,6 @@ const loadConfig = ({ overrides = {}, remove = [] } = {}) => {
     process.env[key] = value;
   });
 
-  // eslint-disable-next-line global-require
   return require('../../../config');
 };
 

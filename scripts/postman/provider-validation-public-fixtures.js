@@ -57,15 +57,15 @@ function normalizeRepositoryRef(value) {
 function resolvePublicFixtureRepositoryContext(options = {}) {
   const repository = normalizeRepositorySlug(
     options.repository
-      || process.env.PROVIDER_VALIDATION_PUBLIC_REPOSITORY
-      || process.env.GITHUB_REPOSITORY
-      || DEFAULT_PUBLIC_FIXTURE_REPOSITORY,
+    || process.env.PROVIDER_VALIDATION_PUBLIC_REPOSITORY
+    || process.env.GITHUB_REPOSITORY
+    || DEFAULT_PUBLIC_FIXTURE_REPOSITORY,
   );
   const ref = normalizeRepositoryRef(
     options.ref
-      || process.env.PROVIDER_VALIDATION_PUBLIC_REF
-      || process.env.GITHUB_SHA
-      || DEFAULT_PUBLIC_FIXTURE_REF,
+    || process.env.PROVIDER_VALIDATION_PUBLIC_REF
+    || process.env.GITHUB_SHA
+    || DEFAULT_PUBLIC_FIXTURE_REF,
   );
 
   return { repository, ref };

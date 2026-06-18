@@ -75,7 +75,6 @@ const loadValidator = ({ overrides = {}, remove = [] } = {}) => {
     process.env[key] = value;
   });
 
-  // eslint-disable-next-line global-require
   return require('../../../src/utils/validateEnvVars').validateEnvVars;
 };
 
@@ -123,7 +122,7 @@ describe('Unit | Utils | Validate Env Vars', () => {
     expect(logger.warn).toHaveBeenCalledWith(
       { provider: 'azure' },
       'Azure provider disabled for this run because ACV_API_ENDPOINT and '
-        + 'ACV_SUBSCRIPTION_KEY must both be set and non-empty.',
+      + 'ACV_SUBSCRIPTION_KEY must both be set and non-empty.',
     );
   });
 
