@@ -1,3 +1,4 @@
+const { randomUUID } = require('node:crypto');
 const request = require('supertest');
 
 const { createApp } = require('../../src/createApp');
@@ -5,17 +6,22 @@ const {
   initializeRateLimitStoreProvider,
 } = require('../../src/infrastructure/rateLimitStore');
 const {
-  hasRedisServerBinary,
+  resolveRedisIntegrationRuntime,
   startRedisTestServer,
 } = require('../helpers/redisTestServer');
 
 const TEST_REQUEST_ID = 'redis-test-request-id';
-const describeIfRedis = hasRedisServerBinary() ? describe : describe.skip;
+const redisRuntime = resolveRedisIntegrationRuntime();
+const describeIfRedis = redisRuntime.enabled ? describe : describe.skip;
 
 jest.setTimeout(15_000);
 
-if (process.env.CI && !hasRedisServerBinary()) {
-  throw new Error('redis-server is required in CI for Redis-backed rate-limit tests');
+if (!redisRuntime.enabled) {
+  process.stderr.write(`[redis integration] ${redisRuntime.diagnostic}\n`);
+}
+
+if (!redisRuntime.enabled && redisRuntime.mode === 'required') {
+  throw new Error(redisRuntime.diagnostic);
 }
 
 const createAppLogger = () => ({
@@ -91,11 +97,15 @@ const buildRedisConfig = ({
   },
 });
 
+const buildRedisKeyPrefix = (scope) => `jest:${scope}:${randomUUID()}:`;
+
 describeIfRedis('Integration | Redis Rate Limiting', () => {
   let redisServer;
 
   beforeAll(async () => {
-    redisServer = await startRedisTestServer();
+    redisServer = await startRedisTestServer({
+      redisUrl: redisRuntime.redisUrl,
+    });
   });
 
   afterAll(async () => {
@@ -103,7 +113,7 @@ describeIfRedis('Integration | Redis Rate Limiting', () => {
   });
 
   it('shares API rate-limit counters across distinct app instances', async () => {
-    const redisPrefix = `jest:api:${Date.now()}:`;
+    const redisPrefix = buildRedisKeyPrefix('api');
     const firstProvider = await initializeRateLimitStoreProvider({
       config: buildRedisConfig({
         redisPrefix,
@@ -154,7 +164,7 @@ describeIfRedis('Integration | Redis Rate Limiting', () => {
   });
 
   it('keeps API and status buckets separate while sharing each scope across instances', async () => {
-    const redisPrefix = `jest:scope:${Date.now()}:`;
+    const redisPrefix = buildRedisKeyPrefix('scope');
     const firstProvider = await initializeRateLimitStoreProvider({
       config: buildRedisConfig({
         redisPrefix,

@@ -1,16 +1,18 @@
 const {
+  COVERAGE_COLLECTION_PATTERNS,
+  COVERAGE_PATH_IGNORE_PATTERNS,
   COVERAGE_THRESHOLD,
   resolveTestEnvironment,
 } = require('./config/jest/jest.base.cjs');
 
-// Default Jest config (bare `jest`) and the reporting lane (`npm run test:allure`,
-// `npm run report:allure`). Runs every spec and switches to the Allure
-// environment when ALLURE_RESULTS_DIR is set. Lane-scoped configs live in
-// config/jest/ and are selected through dedicated package scripts.
+// Default Jest config for bare `jest`. Package scripts use lane-scoped configs
+// under config/jest/ so fast, CI, coverage, and reporting runs stay explicit.
 /** @type {import('jest').Config} */
 const config = {
   collectCoverage: true,
+  collectCoverageFrom: COVERAGE_COLLECTION_PATTERNS,
   coverageDirectory: 'coverage',
+  coveragePathIgnorePatterns: COVERAGE_PATH_IGNORE_PATTERNS,
   coverageThreshold: COVERAGE_THRESHOLD,
   testMatch: [
     '**/tests/**/*.test.js',

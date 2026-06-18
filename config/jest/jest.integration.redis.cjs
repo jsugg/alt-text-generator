@@ -1,9 +1,8 @@
 const { createLaneConfig, TEST_MATCH } = require('./jest.base.cjs');
 
-// Redis-backed integration lane. Requires a redis-server binary on PATH; the
-// spec skips locally when it is absent and is mandatory in CI.
+// Redis-backed integration lane. The package script marks this lane required;
+// broad local sweeps may run it in optional mode, but CI always requires Redis.
 module.exports = createLaneConfig({
   displayName: 'redis',
   testMatch: TEST_MATCH.redis,
-  testTimeout: 15000,
 });

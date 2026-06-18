@@ -60,54 +60,44 @@ jobs:
         run: npm run lint
 
   test:
-    name: test (${{ matrix.node-version }})
+    name: ${{ matrix.test_script }} (${{ matrix.node-version }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      redis:
+        image: redis:8.8.0-alpine3.23
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     strategy:
       fail-fast: false
       matrix:
-        node-version:
-          - '20'
-          - '22'
-          - '24'
+        include:
+          - node-version: '20'
+            test_script: 'test:ci'
+          - node-version: '22'
+            test_script: 'test:all'
+          - node-version: '24'
+            test_script: 'test:all'
+    env:
+      REDIS_INTEGRATION_MODE: required
+      REDIS_INTEGRATION_URL: redis://127.0.0.1:6379
     steps:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
-
-      - name: Install redis-server
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y redis-server
 
       - name: Setup project
         uses: ./.github/actions/setup-node-project
         with:
           node-version: ${{ matrix.node-version }}
 
-      - name: 'test:unit'
+      - name: 'test:all'
         if: matrix.node-version != '20'
-        run: npm run test:unit -- --ci
-        env:
-          NODE_ENV: test
-          REPLICATE_API_TOKEN: test-token
-
-      - name: 'test:integration'
-        if: matrix.node-version != '20'
-        run: npm run test:integration -- --ci
-        env:
-          NODE_ENV: test
-          REPLICATE_API_TOKEN: test-token
-
-      - name: 'test:integration:redis'
-        if: matrix.node-version != '20'
-        run: npm run test:integration:redis -- --ci
-        env:
-          NODE_ENV: test
-          REPLICATE_API_TOKEN: test-token
-
-      - name: 'test:integration:scripts'
-        if: matrix.node-version != '20'
-        run: npm run test:integration:scripts -- --ci
+        run: npm run test:all -- --ci
         env:
           NODE_ENV: test
           REPLICATE_API_TOKEN: test-token

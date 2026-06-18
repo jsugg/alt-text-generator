@@ -76,6 +76,16 @@ npm run validate:fast
 
 `validate:fast` runs zero-warning ESLint plus the deterministic unit lane.
 
+Redis-backed integration tests are explicit and required when invoked directly:
+
+```bash
+docker compose -f docker-compose.redis.yml --profile redis-test up -d redis-test
+REDIS_INTEGRATION_URL=redis://127.0.0.1:6380 NODE_ENV=test REPLICATE_API_TOKEN=test-token npm run test:integration:redis
+docker compose -f docker-compose.redis.yml --profile redis-test down -v
+```
+
+`npm run test:integration:redis` fails with setup instructions if neither `REDIS_INTEGRATION_URL` nor a local `redis-server` binary is available. CI runs the same Redis lane against a pinned `redis:8.8.0-alpine3.23` service container.
+
 ## API Contract Harness
 
 The repository includes a deterministic Postman/Newman harness that boots the app locally, starts a fixture server, and validates the public HTTP contract from outside the process.
@@ -139,7 +149,7 @@ npm run report:allure
 Notes:
 
 - Raw Allure files accumulate under `reports/allure-results/`; generated HTML is written to `reports/allure-report/`.
-- The combined report merges one canonical Jest run with the Newman harness so local and CI results follow the same structure.
+- The combined report merges the explicit Jest reporting lane with the Newman harness so local and CI results follow the same structure.
 - CI uploads the generated HTML as the `allure-report` artifact.
 - Public Allure URLs: `https://jsugg.github.io/alt-text-generator/` for the latest `main` report, `https://jsugg.github.io/alt-text-generator/#suites` for the suites view, `https://jsugg.github.io/alt-text-generator/pr/` for the pull-request report index, and `https://jsugg.github.io/alt-text-generator/pr/<number>/` for a specific same-repository pull request report.
 - Pushes to `main` publish the latest generated report at the root URL, and same-repository pull requests publish their own report beneath `/pr/<number>/`.
