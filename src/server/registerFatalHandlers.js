@@ -4,9 +4,9 @@ const normalizeUnhandledRejection = (reason) => (
   reason instanceof Error
     ? { err: reason }
     : {
-      err: new Error(`Unhandled promise rejection: ${util.inspect(reason)}`),
-      reason,
-    }
+        err: new Error(`Unhandled promise rejection: ${util.inspect(reason)}`),
+        reason,
+      }
 );
 
 /**

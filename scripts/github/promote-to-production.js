@@ -332,9 +332,9 @@ function updateBranchRef(
 
     throw new Error(
       `Protected branch update rejected for ${branch}. Exact-SHA promotion requires the `
-        + 'repository automation GitHub App to be configured and allowed to update the '
-        + `protected ${branch} ref. Add the app to the ${branch} branch protection or `
-        + 'ruleset bypass list and retry.',
+      + 'repository automation GitHub App to be configured and allowed to update the '
+      + `protected ${branch} ref. Add the app to the ${branch} branch protection or `
+      + 'ruleset bypass list and retry.',
     );
   }
 }
@@ -385,7 +385,7 @@ async function main() {
   if (targetShaAfter !== sourceSha) {
     throw new Error(
       `Promotion verification failed: expected ${options.targetBranch} to point to ${sourceSha}, `
-        + `but found ${targetShaAfter}.`,
+      + `but found ${targetShaAfter}.`,
     );
   }
 
@@ -405,7 +405,7 @@ async function main() {
 
   console.log(
     `Promoted ${options.sourceBranch}@${sourceSha} to ${options.targetBranch} `
-      + `using ${plan.mode}.`,
+    + `using ${plan.mode}.`,
   );
 }
 

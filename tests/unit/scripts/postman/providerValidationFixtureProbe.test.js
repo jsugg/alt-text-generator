@@ -109,14 +109,14 @@ describe('Unit | Scripts | Postman | Provider Validation Fixture Probe', () => {
       url.endsWith('.html')
         ? createHtmlResponse()
         : {
-          ok: true,
-          status: 200,
-          statusText: 'OK',
-          headers: createHeaders({
-            'content-type': 'application/json',
-          }),
-          arrayBuffer: jest.fn().mockResolvedValue(Uint8Array.from([1]).buffer),
-        }
+            ok: true,
+            status: 200,
+            statusText: 'OK',
+            headers: createHeaders({
+              'content-type': 'application/json',
+            }),
+            arrayBuffer: jest.fn().mockResolvedValue(Uint8Array.from([1]).buffer),
+          }
     ));
 
     await expect(assertProviderValidationFixturesReachable({

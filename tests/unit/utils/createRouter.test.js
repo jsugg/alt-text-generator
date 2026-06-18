@@ -45,7 +45,7 @@ describe('Unit | Utils | Create Router', () => {
     expect(docsResponse.status).toBe(200);
     expect(docsResponse.body).toEqual({ ok: true });
     expect(swaggerModuleLoaded).toBe(true);
-    // eslint-disable-next-line global-require
+
     const swaggerUi = require('swagger-ui-express');
     expect(swaggerUi.setup).toHaveBeenCalledTimes(1);
 

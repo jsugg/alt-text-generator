@@ -55,6 +55,7 @@ npm run dev
 npm run dev:test-env
 
 # quality
+npm run validate:fast
 npm run lint
 NODE_ENV=test REPLICATE_API_TOKEN=test-token npm test
 NODE_ENV=test REPLICATE_API_TOKEN=test-token npm run test:integration
@@ -69,7 +70,7 @@ npm run doctor:tls -- https://example.com
 npm run doctor:tls -- https://example.com --fix --write-env --env-file .env.test
 ```
 
-`npm test` is the fast, deterministic Jest lane for `tests/unit` (no coverage or reporters). Every tier has its own package script and Jest config under `config/jest/`: `test:integration` (HTTP surface with in-memory adapters), `test:integration:redis` (Redis-backed rate limiting; skips locally without a `redis-server` binary, required in CI), and `test:integration:scripts` (git/filesystem subprocess flows; runs in-band with a 30s timeout because real clone/worktree/push/fetch flows cross process and filesystem boundaries). `test:coverage` composes every tier as Jest projects and enforces the coverage gate; `test:ci` adds JUnit (and Allure when `ALLURE_RESULTS_DIR` is set). CI step names map one-to-one to these scripts so a red step tells you exactly which `npm run` reproduces it.
+`npm run validate:fast` is the normal pre-commit loop: zero-warning lint plus the fast unit lane. `npm test` is the fast, deterministic Jest lane for `tests/unit` (no coverage or reporters). Every tier has its own package script and Jest config under `config/jest/`: `test:integration` (HTTP surface with in-memory adapters), `test:integration:redis` (Redis-backed rate limiting; skips locally without a `redis-server` binary, required in CI), and `test:integration:scripts` (git/filesystem subprocess flows; runs in-band with a 30s timeout because real clone/worktree/push/fetch flows cross process and filesystem boundaries). `test:coverage` composes every tier as Jest projects and enforces the coverage gate; `test:ci` adds JUnit (and Allure when `ALLURE_RESULTS_DIR` is set). CI step names map one-to-one to these scripts so a red step tells you exactly which `npm run` reproduces it.
 
 ## GitHub Workflows
 
@@ -204,6 +205,7 @@ Deterministic harness characteristics:
 - starts the local app on `https://127.0.0.1:8443` and `http://127.0.0.1:8080`
 - starts an auth-enabled local app on `https://127.0.0.1:18443` for protected-endpoint contract checks
 - starts a local fixture server on `http://127.0.0.1:19090`
+- warms `/api-docs/` and `/api-docs/swagger-ui-init.js` before Newman so docs cold-start work does not fail the 15s Newman performance budget
 - `postman:smoke` and `postman:full` use `postman/environments/alt-text-generator.local.postman_environment.json`
 - `postman:live-provider` and `postman:post-deploy` use `postman/environments/alt-text-generator.live.postman_environment.json`
 - configures mocked Azure, Replicate, and OpenAI-compatible providers to point at the fixture server stub endpoints during `postman:full`
@@ -484,12 +486,13 @@ At least one provider must be configured at startup: `REPLICATE_API_TOKEN`, Azur
 Run these before pushing:
 
 ```bash
-npm run lint
-NODE_ENV=test REPLICATE_API_TOKEN=test-token npm test
+npm run validate:fast
 NODE_ENV=test REPLICATE_API_TOKEN=test-token npm run test:integration
 NODE_ENV=test REPLICATE_API_TOKEN=test-token npm run test:integration:scripts
 npm ci --dry-run
 ```
+
+`npm run lint` fails on any ESLint warning (`--max-warnings=0`), so local lint output must stay clean.
 
 ## External Integration Validation Runbook
 

@@ -440,14 +440,14 @@ describe('Unit | Services | Page Description Job Service', () => {
     descriptionJobService.getJobStatus.mockImplementation(async () => (
       scheduler.now() >= DEFAULT_NOW + 2
         ? {
-          id: 'description-job-1',
-          status: 'succeeded',
-          result: childResult,
-        }
+            id: 'description-job-1',
+            status: 'succeeded',
+            result: childResult,
+          }
         : {
-          id: 'description-job-1',
-          status: 'processing',
-        }
+            id: 'description-job-1',
+            status: 'processing',
+          }
     ));
 
     const { service } = createService({

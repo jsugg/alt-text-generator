@@ -105,7 +105,6 @@ describe('Unit | Services | Replicate Describer Service', () => {
 
   it('times out long-running predictions and requests cancellation', async () => {
     let now = 0;
-    const dateNowSpy = jest.spyOn(Date, 'now').mockImplementation(() => now);
     const mockReplicate = {
       predictions: {
         create: jest.fn().mockResolvedValue({
@@ -129,6 +128,7 @@ describe('Unit | Services | Replicate Describer Service', () => {
         requestTimeoutMs: 20,
         pollIntervalMs: 10,
       },
+      now: () => now,
       sleep: async (ms) => {
         now += ms;
       },
@@ -138,8 +138,6 @@ describe('Unit | Services | Replicate Describer Service', () => {
       ProviderTimeoutError,
     );
     expect(mockReplicate.predictions.cancel).toHaveBeenCalledWith('prediction-2');
-
-    dateNowSpy.mockRestore();
   });
 
   it('creates asynchronous description jobs with provider metadata', async () => {

@@ -47,7 +47,7 @@ describe('Unit | Postman Harness Reporting', () => {
 
     expect(globalTestScript).toContain(
       'pm.test(`[performance] response time is below $'
-        + '{maxResponseTimeMs}ms`',
+      + '{maxResponseTimeMs}ms`',
     );
     expect(swaggerUiTests).toContain("pm.test('swagger docs return 200'");
     expect(swaggerUiTests).toContain("pm.test('swagger docs are HTML'");

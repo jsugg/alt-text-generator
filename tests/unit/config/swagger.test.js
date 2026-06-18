@@ -12,7 +12,6 @@ describe('Unit | Config | Swagger', () => {
     let swaggerDefinition;
 
     jest.isolateModules(() => {
-      // eslint-disable-next-line global-require
       swaggerDefinition = require('../../../config/swagger-base').createSwaggerDefinition();
     });
 
@@ -32,7 +31,6 @@ describe('Unit | Config | Swagger', () => {
     let swaggerSpec;
 
     jest.isolateModules(() => {
-      // eslint-disable-next-line global-require
       swaggerSpec = require('../../../config/swagger');
     });
 
@@ -236,7 +234,6 @@ describe('Unit | Config | Swagger', () => {
     let swaggerSpec;
 
     jest.isolateModules(() => {
-      // eslint-disable-next-line global-require
       swaggerSpec = require('../../../config/swagger');
     });
 
@@ -286,7 +283,6 @@ describe('Unit | Config | Swagger', () => {
     let swaggerSpec;
 
     jest.isolateModules(() => {
-      // eslint-disable-next-line global-require
       swaggerSpec = require('../../../config/swagger');
     });
 

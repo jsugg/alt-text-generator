@@ -11,7 +11,6 @@ describe('Unit | Providers | Runtime Registry', () => {
       ]),
     }));
 
-    // eslint-disable-next-line global-require
     const { buildImageDescriberFactory } = require('../../../src/providers/runtimeRegistry');
 
     expect(() => buildImageDescriberFactory({

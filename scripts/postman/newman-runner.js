@@ -147,9 +147,9 @@ function buildFailureDiagnosticLines({
   if (reportSummary) {
     lines.push(
       `- stats: ${reportSummary.requestTotal} requests, `
-        + `${reportSummary.assertionTotal} assertions, `
-        + `${reportSummary.assertionFailed} failed, `
-        + `${reportSummary.durationMs}ms`,
+      + `${reportSummary.assertionTotal} assertions, `
+      + `${reportSummary.assertionFailed} failed, `
+      + `${reportSummary.durationMs}ms`,
     );
 
     const httpContractFailures = filterFailuresByCategory(
@@ -163,7 +163,7 @@ function buildFailureDiagnosticLines({
 
     lines.push(
       `- failure categories: ${httpContractFailures.length} HTTP contract, `
-        + `${performanceBudgetFailures.length} performance budget`,
+      + `${performanceBudgetFailures.length} performance budget`,
     );
     appendFailureDiagnostics(lines, 'top HTTP contract failures', httpContractFailures);
     appendFailureDiagnostics(lines, 'top performance budget failures', performanceBudgetFailures);
@@ -249,7 +249,7 @@ function runNewmanCommand({
 
   writeLog(
     `[newman] starting ${label} for ${formatFolderList(folders)} `
-      + `-> ${path.relative(cwd, reportPath) || path.basename(reportPath)}`,
+    + `-> ${path.relative(cwd, reportPath) || path.basename(reportPath)}`,
   );
 
   return new Promise((resolve, reject) => {
@@ -292,7 +292,7 @@ function runNewmanCommand({
       emitDiagnosticLines(lines, writeLog);
       reject(new Error(
         `${lines[0]} `
-          + `(report: ${path.relative(cwd, reportPath) || path.basename(reportPath)})`,
+        + `(report: ${path.relative(cwd, reportPath) || path.basename(reportPath)})`,
       ));
     });
 

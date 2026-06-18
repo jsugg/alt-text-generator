@@ -68,6 +68,14 @@ curl -sk https://localhost:8443/api-docs/
 Note: `-k` skips TLS certificate verification. It is used here because development HTTPS may be self-signed.
 Do not use `-k` for production traffic.
 
+Fast local validation:
+
+```bash
+npm run validate:fast
+```
+
+`validate:fast` runs zero-warning ESLint plus the deterministic unit lane.
+
 ## API Contract Harness
 
 The repository includes a deterministic Postman/Newman harness that boots the app locally, starts a fixture server, and validates the public HTTP contract from outside the process.
@@ -86,6 +94,7 @@ Notes:
 
 - `postman:smoke` is the fast deterministic gate.
 - `postman:full` runs the full local provider-integration suite, including protected-endpoint auth coverage, deterministic async `replicate` page-job success/failure scenarios, mocked provider-validation coverage, and JSON/JUnit reports under `reports/newman/`.
+- Local smoke/full runs warm Swagger docs before Newman starts so docs cold-start latency stays outside the 15s Newman performance budget while Swagger status/content assertions remain blocking.
 - CI also emits `reports/jest/junit.xml` from the canonical Node 20 Jest lane and publishes one combined GitHub test report that joins Jest and Newman results.
 - `postman:pre-production-provider` boots the app locally and runs the low-cost real-provider validation set used immediately before promotion, currently Hugging Face, OpenAI, and Together when configured.
 - `postman:live-provider` is the production description-service validation command for deployed-app plus live-provider checks against a supplied base URL.

@@ -149,7 +149,7 @@ const validateEnvVars = ({ logger = null } = {}) => {
   ) {
     throw new Error(
       'Config validation error: API_AUTH_ENABLED=true requires API_AUTH_TOKENS '
-        + 'to contain at least one non-empty token',
+      + 'to contain at least one non-empty token',
     );
   }
 
@@ -160,7 +160,7 @@ const validateEnvVars = ({ logger = null } = {}) => {
   ) {
     throw new Error(
       'Config validation error: API_AUTH_TOKENS must contain at least one '
-        + 'non-empty token when auth is enabled',
+      + 'non-empty token when auth is enabled',
     );
   }
 
@@ -168,11 +168,11 @@ const validateEnvVars = ({ logger = null } = {}) => {
     process.env.CLUSTER_RESTART_BACKOFF_MS
     && process.env.CLUSTER_RESTART_MAX_BACKOFF_MS
     && Number(process.env.CLUSTER_RESTART_MAX_BACKOFF_MS)
-      < Number(process.env.CLUSTER_RESTART_BACKOFF_MS)
+    < Number(process.env.CLUSTER_RESTART_BACKOFF_MS)
   ) {
     throw new Error(
       'Config validation error: CLUSTER_RESTART_MAX_BACKOFF_MS must be greater '
-        + 'than or equal to CLUSTER_RESTART_BACKOFF_MS',
+      + 'than or equal to CLUSTER_RESTART_BACKOFF_MS',
     );
   }
 
@@ -182,7 +182,7 @@ const validateEnvVars = ({ logger = null } = {}) => {
   ) {
     throw new Error(
       'Config validation error: DESCRIPTION_JOB_STORE=redis requires DESCRIPTION_JOB_REDIS_URL '
-        + 'or REDIS_URL or RATE_LIMIT_REDIS_URL to be configured',
+      + 'or REDIS_URL or RATE_LIMIT_REDIS_URL to be configured',
     );
   }
 
@@ -192,7 +192,7 @@ const validateEnvVars = ({ logger = null } = {}) => {
   ) {
     throw new Error(
       'Config validation error: RATE_LIMIT_STORE=redis requires RATE_LIMIT_REDIS_URL '
-        + 'or REDIS_URL to be configured',
+      + 'or REDIS_URL to be configured',
     );
   }
 
@@ -202,8 +202,8 @@ const validateEnvVars = ({ logger = null } = {}) => {
   ) {
     throw new Error(
       'Config validation error: WORKER_COUNT greater than 1 requires a shared '
-        + 'Redis-backed rate-limit store. Set RATE_LIMIT_STORE=redis or auto and '
-        + 'configure RATE_LIMIT_REDIS_URL or REDIS_URL',
+      + 'Redis-backed rate-limit store. Set RATE_LIMIT_STORE=redis or auto and '
+      + 'configure RATE_LIMIT_REDIS_URL or REDIS_URL',
     );
   }
 

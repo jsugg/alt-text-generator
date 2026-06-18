@@ -4,6 +4,10 @@ const {
   initializeDescriptionJobStore,
 } = require('../../../src/infrastructure/descriptionJobStore');
 
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+const expiredIso = () => new Date(Date.now() - ONE_DAY_MS).toISOString();
+const activeIso = () => new Date(Date.now() + ONE_DAY_MS).toISOString();
+
 describe('Unit | Infrastructure | Description Job Store', () => {
   it('expires in-memory jobs on read and clears state on close', async () => {
     const store = createMemoryDescriptionJobStore();
@@ -11,13 +15,13 @@ describe('Unit | Infrastructure | Description Job Store', () => {
     await store.set({
       id: 'job-expired',
       status: 'pending',
-      expiresAt: new Date(Date.now() - 1000).toISOString(),
+      expiresAt: expiredIso(),
     });
     await store.set({
       id: 'job-active',
       status: 'succeeded',
       result: { description: 'done' },
-      expiresAt: new Date(Date.now() + 1000).toISOString(),
+      expiresAt: activeIso(),
     });
 
     await expect(store.get('job-expired')).resolves.toBeNull();
@@ -37,26 +41,26 @@ describe('Unit | Infrastructure | Description Job Store', () => {
     await store.set({
       id: 'job-claim',
       status: 'pending',
-      expiresAt: new Date(Date.now() + 2000).toISOString(),
+      expiresAt: activeIso(),
     });
 
-    await expect(store.claim('job-claim', 'runner-a', 1000)).resolves.toEqual(
+    await expect(store.claim('job-claim', 'runner-a', ONE_DAY_MS)).resolves.toEqual(
       expect.objectContaining({
         id: 'job-claim',
         runnerId: 'runner-a',
       }),
     );
-    await expect(store.claim('job-claim', 'runner-b', 1000)).resolves.toBeNull();
+    await expect(store.claim('job-claim', 'runner-b', ONE_DAY_MS)).resolves.toBeNull();
 
     await store.set({
       id: 'job-claim',
       status: 'pending',
       runnerId: 'runner-a',
-      leaseExpiresAtEpochMs: Date.now() - 1000,
-      expiresAt: new Date(Date.now() + 2000).toISOString(),
+      leaseExpiresAtEpochMs: Date.now() - ONE_DAY_MS,
+      expiresAt: activeIso(),
     });
 
-    await expect(store.claim('job-claim', 'runner-b', 1000)).resolves.toEqual(
+    await expect(store.claim('job-claim', 'runner-b', ONE_DAY_MS)).resolves.toEqual(
       expect.objectContaining({
         id: 'job-claim',
         runnerId: 'runner-b',
@@ -95,7 +99,7 @@ describe('Unit | Infrastructure | Description Job Store', () => {
     await store.set({
       id: 'job-1',
       status: 'processing',
-      expiresAt: new Date(Date.now() + 2000).toISOString(),
+      expiresAt: activeIso(),
     });
     await expect(store.get('job-1')).resolves.toEqual(expect.objectContaining({
       id: 'job-1',
@@ -105,7 +109,7 @@ describe('Unit | Infrastructure | Description Job Store', () => {
     backingMap.set('jobs:job-expired', JSON.stringify({
       id: 'job-expired',
       status: 'pending',
-      expiresAt: new Date(Date.now() - 1000).toISOString(),
+      expiresAt: expiredIso(),
     }));
     await expect(store.get('job-expired')).resolves.toBeNull();
     expect(client.del).toHaveBeenCalledWith('jobs:job-expired');

@@ -302,9 +302,9 @@ function formatSummaryLines(
     aggregate.reports.forEach((report) => {
       lines.push(
         `- ${report.label}: ${report.requestTotal} requests, `
-          + `${report.assertionTotal} assertions, `
-          + `${report.assertionFailed} failed, `
-          + `${report.durationMs}ms`,
+        + `${report.assertionTotal} assertions, `
+        + `${report.assertionFailed} failed, `
+        + `${report.durationMs}ms`,
       );
     });
   }
@@ -323,9 +323,9 @@ function formatSummaryLines(
         : Math.round(folder.totalResponseTimeMs / folder.requestTotal);
       lines.push(
         `- ${folder.folder}: ${folder.requestTotal} requests, `
-          + `${folder.assertionTotal} assertions, `
-          + `${folder.assertionFailed} failed, `
-          + `avg ${avgResponseTimeMs}ms, max ${folder.maxResponseTimeMs}ms`,
+        + `${folder.assertionTotal} assertions, `
+        + `${folder.assertionFailed} failed, `
+        + `avg ${avgResponseTimeMs}ms, max ${folder.maxResponseTimeMs}ms`,
       );
     });
   }

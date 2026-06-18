@@ -43,7 +43,7 @@ async function assertFixtureResponse(response, key, url, expectedPrefix) {
       : `${expectedPrefix}*`;
     throw new Error(
       `${key} returned content-type "${contentType || 'unknown'}" from ${url}; `
-        + `expected ${expectedDescription}`,
+      + `expected ${expectedDescription}`,
     );
   }
 

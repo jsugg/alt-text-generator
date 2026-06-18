@@ -237,12 +237,14 @@ async function downloadArtifactArchive({
   const downloadUrl = initialResponse.headers.get('location');
   const archiveUrl = downloadUrl || artifact.archive_download_url;
   const archiveResponse = await fetchImpl(archiveUrl, {
-    headers: downloadUrl ? undefined : {
-      Accept: 'application/vnd.github+json',
-      Authorization: `Bearer ${token}`,
-      'User-Agent': 'alt-text-generator-allure-history',
-      'X-GitHub-Api-Version': '2022-11-28',
-    },
+    headers: downloadUrl
+      ? undefined
+      : {
+          Accept: 'application/vnd.github+json',
+          Authorization: `Bearer ${token}`,
+          'User-Agent': 'alt-text-generator-allure-history',
+          'X-GitHub-Api-Version': '2022-11-28',
+        },
     redirect: 'follow',
   });
 

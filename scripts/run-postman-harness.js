@@ -77,6 +77,7 @@ const FULL_MODE_DESCRIPTION_JOB_WAIT_TIMEOUT_MS = '25';
 const FULL_MODE_DESCRIPTION_JOB_POLL_INTERVAL_MS = '5';
 const FULL_MODE_REPLICATE_POLL_INTERVAL_MS = '5';
 const DOCS_WARMUP_TIMEOUT_MS = 30000;
+const READINESS_TIMEOUT_MS = 120000;
 
 const NODE = process.execPath;
 const NEWMAN_BIN = path.join(
@@ -481,8 +482,8 @@ async function main() {
   const publicProviderValidationFixtures = buildPublicProviderValidationFixtureUrls();
   const availableLiveProviders = realProviderModeEnabled
     ? detectAvailableProviders(process.env, {
-      allowedProviderScopes: LOW_COST_PROVIDER_VALIDATION_SCOPES,
-    })
+        allowedProviderScopes: LOW_COST_PROVIDER_VALIDATION_SCOPES,
+      })
     : { configuredProviderScopes: LOCAL_PROVIDER_VALIDATION_SCOPES.slice() };
   const configuredProviderScopes = fullModeEnabled
     ? LOCAL_PROVIDER_VALIDATION_SCOPES.slice()
@@ -492,15 +493,15 @@ async function main() {
     providerValidationScope = fullModeEnabled
       ? 'all'
       : resolveProviderScope({
-        requestedScope: providerScopeInput,
-        configuredProviderScopes,
-      });
+          requestedScope: providerScopeInput,
+          configuredProviderScopes,
+        });
   }
   const selectedProviderPlans = providerValidationScope
     ? getSelectedProviderPlans(providerValidationScope, {
-      configuredProviderScopes,
-      mode: fullModeEnabled ? 'provider-integration' : 'live',
-    })
+        configuredProviderScopes,
+        mode: fullModeEnabled ? 'provider-integration' : 'live',
+      })
     : [];
   const selectedProviderScopeSet = new Set(
     selectedProviderPlans.map((providerPlan) => providerPlan.scopeKey),
@@ -684,13 +685,17 @@ async function main() {
   });
 
   try {
-    await waitForUrl(`http://${HOST}:${FIXTURE_PORT}/health`);
+    await waitForUrl(`http://${HOST}:${FIXTURE_PORT}/health`, {
+      timeoutMs: READINESS_TIMEOUT_MS,
+    });
     await waitForUrl(`https://${HOST}:${APP_HTTPS_PORT}/api/health`, {
       insecure: true,
+      timeoutMs: READINESS_TIMEOUT_MS,
     });
     if (authAppServer) {
       await waitForUrl(`https://${HOST}:${AUTH_APP_HTTPS_PORT}/api/health`, {
         insecure: true,
+        timeoutMs: READINESS_TIMEOUT_MS,
       });
     }
     if (mode === 'smoke' || fullModeEnabled) {

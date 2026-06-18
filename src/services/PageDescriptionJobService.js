@@ -96,10 +96,12 @@ class PageDescriptionJobService {
       status: job.status,
       ...(job.result ? { result: job.result } : {}),
       ...(job.error ? { error: job.error } : {}),
-      ...(isPendingStatus(job.status) ? {
-        pollAfterMs: this.pollIntervalMs,
-        statusUrl: this.constructor.buildStatusUrl(job.id),
-      } : {}),
+      ...(isPendingStatus(job.status)
+        ? {
+            pollAfterMs: this.pollIntervalMs,
+            statusUrl: this.constructor.buildStatusUrl(job.id),
+          }
+        : {}),
     };
   }
 
@@ -269,17 +271,17 @@ class PageDescriptionJobService {
 
       const result = this.descriptionJobService
         ? await this.pageDescriptionService.describePageWithResolver({
-          pageUrl: processingJob.pageUrl,
-          model: processingJob.model,
-          describeImage: (imageUrl) => this.resolveImageDescription({
+            pageUrl: processingJob.pageUrl,
             model: processingJob.model,
-            imageUrl,
-          }),
-        })
+            describeImage: (imageUrl) => this.resolveImageDescription({
+              model: processingJob.model,
+              imageUrl,
+            }),
+          })
         : await this.pageDescriptionService.describePageWithAsyncJobs({
-          pageUrl: processingJob.pageUrl,
-          model: processingJob.model,
-        });
+            pageUrl: processingJob.pageUrl,
+            model: processingJob.model,
+          });
 
       await this.buildSucceededJob(processingJob, result);
       this.logger.info?.({

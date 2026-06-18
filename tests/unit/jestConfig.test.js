@@ -13,7 +13,7 @@ function loadJestConfig(allureResultsDir) {
 
   jest.resetModules();
   jest.isolateModules(() => {
-    // eslint-disable-next-line global-require, import/no-dynamic-require
+    // eslint-disable-next-line import/no-dynamic-require
     config = require(CONFIG_PATH);
   });
 

@@ -12,11 +12,11 @@ const mockStdSerializers = {
     headers: error.headers,
     cause: error.cause
       ? {
-        type: error.cause.name,
-        message: error.cause.message,
-        stack: error.cause.stack,
-        config: error.cause.config,
-      }
+          type: error.cause.name,
+          message: error.cause.message,
+          stack: error.cause.stack,
+          config: error.cause.config,
+        }
       : undefined,
   })),
   req: jest.fn((request) => ({
@@ -79,7 +79,6 @@ const loadLoggerModule = ({
   });
   mockPinoHttp.stdSerializers = mockStdSerializers;
 
-  // eslint-disable-next-line global-require
   const loggerModule = require('../../../src/infrastructure/logger');
 
   return {
