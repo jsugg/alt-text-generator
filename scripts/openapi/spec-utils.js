@@ -1,0 +1,188 @@
+/**
+ * Shared helpers for the OpenAPI contract gates (validate / check / diff) and
+ * the spec generator.
+ *
+ * The committed artifact at docs/openapi.base.json is the single source of truth
+ * for the public HTTP contract: config/swagger.js serves it verbatim (injecting
+ * only the runtime `servers` block), so every gate here reasons about the same
+ * bytes that ship to swagger-ui and downstream codegen.
+ */
+
+const fs = require('node:fs');
+const path = require('node:path');
+
+const swaggerJSDoc = require('swagger-jsdoc');
+const { getSwaggerJSDocOptions } = require('../../config/swagger-base');
+
+const GENERATED_SPEC_PATH = path.resolve(__dirname, '../../docs/openapi.base.json');
+
+// OpenAPI operation keys, lower-cased. Anything else on a path item (parameters,
+// summary, $ref, ...) is not an operation and must be skipped when walking.
+const HTTP_METHODS = new Set([
+  'get', 'put', 'post', 'delete', 'patch', 'options', 'head', 'trace',
+]);
+
+/**
+ * Serializes a spec exactly the way the generator writes it to disk, so a
+ * freshness comparison is a byte-for-byte string match (trailing newline
+ * included).
+ *
+ * @param {object} spec
+ * @returns {string}
+ */
+function serializeSpec(spec) {
+  return `${JSON.stringify(spec, null, 2)}\n`;
+}
+
+/**
+ * Regenerates the server-agnostic base spec from the JSDoc sources. The runtime
+ * `servers` block is stripped because it is environment-specific and injected
+ * by config/swagger.js at serve time.
+ *
+ * @returns {object}
+ */
+function generateFreshSpec() {
+  const spec = swaggerJSDoc(getSwaggerJSDocOptions());
+  delete spec.servers;
+  return spec;
+}
+
+/**
+ * Reads the raw committed spec text (no parsing), for byte-level comparison.
+ *
+ * @param {string} [specPath]
+ * @returns {string}
+ */
+function readSpecText(specPath = GENERATED_SPEC_PATH) {
+  return fs.readFileSync(specPath, 'utf8');
+}
+
+/**
+ * Reads and parses the committed spec into an object.
+ *
+ * @param {string} [specPath]
+ * @returns {object}
+ */
+function loadSpec(specPath = GENERATED_SPEC_PATH) {
+  return JSON.parse(readSpecText(specPath));
+}
+
+/**
+ * Flattens a spec's `paths` into one entry per operation.
+ *
+ * @param {object} spec
+ * @returns {{ path: string, method: string, operation: object }[]}
+ */
+function listOperations(spec) {
+  const paths = spec?.paths;
+
+  if (paths === null || typeof paths !== 'object') {
+    return [];
+  }
+
+  return Object.entries(paths).flatMap(([routePath, pathItem]) => {
+    if (pathItem === null || typeof pathItem !== 'object') {
+      return [];
+    }
+
+    return Object.entries(pathItem)
+      .filter(([method, operation]) => (
+        HTTP_METHODS.has(method.toLowerCase())
+        && operation !== null
+        && typeof operation === 'object'
+      ))
+      .map(([method, operation]) => ({ path: routePath, method: method.toLowerCase(), operation }));
+  });
+}
+
+/**
+ * Returns the response status keys declared on an operation.
+ *
+ * @param {object} operation
+ * @returns {string[]}
+ */
+function listResponseStatuses(operation) {
+  const responses = operation?.responses;
+
+  if (responses === null || typeof responses !== 'object') {
+    return [];
+  }
+
+  return Object.keys(responses);
+}
+
+/**
+ * Walks an arbitrary spec node and collects every `$ref` string it contains.
+ *
+ * @param {*} node
+ * @param {Set<string>} [acc]
+ * @returns {Set<string>}
+ */
+function collectRefs(node, acc = new Set()) {
+  if (Array.isArray(node)) {
+    node.forEach((child) => collectRefs(child, acc));
+    return acc;
+  }
+
+  if (node === null || typeof node !== 'object') {
+    return acc;
+  }
+
+  Object.entries(node).forEach(([key, value]) => {
+    if (key === '$ref' && typeof value === 'string') {
+      acc.add(value);
+    } else {
+      collectRefs(value, acc);
+    }
+  });
+
+  return acc;
+}
+
+/**
+ * Resolves a local JSON pointer ref (e.g. `#/components/schemas/Foo`) against a
+ * spec, returning the referenced node or `undefined` when it does not resolve.
+ *
+ * @param {object} spec
+ * @param {string} ref
+ * @returns {*}
+ */
+function resolveRef(spec, ref) {
+  if (typeof ref !== 'string' || !ref.startsWith('#/')) {
+    return undefined;
+  }
+
+  return ref
+    .slice(2)
+    .split('/')
+    .map((segment) => segment.replace(/~1/gu, '/').replace(/~0/gu, '~'))
+    .reduce((node, segment) => (
+      node !== null && typeof node === 'object' ? node[segment] : undefined
+    ), spec);
+}
+
+/**
+ * Returns the declared security scheme names (`components.securitySchemes`).
+ *
+ * @param {object} spec
+ * @returns {string[]}
+ */
+function listSecuritySchemeNames(spec) {
+  const schemes = spec?.components?.securitySchemes;
+
+  return schemes !== null && typeof schemes === 'object' ? Object.keys(schemes) : [];
+}
+
+module.exports = {
+  GENERATED_SPEC_PATH,
+  HTTP_METHODS,
+  collectRefs,
+  generateFreshSpec,
+  listOperations,
+  listResponseStatuses,
+  listSecuritySchemeNames,
+  loadSpec,
+  readSpecText,
+  resolveRef,
+  serializeSpec,
+};
