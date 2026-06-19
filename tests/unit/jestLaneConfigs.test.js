@@ -2,11 +2,20 @@ const path = require('node:path');
 const fs = require('node:fs');
 const os = require('node:os');
 const { spawnSync } = require('node:child_process');
+const {
+  assertDeepEqualInvariant,
+  assertEqualInvariant,
+  assertExpressionContainsInvariant,
+  assertNoRunCommandContainsInvariant,
+  assertStepUsesAction,
+  findStepByName,
+  getJob,
+  loadWorkflow,
+} = require('../helpers/workflowAssertions');
 
 const ROOT_DIR = path.resolve(__dirname, '../..');
 const LANE_DIR = path.join(ROOT_DIR, 'config', 'jest');
 const PACKAGE_JSON_PATH = path.join(ROOT_DIR, 'package.json');
-const CI_WORKFLOW_PATH = path.join(ROOT_DIR, '.github', 'workflows', 'ci.yml');
 const DEVELOPMENT_PATH = path.join(ROOT_DIR, 'DEVELOPMENT.md');
 const README_PATH = path.join(ROOT_DIR, 'README.md');
 const REDIS_COMPOSE_PATH = path.join(ROOT_DIR, 'docker-compose.redis.yml');
@@ -279,6 +288,7 @@ describe('Unit | Jest Lane Configs', () => {
   it('keeps package scripts mapped to explicit Jest lane configs', () => {
     const { scripts } = JSON.parse(fs.readFileSync(PACKAGE_JSON_PATH, 'utf8'));
 
+    expect(scripts['docs:validate']).toBe('node scripts/docs/validate-docs.js');
     expect(scripts.test).toBe('jest --config config/jest/jest.unit.cjs');
     expect(scripts['test:integration']).toBe('jest --config config/jest/jest.integration.cjs');
     expect(scripts['test:integration:redis']).toBe(
@@ -299,18 +309,196 @@ describe('Unit | Jest Lane Configs', () => {
     );
   });
 
-  it('names CI matrix jobs after package scripts', () => {
-    const workflowContents = fs.readFileSync(CI_WORKFLOW_PATH, 'utf8');
+  it('keeps CI topology split into fast unit matrix and canonical full gates', () => {
+    const workflow = loadWorkflow('ci.yml');
+    const docsJob = getJob(workflow, 'docs');
+    const unitJob = getJob(workflow, 'test-unit');
+    const testCiJob = getJob(workflow, 'test-ci');
+    const newmanJob = getJob(workflow, 'newman');
+    const unitStep = findStepByName(unitJob, 'test-unit', 'test:unit');
+    const testCiStep = findStepByName(testCiJob, 'test-ci', 'test:ci');
+    const uploadResultsStep = findStepByName(testCiJob, 'test-ci', 'Upload Jest test results');
 
-    expect(workflowContents).toContain('name: ${{ matrix.test_script }} (${{ matrix.node-version }})');
-    expect(workflowContents).toContain("test_script: 'test:ci'");
-    expect(workflowContents).toContain("test_script: 'test:all'");
-    expect(workflowContents).toContain('image: redis:8.8.0-alpine3.23');
-    expect(workflowContents).toContain('REDIS_INTEGRATION_MODE: required');
-    expect(workflowContents).toContain('REDIS_INTEGRATION_URL: redis://127.0.0.1:6379');
-    expect(workflowContents).not.toContain('apt-get install -y redis-server');
-    expect(workflowContents).toContain('run: npm run test:all -- --ci');
-    expect(workflowContents).toContain('run: npm run test:ci');
+    assertDeepEqualInvariant(
+      'CI triggers main/production pushes and pull requests so docs-only changes receive docs validation',
+      workflow.on,
+      {
+        push: { branches: ['main', 'production'] },
+        pull_request: { branches: ['main', 'production'] },
+      },
+    );
+    assertDeepEqualInvariant(
+      'CI top-level GITHUB_TOKEN permissions remain read-only',
+      workflow.permissions,
+      { contents: 'read' },
+    );
+    assertDeepEqualInvariant(
+      'CI workflow keeps the repository quality-gate job graph',
+      Object.keys(workflow.jobs),
+      [
+        'changes',
+        'docs',
+        'actionlint',
+        'lint',
+        'openapi',
+        'test-unit',
+        'test-ci',
+        'newman',
+        'test-report',
+        'allure-report',
+        'allure-pages',
+        'allure-pages-publish-dispatch',
+        'ci-summary',
+      ],
+    );
+    assertEqualInvariant(
+      'CI docs validation publishes a stable required check',
+      docsJob.name,
+      'docs',
+    );
+    assertDeepEqualInvariant(
+      'CI unit matrix covers every supported Node version with the fast lane only',
+      unitJob.strategy.matrix['node-version'],
+      ['20', '22', '24'],
+    );
+    assertEqualInvariant(
+      'CI unit matrix job name reports the unit package script and Node version',
+      unitJob.name,
+      'test:unit (${{ matrix.node-version }})',
+    );
+    assertEqualInvariant(
+      'CI unit matrix runs the unit package script only',
+      unitStep.run,
+      'npm run test:unit -- --ci',
+    );
+    assertEqualInvariant(
+      'CI canonical full gate publishes the documented Node 20 check name',
+      testCiJob.name,
+      'test:ci (20)',
+    );
+    assertDeepEqualInvariant(
+      'CI Redis integration uses the pinned service container',
+      testCiJob.services.redis,
+      {
+        image: 'redis:8.8.0-alpine3.23',
+        ports: ['6379:6379'],
+        options: '--health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5',
+      },
+    );
+    assertDeepEqualInvariant(
+      'CI Redis integration requires the service-backed Redis URL',
+      testCiJob.env,
+      {
+        REDIS_INTEGRATION_MODE: 'required',
+        REDIS_INTEGRATION_URL: 'redis://127.0.0.1:6379',
+      },
+    );
+    assertStepUsesAction(
+      'CI canonical full gate uploads Jest results with actions/upload-artifact',
+      uploadResultsStep,
+      'actions/upload-artifact',
+    );
+    assertEqualInvariant(
+      'CI canonical full gate runs test:ci through the package script',
+      testCiStep.run,
+      'npm run test:ci',
+    );
+    assertEqualInvariant(
+      'CI required Newman gate runs smoke mode only',
+      newmanJob.env.NEWMAN_MODE,
+      'smoke',
+    );
+    assertExpressionContainsInvariant(
+      'CI unit matrix skips expensive setup for docs-only changes',
+      unitStep.if,
+      "needs.changes.outputs.docs_only != 'true'",
+    );
+    assertExpressionContainsInvariant(
+      'CI canonical full gate skips expensive setup for docs-only changes',
+      testCiStep.if,
+      "needs.changes.outputs.docs_only != 'true'",
+    );
+    assertNoRunCommandContainsInvariant(
+      workflow,
+      'apt-get install -y redis-server',
+      'CI Redis integration must not install host Redis with apt',
+    );
+  });
+
+  it('path-gates the expensive local provider integration workflow', () => {
+    const workflow = loadWorkflow('local-provider-integration.yml');
+
+    assertDeepEqualInvariant(
+      'Local provider integration runs only manually, on schedule, after risky main pushes, or risky PRs',
+      workflow.on,
+      {
+        workflow_dispatch: null,
+        schedule: [{ cron: '37 6 * * 2' }],
+        push: {
+          branches: ['main'],
+          paths: [
+            '.github/workflows/local-provider-integration.yml',
+            'config/providerCatalog.js',
+            'package.json',
+            'package-lock.json',
+            'postman/**',
+            'scripts/postman/**',
+            'scripts/postman-fixture-server.js',
+            'scripts/run-postman-harness.js',
+            'src/api/**',
+            'src/providers/**',
+            'src/services/*DescriberService.js',
+          ],
+        },
+        pull_request: {
+          branches: ['main'],
+          paths: [
+            '.github/workflows/local-provider-integration.yml',
+            'config/providerCatalog.js',
+            'package.json',
+            'package-lock.json',
+            'postman/**',
+            'scripts/postman/**',
+            'scripts/postman-fixture-server.js',
+            'scripts/run-postman-harness.js',
+            'src/api/**',
+            'src/providers/**',
+            'src/services/*DescriberService.js',
+          ],
+        },
+      },
+    );
+    assertNoRunCommandContainsInvariant(
+      loadWorkflow('ci.yml'),
+      'postman:full',
+      'CI workflow must not duplicate the expensive local provider integration suite',
+    );
+  });
+
+  it('keeps CodeQL required while allowing docs-only changes to use the lightweight docs gate', () => {
+    const workflow = loadWorkflow('codeql.yml');
+    const analyzeJob = getJob(workflow, 'analyze');
+    const skipStep = findStepByName(analyzeJob, 'analyze', 'Skip CodeQL for docs-only change');
+
+    assertDeepEqualInvariant(
+      'CodeQL triggers on main/production pushes and pull requests plus weekly schedule',
+      workflow.on,
+      {
+        push: { branches: ['main', 'production'] },
+        pull_request: { branches: ['main', 'production'] },
+        schedule: [{ cron: '19 7 * * 1' }],
+      },
+    );
+    assertEqualInvariant(
+      'CodeQL publishes the stable required check name',
+      analyzeJob.name,
+      'codeql',
+    );
+    assertExpressionContainsInvariant(
+      'CodeQL performs a no-op success for docs-only changes',
+      skipStep.if,
+      "needs.changes.outputs.docs_only == 'true'",
+    );
   });
 
   it('documents local Redis integration discovery through the pinned Docker profile', () => {

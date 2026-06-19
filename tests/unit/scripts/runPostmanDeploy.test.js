@@ -15,6 +15,18 @@ const {
   resolveProductionDeployAuthConfig,
   waitForStableDeploy,
 } = require('../../../scripts/run-postman-deploy');
+const {
+  assertDeepEqualInvariant,
+  assertEnvContainsInvariant,
+  assertEqualInvariant,
+  assertNoEnvKeysInvariant,
+  assertNoRunCommandContainsInvariant,
+  assertStepUsesAction,
+  assertStringContainsInvariant,
+  findStepByName,
+  getJob,
+  loadWorkflow,
+} = require('../../helpers/workflowAssertions');
 
 const ROOT = path.resolve(__dirname, '../../..');
 
@@ -402,47 +414,191 @@ describe('Unit | Scripts | Run Postman Deploy', () => {
     });
 
     it('invokes postman:post-deploy from the post-deploy workflow', () => {
-      const workflow = fs.readFileSync(
-        path.join(ROOT, '.github/workflows/post-deploy-verification.yml'),
-        'utf8',
+      const workflow = loadWorkflow('post-deploy-verification.yml');
+      const smokeJob = getJob(workflow, 'smoke');
+      const allureReportJob = getJob(workflow, 'allure-report');
+      const setupProjectStep = findStepByName(smokeJob, 'smoke', 'Setup project');
+      const postDeployStep = findStepByName(
+        smokeJob,
+        'smoke',
+        'Run post-deploy Newman verification',
       );
+      const uploadArtifactsStep = findStepByName(smokeJob, 'smoke', 'Upload Newman artifacts');
 
-      expect(workflow).toContain('npm run postman:post-deploy -- --base-url "$'
-        + '{BASE_URL}"');
-      expect(workflow).not.toContain('postman:deploy');
+      assertDeepEqualInvariant(
+        'Post Deploy Verification triggers on production pushes and manual canonical URL backfills',
+        workflow.on,
+        {
+          push: { branches: ['production'] },
+          workflow_dispatch: {
+            inputs: {
+              base_url: {
+                description: 'Base URL of the deployed API to verify.',
+                required: false,
+                default: 'https://wcag.qcraft.com.br',
+                type: 'string',
+              },
+              persist_history: {
+                description: 'Persist the deploy-production Allure history stream for this manual run.',
+                required: false,
+                default: false,
+                type: 'boolean',
+              },
+              provider_scope: {
+                description: 'Select the low-cost live-provider scope to exercise after deployment.',
+                required: false,
+                default: 'all',
+                type: 'choice',
+                options: ['auto', 'huggingface', 'openai', 'together', 'all'],
+              },
+            },
+          },
+        },
+      );
+      assertDeepEqualInvariant(
+        'Post Deploy Verification keeps top-level token permissions read-only',
+        workflow.permissions,
+        { contents: 'read' },
+      );
+      assertDeepEqualInvariant(
+        'Post Deploy Verification keeps smoke and Allure report jobs',
+        Object.keys(workflow.jobs),
+        ['smoke', 'allure-report'],
+      );
+      assertDeepEqualInvariant(
+        'Post Deploy Allure report waits for the smoke verification job',
+        allureReportJob.needs,
+        ['smoke'],
+      );
+      assertEqualInvariant(
+        'Post Deploy Allure report runs even when smoke verification fails',
+        allureReportJob.if,
+        'always()',
+      );
+      assertStepUsesAction(
+        'Post Deploy smoke job uses the repository setup-node-project action',
+        setupProjectStep,
+        './.github/actions/setup-node-project',
+      );
+      assertEqualInvariant(
+        'Post Deploy workflow invokes the canonical postman:post-deploy package script',
+        postDeployStep.run,
+        'npm run postman:post-deploy -- --base-url "${BASE_URL}"',
+      );
+      assertStepUsesAction(
+        'Post Deploy workflow uploads Newman artifacts with actions/upload-artifact',
+        uploadArtifactsStep,
+        'actions/upload-artifact',
+      );
+      assertNoRunCommandContainsInvariant(
+        workflow,
+        'postman:deploy',
+        'Post Deploy workflow must not call the removed postman:deploy script',
+      );
     });
 
     it('pins release validation workflows to Hugging Face, OpenAI, and Together', () => {
-      const postDeployWorkflow = fs.readFileSync(
-        path.join(ROOT, '.github/workflows/post-deploy-verification.yml'),
-        'utf8',
+      const postDeployWorkflow = loadWorkflow('post-deploy-verification.yml');
+      const promoteWorkflow = loadWorkflow('promote-to-production.yml');
+      const postDeploySmokeJob = getJob(postDeployWorkflow, 'smoke');
+      const postDeployResolveStep = findStepByName(
+        postDeploySmokeJob,
+        'smoke',
+        'Resolve post-deploy provider scope',
       );
-      const promoteWorkflow = fs.readFileSync(
-        path.join(ROOT, '.github/workflows/promote-to-production.yml'),
-        'utf8',
+      const postDeployRunStep = findStepByName(
+        postDeploySmokeJob,
+        'smoke',
+        'Run post-deploy Newman verification',
+      );
+      const preProductionJob = getJob(promoteWorkflow, 'pre-production-provider-validation');
+      const promoteJob = getJob(promoteWorkflow, 'promote');
+      const preProductionResolveStep = findStepByName(
+        preProductionJob,
+        'pre-production-provider-validation',
+        'Resolve pre-production provider scope',
+      );
+      const preProductionRunStep = findStepByName(
+        preProductionJob,
+        'pre-production-provider-validation',
+        'Run pre-production provider validation',
+      );
+      const promoteStep = findStepByName(
+        promoteJob,
+        'promote',
+        'Promote main into production with GitHub App token',
       );
 
-      expect(postDeployWorkflow).toContain('HF_API_KEY: $'
-        + '{{ secrets.HF_API_KEY }}');
-      expect(postDeployWorkflow).toContain('HF_MODEL: Qwen/Qwen3-VL-30B-A3B-Instruct:fastest');
-      expect(postDeployWorkflow).toContain('OPENAI_API_KEY: $'
-        + '{{ secrets.OPENAI_API_KEY }}');
-      expect(postDeployWorkflow).toContain('OPENAI_MODEL: gpt-4.1-nano');
-      expect(postDeployWorkflow).toContain('TOGETHER_API_KEY: $'
-        + '{{ secrets.TOGETHER_API_KEY }}');
-      expect(postDeployWorkflow).not.toContain('OPENROUTER_API_KEY');
-      expect(postDeployWorkflow).not.toContain('OPENROUTER_MODEL');
-
-      expect(promoteWorkflow).toContain('HF_API_KEY: $'
-        + '{{ secrets.HF_API_KEY }}');
-      expect(promoteWorkflow).toContain('HF_MODEL: Qwen/Qwen3-VL-30B-A3B-Instruct:fastest');
-      expect(promoteWorkflow).toContain('OPENAI_API_KEY: $'
-        + '{{ secrets.OPENAI_API_KEY }}');
-      expect(promoteWorkflow).toContain('OPENAI_MODEL: gpt-4.1-nano');
-      expect(promoteWorkflow).toContain('TOGETHER_API_KEY: $'
-        + '{{ secrets.TOGETHER_API_KEY }}');
-      expect(promoteWorkflow).not.toContain('OPENROUTER_API_KEY');
-      expect(promoteWorkflow).not.toContain('OPENROUTER_MODEL');
+      assertDeepEqualInvariant(
+        'Promote to Production is manual-only and cannot be triggered by pushes',
+        promoteWorkflow.on,
+        { workflow_dispatch: null },
+      );
+      assertDeepEqualInvariant(
+        'Promote to Production can write contents for the production ref update',
+        promoteWorkflow.permissions,
+        { contents: 'write' },
+      );
+      assertDeepEqualInvariant(
+        'Promote job waits for pre-production provider validation',
+        promoteJob.needs,
+        ['pre-production-provider-validation'],
+      );
+      assertStringContainsInvariant(
+        'Promotion required checks exactly match the documented release policy',
+        promoteStep.run,
+        '--required-checks "actionlint,codeql,dependency-review,docs,lint,openapi,newman,test:ci (20),test:unit (20),test:unit (22),test:unit (24)"',
+      );
+      assertEnvContainsInvariant(
+        'Post Deploy provider scope resolver reads only approved release provider secrets',
+        postDeployResolveStep.env,
+        {
+          HF_API_KEY: '${{ secrets.HF_API_KEY }}',
+          OPENAI_API_KEY: '${{ secrets.OPENAI_API_KEY }}',
+          TOGETHER_API_KEY: '${{ secrets.TOGETHER_API_KEY }}',
+        },
+      );
+      assertEnvContainsInvariant(
+        'Post Deploy Newman verification pins release provider models',
+        postDeployRunStep.env,
+        {
+          HF_API_KEY: '${{ secrets.HF_API_KEY }}',
+          HF_MODEL: 'Qwen/Qwen3-VL-30B-A3B-Instruct:fastest',
+          OPENAI_API_KEY: '${{ secrets.OPENAI_API_KEY }}',
+          OPENAI_MODEL: 'gpt-4.1-nano',
+          TOGETHER_API_KEY: '${{ secrets.TOGETHER_API_KEY }}',
+        },
+      );
+      assertEnvContainsInvariant(
+        'Pre-production provider scope resolver reads only approved release provider secrets',
+        preProductionResolveStep.env,
+        {
+          HF_API_KEY: '${{ secrets.HF_API_KEY }}',
+          OPENAI_API_KEY: '${{ secrets.OPENAI_API_KEY }}',
+          TOGETHER_API_KEY: '${{ secrets.TOGETHER_API_KEY }}',
+        },
+      );
+      assertEnvContainsInvariant(
+        'Pre-production provider validation pins release provider models',
+        preProductionRunStep.env,
+        {
+          HF_API_KEY: '${{ secrets.HF_API_KEY }}',
+          HF_MODEL: 'Qwen/Qwen3-VL-30B-A3B-Instruct:fastest',
+          OPENAI_API_KEY: '${{ secrets.OPENAI_API_KEY }}',
+          OPENAI_MODEL: 'gpt-4.1-nano',
+          TOGETHER_API_KEY: '${{ secrets.TOGETHER_API_KEY }}',
+        },
+      );
+      assertNoEnvKeysInvariant(
+        postDeployWorkflow,
+        ['OPENROUTER_API_KEY', 'OPENROUTER_MODEL'],
+        'Post Deploy release validation must not expose OpenRouter credentials',
+      );
+      assertNoEnvKeysInvariant(
+        promoteWorkflow,
+        ['OPENROUTER_API_KEY', 'OPENROUTER_MODEL'],
+        'Promote release validation must not expose OpenRouter credentials',
+      );
     });
   });
 });

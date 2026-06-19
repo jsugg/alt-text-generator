@@ -5,18 +5,10 @@ on:
     branches:
       - main
       - production
-    paths-ignore:
-      - '**/*.md'
-      - '.github/assets/**'
-      - 'LICENSE'
   pull_request:
     branches:
       - main
       - production
-    paths-ignore:
-      - '**/*.md'
-      - '.github/assets/**'
-      - 'LICENSE'
   schedule:
     - cron: '19 7 * * 1'
 
@@ -30,23 +22,85 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    name: codeql-changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      docs_only: ${{ steps.classify.outputs.docs_only }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          fetch-depth: 2
+
+      - name: Classify docs-only changes
+        id: classify
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ "${EVENT_NAME}" = "pull_request" ] && [ -n "${BASE_SHA}" ]; then
+            git fetch --no-tags --depth=1 origin "${BASE_SHA}" || true
+          fi
+
+          if [ "${EVENT_NAME}" = "schedule" ]; then
+            echo "docs_only=false" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          if [ -n "${BASE_SHA}" ] && [ "${BASE_SHA}" != "0000000000000000000000000000000000000000" ] && git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
+            git diff --name-only "${BASE_SHA}" "${HEAD_SHA}" > changed-files.txt
+          else
+            git ls-tree -r --name-only "${HEAD_SHA}" > changed-files.txt
+          fi
+
+          node <<'NODE'
+          const fs = require('node:fs');
+
+          const changedFiles = fs.readFileSync('changed-files.txt', 'utf8')
+            .split('\n')
+            .map((line) => line.trim())
+            .filter(Boolean);
+          const isDocsPath = (filePath) => (
+            filePath === 'LICENSE'
+            || filePath.endsWith('.md')
+            || filePath.startsWith('docs/')
+            || filePath.startsWith('.github/assets/')
+          );
+          const docsOnly = changedFiles.length > 0 && changedFiles.every(isDocsPath);
+
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `docs_only=${docsOnly}\n`);
+          NODE
+
   analyze:
     name: codeql
+    needs:
+      - changes
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - name: Checkout
+        if: needs.changes.outputs.docs_only != 'true'
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Initialize CodeQL
+        if: needs.changes.outputs.docs_only != 'true'
         uses: github/codeql-action/init@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
         with:
           languages: javascript
 
       - name: Autobuild
+        if: needs.changes.outputs.docs_only != 'true'
         uses: github/codeql-action/autobuild@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
 
       - name: Analyze
+        if: needs.changes.outputs.docs_only != 'true'
         uses: github/codeql-action/analyze@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
         with:
           category: /language:javascript
+
+      - name: Skip CodeQL for docs-only change
+        if: needs.changes.outputs.docs_only == 'true'
+        run: echo "Docs-only change; CodeQL gate satisfied by docs validation."

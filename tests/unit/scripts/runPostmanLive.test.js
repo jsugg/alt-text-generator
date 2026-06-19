@@ -15,6 +15,16 @@ const {
   PROVIDER_VALIDATION_MAX_RESPONSE_TIME_MS,
   PROVIDER_VALIDATION_NEWMAN_TIMEOUT_REQUEST_MS,
 } = require('../../../scripts/postman/harness-timeouts');
+const {
+  assertDeepEqualInvariant,
+  assertEqualInvariant,
+  assertExpressionContainsInvariant,
+  assertNoRunCommandContainsInvariant,
+  assertStepUsesAction,
+  findStepByName,
+  getJob,
+  loadWorkflow,
+} = require('../../helpers/workflowAssertions');
 
 const ROOT = path.resolve(__dirname, '../../..');
 
@@ -123,14 +133,94 @@ describe('Unit | Scripts | Run Postman Live', () => {
     });
 
     it('invokes postman:live-provider from the live workflow', () => {
-      const workflow = fs.readFileSync(
-        path.join(ROOT, '.github/workflows/live-provider-validation.yml'),
-        'utf8',
+      const workflow = loadWorkflow('live-provider-validation.yml');
+      const scheduleDisabledJob = getJob(workflow, 'schedule-disabled');
+      const liveProviderJob = getJob(workflow, 'live-provider');
+      const setupProjectStep = findStepByName(liveProviderJob, 'live-provider', 'Setup project');
+      const liveProviderStep = findStepByName(
+        liveProviderJob,
+        'live-provider',
+        'Run production description service validation',
+      );
+      const uploadArtifactsStep = findStepByName(
+        liveProviderJob,
+        'live-provider',
+        'Upload production description service artifacts',
       );
 
-      expect(workflow).toContain('npm run postman:live-provider -- --base-url "$'
-        + '{BASE_URL}"');
-      expect(workflow).not.toContain('postman:hosted-provider');
+      assertDeepEqualInvariant(
+        'Live provider validation supports manual public URL runs and scheduled production checks',
+        workflow.on,
+        {
+          workflow_dispatch: {
+            inputs: {
+              base_url: {
+                description: 'Base URL of the deployed API to validate against.',
+                required: false,
+                default: 'https://wcag.qcraft.com.br',
+                type: 'string',
+              },
+              provider_scope: {
+                description: 'Select the live provider scope. Use auto to defer to the prod-validation LIVE_PROVIDER_SCOPE variable.',
+                required: false,
+                default: 'auto',
+                type: 'choice',
+                options: [
+                  'auto',
+                  'azure',
+                  'replicate',
+                  'huggingface',
+                  'openai',
+                  'openrouter',
+                  'together',
+                  'all',
+                ],
+              },
+            },
+          },
+          schedule: [{ cron: '23 8 * * 1' }],
+        },
+      );
+      assertDeepEqualInvariant(
+        'Live provider validation keeps top-level token permissions read-only',
+        workflow.permissions,
+        { contents: 'read' },
+      );
+      assertDeepEqualInvariant(
+        'Live provider validation keeps the schedule guard and provider jobs',
+        Object.keys(workflow.jobs),
+        ['schedule-disabled', 'live-provider'],
+      );
+      assertExpressionContainsInvariant(
+        'Live provider validation schedule guard runs only when scheduled validation is disabled',
+        scheduleDisabledJob.if,
+        "github.event_name == 'schedule'",
+      );
+      assertExpressionContainsInvariant(
+        'Live provider validation job runs for manual events or enabled schedules',
+        liveProviderJob.if,
+        "github.event_name != 'schedule'",
+      );
+      assertStepUsesAction(
+        'Live provider validation uses the repository setup-node-project action',
+        setupProjectStep,
+        './.github/actions/setup-node-project',
+      );
+      assertEqualInvariant(
+        'Live provider workflow invokes the canonical postman:live-provider package script',
+        liveProviderStep.run,
+        'npm run postman:live-provider -- --base-url "${BASE_URL}"',
+      );
+      assertStepUsesAction(
+        'Live provider workflow uploads Newman artifacts with actions/upload-artifact',
+        uploadArtifactsStep,
+        'actions/upload-artifact',
+      );
+      assertNoRunCommandContainsInvariant(
+        workflow,
+        'postman:hosted-provider',
+        'Live provider workflow must not call the removed postman:hosted-provider script',
+      );
     });
   });
 });
