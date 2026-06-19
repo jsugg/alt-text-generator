@@ -5,18 +5,10 @@ on:
     branches:
       - main
       - production
-    paths-ignore:
-      - '**/*.md'
-      - '.github/assets/**'
-      - 'LICENSE'
   pull_request:
     branches:
       - main
       - production
-    paths-ignore:
-      - '**/*.md'
-      - '.github/assets/**'
-      - 'LICENSE'
 
 permissions:
   contents: read
@@ -26,6 +18,83 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    name: changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      docs_changed: ${{ steps.classify.outputs.docs_changed }}
+      docs_only: ${{ steps.classify.outputs.docs_only }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          fetch-depth: 2
+
+      - name: Classify changed paths
+        id: classify
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ "${EVENT_NAME}" = "pull_request" ] && [ -n "${BASE_SHA}" ]; then
+            git fetch --no-tags --depth=1 origin "${BASE_SHA}" || true
+          fi
+
+          if [ -n "${BASE_SHA}" ] && [ "${BASE_SHA}" != "0000000000000000000000000000000000000000" ] && git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
+            git diff --name-only "${BASE_SHA}" "${HEAD_SHA}" > changed-files.txt
+          else
+            git ls-tree -r --name-only "${HEAD_SHA}" > changed-files.txt
+          fi
+
+          node <<'NODE'
+          const fs = require('node:fs');
+
+          const changedFiles = fs.readFileSync('changed-files.txt', 'utf8')
+            .split('\n')
+            .map((line) => line.trim())
+            .filter(Boolean);
+
+          const isDocsPath = (filePath) => (
+            filePath === 'LICENSE'
+            || filePath.endsWith('.md')
+            || filePath.startsWith('docs/')
+            || filePath.startsWith('.github/assets/')
+          );
+          const docsChanged = changedFiles.some(isDocsPath);
+          const docsOnly = changedFiles.length > 0 && changedFiles.every(isDocsPath);
+          const outputs = [
+            ['docs_changed', String(docsChanged)],
+            ['docs_only', String(docsOnly)],
+          ];
+
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `${outputs.map(([key, value]) => `${key}=${value}`).join('\n')}\n`);
+          NODE
+
+  docs:
+    name: docs
+    needs:
+      - changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Setup Node
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        with:
+          node-version: '20'
+
+      - name: Validate docs
+        if: needs.changes.outputs.docs_changed == 'true'
+        run: npm run docs:validate
+
+      - name: Skip docs validation when no docs changed
+        if: needs.changes.outputs.docs_changed != 'true'
+        run: echo "No docs-only validation needed for this change."
+
   actionlint:
     name: actionlint
     runs-on: ubuntu-latest
@@ -33,9 +102,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
-
-      - name: Validate GitHub YAML syntax
-        run: ruby scripts/github/validate-workflow-yaml.rb
 
       - name: Install actionlint
         run: bash scripts/github/install-actionlint.sh
@@ -45,24 +111,76 @@ jobs:
 
   lint:
     name: lint
+    needs:
+      - changes
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout
+        if: needs.changes.outputs.docs_only != 'true'
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Setup project
+        if: needs.changes.outputs.docs_only != 'true'
         uses: ./.github/actions/setup-node-project
         with:
           node-version: '20'
 
       - name: Run lint
+        if: needs.changes.outputs.docs_only != 'true'
         run: npm run lint
 
-  test:
-    name: test (${{ matrix.node-version }})
+      - name: Skip lint for docs-only change
+        if: needs.changes.outputs.docs_only == 'true'
+        run: echo "Docs-only change; lint gate satisfied by docs validation."
+
+  openapi:
+    name: openapi
+    needs:
+      - changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        if: needs.changes.outputs.docs_only != 'true'
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Setup project
+        if: needs.changes.outputs.docs_only != 'true'
+        uses: ./.github/actions/setup-node-project
+        with:
+          node-version: '20'
+
+      - name: Validate OpenAPI contract
+        if: needs.changes.outputs.docs_only != 'true'
+        run: npm run openapi:validate
+
+      - name: Check OpenAPI freshness
+        if: needs.changes.outputs.docs_only != 'true'
+        run: npm run openapi:check
+
+      - name: Check OpenAPI backward compatibility
+        if: needs.changes.outputs.docs_only != 'true'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          if [ -n "$BASE_REF" ]; then
+            git fetch --no-tags --depth=1 origin "$BASE_REF"
+            npm run openapi:diff -- --base FETCH_HEAD
+          else
+            npm run openapi:diff
+          fi
+
+      - name: Skip OpenAPI gates for docs-only change
+        if: needs.changes.outputs.docs_only == 'true'
+        run: echo "Docs-only change; OpenAPI gate satisfied by docs validation."
+
+  test-unit:
+    name: test:unit (${{ matrix.node-version }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    needs:
+      - changes
     strategy:
       fail-fast: false
       matrix:
@@ -72,48 +190,58 @@ jobs:
           - '24'
     steps:
       - name: Checkout
+        if: needs.changes.outputs.docs_only != 'true'
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
-      - name: Install redis-server
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y redis-server
-
       - name: Setup project
+        if: needs.changes.outputs.docs_only != 'true'
         uses: ./.github/actions/setup-node-project
         with:
           node-version: ${{ matrix.node-version }}
 
       - name: 'test:unit'
-        if: matrix.node-version != '20'
+        if: needs.changes.outputs.docs_only != 'true'
         run: npm run test:unit -- --ci
         env:
           NODE_ENV: test
           REPLICATE_API_TOKEN: test-token
 
-      - name: 'test:integration'
-        if: matrix.node-version != '20'
-        run: npm run test:integration -- --ci
-        env:
-          NODE_ENV: test
-          REPLICATE_API_TOKEN: test-token
+      - name: Skip unit tests for docs-only change
+        if: needs.changes.outputs.docs_only == 'true'
+        run: echo "Docs-only change; unit matrix gate satisfied by docs validation."
 
-      - name: 'test:integration:redis'
-        if: matrix.node-version != '20'
-        run: npm run test:integration:redis -- --ci
-        env:
-          NODE_ENV: test
-          REPLICATE_API_TOKEN: test-token
+  test-ci:
+    name: test:ci (20)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs:
+      - changes
+    services:
+      redis:
+        image: redis:8.8.0-alpine3.23
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      REDIS_INTEGRATION_MODE: required
+      REDIS_INTEGRATION_URL: redis://127.0.0.1:6379
+    steps:
+      - name: Checkout
+        if: needs.changes.outputs.docs_only != 'true'
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
-      - name: 'test:integration:scripts'
-        if: matrix.node-version != '20'
-        run: npm run test:integration:scripts -- --ci
-        env:
-          NODE_ENV: test
-          REPLICATE_API_TOKEN: test-token
+      - name: Setup project
+        if: needs.changes.outputs.docs_only != 'true'
+        uses: ./.github/actions/setup-node-project
+        with:
+          node-version: '20'
 
       - name: 'test:ci'
-        if: matrix.node-version == '20'
+        if: needs.changes.outputs.docs_only != 'true'
         run: npm run test:ci
         env:
           ALLURE_RESULTS_DIR: reports/allure-results
@@ -123,29 +251,33 @@ jobs:
           JEST_JUNIT_OUTPUT_NAME: junit.xml
           JEST_JUNIT_ADD_FILE_ATTRIBUTE: true
 
+      - name: Skip full Jest gate for docs-only change
+        if: needs.changes.outputs.docs_only == 'true'
+        run: echo "Docs-only change; canonical full Jest gate satisfied by docs validation."
+
       - name: Upload Jest test results
-        if: always() && matrix.node-version == '20'
+        if: always() && needs.changes.outputs.docs_only != 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: jest-results-node-${{ matrix.node-version }}
+          name: jest-results-node-20
           path: reports/jest/
           if-no-files-found: ignore
           retention-days: 7
 
       - name: Upload Jest coverage
-        if: always() && matrix.node-version == '20'
+        if: always() && needs.changes.outputs.docs_only != 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: jest-coverage-node-${{ matrix.node-version }}
+          name: jest-coverage-node-20
           path: coverage/
           if-no-files-found: ignore
           retention-days: 7
 
       - name: Upload Jest Allure results
-        if: always() && matrix.node-version == '20'
+        if: always() && needs.changes.outputs.docs_only != 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: jest-allure-results-node-${{ matrix.node-version }}
+          name: jest-allure-results-node-20
           path: reports/allure-results/
           if-no-files-found: ignore
           retention-days: 7
@@ -154,27 +286,40 @@ jobs:
     name: newman
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    needs:
+      - changes
     env:
       ALLURE_RESULTS_DIR: reports/allure-results
-      NEWMAN_MODE: ${{ github.event_name == 'pull_request' && 'smoke' || 'full' }}
+      NEWMAN_MODE: smoke
     steps:
       - name: Checkout
+        if: needs.changes.outputs.docs_only != 'true'
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Setup project
+        if: needs.changes.outputs.docs_only != 'true'
         uses: ./.github/actions/setup-node-project
         with:
           node-version: '20'
 
+      - name: Lint Postman collection policy
+        if: needs.changes.outputs.docs_only != 'true'
+        run: npm run postman:lint
+
       - name: Run deterministic Postman/Newman suite
+        if: needs.changes.outputs.docs_only != 'true'
         run: npm run "postman:${NEWMAN_MODE}"
 
+      - name: Skip Newman smoke for docs-only change
+        if: needs.changes.outputs.docs_only == 'true'
+        run: echo "Docs-only change; Newman smoke gate satisfied by docs validation."
+
       - name: Write Newman summary
-        if: always()
+        if: always() && needs.changes.outputs.docs_only != 'true'
         run: bash scripts/github/write-ci-newman-summary.sh "$GITHUB_STEP_SUMMARY"
 
       - name: Upload Newman artifacts
-        if: always()
+        if: always() && needs.changes.outputs.docs_only != 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: newman-artifacts-${{ env.NEWMAN_MODE }}
@@ -183,7 +328,7 @@ jobs:
           retention-days: 7
 
       - name: Upload Newman Allure results
-        if: always()
+        if: always() && needs.changes.outputs.docs_only != 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: newman-allure-results-${{ env.NEWMAN_MODE }}
@@ -193,9 +338,10 @@ jobs:
 
   test-report:
     name: test-report
-    if: always()
+    if: always() && needs.changes.outputs.docs_only != 'true'
     needs:
-      - test
+      - changes
+      - test-ci
       - newman
     runs-on: ubuntu-latest
     permissions:
@@ -227,9 +373,10 @@ jobs:
 
   allure-report:
     name: allure-report
-    if: always()
+    if: always() && needs.changes.outputs.docs_only != 'true'
     needs:
-      - test
+      - changes
+      - test-ci
       - newman
     permissions:
       actions: read
@@ -315,7 +462,7 @@ jobs:
         run: node scripts/reporting/write-allure-metadata.js --results-dir reports/allure-results
         env:
           ALLURE_HISTORY_KEY: ${{ steps.history-policy.outputs.history_key }}
-          ALLURE_NEWMAN_MODE: ${{ github.event_name == 'pull_request' && 'smoke' || 'full' }}
+          ALLURE_NEWMAN_MODE: smoke
           ALLURE_REPORT_KIND: ${{ steps.history-policy.outputs.report_kind }}
           ALLURE_WORKFLOW_KIND: ci
           GITHUB_REF_NAME: ${{ github.ref_name }}
@@ -338,7 +485,7 @@ jobs:
           --history-key "${{ steps.history-policy.outputs.history_key }}"
           --report-kind "${{ steps.history-policy.outputs.report_kind }}"
         env:
-          ALLURE_NEWMAN_MODE: ${{ github.event_name == 'pull_request' && 'smoke' || 'full' }}
+          ALLURE_NEWMAN_MODE: smoke
           GITHUB_REF_NAME: ${{ github.ref_name }}
           GITHUB_EVENT_NAME: ${{ github.event_name }}
           ALLURE_PR_NUMBER: ${{ github.event.pull_request.number || '' }}
@@ -370,7 +517,7 @@ jobs:
           HAS_RESULTS: ${{ steps.allure-inputs.outputs.has-results }}
           HISTORY_KEY: ${{ steps.history-policy.outputs.history_key || 'none' }}
           HISTORY_RESTORED: ${{ steps.history-restore.outputs.restored || 'false' }}
-          NEWMAN_MODE: ${{ github.event_name == 'pull_request' && 'smoke' || 'full' }}
+          NEWMAN_MODE: smoke
           PAGES_REPORT_URL: ${{ steps.history-policy.outputs.pages_report_url || 'not-published' }}
           PERSIST_HISTORY: ${{ steps.history-policy.outputs.persist_history }}
           PUBLISH_PAGES: ${{ steps.history-policy.outputs.publish_pages }}
@@ -486,9 +633,13 @@ jobs:
     name: ci-summary
     if: always()
     needs:
+      - changes
       - actionlint
+      - docs
       - lint
-      - test
+      - openapi
+      - test-unit
+      - test-ci
       - newman
       - test-report
       - allure-report
@@ -502,12 +653,16 @@ jobs:
       - name: Write summary
         env:
           ACTIONLINT_RESULT: ${{ needs.actionlint.result }}
+          DOCS_ONLY: ${{ needs.changes.outputs.docs_only }}
+          DOCS_RESULT: ${{ needs.docs.result }}
+          OPENAPI_RESULT: ${{ needs.openapi.result }}
           ALLURE_PAGES_RESULT: ${{ needs.allure-pages.result }}
           ALLURE_PAGES_URL: ${{ needs.allure-pages.outputs.page-url || 'not-published' }}
           ALLURE_REPORT_RESULT: ${{ needs.allure-report.result }}
           LINT_RESULT: ${{ needs.lint.result }}
-          NEWMAN_MODE: ${{ github.event_name == 'pull_request' && 'smoke' || 'full' }}
+          NEWMAN_MODE: smoke
           NEWMAN_RESULT: ${{ needs.newman.result }}
           TEST_REPORT_RESULT: ${{ needs.test-report.result }}
-          TEST_RESULT: ${{ needs.test.result }}
+          TEST_CI_RESULT: ${{ needs.test-ci.result }}
+          TEST_UNIT_RESULT: ${{ needs.test-unit.result }}
         run: bash scripts/github/write-ci-summary.sh "$GITHUB_STEP_SUMMARY"

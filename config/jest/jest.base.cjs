@@ -6,11 +6,74 @@ const JEST_CONFIG_DIR = __dirname;
 
 // Coverage gate shared by the coverage and CI lanes so the threshold is
 // identical regardless of which entry point enforces it.
+const COVERAGE_COLLECTION_PATTERNS = [
+  'src/**/*.js',
+  'config/**/*.js',
+  'scripts/run-postman-deploy.js',
+  'scripts/run-postman-live.js',
+  'scripts/postman-fixture-server.js',
+  'scripts/github/promote-to-production.js',
+  '!**/node_modules/**',
+  '!coverage/**',
+  '!reports/**',
+  '!tests/**',
+];
+
+const COVERAGE_PATH_IGNORE_PATTERNS = [
+  '/node_modules/',
+  '<rootDir>/coverage/',
+  '<rootDir>/reports/',
+  '<rootDir>/tests/',
+];
+
 const COVERAGE_THRESHOLD = {
   global: {
+    statements: 80,
     lines: 80,
     functions: 80,
     branches: 70,
+  },
+  './scripts/github/promote-to-production.js': {
+    statements: 47,
+    branches: 56,
+    functions: 42,
+    lines: 47,
+  },
+  './scripts/postman-fixture-server.js': {
+    statements: 60,
+    branches: 41,
+    functions: 59,
+    lines: 60,
+  },
+  './scripts/run-postman-deploy.js': {
+    statements: 70,
+    branches: 62,
+    functions: 62,
+    lines: 71,
+  },
+  './scripts/run-postman-live.js': {
+    statements: 25,
+    branches: 12,
+    functions: 14,
+    lines: 25,
+  },
+  './src/server/serverFunctions.js': {
+    statements: 78,
+    branches: 44,
+    functions: 62,
+    lines: 80,
+  },
+  './src/server/startApplicationRuntime.js': {
+    statements: 82,
+    branches: 45,
+    functions: 20,
+    lines: 85,
+  },
+  './src/services/ReplicateDescriberService.js': {
+    statements: 76,
+    branches: 63,
+    functions: 75,
+    lines: 77,
   },
 };
 
@@ -29,7 +92,7 @@ const TEST_MATCH = {
 };
 
 // The general integration lane must skip the Redis-backed spec, which needs a
-// redis-server binary and runs in the dedicated redis lane instead.
+// Redis endpoint and runs in the dedicated redis lane instead.
 const INTEGRATION_IGNORE_PATTERNS = [
   '/node_modules/',
   '<rootDir>/tests/integration/rateLimitRedis\\.test\\.js$',
@@ -60,22 +123,16 @@ function createLaneConfig({
   displayName,
   testMatch,
   testPathIgnorePatterns,
-  testTimeout,
 }) {
   const config = {
     rootDir: ROOT_DIR,
     displayName,
     testMatch,
-    collectCoverage: false,
     ...resolveTestEnvironment(),
   };
 
   if (testPathIgnorePatterns) {
     config.testPathIgnorePatterns = testPathIgnorePatterns;
-  }
-
-  if (typeof testTimeout === 'number') {
-    config.testTimeout = testTimeout;
   }
 
   return config;
@@ -99,6 +156,8 @@ const COMPOSED_LANES = [
 
 module.exports = {
   ROOT_DIR,
+  COVERAGE_COLLECTION_PATTERNS,
+  COVERAGE_PATH_IGNORE_PATTERNS,
   COVERAGE_THRESHOLD,
   TEST_MATCH,
   INTEGRATION_IGNORE_PATTERNS,

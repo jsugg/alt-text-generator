@@ -2,13 +2,38 @@ name: Local Provider Integration
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '37 6 * * 2'
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/local-provider-integration.yml'
+      - 'config/providerCatalog.js'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'postman/**'
+      - 'scripts/postman/**'
+      - 'scripts/postman-fixture-server.js'
+      - 'scripts/run-postman-harness.js'
+      - 'src/api/**'
+      - 'src/providers/**'
+      - 'src/services/*DescriberService.js'
   pull_request:
     branches:
       - main
-    paths-ignore:
-      - '**/*.md'
-      - '.github/assets/**'
-      - 'LICENSE'
+    paths:
+      - '.github/workflows/local-provider-integration.yml'
+      - 'config/providerCatalog.js'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'postman/**'
+      - 'scripts/postman/**'
+      - 'scripts/postman-fixture-server.js'
+      - 'scripts/run-postman-harness.js'
+      - 'src/api/**'
+      - 'src/providers/**'
+      - 'src/services/*DescriberService.js'
 
 permissions:
   contents: read

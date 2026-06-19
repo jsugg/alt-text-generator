@@ -68,13 +68,31 @@ curl -sk https://localhost:8443/api-docs/
 Note: `-k` skips TLS certificate verification. It is used here because development HTTPS may be self-signed.
 Do not use `-k` for production traffic.
 
-Fast local validation:
+Validation tiers (run the cheapest tier that fully covers your change):
 
 ```bash
-npm run validate:fast
+npm run validate:fast      # lint + OpenAPI validate/freshness + deterministic unit lane
+npm run validate:contract  # OpenAPI back-compat diff + Postman policy lint + deterministic smoke
+npm run validate:ci        # full local reproduction of the CI gate (needs Redis)
 ```
 
-`validate:fast` runs zero-warning ESLint plus the deterministic unit lane.
+| Tier | Runs | When to run | Approx runtime |
+| --- | --- | --- | --- |
+| `validate:fast` | zero-warning ESLint + `openapi:validate` + `openapi:check` (spec freshness) + deterministic unit lane | every save / pre-commit | ~1–1.5 min |
+| `validate:contract` | `openapi:diff` (backward-compat) + `postman:lint` + `postman:smoke` (HTTP contract checked from outside the process) | before a PR that touches routes, controllers, or the OpenAPI contract | ~30–60 s |
+| `validate:ci` | lint + OpenAPI gates + `test:ci` (every Jest tier plus the coverage gate, Redis-backed) + `validate:contract` | before pushing, or to reproduce a red CI run locally | ~3–5 min |
+
+`validate:ci` mirrors the CI gate, so it needs a Redis endpoint (`REDIS_INTEGRATION_URL`, or a local `redis-server`); see the Redis lane below.
+
+Redis-backed integration tests are explicit and required when invoked directly:
+
+```bash
+docker compose -f docker-compose.redis.yml --profile redis-test up -d redis-test
+REDIS_INTEGRATION_URL=redis://127.0.0.1:6380 NODE_ENV=test REPLICATE_API_TOKEN=test-token npm run test:integration:redis
+docker compose -f docker-compose.redis.yml --profile redis-test down -v
+```
+
+`npm run test:integration:redis` fails with setup instructions if neither `REDIS_INTEGRATION_URL` nor a local `redis-server` binary is available. CI runs the same Redis lane against a pinned `redis:8.8.0-alpine3.23` service container.
 
 ## API Contract Harness
 
@@ -101,7 +119,10 @@ Notes:
 - `postman:post-deploy` runs post-deploy smoke plus the same low-cost real-provider validation set against a supplied base URL.
 - Before Newman starts, `postman:live-provider` and `postman:post-deploy` wait for consecutive stable health/auth probes so zero-downtime rollout overlap does not create false negatives.
 - When production auth is enabled, `postman:live-provider` and `postman:post-deploy` reuse `PRODUCTION_DEPLOY_VALIDATION_API_TOKEN` for provider-validation requests.
-- CI runs `postman:smoke` on pull requests and `postman:full` on `main` / `production` pushes.
+- CI runs `postman:smoke` as the required Newman contract gate on pull requests and pushes.
+- `postman:full` runs in the path-gated/manual/scheduled Local Provider Integration workflow for provider/API/Postman harness risk, so ordinary CI no longer duplicates the expensive suite.
+- Fast unit tests run across Node 20/22/24; full integration, coverage, JUnit/Allure reporting, and Newman smoke run once on canonical Node 20.
+- Docs-only changes get lightweight docs validation while expensive code gates publish successful no-op checks.
 - Post-deploy verification runs `postman:post-deploy` on `production` pushes so smoke and low-cost provider checks stay inside the Newman contract layer.
 - Post-deploy verification also reads `PRODUCTION_API_AUTH_ENABLED` and `PRODUCTION_DEPLOY_VALIDATION_API_TOKEN` from the GitHub Actions environment so protected-endpoint checks match the deployed Render `API_AUTH_ENABLED` / `API_AUTH_TOKENS` state.
 - Provider-validation workflows use a single `LIVE_PROVIDER_SCOPE` enum: `auto`, `azure`, `replicate`, `huggingface`, `openai`, `openrouter`, `together`, or `all`.
@@ -139,7 +160,7 @@ npm run report:allure
 Notes:
 
 - Raw Allure files accumulate under `reports/allure-results/`; generated HTML is written to `reports/allure-report/`.
-- The combined report merges one canonical Jest run with the Newman harness so local and CI results follow the same structure.
+- The combined report merges the explicit Jest reporting lane with the Newman harness so local and CI results follow the same structure.
 - CI uploads the generated HTML as the `allure-report` artifact.
 - Public Allure URLs: `https://jsugg.github.io/alt-text-generator/` for the latest `main` report, `https://jsugg.github.io/alt-text-generator/#suites` for the suites view, `https://jsugg.github.io/alt-text-generator/pr/` for the pull-request report index, and `https://jsugg.github.io/alt-text-generator/pr/<number>/` for a specific same-repository pull request report.
 - Pushes to `main` publish the latest generated report at the root URL, and same-repository pull requests publish their own report beneath `/pr/<number>/`.

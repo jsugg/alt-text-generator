@@ -55,11 +55,22 @@ npm run dev
 npm run dev:test-env
 
 # quality
-npm run validate:fast
+npm run validate:fast      # lint + openapi:validate/check + unit lane (pre-commit loop)
+npm run validate:contract  # openapi:diff + postman:lint + postman:smoke (HTTP contract)
+npm run validate:ci        # lint + openapi gates + test:ci + contract (CI repro; needs Redis)
 npm run lint
+
+# openapi contract
+npm run openapi:generate   # regenerate docs/openapi.base.json from JSDoc sources
+npm run openapi:validate   # structural validity of the committed spec
+npm run openapi:check      # fail if the committed spec is stale vs the sources
+npm run openapi:diff       # fail on backward-incompatible path/response changes
 NODE_ENV=test REPLICATE_API_TOKEN=test-token npm test
 NODE_ENV=test REPLICATE_API_TOKEN=test-token npm run test:integration
-NODE_ENV=test REPLICATE_API_TOKEN=test-token npm run test:integration:redis
+docker compose -f docker-compose.redis.yml --profile redis-test up -d redis-test
+REDIS_INTEGRATION_URL=redis://127.0.0.1:6380 \
+  NODE_ENV=test REPLICATE_API_TOKEN=test-token npm run test:integration:redis
+docker compose -f docker-compose.redis.yml --profile redis-test down -v
 NODE_ENV=test REPLICATE_API_TOKEN=test-token npm run test:integration:scripts
 npm run postman:smoke
 npm run postman:full
@@ -70,7 +81,33 @@ npm run doctor:tls -- https://example.com
 npm run doctor:tls -- https://example.com --fix --write-env --env-file .env.test
 ```
 
-`npm run validate:fast` is the normal pre-commit loop: zero-warning lint plus the fast unit lane. `npm test` is the fast, deterministic Jest lane for `tests/unit` (no coverage or reporters). Every tier has its own package script and Jest config under `config/jest/`: `test:integration` (HTTP surface with in-memory adapters), `test:integration:redis` (Redis-backed rate limiting; skips locally without a `redis-server` binary, required in CI), and `test:integration:scripts` (git/filesystem subprocess flows; runs in-band with a 30s timeout because real clone/worktree/push/fetch flows cross process and filesystem boundaries). `test:coverage` composes every tier as Jest projects and enforces the coverage gate; `test:ci` adds JUnit (and Allure when `ALLURE_RESULTS_DIR` is set). CI step names map one-to-one to these scripts so a red step tells you exactly which `npm run` reproduces it.
+`npm run validate:fast` is the normal pre-commit loop: zero-warning lint plus the fast unit lane. `npm test` is the fast, deterministic Jest lane for `tests/unit` (no coverage or reporters). Every tier has its own package script and Jest config under `config/jest/`: `test:integration` (HTTP surface with in-memory adapters), `test:integration:redis` (Redis-backed rate limiting; required when invoked directly and in CI), and `test:integration:scripts` (git/filesystem subprocess flows; runs in-band with a 30s timeout because real clone/worktree/push/fetch flows cross process and filesystem boundaries). `test:all` composes every tier without coverage or reporters for compatibility checks, `test:coverage` composes every tier and enforces the coverage gate, `test:ci` adds JUnit (and Allure when `ALLURE_RESULTS_DIR` is set), and `test:allure` is the reporting-only Jest lane. CI job names map one-to-one to package scripts so a red job tells you exactly which `npm run` reproduces it. `test:integration:redis`, `test:coverage`, and `test:ci` require a Redis endpoint; `test:all` / `test:allure` may skip Redis only in optional local mode, and the skip prints a setup diagnostic.
+
+### Validation tiers
+
+Pick the cheapest tier that fully covers your change. Each `validate:*` script composes lower-level lanes, so a green tier locally means the matching CI job is green.
+
+| Tier | Runs | When to run | Approx runtime |
+| --- | --- | --- | --- |
+| `validate:fast` | zero-warning ESLint + `openapi:validate` + `openapi:check` + deterministic unit lane | every save / pre-commit | ~1–1.5 min |
+| `validate:contract` | `openapi:diff` + `postman:lint` + `postman:smoke` | before a PR that touches routes, controllers, or the OpenAPI contract | ~30–60 s |
+| `validate:ci` | lint + OpenAPI gates + `test:ci` (every Jest tier plus the coverage gate, Redis-backed) + `validate:contract` | before pushing, or to reproduce a red CI run locally | ~3–5 min |
+
+Runtimes are wall-clock on a developer laptop: `validate:fast` is measured, while the contract and CI tiers are budgets (the Newman suite holds a 15s performance budget, and `validate:ci` runs the full composed Jest matrix plus coverage). `validate:contract` and `validate:ci` boot the app and a fixture server; `validate:ci` additionally needs a Redis endpoint (`REDIS_INTEGRATION_URL` or a local `redis-server`), exactly like the CI `test:ci` job.
+
+Debugging only: append `-- --runInBand` to a Jest lane (for example `npm test -- --runInBand`) to force serial execution when isolating a flaky or order-dependent test. It is not part of the normal validation path — the lanes already parallelize safely, and `test:integration:scripts` pins `--runInBand` itself because real clone/worktree/push/fetch flows cross process and filesystem boundaries.
+
+Coverage scope and threshold exceptions live in `docs/coverage-thresholds.md`.
+
+### OpenAPI contract gates
+
+`config/swagger.js` serves the committed `docs/openapi.base.json` verbatim (injecting only the per-environment `servers` block), so that artifact is the source of truth for the public HTTP contract and ships to swagger-ui and downstream codegen. Three standalone gates keep it honest, and the CI `openapi` job runs all three:
+
+- `openapi:validate` — structural soundness of the artifact: a 3.x version, info metadata, a server-agnostic base, documented responses with schemas, resolvable `$ref`s, and resolvable security schemes. Semantic choices (example values, enum members, which fields are `required`) are asserted by the swagger unit tests instead.
+- `openapi:check` — freshness: regenerates the spec from the JSDoc sources and fails if it differs byte-for-byte from the committed file. A failure means a route or controller changed without `npm run openapi:generate`; the report lists the drifted paths/schemas.
+- `openapi:diff` — backward compatibility: diffs the working-tree spec against a git baseline (`--base`, default `origin/main` then `main`) and fails only on breaking changes — a removed path, operation, response, or `required` response field. Additive changes pass. With no resolvable baseline it is a no-op unless `--strict` is given, so it never blocks on missing history. In CI it diffs against the pull-request base branch.
+
+After changing routes, controllers, or `config/swagger-base.js`, run `npm run openapi:generate` and commit `docs/openapi.base.json`; `openapi:check` enforces that you did.
 
 ## GitHub Workflows
 
@@ -79,8 +116,9 @@ The repository uses a small workflow set with separate responsibilities:
 - `CI` in `.github/workflows/ci.yml`
   - runs on pushes to `main` and `production`
   - runs on pull requests targeting `main` and `production`
-  - executes `actionlint`, `npm run lint`, the Jest matrix on Node 20/22/24, and the deterministic Newman harness
-  - uses `postman:smoke` on pull requests and `postman:full` on `main` / `production` pushes
+  - executes `actionlint`, docs validation, `npm run lint`, OpenAPI validation, the fast `test:unit` lane on Node 20/22/24, and the canonical Node 20 `test:ci` lane
+  - uses `postman:smoke` as the required deterministic Newman contract gate on pull requests and pushes
+  - treats Markdown/docs-only changes as lightweight: docs validation runs, while lint/OpenAPI/Jest/Newman jobs publish successful no-op checks instead of booting expensive gates
   - publishes a Newman summary derived from JSON artifacts into the workflow summary
 - `Dependency Review` in `.github/workflows/dependency-review.yml`
   - runs only on pull requests that change `package.json` or `package-lock.json`
@@ -108,9 +146,10 @@ The repository uses a small workflow set with separate responsibilities:
   - also supports a guarded weekly schedule when the repository variable `ENABLE_SCHEDULED_LIVE_PROVIDER_VALIDATION` is set to `true`
   - uploads Newman artifacts and writes request, assertion, failure, and response-time metrics into the workflow summary
 - `Local Provider Integration` in `.github/workflows/local-provider-integration.yml`
-  - runs on pull requests targeting `main` and by manual dispatch
+  - runs by manual dispatch, weekly schedule, risky pull requests targeting `main`, and risky pushes to `main`
   - runs `npm run postman:full`
   - boots the local app and local fixture server, then exercises mocked provider endpoints only
+  - is path-gated to provider/API/Postman harness changes so CI does not duplicate `postman:full` on ordinary PRs
   - never targets the deployed Render service and never spends live provider credits
 - `Post Deploy Verification` in `.github/workflows/post-deploy-verification.yml`
   - runs automatically on `production` pushes
@@ -130,11 +169,23 @@ The repository uses a small workflow set with separate responsibilities:
 Branch protection currently requires these checks on both `main` and `production`:
 
 - `actionlint`
+- `codeql`
 - `lint`
+- `docs`
+- `openapi`
+- `dependency-review`
 - `newman`
-- `test (20)`
-- `test (22)`
-- `test (24)`
+- `test:ci (20)`
+- `test:unit (20)`
+- `test:unit (22)`
+- `test:unit (24)`
+
+Release policy notes:
+
+- `newman` is the required fast `postman:smoke` contract check.
+- `test:unit (*)` is the supported Node compatibility check; `test:ci (20)` is the canonical full integration/coverage/reporting check.
+- `postman:full` is covered by the path-gated/manual/scheduled Local Provider Integration workflow, not the always-required CI Newman check.
+- `security-audit` is weekly/manual production dependency surveillance and is reviewed before release, but it is not a per-commit required status check.
 
 Promotion branch note:
 
@@ -202,9 +253,8 @@ Contribution standards for folder naming, tier placement, and assertion policy a
 
 Deterministic harness characteristics:
 
-- starts the local app on `https://127.0.0.1:8443` and `http://127.0.0.1:8080`
-- starts an auth-enabled local app on `https://127.0.0.1:18443` for protected-endpoint contract checks
-- starts a local fixture server on `http://127.0.0.1:19090`
+- allocates free TCP ports dynamically per run by default, so concurrent harness runs never collide; resolved ports are passed to the app, auth app, and fixture servers and into Newman through `--env-var` overrides plus a generated `meta/newman-environment.resolved.json` environment file
+- starts the local app, an auth-enabled local app (for protected-endpoint contract checks), and a local fixture server on those resolved ports (`127.0.0.1`)
 - warms `/api-docs/` and `/api-docs/swagger-ui-init.js` before Newman so docs cold-start work does not fail the 15s Newman performance budget
 - `postman:smoke` and `postman:full` use `postman/environments/alt-text-generator.local.postman_environment.json`
 - `postman:live-provider` and `postman:post-deploy` use `postman/environments/alt-text-generator.live.postman_environment.json`
@@ -213,26 +263,34 @@ Deterministic harness characteristics:
 - uses shared provider-validation fixtures from `tests/fixtures/provider-validation/public` for `postman:pre-production-provider`, `postman:live-provider`, and `postman:post-deploy`
 - runs Newman with insecure local TLS enabled because development certificates may be self-signed
 
-Generated artifacts:
+Port allocation and per-run output (`postman:smoke` / `postman:full`):
 
-- `reports/newman/smoke.json`
-- `reports/newman/smoke.xml`
-- `reports/newman/core.json`
-- `reports/newman/core.xml`
-- `reports/newman/routing.json`
-- `reports/newman/routing.xml`
-- `reports/newman/local-provider-integration-<scope>.json`
-- `reports/newman/local-provider-integration-<scope>.xml`
-- `reports/newman/pre-production-provider-<scope>.json`
-- `reports/newman/pre-production-provider-<scope>.xml`
-- `reports/newman/live-provider-<scope>.json`
-- `reports/newman/live-provider-<scope>.xml`
-- `reports/newman/post-deploy.json`
-- `reports/newman/post-deploy.xml`
-- `reports/newman/post-deploy-provider-<scope>.json`
-- `reports/newman/post-deploy-provider-<scope>.xml`
+- **Dynamic ports (default):** every run allocates fresh free TCP ports for the app, auth app, and fixture servers, so you can run multiple harness invocations at once without collisions. No configuration is required.
+- **Fixed-port debug mode (opt-in):** set `POSTMAN_FIXED_PORTS=1` (or `POSTMAN_PORT_MODE=fixed`) to bind stable ports — `8080`/`8443` (app), `18080`/`18443` (auth app), `19090` (fixture) — overridable via `POSTMAN_APP_HTTP_PORT`, `POSTMAN_APP_HTTPS_PORT`, `POSTMAN_AUTH_HTTP_PORT`, `POSTMAN_AUTH_HTTPS_PORT`, and `POSTMAN_FIXTURE_PORT`. A preflight check fails fast with diagnostics listing any port that is already in use.
+- **Per-run output dir:** artifacts are written under `<POSTMAN_REPORTS_DIR>/<run-id>/` (default base `reports/newman`). The run id is generated per run, or pinned with `POSTMAN_RUN_ID`. Each run directory holds the Newman `*.json`/`*.xml` reports plus `diagnostics/`, `meta/` (resolved ports + the resolved Newman environment file), and `allure-results/` (unless `ALLURE_RESULTS_DIR` is set for cross-run aggregation). Newman summary discovery recurses into run directories, so CI continues to find reports under `reports/newman`.
+- **Plan-only:** set `POSTMAN_HARNESS_PLAN_ONLY=1` (or pass `--plan`) to resolve the ports + per-run directories, write the metadata files, print the plan, and exit before booting any servers.
+- Run two smoke suites concurrently with: `POSTMAN_REPORTS_DIR=reports/newman npm run postman:smoke & POSTMAN_REPORTS_DIR=reports/newman npm run postman:smoke & wait` — each lands in its own run directory on its own allocated ports.
+
+Harness artifacts (`postman:smoke` / `postman:full` / `postman:pre-production-provider`), per run under `reports/newman/<run-id>/` by default:
+
+- `smoke.json` / `smoke.xml`
+- `core.json` / `core.xml`
+- `routing.json` / `routing.xml`
+- `local-provider-integration-<scope>.json` / `.xml`
+- `pre-production-provider-<scope>.json` / `.xml`
+- `meta/resolved-ports.json` and `meta/newman-environment.resolved.json`
+- `diagnostics/*.log`
+- `allure-results/*` (or shared `reports/allure-results/*` when `ALLURE_RESULTS_DIR` is set)
+
+The `postman:live-provider` and `postman:post-deploy` runners write directly under `reports/newman/`:
+
+- `live-provider-<scope>.json` / `.xml`
+- `post-deploy.json` / `.xml`
+- `post-deploy-provider-<scope>.json` / `.xml`
+
+Other artifacts:
+
 - `reports/jest/junit.xml`
-- `reports/allure-results/*`
 - `reports/allure-report/*`
 - `reports/allure-history-artifact/*`
 
@@ -240,7 +298,7 @@ Use the deterministic local modes for routine validation and CI. Use `postman:pr
 
 Allure workflow:
 
-- `npm run test:allure` enables the official `allure-jest` adapter only for that run.
+- `npm run test:allure` uses `config/jest/jest.reporting.cjs` and enables the official `allure-jest` adapter only for that run.
 - `npm run postman:full:allure` enables the official Newman Allure reporter without removing the existing JSON/JUnit exports.
 - `npm run report:allure` mirrors CI by cleaning old results, running Jest, running the deterministic Newman harness, and generating HTML from the merged `reports/allure-results/` directory.
 - GitHub Actions publishes Allure from the canonical Node 20 Jest lane only so matrix lanes 22 and 24 do not duplicate unit tests in the merged report.

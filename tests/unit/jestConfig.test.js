@@ -1,6 +1,11 @@
 const path = require('node:path');
 
 const CONFIG_PATH = path.resolve(__dirname, '../../jest.config.cjs');
+const {
+  COVERAGE_COLLECTION_PATTERNS,
+  COVERAGE_PATH_IGNORE_PATTERNS,
+  COVERAGE_THRESHOLD,
+} = require('../../config/jest/jest.base.cjs');
 
 function loadJestConfig(allureResultsDir) {
   let config;
@@ -39,7 +44,10 @@ describe('Unit | Jest Configuration', () => {
     expect(config.testEnvironment).toBe('node');
     expect(config.testEnvironmentOptions).toBeUndefined();
     expect(config.collectCoverage).toBe(true);
+    expect(config.collectCoverageFrom).toEqual(COVERAGE_COLLECTION_PATTERNS);
     expect(config.coverageDirectory).toBe('coverage');
+    expect(config.coveragePathIgnorePatterns).toEqual(COVERAGE_PATH_IGNORE_PATTERNS);
+    expect(config.coverageThreshold).toEqual(COVERAGE_THRESHOLD);
     expect(config.testMatch).toEqual(['**/tests/**/*.test.js']);
   });
 

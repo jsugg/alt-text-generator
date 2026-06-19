@@ -25,8 +25,14 @@ const {
 const {
   buildNewmanReportPaths,
   buildNewmanReporterArgs,
-  resolveAllureResultsDir,
+  resolveRunLayout,
 } = require('./postman/newman-reporting');
+const {
+  allocateNamedPorts,
+  diagnoseFixedPorts,
+  formatPortConflictDiagnostics,
+  isTruthyFlag,
+} = require('./postman/port-allocator');
 const {
   assertProviderValidationFixturesReachable,
 } = require('./postman/provider-validation-fixture-probe');
@@ -63,15 +69,17 @@ const ENV_PATH = path.join(
   'environments',
   'alt-text-generator.local.postman_environment.json',
 );
-const REPORTS_DIR = path.join(ROOT, 'reports', 'newman');
-const DIAGNOSTICS_DIR = path.join(REPORTS_DIR, 'diagnostics');
-
 const HOST = '127.0.0.1';
-const APP_HTTP_PORT = '8080';
-const APP_HTTPS_PORT = '8443';
-const AUTH_APP_HTTP_PORT = String(process.env.POSTMAN_AUTH_HTTP_PORT || 18080);
-const AUTH_APP_HTTPS_PORT = String(process.env.POSTMAN_AUTH_HTTPS_PORT || 18443);
-const FIXTURE_PORT = String(process.env.POSTMAN_FIXTURE_PORT || 19090);
+
+// Default listener ports used only when fixed-port debug mode is enabled. The
+// default (dynamic) mode allocates free ports per run so concurrent harness
+// invocations never collide.
+const DEFAULT_APP_HTTP_PORT = 8080;
+const DEFAULT_APP_HTTPS_PORT = 8443;
+const DEFAULT_AUTH_APP_HTTP_PORT = 18080;
+const DEFAULT_AUTH_APP_HTTPS_PORT = 18443;
+const DEFAULT_FIXTURE_PORT = 19090;
+
 const API_AUTH_TOKEN = process.env.POSTMAN_API_AUTH_TOKEN || 'postman-api-token';
 const FULL_MODE_DESCRIPTION_JOB_WAIT_TIMEOUT_MS = '25';
 const FULL_MODE_DESCRIPTION_JOB_POLL_INTERVAL_MS = '5';
@@ -90,6 +98,180 @@ const SIGNAL_EXIT_CODES = {
   SIGINT: 130,
   SIGTERM: 143,
 };
+
+// Newman environment keys whose values embed a harness port, mapped to a
+// builder that recomputes them from the resolved ports. Used to materialize a
+// per-run environment file that carries the actually-bound ports.
+const RESOLVED_ENV_VALUE_BUILDERS = {
+  baseUrl: ({ host, ports }) => `https://${host}:${ports.appHttps}`,
+  baseUrlHttp: ({ host, ports }) => `http://${host}:${ports.appHttp}`,
+  fixtureBaseUrl: ({ host, ports }) => `http://${host}:${ports.fixture}`,
+  samplePageUrl: ({ host, ports }) => `http://${host}:${ports.fixture}/fixtures/page-with-images`,
+  samplePartialPageUrl: ({ host, ports }) => `http://${host}:${ports.fixture}/fixtures/page-with-partial-images`,
+  sampleProviderFailurePageUrl: ({ host, ports }) => `http://${host}:${ports.fixture}/fixtures/page-with-provider-failure`,
+  sampleImageAUrl: ({ host, ports }) => `http://${host}:${ports.fixture}/assets/a.png`,
+  sampleImageBUrl: ({ host, ports }) => `http://${host}:${ports.fixture}/assets/b.png`,
+  missingImageUrl: ({ host, ports }) => `http://${host}:${ports.fixture}/assets/missing.png`,
+  providerFailureImageUrl: ({ host, ports }) => `http://${host}:${ports.fixture}/assets/provider-error.png`,
+  expectedSwaggerServerUrl: ({ ports }) => `https://localhost:${ports.appHttps}`,
+  authBaseUrl: ({ host, ports }) => (
+    ports.authHttps ? `https://${host}:${ports.authHttps}` : null
+  ),
+};
+
+/**
+ * @param {string} filePath
+ * @returns {object}
+ */
+function readJsonFile(filePath) {
+  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+}
+
+/**
+ * Determines whether the harness should only resolve and report its execution
+ * plan (ports + per-run directories) without booting servers or running Newman.
+ *
+ * @param {NodeJS.ProcessEnv} env
+ * @param {string[]} argv
+ * @returns {boolean}
+ */
+function isPlanOnly(env, argv) {
+  return isTruthyFlag(env.POSTMAN_HARNESS_PLAN_ONLY) || argv.includes('--plan');
+}
+
+/**
+ * Resolves the port allocation mode. Dynamic free-port allocation is the
+ * default; fixed ports are opt-in for debugging against stable local ports.
+ *
+ * @param {NodeJS.ProcessEnv} env
+ * @returns {'dynamic' | 'fixed'}
+ */
+function resolvePortMode(env) {
+  const explicitMode = String(env.POSTMAN_PORT_MODE ?? '').trim().toLowerCase();
+
+  if (explicitMode === 'fixed' || explicitMode === 'dynamic') {
+    return explicitMode;
+  }
+
+  return isTruthyFlag(env.POSTMAN_FIXED_PORTS) ? 'fixed' : 'dynamic';
+}
+
+/**
+ * @param {NodeJS.ProcessEnv} env
+ * @param {string} name
+ * @param {number} fallback
+ * @returns {number}
+ */
+function readFixedPort(env, name, fallback) {
+  const raw = env[name];
+
+  if (raw === undefined || String(raw).trim() === '') {
+    return fallback;
+  }
+
+  const parsed = Number(String(raw).trim());
+
+  if (!Number.isInteger(parsed) || parsed < 0 || parsed > 65535) {
+    throw new Error(`Invalid ${name}="${raw}"; expected an integer port in [0, 65535]`);
+  }
+
+  return parsed;
+}
+
+/**
+ * @param {{ requiresAuthHarness: boolean }} options
+ * @returns {string[]}
+ */
+function buildPortRoles({ requiresAuthHarness }) {
+  const roles = ['appHttp', 'appHttps', 'fixture'];
+
+  if (requiresAuthHarness) {
+    roles.push('authHttp', 'authHttps');
+  }
+
+  return roles;
+}
+
+/**
+ * Resolves the listener ports for every harness role. Dynamic mode allocates
+ * distinct free ports; fixed mode reads stable ports and fails fast (with
+ * diagnostics) when any of them is already in use.
+ *
+ * @param {{
+ *   env: NodeJS.ProcessEnv,
+ *   host: string,
+ *   mode: 'dynamic' | 'fixed',
+ *   requiresAuthHarness: boolean,
+ * }} options
+ * @returns {Promise<Record<string, number>>}
+ */
+async function resolveHarnessPorts({
+  env, host, mode, requiresAuthHarness,
+}) {
+  const roles = buildPortRoles({ requiresAuthHarness });
+
+  if (mode === 'dynamic') {
+    return allocateNamedPorts(roles, { host });
+  }
+
+  const fixedPorts = {
+    appHttp: readFixedPort(env, 'POSTMAN_APP_HTTP_PORT', DEFAULT_APP_HTTP_PORT),
+    appHttps: readFixedPort(env, 'POSTMAN_APP_HTTPS_PORT', DEFAULT_APP_HTTPS_PORT),
+    fixture: readFixedPort(env, 'POSTMAN_FIXTURE_PORT', DEFAULT_FIXTURE_PORT),
+    authHttp: readFixedPort(env, 'POSTMAN_AUTH_HTTP_PORT', DEFAULT_AUTH_APP_HTTP_PORT),
+    authHttps: readFixedPort(env, 'POSTMAN_AUTH_HTTPS_PORT', DEFAULT_AUTH_APP_HTTPS_PORT),
+  };
+  const ports = Object.fromEntries(roles.map((role) => [role, fixedPorts[role]]));
+  const { conflicts } = await diagnoseFixedPorts(
+    roles.map((role) => ({ role, port: ports[role] })),
+    { host },
+  );
+
+  if (conflicts.length > 0) {
+    throw new Error(formatPortConflictDiagnostics(conflicts, { host }));
+  }
+
+  return ports;
+}
+
+/**
+ * Builds the Newman --env-var overrides that carry the resolved app and fixture
+ * URLs into the collection.
+ *
+ * @param {{ host: string, ports: Record<string, number> }} options
+ * @returns {string[]}
+ */
+function buildHarnessUrlEnvVars({ host, ports }) {
+  return Object.entries(RESOLVED_ENV_VALUE_BUILDERS)
+    .filter(([key]) => key !== 'authBaseUrl')
+    .map(([key, build]) => `${key}=${build({ host, ports })}`);
+}
+
+/**
+ * Clones the static Newman environment and rewrites every port-bearing value to
+ * the resolved ports, producing the per-run environment file.
+ *
+ * @param {object} staticEnvironment
+ * @param {{ host: string, ports: Record<string, number> }} options
+ * @returns {object}
+ */
+function buildResolvedNewmanEnvironment(staticEnvironment, { host, ports }) {
+  const resolved = JSON.parse(JSON.stringify(staticEnvironment));
+
+  resolved.values = (resolved.values || []).map((entry) => {
+    const build = RESOLVED_ENV_VALUE_BUILDERS[entry.key];
+
+    if (!build) {
+      return entry;
+    }
+
+    const value = build({ host, ports });
+
+    return value === null ? entry : { ...entry, value };
+  });
+
+  return resolved;
+}
 
 /**
  * Sleeps for the given duration.
@@ -281,9 +463,11 @@ function spawnLogged(label, command, args, env = {}, { logPath = null } = {}) {
  * @param {string[]} folders
  * @param {{
  *   allureResultsDir?: string | null,
+ *   diagnosticsDir: string,
  *   envPath?: string,
  *   envVars?: string[],
  *   extraArgs?: string[],
+ *   harnessEnvVars?: string[],
  *   maxResponseTimeMs?: number,
  *   providerValidationFixtureUrls?: {
  *     providerValidationAzureImageUrl: string,
@@ -291,6 +475,7 @@ function spawnLogged(label, command, args, env = {}, { logPath = null } = {}) {
  *     providerValidationImageUrl: string,
  *     providerValidationPageUrl: string,
  *   },
+ *   reportsDir: string,
  *   diagnosticLogs?: { label: string, path: string }[],
  *   timeoutRequestMs?: number,
  * }} options
@@ -301,19 +486,22 @@ function runNewman(
   folders,
   {
     allureResultsDir = null,
-    envPath = ENV_PATH,
+    diagnosticsDir,
+    envPath,
     envVars = [],
     extraArgs = [],
+    harnessEnvVars = [],
     maxResponseTimeMs = DEFAULT_MAX_RESPONSE_TIME_MS,
     diagnosticLogs = [],
     providerValidationFixtureUrls = buildPublicProviderValidationFixtureUrls(),
+    reportsDir,
     timeoutRequestMs = DEFAULT_NEWMAN_TIMEOUT_REQUEST_MS,
   } = {},
 ) {
   const folderArgs = folders.flatMap((folder) => ['--folder', folder]);
   const { jsonReportPath } = buildNewmanReportPaths({
     label,
-    reportsDir: REPORTS_DIR,
+    reportsDir,
   });
 
   const args = [
@@ -322,28 +510,7 @@ function runNewman(
     COLLECTION_PATH,
     '-e',
     envPath,
-    '--env-var',
-    `baseUrl=https://${HOST}:${APP_HTTPS_PORT}`,
-    '--env-var',
-    `baseUrlHttp=http://${HOST}:${APP_HTTP_PORT}`,
-    '--env-var',
-    `fixtureBaseUrl=http://${HOST}:${FIXTURE_PORT}`,
-    '--env-var',
-    `samplePageUrl=http://${HOST}:${FIXTURE_PORT}/fixtures/page-with-images`,
-    '--env-var',
-    `samplePartialPageUrl=http://${HOST}:${FIXTURE_PORT}/fixtures/page-with-partial-images`,
-    '--env-var',
-    `sampleProviderFailurePageUrl=http://${HOST}:${FIXTURE_PORT}/fixtures/page-with-provider-failure`,
-    '--env-var',
-    `sampleImageAUrl=http://${HOST}:${FIXTURE_PORT}/assets/a.png`,
-    '--env-var',
-    `sampleImageBUrl=http://${HOST}:${FIXTURE_PORT}/assets/b.png`,
-    '--env-var',
-    `missingImageUrl=http://${HOST}:${FIXTURE_PORT}/assets/missing.png`,
-    '--env-var',
-    `providerFailureImageUrl=http://${HOST}:${FIXTURE_PORT}/assets/provider-error.png`,
-    '--env-var',
-    `expectedSwaggerServerUrl=https://localhost:${APP_HTTPS_PORT}`,
+    ...harnessEnvVars.flatMap((envVar) => ['--env-var', envVar]),
     '--env-var',
     `providerValidationImageUrl=${providerValidationFixtureUrls.providerValidationImageUrl}`,
     '--env-var',
@@ -363,7 +530,7 @@ function runNewman(
     '10000',
     ...buildNewmanReporterArgs({
       label,
-      reportsDir: REPORTS_DIR,
+      reportsDir,
       allureResultsDir,
     }),
     ...folderArgs,
@@ -377,7 +544,7 @@ function runNewman(
     diagnosticLogs,
     folders,
     label,
-    newmanLogPath: path.join(DIAGNOSTICS_DIR, `newman-${label}.log`),
+    newmanLogPath: path.join(diagnosticsDir, `newman-${label}.log`),
     reportPath: jsonReportPath,
   });
 }
@@ -464,20 +631,76 @@ async function main() {
   if (!['smoke', 'full', 'real-provider'].includes(mode)) {
     throw new Error(`Unsupported harness mode "${mode}"`);
   }
-  const allureResultsDir = resolveAllureResultsDir(process.env, ROOT);
   const fullModeEnabled = mode === 'full';
   const realProviderModeEnabled = mode === 'real-provider';
   const providerValidationModeEnabled = fullModeEnabled || realProviderModeEnabled;
   const requiresAuthHarness = mode === 'smoke' || fullModeEnabled;
+
+  const host = HOST;
+  const portMode = resolvePortMode(process.env);
+  const ports = await resolveHarnessPorts({
+    env: process.env, host, mode: portMode, requiresAuthHarness,
+  });
+  const runLayout = resolveRunLayout({ env: process.env, rootDir: ROOT });
+  const { allureResultsDir } = runLayout;
+  const harnessEnvVars = buildHarnessUrlEnvVars({ host, ports });
+
+  await fsp.mkdir(runLayout.runDir, { recursive: true });
+  await fsp.mkdir(runLayout.diagnosticsDir, { recursive: true });
+  await fsp.mkdir(runLayout.metaDir, { recursive: true });
+  await fsp.mkdir(allureResultsDir, { recursive: true });
+
+  const resolvedEnvPath = path.join(runLayout.metaDir, 'newman-environment.resolved.json');
+  await fsp.writeFile(
+    resolvedEnvPath,
+    `${JSON.stringify(
+      buildResolvedNewmanEnvironment(readJsonFile(ENV_PATH), { host, ports }),
+      null,
+      2,
+    )}\n`,
+  );
+
+  const harnessPlan = {
+    mode,
+    portMode,
+    host,
+    ports,
+    runId: runLayout.runId,
+    baseDir: runLayout.baseDir,
+    runDir: runLayout.runDir,
+    reportsDir: runLayout.reportsDir,
+    diagnosticsDir: runLayout.diagnosticsDir,
+    metaDir: runLayout.metaDir,
+    allureResultsDir,
+    resolvedEnvPath,
+  };
+  await fsp.writeFile(
+    path.join(runLayout.metaDir, 'resolved-ports.json'),
+    `${JSON.stringify(harnessPlan, null, 2)}\n`,
+  );
+
+  process.stdout.write(
+    `[harness] mode=${mode} portMode=${portMode} runId=${runLayout.runId}\n`,
+  );
+  process.stdout.write(`[harness] resolved ports ${JSON.stringify(ports)}\n`);
+  process.stdout.write(
+    `[harness] output dir ${path.relative(ROOT, runLayout.runDir) || runLayout.runDir}\n`,
+  );
+
+  if (isPlanOnly(process.env, process.argv)) {
+    process.stdout.write(`HARNESS_PLAN ${JSON.stringify(harnessPlan)}\n`);
+    return;
+  }
+
   const providerScopeInput = process.env.LIVE_PROVIDER_SCOPE || 'all';
   const liveAzureSubscriptionKey = process.env.ACV_SUBSCRIPTION_KEY || null;
   const mockProviderConfig = buildLocalMockProviderConfig({
-    host: HOST,
-    port: FIXTURE_PORT,
+    host,
+    port: ports.fixture,
   });
   const mockProviderValidationFixtureUrls = buildLocalMockProviderValidationFixtureUrls({
-    host: HOST,
-    port: FIXTURE_PORT,
+    host,
+    port: ports.fixture,
   });
   const publicProviderValidationFixtures = buildPublicProviderValidationFixtureUrls();
   const availableLiveProviders = realProviderModeEnabled
@@ -510,7 +733,7 @@ async function main() {
   let appReplicateApiEndpoint = fullModeEnabled ? mockProviderConfig.replicateApiEndpoint : null;
   let appAzureApiEndpoint = fullModeEnabled
     ? mockProviderConfig.azureApiEndpoint
-    : `http://${HOST}:${FIXTURE_PORT}/vision/v3.2/describe`;
+    : `http://${host}:${ports.fixture}/vision/v3.2/describe`;
   let appAzureSubscriptionKey = 'stub-key';
   let appOpenAiApiKey = null;
   let appOpenAiBaseUrl = null;
@@ -525,7 +748,7 @@ async function main() {
     ? String(PROVIDER_VALIDATION_APP_REQUEST_TIMEOUT_MS)
     : null;
   const providerIntegrationPageDescriptionConcurrency = providerValidationModeEnabled ? '1' : null;
-  const localFixtureAllowedHost = `${HOST}:${FIXTURE_PORT}`;
+  const localFixtureAllowedHost = `${host}:${ports.fixture}`;
   const fullModeDescriptionJobWaitTimeoutMs = fullModeEnabled
     ? FULL_MODE_DESCRIPTION_JOB_WAIT_TIMEOUT_MS
     : null;
@@ -596,27 +819,21 @@ async function main() {
   const collection = readCollection(COLLECTION_PATH);
   const availableFolders = listTopLevelFolderNames(collection);
   const localNewmanEnvVars = [
-    `authBaseUrl=https://${HOST}:${AUTH_APP_HTTPS_PORT}`,
+    ...(ports.authHttps ? [`authBaseUrl=https://${host}:${ports.authHttps}`] : []),
     `apiAuthToken=${API_AUTH_TOKEN}`,
   ];
 
-  await fsp.mkdir(REPORTS_DIR, { recursive: true });
-  await fsp.rm(DIAGNOSTICS_DIR, { force: true, recursive: true });
-  await fsp.mkdir(DIAGNOSTICS_DIR, { recursive: true });
-  if (allureResultsDir) {
-    await fsp.mkdir(allureResultsDir, { recursive: true });
-  }
   const childDiagnosticLogs = [];
-  const fixtureLogPath = path.join(DIAGNOSTICS_DIR, 'fixture.log');
-  const appLogPath = path.join(DIAGNOSTICS_DIR, 'app.log');
-  const authAppLogPath = path.join(DIAGNOSTICS_DIR, 'app-auth.log');
+  const fixtureLogPath = path.join(runLayout.diagnosticsDir, 'fixture.log');
+  const appLogPath = path.join(runLayout.diagnosticsDir, 'app.log');
+  const authAppLogPath = path.join(runLayout.diagnosticsDir, 'app-auth.log');
 
   const fixtureServer = spawnLogged(
     'fixture',
     NODE,
     [path.join(ROOT, 'scripts', 'postman-fixture-server.js')],
     {
-      POSTMAN_FIXTURE_PORT: FIXTURE_PORT,
+      POSTMAN_FIXTURE_PORT: String(ports.fixture),
     },
     { logPath: fixtureLogPath },
   );
@@ -629,8 +846,8 @@ async function main() {
     NODE,
     [path.join(ROOT, 'src', 'app.js')],
     buildAppServerEnv({
-      httpPort: APP_HTTP_PORT,
-      httpsPort: APP_HTTPS_PORT,
+      httpPort: String(ports.appHttp),
+      httpsPort: String(ports.appHttps),
       replicateApiEndpoint: appReplicateApiEndpoint,
       replicateApiToken: appReplicateApiToken,
       azureApiEndpoint: appAzureApiEndpoint,
@@ -664,10 +881,10 @@ async function main() {
       NODE,
       [path.join(ROOT, 'src', 'app.js')],
       buildAppServerEnv({
-        httpPort: AUTH_APP_HTTP_PORT,
-        httpsPort: AUTH_APP_HTTPS_PORT,
+        httpPort: String(ports.authHttp),
+        httpsPort: String(ports.authHttps),
         replicateApiToken: 'test-token',
-        azureApiEndpoint: `http://${HOST}:${FIXTURE_PORT}/vision/v3.2/describe`,
+        azureApiEndpoint: `http://${host}:${ports.fixture}/vision/v3.2/describe`,
         azureSubscriptionKey: 'stub-key',
         apiAuthTokens: API_AUTH_TOKEN,
         outboundAllowedHosts: localFixtureAllowedHost,
@@ -681,25 +898,29 @@ async function main() {
   const cleanupSignalHandlers = installSignalCleanup(managedChildren);
   const runHarnessNewman = (label, folders, options = {}) => runNewman(label, folders, {
     diagnosticLogs: childDiagnosticLogs,
+    diagnosticsDir: runLayout.diagnosticsDir,
+    envPath: resolvedEnvPath,
+    harnessEnvVars,
+    reportsDir: runLayout.reportsDir,
     ...options,
   });
 
   try {
-    await waitForUrl(`http://${HOST}:${FIXTURE_PORT}/health`, {
+    await waitForUrl(`http://${host}:${ports.fixture}/health`, {
       timeoutMs: READINESS_TIMEOUT_MS,
     });
-    await waitForUrl(`https://${HOST}:${APP_HTTPS_PORT}/api/health`, {
+    await waitForUrl(`https://${host}:${ports.appHttps}/api/health`, {
       insecure: true,
       timeoutMs: READINESS_TIMEOUT_MS,
     });
     if (authAppServer) {
-      await waitForUrl(`https://${HOST}:${AUTH_APP_HTTPS_PORT}/api/health`, {
+      await waitForUrl(`https://${host}:${ports.authHttps}/api/health`, {
         insecure: true,
         timeoutMs: READINESS_TIMEOUT_MS,
       });
     }
     if (mode === 'smoke' || fullModeEnabled) {
-      await warmUpSwaggerDocs(`https://${HOST}:${APP_HTTPS_PORT}`);
+      await warmUpSwaggerDocs(`https://${host}:${ports.appHttps}`);
     }
 
     if (mode === 'smoke') {

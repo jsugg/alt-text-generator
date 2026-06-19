@@ -559,6 +559,7 @@ describe('Integration | API', () => {
             'Content-Type': 'application/octet-stream',
             'Ocp-Apim-Subscription-Key': 'azure-key',
           },
+          timeout: 1500,
         },
       );
     });

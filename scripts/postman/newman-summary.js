@@ -5,6 +5,7 @@ const {
   buildItemFolderMap,
   readCollection,
 } = require('./collection-utils');
+const { RESERVED_REPORT_SUBDIRS } = require('./newman-reporting');
 
 const NO_REPORTS_MESSAGE = 'No Newman JSON reports were available. The Newman run may have exited before reporter output was written.';
 const FAILURE_CATEGORY_HTTP_CONTRACT = 'http-contract';
@@ -344,14 +345,35 @@ function formatSummaryLines(
 }
 
 /**
+ * Recursively collects Newman JSON report paths under a reports directory.
+ * Per-run harness output nests reports inside a run directory, so discovery
+ * walks subdirectories while skipping the reserved metadata/Allure folders.
+ *
  * @param {string} reportsDir
+ * @param {{ reservedSubdirs?: Set<string> }} [options]
  * @returns {string[]}
  */
-function listReportPaths(reportsDir) {
-  return fs.readdirSync(reportsDir)
-    .filter((name) => name.endsWith('.json'))
-    .sort()
-    .map((name) => path.join(reportsDir, name));
+function listReportPaths(reportsDir, { reservedSubdirs = RESERVED_REPORT_SUBDIRS } = {}) {
+  const reportPaths = [];
+
+  fs.readdirSync(reportsDir, { withFileTypes: true }).forEach((entry) => {
+    const entryPath = path.join(reportsDir, entry.name);
+
+    if (entry.isDirectory()) {
+      if (reservedSubdirs.has(entry.name)) {
+        return;
+      }
+
+      reportPaths.push(...listReportPaths(entryPath, { reservedSubdirs }));
+      return;
+    }
+
+    if (entry.isFile() && entry.name.endsWith('.json')) {
+      reportPaths.push(entryPath);
+    }
+  });
+
+  return reportPaths.sort();
 }
 
 /**

@@ -198,6 +198,7 @@ class AzureDescriberService {
             'Content-Type': 'application/octet-stream',
             'Ocp-Apim-Subscription-Key': this.subscriptionKey,
           },
+          timeout: this.requestOptions.timeout,
         },
       );
 

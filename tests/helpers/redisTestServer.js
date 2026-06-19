@@ -6,6 +6,15 @@ const path = require('path');
 
 const { createClient } = require('redis');
 
+const REDIS_INTEGRATION_MODE_ENV = 'REDIS_INTEGRATION_MODE';
+const REDIS_INTEGRATION_URL_ENV = 'REDIS_INTEGRATION_URL';
+const REDIS_INTEGRATION_MODES = Object.freeze({
+  OPTIONAL: 'optional',
+  REQUIRED: 'required',
+});
+const REDIS_DOCKER_COMMAND = 'docker compose -f docker-compose.redis.yml --profile redis-test up -d redis-test';
+const REDIS_DOCKER_URL = 'redis://127.0.0.1:6380';
+
 const hasRedisServerBinary = () => (
   spawnSync('redis-server', ['--version'], { stdio: 'ignore' }).status === 0
 );
@@ -74,7 +83,105 @@ const waitForRedis = async (redisUrl, {
   await attempt();
 };
 
-const startRedisTestServer = async () => {
+const normalizeRedisIntegrationUrl = (value) => {
+  const redisUrl = typeof value === 'string' ? value.trim() : '';
+
+  if (!redisUrl) {
+    return undefined;
+  }
+
+  if (!/^rediss?:\/\//u.test(redisUrl)) {
+    throw new Error(
+      `${REDIS_INTEGRATION_URL_ENV} must be a redis:// or rediss:// URL`,
+    );
+  }
+
+  return redisUrl;
+};
+
+const resolveRedisIntegrationMode = (envLike = process.env) => {
+  if (envLike.CI) {
+    return REDIS_INTEGRATION_MODES.REQUIRED;
+  }
+
+  const mode = envLike[REDIS_INTEGRATION_MODE_ENV]?.trim()
+    || REDIS_INTEGRATION_MODES.OPTIONAL;
+
+  if (!Object.values(REDIS_INTEGRATION_MODES).includes(mode)) {
+    throw new Error(
+      `${REDIS_INTEGRATION_MODE_ENV} must be "required" or "optional"`,
+    );
+  }
+
+  return mode;
+};
+
+const buildRedisUnavailableDiagnostic = ({ ci, mode }) => [
+  `Redis integration tests are in ${mode} mode, but no Redis endpoint is available.`,
+  `Set ${REDIS_INTEGRATION_URL_ENV}=redis://127.0.0.1:6379,`,
+  `or run "${REDIS_DOCKER_COMMAND}" and set ${REDIS_INTEGRATION_URL_ENV}=${REDIS_DOCKER_URL}.`,
+  'Then run npm run test:integration:redis.',
+  'Fallback: install redis-server on PATH.',
+  ci ? 'CI must provide the pinned Redis service container; this lane must not skip.' : '',
+].filter(Boolean).join(' ');
+
+const resolveRedisIntegrationRuntime = ({
+  env = process.env,
+  hasRedisServerBinaryFn = hasRedisServerBinary,
+} = {}) => {
+  const mode = resolveRedisIntegrationMode(env);
+  const redisUrl = normalizeRedisIntegrationUrl(env[REDIS_INTEGRATION_URL_ENV]);
+
+  if (redisUrl) {
+    return {
+      diagnostic: `Redis integration enabled through ${REDIS_INTEGRATION_URL_ENV}.`,
+      enabled: true,
+      mode,
+      redisUrl,
+      source: 'url',
+    };
+  }
+
+  if (hasRedisServerBinaryFn()) {
+    return {
+      diagnostic: 'Redis integration enabled through local redis-server binary.',
+      enabled: true,
+      mode,
+      redisUrl: undefined,
+      source: 'binary',
+    };
+  }
+
+  return {
+    diagnostic: buildRedisUnavailableDiagnostic({
+      ci: Boolean(env.CI),
+      mode,
+    }),
+    enabled: false,
+    mode,
+    redisUrl: undefined,
+    source: 'missing',
+  };
+};
+
+const startRedisTestServer = async ({ redisUrl: externalRedisUrl } = {}) => {
+  if (externalRedisUrl) {
+    try {
+      await waitForRedis(externalRedisUrl);
+    } catch (error) {
+      throw new Error(
+        `Redis integration endpoint ${externalRedisUrl} is not reachable: ${error.message}`,
+      );
+    }
+
+    return {
+      dataDir: undefined,
+      port: undefined,
+      redisUrl: externalRedisUrl,
+      stop: async () => {},
+    };
+  }
+
   if (!hasRedisServerBinary()) {
     throw new Error('redis-server binary is required to run Redis integration tests');
   }
@@ -145,6 +252,10 @@ const startRedisTestServer = async () => {
 };
 
 module.exports = {
+  REDIS_INTEGRATION_MODES,
+  REDIS_INTEGRATION_MODE_ENV,
+  REDIS_INTEGRATION_URL_ENV,
   hasRedisServerBinary,
+  resolveRedisIntegrationRuntime,
   startRedisTestServer,
 };

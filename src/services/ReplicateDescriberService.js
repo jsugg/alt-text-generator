@@ -194,6 +194,23 @@ class ReplicateDescriberService {
     }, 'Replicate prediction failed');
   }
 
+  shouldSkipDescriptionError(error) {
+    const message = typeof error?.message === 'string' ? error.message.toLowerCase() : '';
+    const mentionsImageSource = message.includes('image') || message.includes('url');
+    const isImageSourceFailure = [
+      'download',
+      'fetch',
+      'invalid',
+      'not found',
+      'open',
+      'read',
+      'unsupported',
+      'unable',
+    ].some((term) => message.includes(term));
+
+    return mentionsImageSource && isImageSourceFailure;
+  }
+
   async createDescriptionJob(imageUrl) {
     try {
       const prediction = await this.createPrediction(imageUrl);

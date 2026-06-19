@@ -87,6 +87,42 @@ function hasSpecificStatusExpectation(item) {
 }
 
 /**
+ * Returns the concatenated source of every test-listener script on a request item.
+ *
+ * @param {object} item
+ * @returns {string}
+ */
+function getRequestTestScript(item) {
+  const events = Array.isArray(item?.event) ? item.event : [];
+
+  return events
+    .filter((event) => event?.listen === 'test' && Array.isArray(event?.script?.exec))
+    .map((event) => event.script.exec.join('\n'))
+    .join('\n');
+}
+
+/**
+ * Resolves the status code a request is expected to return, preferring the
+ * X-Expected-Status-Code header and falling back to an inline status assertion.
+ *
+ * @param {object} item
+ * @returns {number | null}
+ */
+function getExpectedStatusCode(item) {
+  const headerValue = (item?.request?.header ?? []).find(
+    (header) => header?.key === 'X-Expected-Status-Code',
+  )?.value;
+
+  if (/^\d+$/u.test(String(headerValue ?? '').trim())) {
+    return Number.parseInt(String(headerValue).trim(), 10);
+  }
+
+  const inlineMatch = getRequestTestScript(item).match(/to\.have\.status\(\s*(\d{3})\s*\)/u);
+
+  return inlineMatch ? Number.parseInt(inlineMatch[1], 10) : null;
+}
+
+/**
  * Throws when one or more requests are missing a specific status expectation.
  *
  * @param {object} collection
@@ -181,6 +217,8 @@ module.exports = {
   assertRequestItemsHaveSpecificStatusExpectations,
   assertTopLevelFoldersExist,
   buildItemFolderMap,
+  getExpectedStatusCode,
+  getRequestTestScript,
   hasExactStatusAssertion,
   hasExpectedStatusCodeHeader,
   hasSpecificStatusExpectation,
