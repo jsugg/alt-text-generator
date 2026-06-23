@@ -1,4 +1,4 @@
-const { createClient } = require('redis');
+const { createClient, WatchError } = require('redis');
 
 const {
   DESCRIPTION_JOB_STORE_MODES,
@@ -91,7 +91,19 @@ const createRedisDescriptionJobStore = ({ client, prefix }) => {
       EX: getTtlSeconds(job),
     });
 
-    return transaction.exec();
+    try {
+      return await transaction.exec();
+    } catch (error) {
+      // node-redis rejects with WatchError when a watched key changed between
+      // WATCH and EXEC. That is the optimistic-lock "lost the race" signal, so
+      // surface it as a falsy result and let attemptClaim retry (and ultimately
+      // refuse the claim) instead of throwing out of the claim path.
+      if (error instanceof WatchError) {
+        return null;
+      }
+
+      throw error;
+    }
   };
   const attemptClaim = async ({
     attemptNumber,
