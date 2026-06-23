@@ -31,6 +31,7 @@
     "openapi:validate": "node scripts/openapi/validate-spec.js",
     "openapi:check": "node scripts/openapi/check-freshness.js",
     "openapi:diff": "node scripts/openapi/diff-contract.js",
+    "perf:smoke": "node scripts/perf/run-perf-smoke.js",
     "postman:full:allure": "ALLURE_RESULTS_DIR=reports/allure-results node scripts/run-postman-harness.js full",
     "postman:lint": "node scripts/postman/lint-collection.js",
     "postman:smoke": "node scripts/run-postman-harness.js smoke",
