@@ -92,7 +92,9 @@ REDIS_INTEGRATION_URL=redis://127.0.0.1:6380 NODE_ENV=test REPLICATE_API_TOKEN=t
 docker compose -f docker-compose.redis.yml --profile redis-test down -v
 ```
 
-`npm run test:integration:redis` fails with setup instructions if neither `REDIS_INTEGRATION_URL` nor a local `redis-server` binary is available. CI runs the same Redis lane against a pinned `redis:8.8.0-alpine3.23` service container.
+`npm run test:integration:redis` fails with setup instructions if neither `REDIS_INTEGRATION_URL` nor a local `redis-server` binary is available. CI runs the same Redis lane against a pinned `redis:8.8.0-alpine3.23` service container. The lane owns every `*.redis.test.js` spec and covers `Promise.all` rate-limit/job-store concurrency plus a `WORKER_COUNT=2` cluster smoke (auto-runs in CI; opt in locally with `CLUSTER_SMOKE=1`).
+
+`npm run perf:smoke` is a warning-only latency smoke for page fan-out and warmed docs routes: it prints each route against a provisional budget and exits 0 even on a breach. List a label in `PERF_BUDGETS_ACCEPTED` to make that budget a blocking gate once it is agreed.
 
 ## API Contract Harness
 

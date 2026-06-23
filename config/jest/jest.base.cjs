@@ -80,22 +80,26 @@ const COVERAGE_THRESHOLD = {
 // Single source of truth for per-lane test selection. The standalone lane
 // configs and the composite (coverage/CI/reporting) configs both read from
 // here so the tiers can never drift apart.
-const REDIS_INTEGRATION_TEST = '<rootDir>/tests/integration/rateLimitRedis.test.js';
+//
+// Redis-backed specs use the `*.redis.test.js` suffix so the dedicated redis
+// lane owns them by convention: a new Redis spec joins the lane just by being
+// named, and no lane list has to be hand-edited.
+const REDIS_INTEGRATION_TEST_GLOB = '<rootDir>/tests/integration/**/*.redis.test.js';
 
 const TEST_MATCH = {
   unit: ['<rootDir>/tests/unit/**/*.test.js'],
   // Top-level integration specs only: script/git specs live in a subdirectory
-  // and Redis-backed specs run in their own lane.
+  // and Redis-backed specs (the `.redis.test.js` suffix) run in their own lane.
   integration: ['<rootDir>/tests/integration/*.test.js'],
-  redis: [REDIS_INTEGRATION_TEST],
+  redis: [REDIS_INTEGRATION_TEST_GLOB],
   scripts: ['<rootDir>/tests/integration/scripts/**/*.test.js'],
 };
 
-// The general integration lane must skip the Redis-backed spec, which needs a
+// The general integration lane must skip every Redis-backed spec, which needs a
 // Redis endpoint and runs in the dedicated redis lane instead.
 const INTEGRATION_IGNORE_PATTERNS = [
   '/node_modules/',
-  '<rootDir>/tests/integration/rateLimitRedis\\.test\\.js$',
+  '<rootDir>/tests/integration/.*\\.redis\\.test\\.js$',
 ];
 
 // Allure generation is reserved for the CI and reporting lanes: it only turns
