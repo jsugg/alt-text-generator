@@ -19,7 +19,7 @@ const PACKAGE_JSON_PATH = path.join(ROOT_DIR, 'package.json');
 const DEVELOPMENT_PATH = path.join(ROOT_DIR, 'DEVELOPMENT.md');
 const README_PATH = path.join(ROOT_DIR, 'README.md');
 const REDIS_COMPOSE_PATH = path.join(ROOT_DIR, 'docker-compose.redis.yml');
-const REDIS_INTEGRATION_TEST_PATH = path.join(ROOT_DIR, 'tests', 'integration', 'rateLimitRedis.test.js');
+const REDIS_INTEGRATION_TEST_PATH = path.join(ROOT_DIR, 'tests', 'integration', 'rateLimitRedis.redis.test.js');
 const JEST_BIN_PATH = path.join(ROOT_DIR, 'node_modules', 'jest', 'bin', 'jest.js');
 const {
   COVERAGE_COLLECTION_PATTERNS,
@@ -42,22 +42,22 @@ describe('Unit | Jest Lane Configs', () => {
     expect(config.testMatch).toEqual(['<rootDir>/tests/unit/**/*.test.js']);
   });
 
-  it('excludes the Redis spec from the general integration lane', () => {
+  it('excludes Redis-suffixed specs from the general integration lane', () => {
     const config = loadLaneConfig('jest.integration.cjs');
 
     expect(config.displayName).toBe('integration');
     expect(config.testMatch).toEqual(['<rootDir>/tests/integration/*.test.js']);
     expect(config.testPathIgnorePatterns).toEqual(
-      expect.arrayContaining([expect.stringContaining('rateLimitRedis')]),
+      expect.arrayContaining([expect.stringContaining('\\.redis\\.test\\.js$')]),
     );
   });
 
-  it('targets only the Redis spec in the redis lane', () => {
+  it('targets every Redis-suffixed spec in the redis lane', () => {
     const config = loadLaneConfig('jest.integration.redis.cjs');
 
     expect(config.displayName).toBe('redis');
     expect(config.testMatch).toEqual([
-      '<rootDir>/tests/integration/rateLimitRedis.test.js',
+      '<rootDir>/tests/integration/**/*.redis.test.js',
     ]);
   });
 
