@@ -72,6 +72,10 @@ REDIS_INTEGRATION_URL=redis://127.0.0.1:6380 \
   NODE_ENV=test REPLICATE_API_TOKEN=test-token npm run test:integration:redis
 docker compose -f docker-compose.redis.yml --profile redis-test down -v
 NODE_ENV=test REPLICATE_API_TOKEN=test-token npm run test:integration:scripts
+# WORKER_COUNT=2 cluster smoke: auto-runs in CI; opt in locally with CLUSTER_SMOKE=1
+CLUSTER_SMOKE=1 REDIS_INTEGRATION_URL=redis://127.0.0.1:6380 \
+  NODE_ENV=test REPLICATE_API_TOKEN=test-token npm run test:integration:redis
+NODE_ENV=test REPLICATE_API_TOKEN=test-token npm run perf:smoke   # warning-only latency smoke
 npm run postman:smoke
 npm run postman:full
 npm run postman:post-deploy -- --base-url https://wcag.qcraft.com.br
@@ -82,6 +86,8 @@ npm run doctor:tls -- https://example.com --fix --write-env --env-file .env.test
 ```
 
 `npm run validate:fast` is the normal pre-commit loop: zero-warning lint plus the fast unit lane. `npm test` is the fast, deterministic Jest lane for `tests/unit` (no coverage or reporters). Every tier has its own package script and Jest config under `config/jest/`: `test:integration` (HTTP surface with in-memory adapters), `test:integration:redis` (Redis-backed rate limiting; required when invoked directly and in CI), and `test:integration:scripts` (git/filesystem subprocess flows; runs in-band with a 30s timeout because real clone/worktree/push/fetch flows cross process and filesystem boundaries). `test:all` composes every tier without coverage or reporters for compatibility checks, `test:coverage` composes every tier and enforces the coverage gate, `test:ci` adds JUnit (and Allure when `ALLURE_RESULTS_DIR` is set), and `test:allure` is the reporting-only Jest lane. CI job names map one-to-one to package scripts so a red job tells you exactly which `npm run` reproduces it. `test:integration:redis`, `test:coverage`, and `test:ci` require a Redis endpoint; `test:all` / `test:allure` may skip Redis only in optional local mode, and the skip prints a setup diagnostic.
+
+Redis-backed specs are owned by the redis lane via the `*.redis.test.js` suffix — name a spec `something.redis.test.js` under `tests/integration/` and it joins `test:integration:redis` automatically (and is excluded from the in-memory `test:integration` lane). The redis lane covers shared rate-limit/job-store concurrency (`Promise.all` bursts where the shared counter or a single Redis claim must win exactly once) and a `WORKER_COUNT=2` cluster smoke that boots the real app on shared Redis and asserts startup, one shared rate-limit budget across workers, and graceful SIGTERM shutdown. The cluster smoke runs automatically in CI; locally it is opt-in via `CLUSTER_SMOKE=1` (and skips with a diagnostic otherwise) because cluster `fork()` plus heavy module load can hang under constrained local sandboxes. `npm run perf:smoke` is a warning-only performance smoke for page fan-out and warmed docs latency: it reports each route against a provisional budget and exits 0 even when a budget is exceeded. Promote a budget to a blocking gate only once it is agreed, by listing its label in `PERF_BUDGETS_ACCEPTED` (e.g. `PERF_BUDGETS_ACCEPTED=page-fan-out,docs-steady-state`); it is intentionally not part of the required CI gates yet.
 
 ### Validation tiers
 
