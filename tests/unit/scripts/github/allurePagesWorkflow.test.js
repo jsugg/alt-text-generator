@@ -78,6 +78,16 @@ describe('Unit | Workflows | CI Allure Pages', () => {
       Object.hasOwn(allurePagesJob, 'environment'),
       false,
     );
+    assertStringContainsInvariant(
+      'CI Allure Pages job scopes concurrency per ref so concurrent PRs never cancel each other into a spurious failure',
+      allurePagesJob.concurrency.group,
+      '${{ github.ref }}',
+    );
+    assertEqualInvariant(
+      'CI Allure Pages job queues rather than cancels in-progress site preparation',
+      allurePagesJob.concurrency['cancel-in-progress'],
+      false,
+    );
     assertEqualInvariant(
       'CI Allure Pages job fetches the durable gh-pages state branch',
       fetchPagesBranchStep.run,
