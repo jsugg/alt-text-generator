@@ -35,16 +35,49 @@ function serializeSpec(spec) {
 }
 
 /**
+ * Returns a structurally identical copy of `value` with every object's keys
+ * sorted lexicographically. Arrays keep their order (it can be semantically
+ * meaningful in OpenAPI: `enum`, `parameters`, `required`, `security`, `tags`).
+ *
+ * This makes the committed artifact and the freshness gate depend only on the
+ * spec's *content*, not on the key-insertion order that swagger-jsdoc happens to
+ * emit. A generator upgrade that merely reorders keys (e.g. swagger-jsdoc 6.3.0
+ * moving response codes) therefore produces identical bytes, while a real
+ * contract change (added/removed/renamed path, schema, or field) still differs.
+ *
+ * @param {*} value
+ * @returns {*}
+ */
+function canonicalizeSpec(value) {
+  if (Array.isArray(value)) {
+    return value.map(canonicalizeSpec);
+  }
+
+  if (value !== null && typeof value === 'object') {
+    return Object.keys(value)
+      .sort()
+      .reduce((acc, key) => {
+        acc[key] = canonicalizeSpec(value[key]);
+        return acc;
+      }, {});
+  }
+
+  return value;
+}
+
+/**
  * Regenerates the server-agnostic base spec from the JSDoc sources. The runtime
  * `servers` block is stripped because it is environment-specific and injected
- * by config/swagger.js at serve time.
+ * by config/swagger.js at serve time. The result is canonicalized so the
+ * committed artifact stays stable across swagger-jsdoc versions that only change
+ * key ordering.
  *
  * @returns {object}
  */
 function generateFreshSpec() {
   const spec = swaggerJSDoc(getSwaggerJSDocOptions());
   delete spec.servers;
-  return spec;
+  return canonicalizeSpec(spec);
 }
 
 /**
@@ -176,6 +209,7 @@ function listSecuritySchemeNames(spec) {
 module.exports = {
   GENERATED_SPEC_PATH,
   HTTP_METHODS,
+  canonicalizeSpec,
   collectRefs,
   generateFreshSpec,
   listOperations,
