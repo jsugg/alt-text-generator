@@ -8,6 +8,7 @@ const {
 } = require('../../../../scripts/openapi/check-freshness');
 const {
   GENERATED_SPEC_PATH,
+  canonicalizeSpec,
   generateFreshSpec,
   readSpecText,
   serializeSpec,
@@ -85,8 +86,50 @@ describe('Unit | Scripts | OpenAPI | Freshness Check', () => {
     });
   });
 
+  describe('canonicalizeSpec', () => {
+    it('sorts object keys recursively', () => {
+      const result = canonicalizeSpec({ openapi: '3.0.0', info: { version: '1', title: 'x' } });
+
+      expect(Object.keys(result)).toEqual(['info', 'openapi']);
+      expect(Object.keys(result.info)).toEqual(['title', 'version']);
+    });
+
+    it('preserves array order and canonicalizes objects nested in arrays', () => {
+      const result = canonicalizeSpec({ tags: [{ name: 'b' }, { name: 'a' }], required: ['z', 'a'] });
+
+      expect(result.required).toEqual(['z', 'a']);
+      expect(result.tags.map((tag) => tag.name)).toEqual(['b', 'a']);
+    });
+
+    it('returns primitives and null unchanged', () => {
+      expect(canonicalizeSpec(null)).toBeNull();
+      expect(canonicalizeSpec(7)).toBe(7);
+      expect(canonicalizeSpec('s')).toBe('s');
+    });
+
+    it('is idempotent', () => {
+      const canonical = canonicalizeSpec({ b: { d: 1, c: 2 }, a: [{ z: 1, y: 2 }] });
+
+      expect(serializeSpec(canonicalizeSpec(canonical))).toBe(serializeSpec(canonical));
+    });
+
+    it('makes specs that differ only in key order serialize identically (the generator-version-resilience invariant)', () => {
+      const oneEmitOrder = {
+        openapi: '3.0.0',
+        paths: { '/x': { get: { summary: 's', responses: { default: {} }, tags: ['t'] } } },
+      };
+      const anotherEmitOrder = {
+        paths: { '/x': { get: { tags: ['t'], responses: { default: {} }, summary: 's' } } },
+        openapi: '3.0.0',
+      };
+
+      expect(serializeSpec(canonicalizeSpec(oneEmitOrder)))
+        .toBe(serializeSpec(canonicalizeSpec(anotherEmitOrder)));
+    });
+  });
+
   describe('committed artifact', () => {
-    it('is exactly what the generator produces (the freshness invariant)', () => {
+    it('is exactly what the canonical generator produces (the freshness invariant)', () => {
       expect(fs.existsSync(GENERATED_SPEC_PATH)).toBe(true);
       expect(readSpecText(GENERATED_SPEC_PATH)).toBe(serializeSpec(generateFreshSpec()));
     });

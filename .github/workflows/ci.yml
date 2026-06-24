@@ -533,8 +533,13 @@ jobs:
     needs:
       - allure-report
     runs-on: ubuntu-latest
+    # Per-ref group: this job only PREPARES an artifact (it never deploys), so it
+    # must not share the global "allure-pages-site" serialization group with the
+    # publish workflow. A global group made concurrent PRs contend, and GitHub
+    # marks the pending runs it drops as "failure" (not "cancelled"), which
+    # surfaced as a spurious red check on otherwise-green PRs.
     concurrency:
-      group: allure-pages-site
+      group: allure-pages-site-${{ github.ref }}
       cancel-in-progress: false
     permissions:
       actions: read
