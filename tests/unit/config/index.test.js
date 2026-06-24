@@ -2,7 +2,6 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const ORIGINAL_ENV = process.env;
 const {
   DEFAULT_DESCRIPTION_JOB_CLAIM_TTL_MS,
   DEFAULT_DESCRIPTION_JOB_COMPLETED_TTL_MS,
@@ -17,30 +16,23 @@ const {
   DEFAULT_RATE_LIMIT_REDIS_PREFIX,
   DEFAULT_UNIT_LOCAL_REDIS_URL,
 } = require('../../../config/rateLimitStore');
+const { loadFreshModule } = require('../../setup/testEnv');
 
-const loadConfig = ({ overrides = {}, remove = [] } = {}) => {
-  jest.resetModules();
-  process.env = { ...ORIGINAL_ENV };
-  process.env.PROVIDER_OVERRIDES_FILE = path.join(
-    __dirname,
-    '../../fixtures/provider-overrides.missing.yaml',
-  );
+const DEFAULT_PROVIDER_OVERRIDES_FILE = path.join(
+  __dirname,
+  '../../fixtures/provider-overrides.missing.yaml',
+);
 
-  remove.forEach((key) => {
-    delete process.env[key];
-  });
-
-  Object.entries(overrides).forEach(([key, value]) => {
-    process.env[key] = value;
-  });
-
-  return require('../../../config');
-};
-
-afterEach(() => {
-  process.env = ORIGINAL_ENV;
-  jest.resetModules();
-});
+// Env restoration and module-cache isolation are handled by tests/setup; this
+// loader only declares the environment each fresh config load should see.
+const loadConfig = ({ overrides = {}, remove = [] } = {}) => loadFreshModule(
+  () => require('../../../config'),
+  {
+    PROVIDER_OVERRIDES_FILE: DEFAULT_PROVIDER_OVERRIDES_FILE,
+    ...Object.fromEntries(remove.map((key) => [key, undefined])),
+    ...overrides,
+  },
+);
 
 describe('Unit | Config | Index', () => {
   it('uses the documented defaults when optional env vars are unset', () => {

@@ -6,38 +6,19 @@ const {
   COVERAGE_PATH_IGNORE_PATTERNS,
   COVERAGE_THRESHOLD,
 } = require('../../config/jest/jest.base.cjs');
+const { loadFreshModule } = require('../setup/testEnv');
 
+// tests/setup restores ALLURE_RESULTS_DIR after each test; this loader only
+// declares whether it is set for a given config load.
 function loadJestConfig(allureResultsDir) {
-  let config;
-
-  if (typeof allureResultsDir === 'string') {
-    process.env.ALLURE_RESULTS_DIR = allureResultsDir;
-  } else {
-    delete process.env.ALLURE_RESULTS_DIR;
-  }
-
-  jest.resetModules();
-  jest.isolateModules(() => {
+  return loadFreshModule(
     // eslint-disable-next-line import/no-dynamic-require
-    config = require(CONFIG_PATH);
-  });
-
-  return config;
+    () => require(CONFIG_PATH),
+    { ALLURE_RESULTS_DIR: typeof allureResultsDir === 'string' ? allureResultsDir : undefined },
+  );
 }
 
 describe('Unit | Jest Configuration', () => {
-  const originalAllureResultsDir = process.env.ALLURE_RESULTS_DIR;
-
-  afterEach(() => {
-    if (typeof originalAllureResultsDir === 'string') {
-      process.env.ALLURE_RESULTS_DIR = originalAllureResultsDir;
-    } else {
-      delete process.env.ALLURE_RESULTS_DIR;
-    }
-
-    jest.resetModules();
-  });
-
   it('keeps the standard node environment when Allure is disabled', () => {
     const config = loadJestConfig();
 

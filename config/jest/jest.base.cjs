@@ -4,6 +4,10 @@ const path = require('node:path');
 const ROOT_DIR = path.resolve(__dirname, '..', '..');
 const JEST_CONFIG_DIR = __dirname;
 
+// Shared lifecycle (env + mock restoration) every lane inherits, so the cleanup
+// cannot drift between lanes or be forgotten in a single suite.
+const JEST_SETUP_FILE = path.join(ROOT_DIR, 'tests', 'setup', 'jest.setup.js');
+
 // Coverage gate shared by the coverage and CI lanes so the threshold is
 // identical regardless of which entry point enforces it.
 const COVERAGE_COLLECTION_PATTERNS = [
@@ -132,6 +136,7 @@ function createLaneConfig({
     rootDir: ROOT_DIR,
     displayName,
     testMatch,
+    setupFilesAfterEnv: [JEST_SETUP_FILE],
     ...resolveTestEnvironment(),
   };
 
@@ -160,6 +165,7 @@ const COMPOSED_LANES = [
 
 module.exports = {
   ROOT_DIR,
+  JEST_SETUP_FILE,
   COVERAGE_COLLECTION_PATTERNS,
   COVERAGE_PATH_IGNORE_PATTERNS,
   COVERAGE_THRESHOLD,
