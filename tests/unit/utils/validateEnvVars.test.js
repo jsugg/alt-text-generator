@@ -1,6 +1,7 @@
 const path = require('node:path');
 
-const ORIGINAL_ENV = process.env;
+const { loadFreshModule } = require('../../setup/testEnv');
+
 const NO_PROVIDER_OVERRIDES_FILE = path.join(
   __dirname,
   '../../fixtures/provider-overrides.missing.yaml',
@@ -57,31 +58,18 @@ const PROVIDER_ENV_KEYS = [
   'TOGETHER_PROMPT',
 ];
 
-const loadValidator = ({ overrides = {}, remove = [] } = {}) => {
-  jest.resetModules();
-  process.env = { ...ORIGINAL_ENV };
-
-  PROVIDER_ENV_KEYS.forEach((key) => {
-    delete process.env[key];
-  });
-
-  process.env.PROVIDER_OVERRIDES_FILE = NO_PROVIDER_OVERRIDES_FILE;
-
-  remove.forEach((key) => {
-    delete process.env[key];
-  });
-
-  Object.entries(overrides).forEach(([key, value]) => {
-    process.env[key] = value;
-  });
-
-  return require('../../../src/utils/validateEnvVars').validateEnvVars;
-};
-
-afterEach(() => {
-  process.env = ORIGINAL_ENV;
-  jest.resetModules();
-});
+// Env restoration and module-cache isolation are handled by tests/setup. Each
+// load starts from the provider-free baseline (every provider key cleared) and
+// then applies the test's removals and overrides.
+const loadValidator = ({ overrides = {}, remove = [] } = {}) => loadFreshModule(
+  () => require('../../../src/utils/validateEnvVars').validateEnvVars,
+  {
+    ...Object.fromEntries(PROVIDER_ENV_KEYS.map((key) => [key, undefined])),
+    PROVIDER_OVERRIDES_FILE: NO_PROVIDER_OVERRIDES_FILE,
+    ...Object.fromEntries(remove.map((key) => [key, undefined])),
+    ...overrides,
+  },
+);
 
 describe('Unit | Utils | Validate Env Vars', () => {
   it('accepts a Replicate-only provider configuration', () => {
