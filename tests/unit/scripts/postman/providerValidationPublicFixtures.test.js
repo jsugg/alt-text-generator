@@ -5,14 +5,9 @@ const {
   buildRawGitHubUrl,
   resolvePublicFixtureRepositoryContext,
 } = require('../../../../scripts/postman/provider-validation-public-fixtures');
+const { setEnv } = require('../../../setup/testEnv');
 
 describe('Unit | Scripts | Postman | Provider Validation Public Fixtures', () => {
-  const originalEnv = { ...process.env };
-
-  afterEach(() => {
-    process.env = { ...originalEnv };
-  });
-
   it('builds raw GitHub urls for the default repository and ref', () => {
     expect(buildPublicProviderValidationFixtureUrls({
       repository: 'jsugg/alt-text-generator',
@@ -26,8 +21,7 @@ describe('Unit | Scripts | Postman | Provider Validation Public Fixtures', () =>
   });
 
   it('prefers GitHub repository context when it is available', () => {
-    process.env.GITHUB_REPOSITORY = 'octo/example';
-    process.env.GITHUB_SHA = '0123456789abcdef';
+    setEnv({ GITHUB_REPOSITORY: 'octo/example', GITHUB_SHA: '0123456789abcdef' });
 
     expect(resolvePublicFixtureRepositoryContext()).toEqual({
       repository: 'octo/example',

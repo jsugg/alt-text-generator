@@ -1,4 +1,4 @@
-const ORIGINAL_ENV = process.env;
+const { setEnv, loadFreshModule } = require('../../setup/testEnv');
 
 const mockStdSerializers = {
   err: jest.fn((error) => ({
@@ -51,14 +51,7 @@ const loadLoggerModule = ({
   env = {},
   randomUUID = 'generated-request-id',
 } = {}) => {
-  jest.resetModules();
-  process.env = { ...ORIGINAL_ENV };
-  delete process.env.NODE_ENV;
-  delete process.env.LOG_LEVEL;
-
-  Object.entries(env).forEach(([key, value]) => {
-    process.env[key] = value;
-  });
+  setEnv({ NODE_ENV: undefined, LOG_LEVEL: undefined, ...env });
 
   mockRandomUUID.mockReset().mockReturnValue(randomUUID);
   mockFs.existsSync.mockReset();
@@ -79,7 +72,7 @@ const loadLoggerModule = ({
   });
   mockPinoHttp.stdSerializers = mockStdSerializers;
 
-  const loggerModule = require('../../../src/infrastructure/logger');
+  const loggerModule = loadFreshModule(() => require('../../../src/infrastructure/logger'));
 
   return {
     loggerModule,
@@ -89,12 +82,6 @@ const loadLoggerModule = ({
     requestLoggerOptions: mockRequestLogger.options,
   };
 };
-
-afterEach(() => {
-  process.env = ORIGINAL_ENV;
-  jest.clearAllMocks();
-  jest.resetModules();
-});
 
 describe('Unit | Infrastructure | Logger', () => {
   it('uses process-stream logging in production without touching the filesystem', () => {
