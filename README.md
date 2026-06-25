@@ -217,7 +217,7 @@ Common local settings:
   - Optional app-managed supplemental PEM bundle for outbound HTTPS trust
   - Use `npm run doctor:tls -- https://example.com --fix --write-env --env-file .env.test` when a target works in `curl` but fails in Node/app scraping
 
-Advanced runtime settings such as worker count, scraper timeouts, rate limits, logging, Swagger URLs, and stubbed provider endpoints are documented in [DEVELOPMENT.md](./DEVELOPMENT.md).
+Advanced runtime settings such as worker count, scraper timeouts, rate limits, logging, Swagger URLs, provider enable/disable overrides, and stubbed provider endpoints are documented in [DEVELOPMENT.md](./DEVELOPMENT.md).
 Slow-provider job persistence can stay in memory or move to Redis through the `DESCRIPTION_JOB_*` settings documented there.
 Slow-provider async jobs are currently driven by provider polling; there is no inbound webhook dependency in the runtime contract.
 `WORKER_COUNT=1` runs the app as a single process; cluster management is only enabled when `WORKER_COUNT > 1`.
