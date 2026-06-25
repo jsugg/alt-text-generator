@@ -348,6 +348,23 @@ Recommended patterns:
 - `.env` for day-to-day local dev
 - `.env.test` for repeatable local validation (this repo ignores `.env.test` in Git)
 
+### Provider overrides
+
+`config/providers.yaml` can force a provider on or off independently of its
+environment variables. Set `PROVIDER_OVERRIDES_FILE` to point at a different YAML
+file when you need an alternate override set.
+
+```yaml
+providers:
+  azure:
+    enabled: auto   # auto (default): defer to env; false: stay disabled even when ACV_* is set
+```
+
+- `enabled: false` keeps a provider unregistered even when its env vars are present.
+- `enabled: auto` (the default) defers to the normal env-driven registration.
+- `enabled: true` is accepted and behaves like `auto`; registration still requires the provider's env configuration.
+- Providers absent from the file follow normal env-driven behavior.
+
 ### Suggested local validation profile
 
 Example `.env.test` (edit values as needed):
@@ -394,6 +411,7 @@ Notes:
 | `API_AUTH_ENABLED` | No | derived from `API_AUTH_TOKENS` | Explicitly enables or disables API auth. Defaults to `true` when `API_AUTH_TOKENS` contains at least one token, otherwise `false`. |
 | `API_AUTH_TOKENS` | No | unset | Optional comma-separated API tokens. When API auth is enabled, scraper and description endpoints require either `Authorization: Bearer <token>` or `X-API-Key: <token>`. |
 | `ENV_FILE` | No | `.env` | Selects which dotenv file to load at startup. Not validated by Joi. |
+| `PROVIDER_OVERRIDES_FILE` | No | `config/providers.yaml` | Path to the YAML provider enable/disable override file. Not validated by Joi. |
 
 ### Network and Inbound TLS (server)
 
@@ -459,7 +477,7 @@ The current implementation uses provider polling rather than inbound webhooks.
 | `REPLICATE_USER_AGENT` | No | `alt-text-generator/1.0.0` | Replicate client user agent. |
 | `REPLICATE_MODEL_OWNER` | No | `rmokady` | Replicate model owner. |
 | `REPLICATE_MODEL_NAME` | No | `clip_prefix_caption` | Replicate model name. |
-| `REPLICATE_MODEL_VERSION` | No | pinned in `config/index.js` | Replicate model version. |
+| `REPLICATE_MODEL_VERSION` | No | pinned in `src/providers/definitions/replicate.js` | Replicate model version. |
 | `REPLICATE_REQUEST_TIMEOUT_MS` | No | `15000` | Hard timeout for synchronous `describeImage()` calls before the prediction is canceled and surfaced as `DESCRIPTION_PROVIDER_TIMEOUT`. |
 | `REPLICATE_POLL_INTERVAL_MS` | No | `500` | Poll interval used while waiting on Replicate prediction status. |
 
@@ -751,6 +769,9 @@ It disables certificate validation and is not an acceptable operating mode.
 If you change configuration, update these together:
 
 - `config/index.js` (defaults and wiring)
+- `src/providers/definitions/*` and `config/providerCatalog.js` (provider defaults, env schema, and registration)
+- `config/providers.yaml` (provider enable/disable overrides)
 - `src/utils/validateEnvVars.js` (startup contract)
 - `render.yaml` (Render deployment contract)
+- `.env.example` (sample environment)
 - this file (developer-facing reference and runbook)
