@@ -74,7 +74,7 @@
     "pino": "^8.11.0",
     "pino-http": "^8.3.3",
     "pino-pretty": "^10.0.0",
-    "qs": "^6.15.2",
+    "qs": "^6.15.3",
     "rate-limit-redis": "^5.0.0",
     "redis": "^6.0.0",
     "replicate": "^0.25.2",
