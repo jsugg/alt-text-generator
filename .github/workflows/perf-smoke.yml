@@ -1,0 +1,40 @@
+name: Perf Smoke
+
+# Advisory-only performance smoke (plan W14): warning-only budgets, never a
+# required check. Promote a budget by listing it in PERF_BUDGETS_ACCEPTED.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 6 1 * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: perf-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  perf-smoke:
+    name: perf-smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Setup project
+        uses: ./.github/actions/setup-node-project
+
+      - name: Run warning-only perf smoke
+        env:
+          NODE_ENV: test
+          REPLICATE_API_TOKEN: test-token
+        run: |
+          {
+            echo '## Perf Smoke (advisory)'
+            echo
+            echo '```'
+            npm run perf:smoke
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
