@@ -5,9 +5,12 @@ const path = require('node:path');
 const {
   appendStepSummary,
   buildApiUrl,
+  DEFAULT_ALLOWED_LICENSES,
   fetchGitHubJson,
+  filterAddedChangesByLicense,
   filterChangesByScopes,
   filterChangesBySeverity,
+  isLicenseAllowed,
   listDependencyChanges,
   parseArgs,
   reviewDependencies,
@@ -274,6 +277,118 @@ describe('Unit | Scripts | GitHub | Review Dependencies', () => {
           }],
         },
       ]);
+    });
+  });
+
+  describe('license policy', () => {
+    it('accepts bare allowed ids and OR expressions, requires every AND part', () => {
+      expect(isLicenseAllowed(DEFAULT_ALLOWED_LICENSES, 'MIT')).toBe(true);
+      expect(isLicenseAllowed(DEFAULT_ALLOWED_LICENSES, '(MIT OR GPL-3.0-only)')).toBe(true);
+      expect(isLicenseAllowed(DEFAULT_ALLOWED_LICENSES, 'MIT AND GPL-3.0-only')).toBe(false);
+      expect(isLicenseAllowed(DEFAULT_ALLOWED_LICENSES, 'Apache-2.0 AND ISC')).toBe(true);
+      expect(isLicenseAllowed(DEFAULT_ALLOWED_LICENSES, 'GPL-3.0-only')).toBe(false);
+      expect(isLicenseAllowed(DEFAULT_ALLOWED_LICENSES, 'NOASSERTION')).toBe(false);
+      expect(isLicenseAllowed(DEFAULT_ALLOWED_LICENSES, null)).toBe(false);
+    });
+
+    it('flags only added changes with unknown or disallowed licenses', () => {
+      expect(filterAddedChangesByLicense(DEFAULT_ALLOWED_LICENSES, [
+        { change_type: 'added', license: 'MIT', name: 'ok' },
+        { change_type: 'added', license: 'AGPL-3.0-only', name: 'copyleft' },
+        { change_type: 'added', license: null, name: 'unknown' },
+        { change_type: 'removed', license: 'AGPL-3.0-only', name: 'removed' },
+      ]).map((change) => change.name)).toEqual(['copyleft', 'unknown']);
+    });
+
+    it('reports disallowed licenses as advisory without failing the review', async () => {
+      const writers = createSilentWriters();
+      const summaryFile = path.join(
+        fs.mkdtempSync(path.join(os.tmpdir(), 'license-summary-')),
+        'summary.md',
+      );
+
+      await expect(reviewDependencies({
+        allowedLicenses: [...DEFAULT_ALLOWED_LICENSES],
+        apiBaseUrl: 'https://api.github.com/',
+        baseRef: 'base',
+        failOnScopes: ['runtime'],
+        failOnSeverity: 'low',
+        headRef: 'head',
+        perPage: 100,
+        repo: 'jsugg/alt-text-generator',
+        summaryFile,
+      }, { GITHUB_TOKEN: 'token' }, {
+        ...writers,
+        fetchImpl: jest.fn().mockResolvedValue(createResponse({
+          body: [{
+            change_type: 'added',
+            license: 'AGPL-3.0-only',
+            manifest: 'package.json',
+            name: 'copyleft-package',
+            scope: 'runtime',
+            version: '1.0.0',
+            vulnerabilities: [],
+          }],
+        })),
+      })).resolves.toMatchObject({
+        licenseFlaggedChanges: [expect.objectContaining({ name: 'copyleft-package' })],
+        vulnerableChanges: [],
+      });
+
+      const summary = fs.readFileSync(summaryFile, 'utf8');
+
+      expect(summary).toContain('### License Policy');
+      expect(summary).toContain('copyleft-package@1.0.0');
+      expect(writers.writeStderr).toHaveBeenCalledWith(
+        expect.stringContaining('"AGPL-3.0-only" is not in the allowlist (advisory)'),
+      );
+    });
+
+    it('fails on disallowed licenses only when the blocking flag is set', async () => {
+      const writers = createSilentWriters();
+
+      await expect(reviewDependencies({
+        allowedLicenses: [...DEFAULT_ALLOWED_LICENSES],
+        apiBaseUrl: 'https://api.github.com/',
+        baseRef: 'base',
+        failOnDisallowedLicenses: true,
+        failOnScopes: ['runtime'],
+        failOnSeverity: 'low',
+        headRef: 'head',
+        perPage: 100,
+        repo: 'jsugg/alt-text-generator',
+        summaryFile: null,
+      }, { GITHUB_TOKEN: 'token' }, {
+        ...writers,
+        fetchImpl: jest.fn().mockResolvedValue(createResponse({
+          body: [{
+            change_type: 'added',
+            license: 'AGPL-3.0-only',
+            manifest: 'package.json',
+            name: 'copyleft-package',
+            scope: 'runtime',
+            version: '1.0.0',
+            vulnerabilities: [],
+          }],
+        })),
+      })).rejects.toThrow('Dependency review detected disallowed licenses.');
+    });
+
+    it('parses the license policy arguments', () => {
+      const args = parseArgs([
+        '--repo', 'jsugg/alt-text-generator',
+        '--base-ref', 'base',
+        '--head-ref', 'head',
+        '--allowed-licenses', 'MIT, ISC',
+        '--fail-on-disallowed-licenses', 'true',
+      ]);
+
+      expect(args.allowedLicenses).toEqual(['MIT', 'ISC']);
+      expect(args.failOnDisallowedLicenses).toBe(true);
+      expect(() => parseArgs([
+        '--repo', 'r/r', '--base-ref', 'b', '--head-ref', 'h',
+        '--fail-on-disallowed-licenses', 'maybe',
+      ])).toThrow('--fail-on-disallowed-licenses must be "true" or "false"');
     });
   });
 
