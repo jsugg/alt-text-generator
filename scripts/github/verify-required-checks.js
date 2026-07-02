@@ -19,6 +19,25 @@ const PROMOTE_WORKFLOW_FILE = 'promote-to-production.yml';
 const MATRIX_TOKEN_PATTERN = /\$\{\{\s*matrix\.([a-zA-Z0-9_-]+)\s*\}\}/gu;
 
 /**
+ * @typedef {{
+ *   mainBranchProtection: { branch: string, contexts: string[] },
+ *   productionRuleset: {
+ *     id: number,
+ *     contexts: string[],
+ *     bypassActors: { actor_id: number, actor_type: string, bypass_mode: string }[],
+ *   },
+ *   retiredContextPatterns: string[],
+ * }} RequiredCheckPolicy
+ */
+
+/**
+ * @typedef {{
+ *   rules?: { type: string, parameters: { required_status_checks: { context: string }[] } }[],
+ *   bypass_actors?: { actor_id: number, actor_type: string, bypass_mode: string }[],
+ * }} RulesetResponse
+ */
+
+/**
  * @param {unknown} value
  * @returns {value is Record<string, unknown>}
  */
@@ -69,15 +88,7 @@ function parseArgs(argv) {
  * Loads and shape-checks the required-check policy file.
  *
  * @param {string} [policyPath]
- * @returns {{
- *   mainBranchProtection: { branch: string, contexts: string[] },
- *   productionRuleset: {
- *     id: number,
- *     contexts: string[],
- *     bypassActors: { actor_id: number, actor_type: string, bypass_mode: string }[],
- *   },
- *   retiredContextPatterns: string[],
- * }}
+ * @returns {RequiredCheckPolicy}
  */
 function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
   const policy = JSON.parse(fs.readFileSync(policyPath, 'utf8'));
@@ -93,7 +104,7 @@ function loadPolicy(policyPath = DEFAULT_POLICY_PATH) {
     throw new Error(`Malformed required-check policy: ${policyPath}`);
   }
 
-  return policy;
+  return /** @type {RequiredCheckPolicy} */ (policy);
 }
 
 /**
@@ -107,7 +118,7 @@ function cartesianProduct(axes) {
     combinations.flatMap((combination) => axis.values.map((value) => (
       combination.concat([{ key: axis.key, value }])
     )))
-  ), [[]]);
+  ), /** @type {{ key: string, value: unknown }[][]} */ ([[]]));
 }
 
 /**
@@ -137,12 +148,12 @@ function expandJobCheckNames(jobId, job) {
 
   const axes = Object.entries(matrix)
     .filter(([key, values]) => key !== 'include' && key !== 'exclude' && Array.isArray(values))
-    .map(([key, values]) => ({ key, values }));
+    .map(([key, values]) => ({ key, values: /** @type {unknown[]} */ (values) }));
   const names = cartesianProduct(axes).map((combination) => {
     const substitutions = new Map(combination.map(({ key, value }) => [key, String(value)]));
 
     return template.replace(MATRIX_TOKEN_PATTERN, (token, key) => (
-      substitutions.has(key) ? substitutions.get(key) : token
+      substitutions.get(key) ?? token
     ));
   });
   const unresolved = names.filter((name) => name.includes('${{'));
@@ -189,7 +200,7 @@ function normalizeTriggerNames(triggers) {
  */
 function collectEmittedCheckNames(workflowsDir = WORKFLOWS_DIR) {
   const checkNames = new Map();
-  const failures = [];
+  const failures = /** @type {string[]} */ ([]);
 
   fs.readdirSync(workflowsDir)
     .filter((fileName) => fileName.endsWith('.yml') || fileName.endsWith('.yaml'))
@@ -319,11 +330,11 @@ function parsePromotionRequiredChecks(workflowsDir = WORKFLOWS_DIR) {
     throw new Error(`Malformed workflow: ${PROMOTE_WORKFLOW_FILE}`);
   }
 
-  const runCommands = Object.values(workflow.jobs).flatMap((job) => (
+  const runCommands = /** @type {string[]} */ (Object.values(workflow.jobs).flatMap((job) => (
     isRecord(job) && Array.isArray(job.steps)
       ? job.steps.filter((step) => isRecord(step) && typeof step.run === 'string')
       : []
-  )).map((step) => step.run);
+  )).map((step) => step.run));
   const promotionCommand = runCommands.find((run) => run.includes('promote-to-production.js'));
 
   if (!promotionCommand) {
@@ -439,7 +450,9 @@ function verifyLiveMainProtection(policy, repo) {
  * @returns {string[]}
  */
 function verifyLiveProductionRuleset(policy, repo) {
-  const ruleset = runGhJson(['api', `repos/${repo}/rulesets/${policy.productionRuleset.id}`]);
+  const ruleset = /** @type {RulesetResponse} */ (
+    runGhJson(['api', `repos/${repo}/rulesets/${policy.productionRuleset.id}`])
+  );
   const checksRule = (ruleset.rules || []).find((rule) => rule.type === 'required_status_checks');
 
   if (!checksRule) {
@@ -459,7 +472,7 @@ function verifyLiveProductionRuleset(policy, repo) {
     );
   });
 
-  const normalizeActors = (actors) => actors
+  const normalizeActors = (/** @type {{ actor_id: number, actor_type: string, bypass_mode: string }[]} */ actors) => actors
     .map(({ actor_id: actorId, actor_type: actorType, bypass_mode: bypassMode }) => (
       `${actorType}/${actorId} (${bypassMode})`
     ))

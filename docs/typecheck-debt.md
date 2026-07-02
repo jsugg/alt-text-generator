@@ -5,14 +5,23 @@
 The CI `typecheck` job is **advisory** (`continue-on-error: true`) until this
 ledger reaches zero; it is intentionally not a required status check.
 
-Owner: @jsugg. Baseline measured 2026-07-02 (TypeScript 6.0.3).
+Owner: @jsugg. Baseline measured 2026-07-02 (TypeScript 6.0.3). The count drifts
+with dependency updates — re-measure (`npm run typecheck`) before each burn-down.
 
 | Profile | Errors |
 |---|---:|
-| `strict: true` (committed config, target) | 1409 |
+| `strict: true` — original baseline 2026-07-02 | 1409 |
+| `strict: true` — measured 2026-07-02 (dependency drift) | 1438 |
+| `strict: true` — current (after burn-down log below) | 1423 |
 | `strict: false` (reference only) | 170 |
 
-Top strict-error areas:
+## Burn-down log
+
+| Date | Scope | Cleared | Method |
+|---|---|---:|---|
+| 2026-07-02 | `scripts/github/verify-required-checks.js` | 15 → 0 | JSDoc `@param`/`@typedef` + type-only boundary casts at the JSON/gh-API edges. No runtime change, no `any`. **Pattern for the rest:** annotate params, `@typedef` external-JSON response shapes, and cast once at the validation boundary — never widen the strict profile. |
+
+Top strict-error areas (pre-burn-down baseline; `scripts/github` now ≈127):
 
 | Area | Errors |
 |---|---:|
