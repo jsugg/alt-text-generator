@@ -1,0 +1,33 @@
+name: Actions Storage Report
+
+# Advisory observability (plan W15): monthly/manual cache + artifact volume
+# summary. Read-only; retention tuning stays a deliberate, evidence-based
+# change reviewed against report history UX.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '47 6 1 * *'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: actions-storage-report
+  cancel-in-progress: true
+
+jobs:
+  storage-report:
+    name: storage-report
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      # The report script is dependency-free; the runner's preinstalled Node
+      # suffices and keeps this workflow independent of toolchain migrations.
+      - name: Report cache and artifact usage
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/github/report-actions-storage.js --repo "${GITHUB_REPOSITORY}"
