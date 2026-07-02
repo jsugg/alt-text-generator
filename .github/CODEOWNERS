@@ -1,0 +1,4 @@
+# Single-maintainer repository: one meaningful owner for everything.
+# This makes the production ruleset's "require code owner review" rule
+# resolvable for any non-bypass pull request into production.
+* @jsugg
