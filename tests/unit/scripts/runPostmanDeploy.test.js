@@ -22,7 +22,6 @@ const {
   assertNoEnvKeysInvariant,
   assertNoRunCommandContainsInvariant,
   assertStepUsesAction,
-  assertStringContainsInvariant,
   findStepByName,
   getJob,
   loadWorkflow,
@@ -544,11 +543,9 @@ describe('Unit | Scripts | Run Postman Deploy', () => {
         promoteJob.needs,
         ['pre-production-provider-validation'],
       );
-      assertStringContainsInvariant(
-        'Promotion required checks exactly match the documented release policy',
-        promoteStep.run,
-        '--required-checks "actionlint,codeql,dependency-review,docs,lint,openapi,newman,test:ci (20),test:unit (20),test:unit (22),test:unit (24)"',
-      );
+      // Promotion derives required checks from live main branch protection;
+      // a hardcoded list would silently drift from the real release policy.
+      expect(promoteStep.run).not.toContain('--required-checks');
       assertEnvContainsInvariant(
         'Post Deploy provider scope resolver reads only approved release provider secrets',
         postDeployResolveStep.env,

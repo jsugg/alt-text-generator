@@ -1,5 +1,5 @@
 {
-  "description": "Single source of truth for GitHub required status checks. Every context must exactly match a workflow job display name. Verified offline (policy vs workflow job names) by tests/unit/scripts/github/requiredCheckPolicy.test.js and against live GitHub state by `npm run checks:verify -- --live`. See docs/required-checks.md for the migration and rollback procedure.",
+  "description": "Single source of truth for GitHub required status checks. Every context must exactly match a workflow job display name. Verified offline (policy vs workflow job names) by tests/unit/scripts/github/requiredCheckPolicy.test.js and against live GitHub state by `npm run checks:verify -- --live`. See docs/required-checks.md for the migration and rollback procedure. Node 24 is the canonical gate; the test:unit (22) lane still runs as a non-required compatibility signal.",
   "mainBranchProtection": {
     "branch": "main",
     "contexts": [
@@ -10,9 +10,7 @@
       "lint",
       "newman",
       "openapi",
-      "test:ci (20)",
-      "test:unit (20)",
-      "test:unit (22)",
+      "test:ci (24)",
       "test:unit (24)"
     ]
   },
@@ -27,9 +25,7 @@
       "lint",
       "newman",
       "openapi",
-      "test:ci (20)",
-      "test:unit (20)",
-      "test:unit (22)",
+      "test:ci (24)",
       "test:unit (24)"
     ],
     "bypassActors": [
@@ -49,6 +45,8 @@
   },
   "retiredContextPatterns": [
     "^test \\(\\d+\\)$",
-    "^test:all \\(\\d+\\)$"
+    "^test:all \\(\\d+\\)$",
+    "^test:ci \\(20\\)$",
+    "^test:unit \\(20\\)$"
   ]
 }
