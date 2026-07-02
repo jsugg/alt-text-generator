@@ -28,7 +28,7 @@ If you only need a quick local boot, start with `README.md` and come back here f
 
 Recommended toolchain:
 
-- Node.js 20.x recommended (compatibility is validated on Node 20, 22, and 24)
+- Node.js 24.x recommended (`.nvmrc` pins 24; compatibility is validated on Node 20, 22, and 24 while the staged Node 24 cutover completes)
 - npm 10+
 
 Boot locally:
