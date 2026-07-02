@@ -52,8 +52,6 @@ jobs:
 
       - name: Setup project
         uses: ./.github/actions/setup-node-project
-        with:
-          node-version: '20'
 
       - name: Run local provider integration suite
         run: npm run postman:full

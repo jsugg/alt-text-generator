@@ -24,8 +24,7 @@ describe('Unit | Scripts | GitHub | Required Check Policy', () => {
       'lint',
       'newman',
       'openapi',
-      'test:ci (20)',
-      'test:unit (20)',
+      'test:ci (24)',
       'test:unit (22)',
       'test:unit (24)',
     ]));

@@ -54,6 +54,36 @@ describe('Unit | Scripts | GitHub | Promote To Production', () => {
         requiredChecks: ['actionlint', 'lint'],
       })).toEqual(['actionlint', 'lint']);
     });
+
+    it('derives required checks from live branch protection when none are provided', () => {
+      jest.isolateModules(() => {
+        jest.doMock('node:child_process', () => ({
+          execFileSync: jest.fn((command, args) => {
+            expect(command).toBe('gh');
+            expect(args).toEqual([
+              'api',
+              'repos/jsugg/alt-text-generator/branches/main/protection',
+            ]);
+
+            return JSON.stringify({
+              required_status_checks: {
+                contexts: ['actionlint', 'test:ci (24)'],
+              },
+            });
+          }),
+        }));
+
+        const promotion = require('../../../../scripts/github/promote-to-production');
+
+        expect(promotion.resolveRequiredChecks({
+          repo: 'jsugg/alt-text-generator',
+          sourceBranch: 'main',
+          requiredChecks: null,
+        })).toEqual(['actionlint', 'test:ci (24)']);
+      });
+
+      jest.dontMock('node:child_process');
+    });
   });
 
   describe('ensureRequiredChecksGreen', () => {

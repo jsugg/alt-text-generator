@@ -32,8 +32,8 @@ The service exposes these primary capabilities:
 
 ## Requirements
 
-- CI validates Node 20, 22, and 24; a staged Node 24 full gate (`test:ci (24)`) runs ahead of the Node 24 cutover.
-- `engines.node` allows Node 20 through 24; `.nvmrc` pins Node 24 for local toolchains.
+- Node 24 is canonical (`.nvmrc`); CI also validates Node 22 as a compatibility lane.
+- `engines.node` allows Node 22 through 24; production (Render) resolves Node 24.
 - npm 10+
 - At least one provider configuration:
   - `REPLICATE_API_TOKEN` for the `replicate` model
@@ -115,7 +115,7 @@ Notes:
 - `postman:smoke` is the fast deterministic gate.
 - `postman:full` runs the full local provider-integration suite, including protected-endpoint auth coverage, deterministic async `replicate` page-job success/failure scenarios, mocked provider-validation coverage, and JSON/JUnit reports under `reports/newman/`.
 - Local smoke/full runs warm Swagger docs before Newman starts so docs cold-start latency stays outside the 15s Newman performance budget while Swagger status/content assertions remain blocking.
-- CI also emits `reports/jest/junit.xml` from the canonical Node 20 Jest lane and publishes one combined GitHub test report that joins Jest and Newman results.
+- CI also emits `reports/jest/junit.xml` from the canonical Node 24 Jest lane and publishes one combined GitHub test report that joins Jest and Newman results.
 - `postman:pre-production-provider` boots the app locally and runs the low-cost real-provider validation set used immediately before promotion, currently Hugging Face, OpenAI, and Together when configured.
 - `postman:live-provider` is the production description-service validation command for deployed-app plus live-provider checks against a supplied base URL.
 - `postman:post-deploy` runs post-deploy smoke plus the same low-cost real-provider validation set against a supplied base URL.
@@ -123,7 +123,7 @@ Notes:
 - When production auth is enabled, `postman:live-provider` and `postman:post-deploy` reuse `PRODUCTION_DEPLOY_VALIDATION_API_TOKEN` for provider-validation requests.
 - CI runs `postman:smoke` as the required Newman contract gate on pull requests and pushes.
 - `postman:full` runs in the path-gated/manual/scheduled Local Provider Integration workflow for provider/API/Postman harness risk, so ordinary CI no longer duplicates the expensive suite.
-- Fast unit tests run across Node 20/22/24; full integration, coverage, JUnit/Allure reporting, and Newman smoke run once on canonical Node 20.
+- Fast unit tests run across Node 22/24; full integration, coverage, JUnit/Allure reporting, and Newman smoke run once on canonical Node 24.
 - Docs-only changes get lightweight docs validation while expensive code gates publish successful no-op checks.
 - Post-deploy verification runs `postman:post-deploy` on `production` pushes so smoke and low-cost provider checks stay inside the Newman contract layer.
 - Post-deploy verification also reads `PRODUCTION_API_AUTH_ENABLED` and `PRODUCTION_DEPLOY_VALIDATION_API_TOKEN` from the GitHub Actions environment so protected-endpoint checks match the deployed Render `API_AUTH_ENABLED` / `API_AUTH_TOKENS` state.
@@ -172,7 +172,7 @@ Notes:
 - Fork PRs and post-deploy verification reports remain artifacts only; they do not publish to GitHub Pages.
 - Fork pull requests and custom post-deploy verification URLs stay ephemeral and do not restore or persist history artifacts.
 - Manual post-deploy verification against the canonical production URL only persists history when `persist_history=true` is selected in the workflow dispatch form.
-- CI only emits Jest Allure results from the Node 20 lane so unit tests do not appear three times in the merged report.
+- CI only emits Jest Allure results from the canonical Node 24 lane so the Node 22 compatibility lane does not duplicate unit tests in the merged report.
 - The Allure CLI requires Java when you generate the HTML report locally or in CI.
 
 ## Runtime Essentials

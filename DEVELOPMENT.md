@@ -28,7 +28,7 @@ If you only need a quick local boot, start with `README.md` and come back here f
 
 Recommended toolchain:
 
-- Node.js 24.x recommended (`.nvmrc` pins 24; compatibility is validated on Node 20, 22, and 24 while the staged Node 24 cutover completes)
+- Node.js 24.x (`.nvmrc` pins 24; Node 22 is also validated as a compatibility lane)
 - npm 10+
 
 Boot locally:
@@ -122,7 +122,7 @@ The repository uses a small workflow set with separate responsibilities:
 - `CI` in `.github/workflows/ci.yml`
   - runs on pushes to `main` and `production`
   - runs on pull requests targeting `main` and `production`
-  - executes `actionlint`, docs validation, `npm run lint`, OpenAPI validation, the fast `test:unit` lane on Node 20/22/24, and the canonical Node 20 `test:ci` lane
+  - executes `actionlint`, docs validation, `npm run lint`, OpenAPI validation, the fast `test:unit` lane on Node 22/24, and the canonical Node 24 `test:ci` lane
   - uses `postman:smoke` as the required deterministic Newman contract gate on pull requests and pushes
   - treats Markdown/docs-only changes as lightweight: docs validation runs, while lint/OpenAPI/Jest/Newman jobs publish successful no-op checks instead of booting expensive gates
   - publishes a Newman summary derived from JSON artifacts into the workflow summary
@@ -307,7 +307,7 @@ Allure workflow:
 - `npm run test:allure` uses `config/jest/jest.reporting.cjs` and enables the official `allure-jest` adapter only for that run.
 - `npm run postman:full:allure` enables the official Newman Allure reporter without removing the existing JSON/JUnit exports.
 - `npm run report:allure` mirrors CI by cleaning old results, running Jest, running the deterministic Newman harness, and generating HTML from the merged `reports/allure-results/` directory.
-- GitHub Actions publishes Allure from the canonical Node 20 Jest lane only so matrix lanes 22 and 24 do not duplicate unit tests in the merged report.
+- GitHub Actions publishes Allure from the canonical Node 24 Jest lane only so the Node 22 compatibility lane does not duplicate unit tests in the merged report.
 - The public GitHub Pages deployment is `https://jsugg.github.io/alt-text-generator/`; the suites view is `https://jsugg.github.io/alt-text-generator/#suites`.
 - Same-repository pull requests publish to `https://jsugg.github.io/alt-text-generator/pr/<number>/`, keeping a separate public Allure surface from `main`.
 - The CI workflow resolves a stream-specific history policy before report generation. `main` uses `ci-main`, same-repository pull requests use `ci-pr-<number>`, and pushes to `production` do not persist CI branch history.

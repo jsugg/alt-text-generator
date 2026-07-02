@@ -7,7 +7,6 @@ const {
   assertDeepEqualInvariant,
   assertEqualInvariant,
   assertExpressionContainsInvariant,
-  assertNoActionReferencesInvariant,
   assertNoRunCommandContainsInvariant,
   assertStepUsesAction,
   findStepByName,
@@ -345,7 +344,6 @@ describe('Unit | Jest Lane Configs', () => {
         'openapi',
         'test-unit',
         'test-ci',
-        'test-ci-24',
         'newman',
         'test-report',
         'allure-report',
@@ -360,9 +358,9 @@ describe('Unit | Jest Lane Configs', () => {
       'docs',
     );
     assertDeepEqualInvariant(
-      'CI unit matrix covers every supported Node version with the fast lane only',
+      'CI unit matrix covers the canonical Node 24 plus the Node 22 compatibility signal',
       unitJob.strategy.matrix['node-version'],
-      ['20', '22', '24'],
+      ['22', '24'],
     );
     assertEqualInvariant(
       'CI unit matrix job name reports the unit package script and Node version',
@@ -375,9 +373,9 @@ describe('Unit | Jest Lane Configs', () => {
       'npm run test:unit -- --ci',
     );
     assertEqualInvariant(
-      'CI canonical full gate publishes the documented Node 20 check name',
+      'CI canonical full gate publishes the documented Node 24 check name',
       testCiJob.name,
-      'test:ci (20)',
+      'test:ci (24)',
     );
     assertDeepEqualInvariant(
       'CI Redis integration uses the pinned service container',
@@ -412,48 +410,12 @@ describe('Unit | Jest Lane Configs', () => {
       'smoke',
     );
 
-    const testCi24Job = getJob(workflow, 'test-ci-24');
-    const testCi24Step = findStepByName(testCi24Job, 'test-ci-24', 'test:ci');
-    const testCi24Setup = findStepByName(testCi24Job, 'test-ci-24', 'Setup project');
+    const testCiSetup = findStepByName(testCiJob, 'test-ci', 'Setup project');
 
     assertEqualInvariant(
-      'CI staged Node 24 full gate publishes the documented check name',
-      testCi24Job.name,
-      'test:ci (24)',
-    );
-    assertDeepEqualInvariant(
-      'CI staged Node 24 full gate installs Node 24 through the setup composite',
-      testCi24Setup.with,
-      { 'node-version': '24' },
-    );
-    assertDeepEqualInvariant(
-      'CI staged Node 24 full gate uses the pinned Redis service container',
-      testCi24Job.services.redis,
-      testCiJob.services.redis,
-    );
-    assertDeepEqualInvariant(
-      'CI staged Node 24 full gate requires the service-backed Redis URL',
-      testCi24Job.env,
-      {
-        REDIS_INTEGRATION_MODE: 'required',
-        REDIS_INTEGRATION_URL: 'redis://127.0.0.1:6379',
-      },
-    );
-    assertEqualInvariant(
-      'CI staged Node 24 full gate runs test:ci through the package script',
-      testCi24Step.run,
-      'npm run test:ci',
-    );
-    assertExpressionContainsInvariant(
-      'CI staged Node 24 full gate skips expensive setup for docs-only changes',
-      testCi24Step.if,
-      "needs.changes.outputs.docs_only != 'true'",
-    );
-    assertNoActionReferencesInvariant(
-      testCi24Job,
-      'test-ci-24',
-      ['actions/upload-artifact'],
-      'CI staged Node 24 full gate must not duplicate canonical Node 20 reporting artifacts',
+      'CI canonical full gate installs the .nvmrc toolchain through the setup composite',
+      testCiSetup.with,
+      undefined,
     );
     assertExpressionContainsInvariant(
       'CI unit matrix skips expensive setup for docs-only changes',
