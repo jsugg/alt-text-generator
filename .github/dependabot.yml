@@ -1,3 +1,17 @@
+# Dependency-update policy (see tests/unit/dependabotPolicy.test.js).
+#
+# Ignore rules suppress the known out-of-scope majors only:
+#   - ESLint stays on 9.x: the flat-config toolchain decision pins ESLint 9;
+#     ESLint 10 migration is a deliberate project, not a routine bump.
+#   - Jest stays on 29.x: Jest 30 changes runner/reporter behavior the lane
+#     configs depend on; the upgrade is scheduled work.
+#
+# Security-update override: Dependabot ignore rules also apply to security
+# updates for the matched majors. If a security advisory is only fixed in a
+# suppressed major, remove the ignore entry for that package (or apply the fix
+# manually) — never leave a known-vulnerable version pinned because of noise
+# policy. Security fixes within the current majors flow normally, and
+# Dependabot security updates are enabled repo-side.
 version: 2
 updates:
   - package-ecosystem: npm
@@ -5,8 +19,36 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    groups:
+      npm-production:
+        dependency-type: production
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+      npm-development:
+        dependency-type: development
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+    ignore:
+      - dependency-name: eslint
+        update-types:
+          - version-update:semver-major
+      - dependency-name: "@eslint/js"
+        update-types:
+          - version-update:semver-major
+      - dependency-name: jest
+        update-types:
+          - version-update:semver-major
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    groups:
+      github-actions-all:
+        applies-to: version-updates
+        patterns:
+          - "*"

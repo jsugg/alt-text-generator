@@ -2,10 +2,12 @@ const path = require('node:path');
 const fs = require('node:fs');
 const os = require('node:os');
 const { spawnSync } = require('node:child_process');
+const yaml = require('js-yaml');
 const {
   assertDeepEqualInvariant,
   assertEqualInvariant,
   assertExpressionContainsInvariant,
+  assertNoActionReferencesInvariant,
   assertNoRunCommandContainsInvariant,
   assertStepUsesAction,
   findStepByName,
@@ -343,6 +345,7 @@ describe('Unit | Jest Lane Configs', () => {
         'openapi',
         'test-unit',
         'test-ci',
+        'test-ci-24',
         'newman',
         'test-report',
         'allure-report',
@@ -408,6 +411,50 @@ describe('Unit | Jest Lane Configs', () => {
       newmanJob.env.NEWMAN_MODE,
       'smoke',
     );
+
+    const testCi24Job = getJob(workflow, 'test-ci-24');
+    const testCi24Step = findStepByName(testCi24Job, 'test-ci-24', 'test:ci');
+    const testCi24Setup = findStepByName(testCi24Job, 'test-ci-24', 'Setup project');
+
+    assertEqualInvariant(
+      'CI staged Node 24 full gate publishes the documented check name',
+      testCi24Job.name,
+      'test:ci (24)',
+    );
+    assertDeepEqualInvariant(
+      'CI staged Node 24 full gate installs Node 24 through the setup composite',
+      testCi24Setup.with,
+      { 'node-version': '24' },
+    );
+    assertDeepEqualInvariant(
+      'CI staged Node 24 full gate uses the pinned Redis service container',
+      testCi24Job.services.redis,
+      testCiJob.services.redis,
+    );
+    assertDeepEqualInvariant(
+      'CI staged Node 24 full gate requires the service-backed Redis URL',
+      testCi24Job.env,
+      {
+        REDIS_INTEGRATION_MODE: 'required',
+        REDIS_INTEGRATION_URL: 'redis://127.0.0.1:6379',
+      },
+    );
+    assertEqualInvariant(
+      'CI staged Node 24 full gate runs test:ci through the package script',
+      testCi24Step.run,
+      'npm run test:ci',
+    );
+    assertExpressionContainsInvariant(
+      'CI staged Node 24 full gate skips expensive setup for docs-only changes',
+      testCi24Step.if,
+      "needs.changes.outputs.docs_only != 'true'",
+    );
+    assertNoActionReferencesInvariant(
+      testCi24Job,
+      'test-ci-24',
+      ['actions/upload-artifact'],
+      'CI staged Node 24 full gate must not duplicate canonical Node 20 reporting artifacts',
+    );
     assertExpressionContainsInvariant(
       'CI unit matrix skips expensive setup for docs-only changes',
       unitStep.if,
@@ -423,6 +470,30 @@ describe('Unit | Jest Lane Configs', () => {
       'apt-get install -y redis-server',
       'CI Redis integration must not install host Redis with apt',
     );
+  });
+
+  it('pins the Node toolchain in .nvmrc and defaults the setup composite to it', () => {
+    const nvmrc = fs.readFileSync(path.join(ROOT_DIR, '.nvmrc'), 'utf8').trim();
+    const action = yaml.load(fs.readFileSync(
+      path.join(ROOT_DIR, '.github', 'actions', 'setup-node-project', 'action.yml'),
+      'utf8',
+    ));
+    const steps = action.runs.steps;
+    const nvmrcSetup = steps.find((step) => step.name === 'Setup Node from .nvmrc');
+    const overrideSetup = steps.find((step) => step.name === 'Setup Node override');
+    const installStep = steps.find((step) => step.name === 'Install dependencies');
+
+    expect(nvmrc).toBe('24');
+    expect(action.inputs['node-version'].default).toBe('');
+    expect(nvmrcSetup.if).toBe("inputs.node-version == ''");
+    expect(nvmrcSetup.with).toEqual({ 'node-version-file': '.nvmrc', cache: 'npm' });
+    expect(overrideSetup.if).toBe("inputs.node-version != ''");
+    expect(overrideSetup.with).toEqual({
+      'node-version': '${{ inputs.node-version }}',
+      cache: 'npm',
+    });
+    expect(overrideSetup.uses).toBe(nvmrcSetup.uses);
+    expect(installStep.run).toBe('npm ci');
   });
 
   it('path-gates the expensive local provider integration workflow', () => {
