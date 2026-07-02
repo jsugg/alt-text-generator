@@ -104,6 +104,22 @@ function runGhJson(args) {
 }
 
 /**
+ * Runs a gh api command with a JSON request body on stdin and parses the response.
+ *
+ * @param {string[]} args
+ * @param {Record<string, unknown>} body
+ * @returns {any}
+ */
+function runGhJsonWithBody(args, body) {
+  return JSON.parse(execFileSync('gh', args.concat(['--input', '-']), {
+    encoding: 'utf8',
+    env: process.env,
+    input: JSON.stringify(body),
+    stdio: ['pipe', 'pipe', 'pipe'],
+  }).trim());
+}
+
+/**
  * @param {unknown} error
  * @returns {boolean}
  */
@@ -340,6 +356,166 @@ function updateBranchRef(
 }
 
 /**
+ * Builds the deployment payload that records how a promotion happened.
+ *
+ * @param {{
+ *   plan: ReturnType<typeof derivePromotionPlan>,
+ *   requiredChecks: string[],
+ *   sourceBranch: string,
+ *   sourceSha: string,
+ *   targetShaBefore: string,
+ * }} options
+ * @returns {Record<string, unknown>}
+ */
+function buildPromotionDeploymentPayload({
+  plan,
+  requiredChecks,
+  sourceBranch,
+  sourceSha,
+  targetShaBefore,
+}) {
+  return {
+    promotion_mode: plan.mode,
+    required_checks: requiredChecks,
+    source_branch: sourceBranch,
+    source_sha: sourceSha,
+    target_sha_before: targetShaBefore,
+  };
+}
+
+/**
+ * Creates a GitHub Deployment record for the promoted commit.
+ *
+ * @param {{
+ *   repo: string,
+ *   sha: string,
+ *   description: string,
+ *   payload: Record<string, unknown>,
+ * }} options
+ * @returns {number} deployment id
+ */
+function createProductionDeployment({
+  repo,
+  sha,
+  description,
+  payload,
+}) {
+  const deployment = runGhJsonWithBody(
+    ['api', '--method', 'POST', `repos/${repo}/deployments`],
+    {
+      ref: sha,
+      environment: 'production',
+      auto_merge: false,
+      required_contexts: [],
+      description,
+      payload,
+    },
+  );
+
+  return deployment.id;
+}
+
+/**
+ * Sets the status of a GitHub Deployment.
+ *
+ * @param {{
+ *   repo: string,
+ *   deploymentId: number,
+ *   state: string,
+ *   description: string,
+ *   logUrl: string|null,
+ * }} options
+ */
+function setDeploymentStatus({
+  repo,
+  deploymentId,
+  state,
+  description,
+  logUrl,
+}) {
+  runGhJsonWithBody(
+    ['api', '--method', 'POST', `repos/${repo}/deployments/${deploymentId}/statuses`],
+    {
+      state,
+      description,
+      ...(logUrl ? { log_url: logUrl } : {}),
+    },
+  );
+}
+
+/**
+ * Resolves the current workflow run URL when running inside GitHub Actions.
+ *
+ * @param {NodeJS.ProcessEnv} env
+ * @returns {string|null}
+ */
+function resolveRunLogUrl(env) {
+  const { GITHUB_REPOSITORY, GITHUB_RUN_ID, GITHUB_SERVER_URL } = env;
+
+  if (!GITHUB_SERVER_URL || !GITHUB_REPOSITORY || !GITHUB_RUN_ID) {
+    return null;
+  }
+
+  return `${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}`;
+}
+
+/**
+ * Records promotion deployment evidence; failures must not undo a completed
+ * ref update, so errors degrade to a warning and an empty output value.
+ *
+ * @param {{
+ *   repo: string,
+ *   plan: ReturnType<typeof derivePromotionPlan>,
+ *   requiredChecks: string[],
+ *   sourceBranch: string,
+ *   sourceSha: string,
+ *   targetBranch: string,
+ *   targetShaBefore: string,
+ * }} options
+ * @returns {number|null} deployment id, or null when evidence recording failed
+ */
+function recordPromotionDeployment({
+  repo,
+  plan,
+  requiredChecks,
+  sourceBranch,
+  sourceSha,
+  targetBranch,
+  targetShaBefore,
+}) {
+  try {
+    const deploymentId = createProductionDeployment({
+      repo,
+      sha: sourceSha,
+      description: `Promote ${sourceBranch}@${sourceSha.slice(0, 8)} to ${targetBranch}`,
+      payload: buildPromotionDeploymentPayload({
+        plan,
+        requiredChecks,
+        sourceBranch,
+        sourceSha,
+        targetShaBefore,
+      }),
+    });
+
+    setDeploymentStatus({
+      repo,
+      deploymentId,
+      state: 'in_progress',
+      description: 'Render deploy triggered by production ref update.',
+      logUrl: resolveRunLogUrl(process.env),
+    });
+
+    return deploymentId;
+  } catch (error) {
+    console.error(
+      `Warning: promotion succeeded but deployment evidence failed: ${error instanceof Error ? error.message : error}`,
+    );
+
+    return null;
+  }
+}
+
+/**
  * Main entry point.
  */
 async function main() {
@@ -389,8 +565,19 @@ async function main() {
     );
   }
 
+  const deploymentId = recordPromotionDeployment({
+    repo: options.repo,
+    plan,
+    requiredChecks,
+    sourceBranch: options.sourceBranch,
+    sourceSha,
+    targetBranch: options.targetBranch,
+    targetShaBefore: targetSha,
+  });
+
   appendOutput(options.outputFile, 'up_to_date', false);
   appendOutput(options.outputFile, 'target_sha_after', targetShaAfter);
+  appendOutput(options.outputFile, 'deployment_id', deploymentId === null ? '' : deploymentId);
   appendSummary(options.summaryFile, [
     '## Promote to Production',
     '',
@@ -400,6 +587,8 @@ async function main() {
     `- Target SHA before: ${targetSha}`,
     `- Target SHA after: ${targetShaAfter}`,
     `- Mode: ${plan.mode}`,
+    `- Required checks: ${requiredChecks.join(', ')}`,
+    `- GitHub Deployment: ${deploymentId === null ? 'evidence recording failed (see log)' : deploymentId}`,
     `- ${plan.reason}`,
   ]);
 
@@ -417,9 +606,14 @@ if (require.main === module) {
 }
 
 module.exports = {
+  buildPromotionDeploymentPayload,
+  createProductionDeployment,
   derivePromotionPlan,
   ensureRequiredChecksGreen,
   isProtectedBranchRefUpdateError,
   parseArgs,
+  recordPromotionDeployment,
   resolveRequiredChecks,
+  resolveRunLogUrl,
+  setDeploymentStatus,
 };

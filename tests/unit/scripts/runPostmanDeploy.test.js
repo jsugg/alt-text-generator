@@ -22,6 +22,7 @@ const {
   assertNoEnvKeysInvariant,
   assertNoRunCommandContainsInvariant,
   assertStepUsesAction,
+  assertStringContainsInvariant,
   findStepByName,
   getJob,
   loadWorkflow,
@@ -493,6 +494,39 @@ describe('Unit | Scripts | Run Postman Deploy', () => {
         workflow,
         'postman:deploy',
         'Post Deploy workflow must not call the removed postman:deploy script',
+      );
+
+      const statusStep = findStepByName(smokeJob, 'smoke', 'Update production deployment status');
+
+      assertDeepEqualInvariant(
+        'Post Deploy smoke job escalates only to deployments write',
+        smokeJob.permissions,
+        { contents: 'read', deployments: 'write' },
+      );
+      assertEqualInvariant(
+        'Post Deploy Newman step exposes an outcome id for the deployment status',
+        postDeployStep.id,
+        'newman-verify',
+      );
+      assertEqualInvariant(
+        'Deployment status updates run only for real production pushes',
+        statusStep.if,
+        "always() && github.event_name == 'push'",
+      );
+      assertEqualInvariant(
+        'Deployment status derives success or failure from the Newman outcome',
+        statusStep.env.DEPLOY_STATE,
+        "${{ steps.newman-verify.outcome == 'success' && 'success' || 'failure' }}",
+      );
+      assertStringContainsInvariant(
+        'Deployment status updates go through the repository script',
+        statusStep.run,
+        'node scripts/github/update-deployment-status.js',
+      );
+      assertStringContainsInvariant(
+        'Deployment status reports the canonical production environment URL',
+        statusStep.run,
+        '--environment-url "https://wcag.qcraft.com.br"',
       );
     });
 

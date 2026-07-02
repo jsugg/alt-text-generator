@@ -1,9 +1,11 @@
 const {
+  buildPromotionDeploymentPayload,
   derivePromotionPlan,
   ensureRequiredChecksGreen,
   isProtectedBranchRefUpdateError,
   parseArgs,
   resolveRequiredChecks,
+  resolveRunLogUrl,
 } = require('../../../../scripts/github/promote-to-production');
 
 describe('Unit | Scripts | GitHub | Promote To Production', () => {
@@ -176,6 +178,104 @@ describe('Unit | Scripts | GitHub | Promote To Production', () => {
         needsUpdate: true,
         reason: 'production contains branch-only history. Resetting it to main@abc123 keeps both branches on the exact same commit.',
       });
+    });
+  });
+
+  describe('deployment evidence', () => {
+    it('records how the promotion happened in the deployment payload', () => {
+      expect(buildPromotionDeploymentPayload({
+        plan: { mode: 'fast-forward' },
+        requiredChecks: ['actionlint', 'test:ci (24)'],
+        sourceBranch: 'main',
+        sourceSha: 'abc123',
+        targetShaBefore: 'def456',
+      })).toEqual({
+        promotion_mode: 'fast-forward',
+        required_checks: ['actionlint', 'test:ci (24)'],
+        source_branch: 'main',
+        source_sha: 'abc123',
+        target_sha_before: 'def456',
+      });
+    });
+
+    it('resolves the Actions run log URL only when the env is complete', () => {
+      expect(resolveRunLogUrl({
+        GITHUB_REPOSITORY: 'jsugg/alt-text-generator',
+        GITHUB_RUN_ID: '7',
+        GITHUB_SERVER_URL: 'https://github.com',
+      })).toBe('https://github.com/jsugg/alt-text-generator/actions/runs/7');
+      expect(resolveRunLogUrl({})).toBeNull();
+    });
+
+    it('creates the production deployment and marks it in progress through gh', () => {
+      jest.isolateModules(() => {
+        const calls = [];
+
+        jest.doMock('node:child_process', () => ({
+          execFileSync: jest.fn((command, args, options) => {
+            calls.push({ args, input: options.input ? JSON.parse(options.input) : null });
+
+            return calls.length === 1 ? '{"id": 42}' : '{"state": "in_progress"}';
+          }),
+        }));
+
+        const promotion = require('../../../../scripts/github/promote-to-production');
+        const deploymentId = promotion.recordPromotionDeployment({
+          repo: 'jsugg/alt-text-generator',
+          plan: { mode: 'fast-forward' },
+          requiredChecks: ['actionlint'],
+          sourceBranch: 'main',
+          sourceSha: 'abc123def',
+          targetBranch: 'production',
+          targetShaBefore: 'def456',
+        });
+
+        expect(deploymentId).toBe(42);
+        expect(calls[0].args).toEqual([
+          'api', '--method', 'POST',
+          'repos/jsugg/alt-text-generator/deployments',
+          '--input', '-',
+        ]);
+        expect(calls[0].input).toMatchObject({
+          ref: 'abc123def',
+          environment: 'production',
+          auto_merge: false,
+          required_contexts: [],
+          payload: { promotion_mode: 'fast-forward', target_sha_before: 'def456' },
+        });
+        expect(calls[1].args).toEqual([
+          'api', '--method', 'POST',
+          'repos/jsugg/alt-text-generator/deployments/42/statuses',
+          '--input', '-',
+        ]);
+        expect(calls[1].input).toMatchObject({ state: 'in_progress' });
+      });
+
+      jest.dontMock('node:child_process');
+    });
+
+    it('degrades deployment evidence failures to a null id without throwing', () => {
+      jest.isolateModules(() => {
+        jest.doMock('node:child_process', () => ({
+          execFileSync: jest.fn(() => {
+            throw new Error('gh: Not Found (HTTP 404)');
+          }),
+        }));
+
+        const promotion = require('../../../../scripts/github/promote-to-production');
+
+        expect(promotion.recordPromotionDeployment({
+          repo: 'jsugg/alt-text-generator',
+          plan: { mode: 'fast-forward' },
+          requiredChecks: [],
+          sourceBranch: 'main',
+          sourceSha: 'abc123',
+          targetBranch: 'production',
+          targetShaBefore: 'def456',
+        })).toBeNull();
+      });
+
+      jest.dontMock('node:child_process');
     });
   });
 
