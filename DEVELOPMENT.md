@@ -562,6 +562,7 @@ At least one provider must be configured at startup: `REPLICATE_API_TOKEN`, Azur
 
 - The Render web service shape is versioned in [`render.yaml`](./render.yaml).
 - Render reads the Node runtime version from [`package.json`](./package.json) `engines.node`.
+- Render builds with `npm ci` so production installs are lockfile-exact and reproducible; never revert to `npm install` except as a temporary escape hatch while repairing a broken lockfile.
 - Secrets such as `REPLICATE_API_TOKEN`, `TLS_KEY`, and `TLS_CERT` stay dashboard-managed and are represented in the Blueprint with `sync: false`.
 
 ## Quality Gates
