@@ -28,7 +28,7 @@ If you only need a quick local boot, start with `README.md` and come back here f
 
 Recommended toolchain:
 
-- Node.js 20.x recommended (compatibility is validated on Node 20, 22, and 24)
+- Node.js 24.x recommended (`.nvmrc` pins 24; compatibility is validated on Node 20, 22, and 24 while the staged Node 24 cutover completes)
 - npm 10+
 
 Boot locally:
@@ -561,6 +561,7 @@ At least one provider must be configured at startup: `REPLICATE_API_TOKEN`, Azur
 
 - The Render web service shape is versioned in [`render.yaml`](./render.yaml).
 - Render reads the Node runtime version from [`package.json`](./package.json) `engines.node`.
+- Render builds with `npm ci` so production installs are lockfile-exact and reproducible; never revert to `npm install` except as a temporary escape hatch while repairing a broken lockfile.
 - Secrets such as `REPLICATE_API_TOKEN`, `TLS_KEY`, and `TLS_CERT` stay dashboard-managed and are represented in the Blueprint with `sync: false`.
 
 ## Quality Gates
