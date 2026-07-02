@@ -82,7 +82,7 @@
     "selfsigned": "^5.5.0",
     "swagger-jsdoc": "^6.3.0",
     "swagger-ui-express": "^5.0.1",
-    "undici": "^6.24.0"
+    "undici": "^6.27.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
