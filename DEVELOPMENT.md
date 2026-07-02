@@ -565,6 +565,12 @@ At least one provider must be configured at startup: `REPLICATE_API_TOKEN`, Azur
 - Render builds with `npm ci` so production installs are lockfile-exact and reproducible; never revert to `npm install` except as a temporary escape hatch while repairing a broken lockfile.
 - Secrets such as `REPLICATE_API_TOKEN`, `TLS_KEY`, and `TLS_CERT` stay dashboard-managed and are represented in the Blueprint with `sync: false`.
 
+### Deployment evidence and rollback
+
+- Promotion creates a GitHub Deployment (environment `production`) recording the promotion mode, source/target SHAs, and the required checks it verified; post-deploy verification marks it `success`/`failure` with run and environment URLs. Inspect with `gh api repos/jsugg/alt-text-generator/deployments --jq 'map(select(.environment=="production"))[:5]'`.
+- Rollback is manual and dry-run-first: dispatch the `Rollback Production` workflow with the previous known-good production SHA (promotion prints it as `Target SHA before`), a reason, and `dry_run=true`; re-dispatch with `dry_run=false` only after the printed plan is confirmed. The workflow uses the repository automation GitHub App (same trust boundary as promotion), shares the promotion concurrency group so releases and rollbacks never interleave, and records a rollback deployment. Render redeploys the rollback commit from the production push and post-deploy verification sets the final status.
+- Automated rollback stays deferred until a manual rollback drill has passed, failure classification can distinguish a deploy regression from a transient provider outage, and the blast radius is accepted.
+
 ## Quality Gates
 
 Run these before pushing:
