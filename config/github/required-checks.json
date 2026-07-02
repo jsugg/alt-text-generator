@@ -1,0 +1,54 @@
+{
+  "description": "Single source of truth for GitHub required status checks. Every context must exactly match a workflow job display name. Verified offline (policy vs workflow job names) by tests/unit/scripts/github/requiredCheckPolicy.test.js and against live GitHub state by `npm run checks:verify -- --live`. See docs/required-checks.md for the migration and rollback procedure.",
+  "mainBranchProtection": {
+    "branch": "main",
+    "contexts": [
+      "actionlint",
+      "codeql",
+      "dependency-review",
+      "docs",
+      "lint",
+      "newman",
+      "openapi",
+      "test:ci (20)",
+      "test:unit (20)",
+      "test:unit (22)",
+      "test:unit (24)"
+    ]
+  },
+  "productionRuleset": {
+    "id": 13764136,
+    "name": "production",
+    "contexts": [
+      "actionlint",
+      "codeql",
+      "dependency-review",
+      "docs",
+      "lint",
+      "newman",
+      "openapi",
+      "test:ci (20)",
+      "test:unit (20)",
+      "test:unit (22)",
+      "test:unit (24)"
+    ],
+    "bypassActors": [
+      {
+        "actor_id": 5,
+        "actor_type": "RepositoryRole",
+        "bypass_mode": "always",
+        "rationale": "Repository admin break-glass on a single-maintainer repository."
+      },
+      {
+        "actor_id": 3062508,
+        "actor_type": "Integration",
+        "bypass_mode": "always",
+        "rationale": "Repository tooling GitHub App (REPO_TOOLING_GITHUB_APP_ID) used by promote-to-production to update the protected production ref."
+      }
+    ]
+  },
+  "retiredContextPatterns": [
+    "^test \\(\\d+\\)$",
+    "^test:all \\(\\d+\\)$"
+  ]
+}
