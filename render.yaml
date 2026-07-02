@@ -1,4 +1,6 @@
 # Render reads the Node runtime version from package.json `engines.node`.
+# buildCommand must stay lockfile-exact (`npm ci`) so production builds are
+# reproducible; `npm install` may silently drift from package-lock.json.
 services:
   - type: web
     name: alt-text-generator
@@ -10,7 +12,7 @@ services:
     region: oregon
     numInstances: 1
     healthCheckPath: /api/health
-    buildCommand: npm install
+    buildCommand: npm ci
     startCommand: npm run prod
     envVars:
       - key: NODE_ENV
