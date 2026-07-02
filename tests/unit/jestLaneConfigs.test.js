@@ -342,6 +342,7 @@ describe('Unit | Jest Lane Configs', () => {
         'actionlint',
         'lint',
         'openapi',
+        'typecheck',
         'test-unit',
         'test-ci',
         'newman',
@@ -416,6 +417,45 @@ describe('Unit | Jest Lane Configs', () => {
       'CI canonical full gate installs the .nvmrc toolchain through the setup composite',
       testCiSetup.with,
       undefined,
+    );
+
+    const typecheckJob = getJob(workflow, 'typecheck');
+    const typecheckStep = findStepByName(typecheckJob, 'typecheck', 'Run typecheck');
+    const typecheckSkipStep = findStepByName(
+      typecheckJob,
+      'typecheck',
+      'Skip typecheck for docs-only change',
+    );
+
+    assertEqualInvariant(
+      'CI typecheck publishes the stable check name for later required promotion',
+      typecheckJob.name,
+      'typecheck',
+    );
+    assertEqualInvariant(
+      'CI typecheck stays advisory until the debt ledger reaches zero',
+      typecheckJob['continue-on-error'],
+      true,
+    );
+    assertEqualInvariant(
+      'CI typecheck declares a timeout',
+      typecheckJob['timeout-minutes'],
+      10,
+    );
+    assertEqualInvariant(
+      'CI typecheck runs the package script',
+      typecheckStep.run,
+      'npm run typecheck',
+    );
+    assertExpressionContainsInvariant(
+      'CI typecheck skips expensive setup for docs-only changes',
+      typecheckStep.if,
+      "needs.changes.outputs.docs_only != 'true'",
+    );
+    assertExpressionContainsInvariant(
+      'CI typecheck publishes a no-op success for docs-only changes',
+      typecheckSkipStep.if,
+      "needs.changes.outputs.docs_only == 'true'",
     );
     assertExpressionContainsInvariant(
       'CI unit matrix skips expensive setup for docs-only changes',
