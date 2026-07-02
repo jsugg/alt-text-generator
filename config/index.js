@@ -7,11 +7,20 @@ const { buildDescriptionJobStoreConfig } = require('./descriptionJobStore');
 const { buildProviderConfigSections } = require('./providerCatalog');
 const { loadProviderOverrides } = require('./providerOverrides');
 
+/**
+ * @param {unknown} value
+ * @param {number} fallback
+ * @returns {number}
+ */
 const toNumber = (value, fallback) => {
   const parsedValue = Number(value);
   return Number.isFinite(parsedValue) ? parsedValue : fallback;
 };
 
+/**
+ * @param {unknown} value
+ * @returns {number|undefined}
+ */
 const toOptionalNumber = (value) => {
   if (value === undefined) {
     return undefined;
@@ -21,6 +30,10 @@ const toOptionalNumber = (value) => {
   return Number.isFinite(parsedValue) ? parsedValue : undefined;
 };
 
+/**
+ * @param {unknown} value
+ * @returns {boolean|undefined}
+ */
 const toOptionalBoolean = (value) => {
   if (value === undefined) {
     return undefined;
@@ -37,6 +50,10 @@ const toOptionalBoolean = (value) => {
   return undefined;
 };
 
+/**
+ * @param {unknown} value
+ * @returns {string[]}
+ */
 const toList = (value) => {
   if (typeof value !== 'string') {
     return [];

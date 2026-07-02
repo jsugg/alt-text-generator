@@ -6,6 +6,11 @@ const yaml = require('js-yaml');
 const DEFAULT_PROVIDER_OVERRIDES_FILE = path.join(__dirname, 'providers.yaml');
 const PROVIDER_OVERRIDE_AUTO = 'auto';
 
+/**
+ * @param {unknown} value
+ * @param {string} providerKey
+ * @returns {boolean | string}
+ */
 const normalizeEnabledValue = (value, providerKey) => {
   if (value === undefined) {
     return PROVIDER_OVERRIDE_AUTO;
@@ -24,6 +29,11 @@ const normalizeEnabledValue = (value, providerKey) => {
   );
 };
 
+/**
+ * @param {unknown} document
+ * @param {string} filePath
+ * @returns {Record<string, { enabled: boolean | string }>}
+ */
 const parseProviderOverridesDocument = (document, filePath) => {
   if (document === undefined || document === null) {
     return {};
@@ -33,26 +43,30 @@ const parseProviderOverridesDocument = (document, filePath) => {
     throw new Error(`Provider override file '${filePath}' must contain a top-level mapping`);
   }
 
-  if (document.providers === undefined || document.providers === null) {
+  const mapping = /** @type {{ providers?: unknown }} */ (document);
+
+  if (mapping.providers === undefined || mapping.providers === null) {
     return {};
   }
 
-  if (typeof document.providers !== 'object' || Array.isArray(document.providers)) {
+  if (typeof mapping.providers !== 'object' || Array.isArray(mapping.providers)) {
     throw new Error(`Provider override file '${filePath}' must contain a 'providers' mapping`);
   }
 
-  return Object.entries(document.providers).reduce((providers, [providerKey, providerConfig]) => {
+  return Object.entries(mapping.providers).reduce((providers, [providerKey, providerConfig]) => {
     if (typeof providerConfig !== 'object' || providerConfig === null || Array.isArray(providerConfig)) {
       throw new Error(`Provider override for '${providerKey}' in '${filePath}' must be a mapping`);
     }
 
+    const config = /** @type {{ enabled?: unknown }} */ (providerConfig);
+
     return {
       ...providers,
       [providerKey]: {
-        enabled: normalizeEnabledValue(providerConfig.enabled, providerKey),
+        enabled: normalizeEnabledValue(config.enabled, providerKey),
       },
     };
-  }, {});
+  }, /** @type {Record<string, { enabled: boolean | string }>} */ ({}));
 };
 
 const resolveProviderOverridesFile = (env = process.env) => (

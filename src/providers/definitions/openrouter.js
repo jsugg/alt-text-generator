@@ -21,11 +21,11 @@ module.exports = buildOpenAiCompatibleProvider({
     scopeRequirement: 'OPENROUTER_API_KEY',
     allRequirement: 'OPENROUTER_API_KEY',
   },
-  additionalEnvSchema: (Joi) => ({
+  additionalEnvSchema: (/** @type {import('joi').Root} */ Joi) => ({
     OPENROUTER_HTTP_REFERER: Joi.string().uri().optional(),
     OPENROUTER_TITLE: Joi.string().optional(),
   }),
-  buildHeaders: (env) => ({
+  buildHeaders: (/** @type {Record<string, string | undefined>} */ env) => ({
     ...(env.OPENROUTER_HTTP_REFERER ? { 'HTTP-Referer': env.OPENROUTER_HTTP_REFERER } : {}),
     ...(env.OPENROUTER_TITLE ? { 'X-Title': env.OPENROUTER_TITLE } : {}),
   }),

@@ -12,7 +12,7 @@ with dependency updates — re-measure (`npm run typecheck`) before each burn-do
 |---|---:|
 | `strict: true` — original baseline 2026-07-02 | 1409 |
 | `strict: true` — measured 2026-07-02 (dependency drift) | 1438 |
-| `strict: true` — current (after burn-down log below) | 1372 |
+| `strict: true` — current (after burn-down log below) | 1360 |
 | `strict: false` (reference only) | 170 |
 
 ## Burn-down log
@@ -22,6 +22,7 @@ with dependency updates — re-measure (`npm run typecheck`) before each burn-do
 | 2026-07-02 | `scripts/github/verify-required-checks.js` | 15 → 0 | JSDoc `@param`/`@typedef` + type-only boundary casts at the JSON/gh-API edges. No runtime change, no `any`. **Pattern for the rest:** annotate params, `@typedef` external-JSON response shapes, and cast once at the validation boundary — never widen the strict profile. |
 | 2026-07-02 | `tsconfig.checkjs.json` — add `DOM` to `lib` | 34 → 0 | Declares Node's global `fetch`/`Response`/`Headers` (real at the Node 24 runtime), clearing `Cannot find name 'fetch'` repo-wide. No dependency change; no strictness change. |
 | 2026-07-02 | `scripts/github/{compose-pages-site,write-newman-summary,sync-pages-state-branch,resolve-pages-source-run}.js` | 14 → 0 | Typed the `parseArgs` arg-object locals + non-optional return shapes; cast `filter(Boolean)` / JSON boundaries. Only runtime change: `compose-pages-site` `publishPath` now defaults to `''` not `null` (strictly safer). |
+| 2026-07-02 | `config/{index,providerOverrides}.js`, `src/errors/ProviderTimeoutError.js`, `src/providers/definitions/openrouter.js` | 12 → 0 | `@param {unknown}` on the env coercion / arg helpers; `import('joi').Root` + env callback types; boundary casts (`mapping`/`config`) on the parsed-YAML object to avoid cascading `TS2339`. No runtime change. |
 
 Top strict-error areas (pre-burn-down baseline; `scripts/github` now ≈127):
 
