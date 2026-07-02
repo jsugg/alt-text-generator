@@ -118,7 +118,7 @@ async function resolveSourceRun({
   repository = process.env.GITHUB_REPOSITORY || '',
   token = process.env.GITHUB_TOKEN || '',
 } = {}) {
-  const workflowRun = eventPayload.workflow_run || {};
+  const workflowRun = /** @type {Record<string, unknown>} */ (eventPayload.workflow_run || {});
   const resolvedDispatchRunId = dispatchRunId.trim();
 
   if (eventName === 'workflow_dispatch') {

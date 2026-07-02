@@ -28,11 +28,11 @@ const DEFAULT_COLLECTION_PATH = path.resolve(
  * @returns {{ collectionPath: string, reportsDir: string, summaryFile: string|null }}
  */
 function parseArgs(argv) {
-  const args = {
+  const args = /** @type {{ collectionPath: string, reportsDir: string, summaryFile: string | null }} */ ({
     collectionPath: DEFAULT_COLLECTION_PATH,
     reportsDir: DEFAULT_REPORTS_DIR,
     summaryFile: null,
-  };
+  });
 
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
@@ -66,7 +66,7 @@ function parseArgs(argv) {
 }
 
 /**
- * @param {string} summaryFile
+ * @param {string|null} summaryFile
  * @param {string[]} lines
  */
 function appendSummary(summaryFile, lines) {

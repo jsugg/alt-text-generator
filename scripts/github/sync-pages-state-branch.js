@@ -10,18 +10,18 @@ const path = require('node:path');
  * @param {string[]} argv
  * @returns {{
  *   branch: string,
- *   commitMessage?: string,
+ *   commitMessage: string,
  *   outputFile: string | null,
  *   repoDir: string,
- *   siteDir?: string,
+ *   siteDir: string,
  * }}
  */
 function parseArgs(argv) {
-  const args = {
+  const args = /** @type {{ branch: string, commitMessage?: string, outputFile: string | null, repoDir: string, siteDir?: string }} */ ({
     branch: 'gh-pages',
     outputFile: null,
     repoDir: process.cwd(),
-  };
+  });
 
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
@@ -71,7 +71,7 @@ function parseArgs(argv) {
     throw new Error('--commit-message is required');
   }
 
-  return args;
+  return /** @type {{ branch: string, commitMessage: string, outputFile: string | null, repoDir: string, siteDir: string }} */ (args);
 }
 
 /**

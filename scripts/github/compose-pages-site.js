@@ -17,7 +17,7 @@ const PRESERVED_ROOT_ENTRIES = ['pr'];
 function parseArgs(argv) {
   let existingSiteDir = null;
   let outputDir = null;
-  let publishPath = null;
+  let publishPath = '';
   let reportDir = null;
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -166,9 +166,9 @@ async function listPublishedPrDirectories(siteDir) {
     return entry.name;
   }));
 
-  return publishedPrDirectories
+  return /** @type {string[]} */ (publishedPrDirectories
     .filter(Boolean)
-    .sort((left, right) => Number(right) - Number(left));
+    .sort((left, right) => Number(right) - Number(left)));
 }
 
 /**
