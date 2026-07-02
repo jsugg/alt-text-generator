@@ -109,6 +109,13 @@ jobs:
       - name: Run actionlint
         run: /tmp/actionlint -color
 
+      # Advisory workflow SAST: findings warn, never block, until the signal
+      # proves low-noise (plan W09/F09 promotion criteria).
+      - name: Run zizmor workflow audit (advisory)
+        run: |
+          pipx install zizmor==1.26.1 >/dev/null
+          zizmor .github/workflows/ || echo "::warning::zizmor reported workflow findings (advisory; see job log)"
+
   lint:
     name: lint
     needs:
