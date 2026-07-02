@@ -1,1 +1,0 @@
-{"imageSources":["http://127.0.0.1:39587/assets/a.png","http://127.0.0.1:39587/assets/b.png","http://127.0.0.1:39587/assets/a.png"]}
