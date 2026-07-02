@@ -23,8 +23,6 @@ jobs:
 
       - name: Setup project
         uses: ./.github/actions/setup-node-project
-        with:
-          node-version: '20'
 
       - name: Run production dependency audit
         id: audit
