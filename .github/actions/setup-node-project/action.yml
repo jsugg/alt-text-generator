@@ -3,14 +3,22 @@ description: Set up Node.js with npm cache and install project dependencies.
 
 inputs:
   node-version:
-    description: Node.js version to install.
+    description: Node.js version override. Leave empty to use the .nvmrc toolchain.
     required: false
-    default: '20'
+    default: ''
 
 runs:
   using: composite
   steps:
-    - name: Setup Node
+    - name: Setup Node from .nvmrc
+      if: inputs.node-version == ''
+      uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+      with:
+        node-version-file: .nvmrc
+        cache: 'npm'
+
+    - name: Setup Node override
+      if: inputs.node-version != ''
       uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
       with:
         node-version: ${{ inputs.node-version }}

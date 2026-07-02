@@ -32,8 +32,8 @@ The service exposes these primary capabilities:
 
 ## Requirements
 
-- CI validates Node 20, 22, and 24.
-- `engines.node` allows Node 20 through 24; use Node 20 locally for the least friction.
+- CI validates Node 20, 22, and 24; a staged Node 24 full gate (`test:ci (24)`) runs ahead of the Node 24 cutover.
+- `engines.node` allows Node 20 through 24; `.nvmrc` pins Node 24 for local toolchains.
 - npm 10+
 - At least one provider configuration:
   - `REPLICATE_API_TOKEN` for the `replicate` model

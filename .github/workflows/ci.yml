@@ -282,6 +282,51 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  # Staged Node 24 full gate (required-check migration): runs the canonical
+  # test:ci lane on Node 24 alongside the Node 20 gate. Gate-only during the
+  # transition — it must not upload Jest/coverage/Allure artifacts, so the
+  # canonical Node 20 lane stays the single reporting source until cutover.
+  test-ci-24:
+    name: test:ci (24)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs:
+      - changes
+    services:
+      redis:
+        image: redis:8.8.0-alpine3.23
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      REDIS_INTEGRATION_MODE: required
+      REDIS_INTEGRATION_URL: redis://127.0.0.1:6379
+    steps:
+      - name: Checkout
+        if: needs.changes.outputs.docs_only != 'true'
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Setup project
+        if: needs.changes.outputs.docs_only != 'true'
+        uses: ./.github/actions/setup-node-project
+        with:
+          node-version: '24'
+
+      - name: 'test:ci'
+        if: needs.changes.outputs.docs_only != 'true'
+        run: npm run test:ci
+        env:
+          NODE_ENV: test
+          REPLICATE_API_TOKEN: test-token
+
+      - name: Skip full Jest gate for docs-only change
+        if: needs.changes.outputs.docs_only == 'true'
+        run: echo "Docs-only change; Node 24 full Jest gate satisfied by docs validation."
+
   newman:
     name: newman
     runs-on: ubuntu-latest
