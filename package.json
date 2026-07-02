@@ -50,6 +50,7 @@
     "test:coverage": "REDIS_INTEGRATION_MODE=required jest --config config/jest/jest.coverage.cjs",
     "test:allure": "ALLURE_RESULTS_DIR=reports/allure-results jest --config config/jest/jest.reporting.cjs",
     "test:ci": "REDIS_INTEGRATION_MODE=required jest --config config/jest/jest.ci.cjs --ci",
+    "typecheck": "tsc -p tsconfig.checkjs.json",
     "validate:fast": "npm run lint && npm run openapi:validate && npm run openapi:check && NODE_ENV=test REPLICATE_API_TOKEN=test-token npm test",
     "validate:contract": "npm run openapi:diff && npm run postman:lint && npm run postman:smoke",
     "validate:ci": "npm run lint && npm run openapi:validate && npm run openapi:check && NODE_ENV=test REPLICATE_API_TOKEN=test-token npm run test:ci && npm run validate:contract",
@@ -98,7 +99,8 @@
     "newman": "^6.2.2",
     "newman-reporter-allure": "^3.6.0",
     "nodemon": "^3.1.14",
-    "supertest": "^6.3.4"
+    "supertest": "^6.3.4",
+    "typescript": "^6.0.3"
   },
   "nodemonConfig": {
     "ignore": [

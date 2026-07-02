@@ -90,10 +90,10 @@ jobs:
         uses: github/codeql-action/init@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
         with:
           languages: javascript
+          queries: security-extended
 
-      - name: Autobuild
-        if: needs.changes.outputs.docs_only != 'true'
-        uses: github/codeql-action/autobuild@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
+      # No autobuild step: JavaScript is interpreted; the init/analyze pair
+      # extracts sources directly and the build step only added runtime.
 
       - name: Analyze
         if: needs.changes.outputs.docs_only != 'true'
