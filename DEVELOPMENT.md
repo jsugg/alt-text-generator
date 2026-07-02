@@ -59,6 +59,7 @@ npm run validate:fast      # lint + openapi:validate/check + unit lane (pre-comm
 npm run validate:contract  # openapi:diff + postman:lint + postman:smoke (HTTP contract)
 npm run validate:ci        # lint + openapi gates + test:ci + contract (CI repro; needs Redis)
 npm run lint
+npm run typecheck          # strict JSDoc typecheck (advisory in CI; docs/typecheck-debt.md)
 
 # openapi contract
 npm run openapi:generate   # regenerate docs/openapi.base.json from JSDoc sources

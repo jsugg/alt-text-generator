@@ -171,6 +171,34 @@ jobs:
         if: needs.changes.outputs.docs_only == 'true'
         run: echo "Docs-only change; OpenAPI gate satisfied by docs validation."
 
+  # Advisory JSDoc type gate: strict checkJs carries known debt
+  # (docs/typecheck-debt.md), so the job may fail without blocking the run.
+  # Drop continue-on-error and add the context to required checks only when
+  # the debt reaches zero.
+  typecheck:
+    name: typecheck
+    needs:
+      - changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        if: needs.changes.outputs.docs_only != 'true'
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Setup project
+        if: needs.changes.outputs.docs_only != 'true'
+        uses: ./.github/actions/setup-node-project
+
+      - name: Run typecheck
+        if: needs.changes.outputs.docs_only != 'true'
+        run: npm run typecheck
+
+      - name: Skip typecheck for docs-only change
+        if: needs.changes.outputs.docs_only == 'true'
+        run: echo "Docs-only change; typecheck gate satisfied by docs validation."
+
   test-unit:
     name: test:unit (${{ matrix.node-version }})
     runs-on: ubuntu-latest

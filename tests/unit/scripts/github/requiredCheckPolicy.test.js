@@ -56,12 +56,12 @@ describe('Unit | Scripts | GitHub | Required Check Policy', () => {
       ...policy,
       mainBranchProtection: {
         ...policy.mainBranchProtection,
-        contexts: [...policy.mainBranchProtection.contexts, 'typecheck'],
+        contexts: [...policy.mainBranchProtection.contexts, 'mutation-tests'],
       },
     };
 
     expect(verifyOfflinePolicy(brokenPolicy, collected)).toEqual([
-      expect.stringContaining('"typecheck" is not published by any push/pull_request workflow job'),
+      expect.stringContaining('"mutation-tests" is not published by any push/pull_request workflow job'),
     ]);
   });
 
