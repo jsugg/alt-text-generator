@@ -5,10 +5,29 @@ const DEFAULT_API_BASE_URL = 'https://api.github.com/';
 const DEFAULT_FAIL_ON_SEVERITY = 'low';
 const DEFAULT_FAIL_ON_SCOPES = ['runtime'];
 const DEFAULT_PER_PAGE = 100;
+// Advisory license allowlist (Q08: pending maintainer ratification). SPDX ids
+// common across this dependency tree; expressions are evaluated with a simple
+// heuristic (AND requires every part, otherwise any OR part suffices).
+const DEFAULT_ALLOWED_LICENSES = [
+  '0BSD',
+  'Apache-2.0',
+  'BSD-2-Clause',
+  'BSD-3-Clause',
+  'BlueOak-1.0.0',
+  'CC-BY-3.0',
+  'CC-BY-4.0',
+  'CC0-1.0',
+  'ISC',
+  'MIT',
+  'Python-2.0',
+  'Unlicense',
+];
 
 function parseArgs(argv) {
   const args = {
+    allowedLicenses: [...DEFAULT_ALLOWED_LICENSES],
     apiBaseUrl: DEFAULT_API_BASE_URL,
+    failOnDisallowedLicenses: false,
     failOnScopes: [...DEFAULT_FAIL_ON_SCOPES],
     failOnSeverity: DEFAULT_FAIL_ON_SEVERITY,
     perPage: DEFAULT_PER_PAGE,
@@ -35,8 +54,18 @@ function parseArgs(argv) {
     }
 
     switch (key) {
+      case 'allowed-licenses':
+        args.allowedLicenses = rawValue.split(',').map((value) => value.trim()).filter(Boolean);
+        break;
       case 'api-base-url':
         args.apiBaseUrl = rawValue;
+        break;
+      case 'fail-on-disallowed-licenses':
+        if (rawValue !== 'true' && rawValue !== 'false') {
+          throw new Error('--fail-on-disallowed-licenses must be "true" or "false"');
+        }
+
+        args.failOnDisallowedLicenses = rawValue === 'true';
         break;
       case 'base-ref':
         args.baseRef = rawValue;
@@ -193,6 +222,70 @@ async function listDependencyChanges(args, { fetchImpl = fetch, token }) {
   };
 }
 
+/**
+ * Evaluates an SPDX license value against the allowlist. AND expressions
+ * require every part; otherwise any OR part (or the bare id) suffices.
+ * Missing values and NOASSERTION are never allowed.
+ *
+ * @param {string[]} allowedLicenses
+ * @param {string|null|undefined} license
+ * @returns {boolean}
+ */
+function isLicenseAllowed(allowedLicenses, license) {
+  if (!license || license === 'NOASSERTION') {
+    return false;
+  }
+
+  const normalized = license.replace(/[()]/gu, '');
+
+  if (/\s+AND\s+/u.test(normalized)) {
+    return normalized
+      .split(/\s+AND\s+/u)
+      .every((part) => isLicenseAllowed(allowedLicenses, part.trim()));
+  }
+
+  return normalized
+    .split(/\s+OR\s+/u)
+    .some((part) => allowedLicenses.includes(part.trim()));
+}
+
+/**
+ * Returns added dependency changes whose license is unknown or disallowed.
+ *
+ * @param {string[]} allowedLicenses
+ * @param {{ change_type: string, license?: string|null }[]} changes
+ * @returns {object[]}
+ */
+function filterAddedChangesByLicense(allowedLicenses, changes) {
+  return changes.filter((change) => (
+    change.change_type === 'added' && !isLicenseAllowed(allowedLicenses, change.license)
+  ));
+}
+
+function formatLicenseSummary(flaggedChanges, failOnDisallowedLicenses) {
+  if (flaggedChanges.length === 0) {
+    return [
+      '### License Policy',
+      '',
+      'Every added dependency carries an allowed license.',
+    ].join('\n');
+  }
+
+  const mode = failOnDisallowedLicenses ? 'blocking' : 'advisory';
+  const lines = [
+    '### License Policy',
+    '',
+    `Detected ${flaggedChanges.length} added dependency change(s) with unknown or disallowed licenses (${mode}):`,
+    '',
+  ];
+
+  flaggedChanges.forEach((change) => {
+    lines.push(`- \`${change.manifest}\` \`${change.name}@${change.version}\` [${change.scope || 'runtime'}]: ${change.license || 'unknown license'}`);
+  });
+
+  return lines.join('\n');
+}
+
 function filterChangesByScopes(scopes, changes) {
   return changes.filter((change) => scopes.includes(change.scope || 'runtime'));
 }
@@ -277,6 +370,7 @@ async function reviewDependencies(
     appendStepSummary(args.summaryFile, summary);
     return {
       changes,
+      licenseFlaggedChanges: [],
       vulnerableChanges: [],
     };
   }
@@ -287,13 +381,35 @@ async function reviewDependencies(
 
   appendStepSummary(args.summaryFile, summary);
 
+  const licenseFlaggedChanges = filterAddedChangesByLicense(
+    args.allowedLicenses || [...DEFAULT_ALLOWED_LICENSES],
+    changes,
+  );
+
+  appendStepSummary(
+    args.summaryFile,
+    formatLicenseSummary(licenseFlaggedChanges, args.failOnDisallowedLicenses === true),
+  );
+  licenseFlaggedChanges.forEach((change) => {
+    writeStderr(
+      `license: ${change.manifest} » ${change.name}@${change.version} `
+      + `[${change.scope || 'runtime'}] – "${change.license || 'unknown'}" is not in the allowlist`
+      + (args.failOnDisallowedLicenses === true ? '' : ' (advisory)'),
+    );
+  });
+
   if (vulnerableChanges.length === 0) {
     writeStdout(
       `Dependency review did not detect added vulnerabilities with severity "${args.failOnSeverity}" or higher.`,
     );
 
+    if (args.failOnDisallowedLicenses === true && licenseFlaggedChanges.length > 0) {
+      throw new Error('Dependency review detected disallowed licenses.');
+    }
+
     return {
       changes,
+      licenseFlaggedChanges,
       vulnerableChanges,
     };
   }
@@ -325,9 +441,13 @@ if (require.main === module) {
 module.exports = {
   appendStepSummary,
   buildApiUrl,
+  DEFAULT_ALLOWED_LICENSES,
   fetchGitHubJson,
+  filterAddedChangesByLicense,
   filterChangesByScopes,
   filterChangesBySeverity,
+  formatLicenseSummary,
+  isLicenseAllowed,
   formatVulnerabilitySummary,
   listDependencyChanges,
   parseArgs,
