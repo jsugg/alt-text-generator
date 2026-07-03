@@ -12,7 +12,7 @@ with dependency updates — re-measure (`npm run typecheck`) before each burn-do
 |---|---:|
 | `strict: true` — original baseline 2026-07-02 | 1409 |
 | `strict: true` — measured 2026-07-02 (dependency drift) | 1438 |
-| `strict: true` — current (after burn-down log below) | 1360 |
+| `strict: true` — current (after burn-down log below) | 1311 |
 | `strict: false` (reference only) | 170 |
 
 ## Burn-down log
@@ -23,8 +23,9 @@ with dependency updates — re-measure (`npm run typecheck`) before each burn-do
 | 2026-07-02 | `tsconfig.checkjs.json` — add `DOM` to `lib` | 34 → 0 | Declares Node's global `fetch`/`Response`/`Headers` (real at the Node 24 runtime), clearing `Cannot find name 'fetch'` repo-wide. No dependency change; no strictness change. |
 | 2026-07-02 | `scripts/github/{compose-pages-site,write-newman-summary,sync-pages-state-branch,resolve-pages-source-run}.js` | 14 → 0 | Typed the `parseArgs` arg-object locals + non-optional return shapes; cast `filter(Boolean)` / JSON boundaries. Only runtime change: `compose-pages-site` `publishPath` now defaults to `''` not `null` (strictly safer). |
 | 2026-07-02 | `config/{index,providerOverrides}.js`, `src/errors/ProviderTimeoutError.js`, `src/providers/definitions/openrouter.js` | 12 → 0 | `@param {unknown}` on the env coercion / arg helpers; `import('joi').Root` + env callback types; boundary casts (`mapping`/`config`) on the parsed-YAML object to avoid cascading `TS2339`. No runtime change. |
+| 2026-07-02 | `scripts/github/review-dependencies.js` | 49 → 0 | `@typedef` the dependency-graph compare API model (`DependencyChange`/`Vulnerability`/`VulnerableChange`) and CLI `ParsedArgs`/`ValidatedArgs`; type each helper's params/returns; cast the arg-object literal and cast once at the `parseArgs` validation boundary (→ `ValidatedArgs`). No runtime change; 23 related unit tests green. |
 
-Top strict-error areas (pre-burn-down baseline; `scripts/github` now ≈127):
+Top strict-error areas (pre-burn-down baseline; `scripts/github` now ≈76):
 
 | Area | Errors |
 |---|---:|
