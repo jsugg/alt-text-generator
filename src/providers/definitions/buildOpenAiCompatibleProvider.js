@@ -7,9 +7,29 @@ const {
 } = require('./helpers');
 
 /**
+ * @typedef {object} OpenAiCompatibleProviderOptions
+ * @property {string} key
+ * @property {string} [configKey]
+ * @property {string} displayName
+ * @property {string} startupHint
+ * @property {string[]} apiKeyEnvNames
+ * @property {string} baseUrlEnvName
+ * @property {string} [defaultBaseUrl]
+ * @property {string} modelEnvName
+ * @property {string} [defaultModel]
+ * @property {string} maxTokensEnvName
+ * @property {string} promptEnvName
+ * @property {object | null} [providerValidation]
+ * @property {(Joi: import('joi').Root) => Record<string, unknown>} [additionalEnvSchema]
+ * @property {(env: Record<string, string | undefined>) => Record<string, unknown>} [buildAdditionalConfig]
+ * @property {(env: Record<string, string | undefined>) => Record<string, string>} [buildHeaders]
+ * @property {string[]} [additionalValidationEnvNames]
+ */
+
+/**
  * Builds a provider definition for OpenAI-compatible multimodal chat APIs.
  *
- * @param {object} options
+ * @param {OpenAiCompatibleProviderOptions} options
  * @returns {object}
  */
 const buildOpenAiCompatibleProvider = ({
@@ -34,18 +54,18 @@ const buildOpenAiCompatibleProvider = ({
   configKey,
   displayName,
   startupHint,
-  buildEnvSchema: (Joi) => ({
+  buildEnvSchema: (/** @type {import('joi').Root} */ Joi) => ({
     ...apiKeyEnvNames.reduce((schema, envName) => ({
       ...schema,
       [envName]: Joi.string().optional(),
-    }), {}),
+    }), /** @type {Record<string, unknown>} */ ({})),
     [baseUrlEnvName]: Joi.string().uri().optional(),
     [modelEnvName]: Joi.string().optional(),
     [maxTokensEnvName]: Joi.number().integer().min(1).optional(),
     [promptEnvName]: Joi.string().optional(),
     ...additionalEnvSchema(Joi),
   }),
-  buildConfig: (env) => {
+  buildConfig: (/** @type {Record<string, string | undefined>} */ env) => {
     const apiKeyEnvName = apiKeyEnvNames.find((envName) => env[envName]);
 
     return {
@@ -59,7 +79,7 @@ const buildOpenAiCompatibleProvider = ({
     };
   },
   isConfiguredInEnv: (env = {}) => hasAnyEnvValue(env, apiKeyEnvNames),
-  isConfiguredInConfig: (config = {}) => Boolean(config[configKey]?.apiKey),
+  isConfiguredInConfig: (/** @type {Record<string, { apiKey?: unknown }>} */ config = {}) => Boolean(config[configKey]?.apiKey),
   validateEnv: (env = {}) => validateApiKeyBackedProviderEnv({
     env,
     apiKeyEnvNames,
@@ -72,6 +92,9 @@ const buildOpenAiCompatibleProvider = ({
     ],
     errorMessage: `Config validation error: ${startupHint}`,
   }),
+  /**
+   * @param {{ config: Record<string, object>, logger: object, httpClient: object, outboundUrlPolicy?: Function, requestOptions?: object, providerClient?: object }} deps
+   */
   createRuntime: ({
     config,
     logger,
@@ -79,7 +102,7 @@ const buildOpenAiCompatibleProvider = ({
     outboundUrlPolicy,
     requestOptions,
     providerClient,
-  }) => new OpenAiCompatibleVisionDescriberService({
+  }) => new OpenAiCompatibleVisionDescriberService(/** @type {ConstructorParameters<typeof OpenAiCompatibleVisionDescriberService>[0]} */ ({
     logger,
     httpClient,
     apiClient: providerClient ?? httpClient,
@@ -88,7 +111,7 @@ const buildOpenAiCompatibleProvider = ({
     providerKey: key,
     providerName: displayName,
     requestOptions,
-  }),
+  })),
   providerValidation,
 });
 
