@@ -6,16 +6,64 @@ const {
 
 const DEFAULT_CLAIM_RETRY_COUNT = 3;
 
+/**
+ * @typedef {object} StoredJob
+ * @property {string} id
+ * @property {string} [expiresAt]
+ * @property {number} [leaseExpiresAtEpochMs]
+ * @property {string} [leaseExpiresAt]
+ * @property {string} [runnerId]
+ */
+
+/**
+ * @typedef {object} RedisTransaction
+ * @property {(key: string, value: string, options?: object) => unknown} set
+ * @property {() => Promise<unknown>} exec
+ */
+
+/**
+ * @typedef {object} RedisClient
+ * @property {() => RedisTransaction} multi
+ * @property {(key: string) => Promise<unknown>} watch
+ * @property {(key: string) => Promise<string | null>} get
+ * @property {(key: string, value: string, options?: object) => Promise<unknown>} set
+ * @property {(key: string) => Promise<unknown>} del
+ * @property {() => Promise<unknown>} [unwatch]
+ * @property {boolean} isOpen
+ * @property {() => Promise<unknown>} quit
+ */
+
+/**
+ * @typedef {object} DescriptionJobsConfig
+ * @property {string} [kind]
+ * @property {string} [redisUrl]
+ * @property {string} [redisPrefix]
+ */
+
+/**
+ * @param {StoredJob | null | undefined} job
+ * @returns {boolean}
+ */
 const isExpired = (job) => (
   typeof job?.expiresAt === 'string'
   && Date.parse(job.expiresAt) <= Date.now()
 );
 
+/**
+ * @param {StoredJob | null | undefined} job
+ * @returns {boolean}
+ */
 const isLeaseActive = (job) => (
   Number.isFinite(job?.leaseExpiresAtEpochMs)
-  && job.leaseExpiresAtEpochMs > Date.now()
+  && /** @type {number} */ (job?.leaseExpiresAtEpochMs) > Date.now()
 );
 
+/**
+ * @param {StoredJob} job
+ * @param {string} runnerId
+ * @param {number} leaseTtlMs
+ * @returns {StoredJob}
+ */
 const buildClaimedJob = (job, runnerId, leaseTtlMs) => {
   const leaseExpiresAtEpochMs = Date.now() + leaseTtlMs;
 
@@ -27,21 +75,34 @@ const buildClaimedJob = (job, runnerId, leaseTtlMs) => {
   };
 };
 
+/**
+ * @param {StoredJob} job
+ * @param {string} runnerId
+ * @returns {boolean}
+ */
 const canClaimJob = (job, runnerId) => (
   Boolean(job)
   && (!job.runnerId || job.runnerId === runnerId || !isLeaseActive(job))
 );
 
+/**
+ * @param {StoredJob} job
+ * @returns {number}
+ */
 const getTtlSeconds = (job) => Math.max(
-  Math.ceil((Date.parse(job.expiresAt) - Date.now()) / 1000),
+  Math.ceil((Date.parse(/** @type {string} */ (job.expiresAt)) - Date.now()) / 1000),
   1,
 );
 
 class InMemoryDescriptionJobStore {
   constructor() {
-    this.jobs = new Map();
+    this.jobs = /** @type {Map<string, StoredJob>} */ (new Map());
   }
 
+  /**
+   * @param {string} jobId
+   * @returns {Promise<StoredJob | null>}
+   */
   async get(jobId) {
     const job = this.jobs.get(jobId);
 
@@ -57,14 +118,28 @@ class InMemoryDescriptionJobStore {
     return { ...job };
   }
 
+  /**
+   * @param {StoredJob} job
+   * @returns {Promise<void>}
+   */
   async set(job) {
     this.jobs.set(job.id, { ...job });
   }
 
+  /**
+   * @param {string} jobId
+   * @returns {Promise<void>}
+   */
   async delete(jobId) {
     this.jobs.delete(jobId);
   }
 
+  /**
+   * @param {string} jobId
+   * @param {string} runnerId
+   * @param {number} leaseTtlMs
+   * @returns {Promise<StoredJob | null>}
+   */
   async claim(jobId, runnerId, leaseTtlMs) {
     const job = this.jobs.get(jobId);
 
@@ -82,9 +157,19 @@ class InMemoryDescriptionJobStore {
   }
 }
 
+/**
+ * @param {{ client: RedisClient, prefix: string }} params
+ */
 const createRedisDescriptionJobStore = ({ client, prefix }) => {
+  /** @param {string} jobId @returns {string} */
   const buildKey = (jobId) => `${prefix}${jobId}`;
+  /** @param {string} payload @returns {StoredJob} */
   const parsePayload = (payload) => JSON.parse(payload);
+  /**
+   * @param {string} key
+   * @param {StoredJob} job
+   * @returns {Promise<unknown>}
+   */
   const persistWatchedJob = async (key, job) => {
     const transaction = client.multi();
     transaction.set(key, JSON.stringify(job), {
@@ -105,6 +190,10 @@ const createRedisDescriptionJobStore = ({ client, prefix }) => {
       throw error;
     }
   };
+  /**
+   * @param {{ attemptNumber: number, jobId: string, runnerId: string, leaseTtlMs: number }} params
+   * @returns {Promise<StoredJob | null>}
+   */
   const attemptClaim = async ({
     attemptNumber,
     jobId,
@@ -151,6 +240,10 @@ const createRedisDescriptionJobStore = ({ client, prefix }) => {
   };
 
   return {
+    /**
+     * @param {string} jobId
+     * @returns {Promise<StoredJob | null>}
+     */
     async get(jobId) {
       const payload = await client.get(buildKey(jobId));
       if (!payload) {
@@ -165,14 +258,28 @@ const createRedisDescriptionJobStore = ({ client, prefix }) => {
 
       return job;
     },
+    /**
+     * @param {StoredJob} job
+     * @returns {Promise<void>}
+     */
     async set(job) {
       await client.set(buildKey(job.id), JSON.stringify(job), {
         EX: getTtlSeconds(job),
       });
     },
+    /**
+     * @param {string} jobId
+     * @returns {Promise<void>}
+     */
     async delete(jobId) {
       await client.del(buildKey(jobId));
     },
+    /**
+     * @param {string} jobId
+     * @param {string} runnerId
+     * @param {number} leaseTtlMs
+     * @returns {Promise<StoredJob | null>}
+     */
     async claim(jobId, runnerId, leaseTtlMs) {
       return attemptClaim({
         attemptNumber: 1,
@@ -193,12 +300,16 @@ const createRedisDescriptionJobStore = ({ client, prefix }) => {
 
 const createMemoryDescriptionJobStore = () => new InMemoryDescriptionJobStore();
 
+/**
+ * @param {{ config?: { descriptionJobs?: DescriptionJobsConfig }, logger?: { error?: (...args: unknown[]) => void }, createClientFn?: typeof createClient }} [options]
+ * @returns {Promise<unknown>}
+ */
 const initializeDescriptionJobStore = async ({
   config,
   logger,
   createClientFn = createClient,
 } = {}) => {
-  const descriptionJobsConfig = config?.descriptionJobs ?? {};
+  const descriptionJobsConfig = config?.descriptionJobs ?? /** @type {DescriptionJobsConfig} */ ({});
 
   if (descriptionJobsConfig.kind !== DESCRIPTION_JOB_STORE_MODES.REDIS) {
     return createMemoryDescriptionJobStore();
@@ -219,8 +330,8 @@ const initializeDescriptionJobStore = async ({
   await redisClient.connect();
 
   return createRedisDescriptionJobStore({
-    client: redisClient,
-    prefix: descriptionJobsConfig.redisPrefix,
+    client: /** @type {RedisClient} */ (/** @type {unknown} */ (redisClient)),
+    prefix: /** @type {string} */ (descriptionJobsConfig.redisPrefix),
   });
 };
 
