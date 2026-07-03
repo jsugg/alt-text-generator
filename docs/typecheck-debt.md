@@ -12,7 +12,7 @@ with dependency updates — re-measure (`npm run typecheck`) before each burn-do
 |---|---:|
 | `strict: true` — original baseline 2026-07-02 | 1409 |
 | `strict: true` — measured 2026-07-02 (dependency drift) | 1438 |
-| `strict: true` — current (after burn-down log below) | 1277 |
+| `strict: true` — current (after burn-down log below) | 1230 |
 | `strict: false` (reference only) | 170 |
 
 ## Burn-down log
@@ -25,6 +25,7 @@ with dependency updates — re-measure (`npm run typecheck`) before each burn-do
 | 2026-07-02 | `config/{index,providerOverrides}.js`, `src/errors/ProviderTimeoutError.js`, `src/providers/definitions/openrouter.js` | 12 → 0 | `@param {unknown}` on the env coercion / arg helpers; `import('joi').Root` + env callback types; boundary casts (`mapping`/`config`) on the parsed-YAML object to avoid cascading `TS2339`. No runtime change. |
 | 2026-07-02 | `scripts/github/review-dependencies.js` | 49 → 0 | `@typedef` the dependency-graph compare API model (`DependencyChange`/`Vulnerability`/`VulnerableChange`) and CLI `ParsedArgs`/`ValidatedArgs`; type each helper's params/returns; cast the arg-object literal and cast once at the `parseArgs` validation boundary (→ `ValidatedArgs`). No runtime change; 23 related unit tests green. |
 | 2026-07-03 | `scripts/github/create-github-app-installation-token.js` | 34 → 0 | Same shape: `ParsedArgs`/`ValidatedArgs` for the CLI args, `InstallationLookupResponse`/`InstallationTokenResponse` for the App API; `fetchGitHubJson` returns `unknown` and each caller casts at the boundary; `Record<string,string>` header map for the conditional `Content-Type`. No runtime change; 12 related unit tests green. |
+| 2026-07-03 | `src/services/PageDescriptionService.js` | 47 → 0 | `@typedef` the duck-typed collaborators (`Describer`/`AsyncDescriber`/`ScraperService`/`ImageDescriberFactory`) and domain shapes (`ImageDescription`/`ProviderJob`/`SettledDescription`); made `supportsAsyncJobs` a type-predicate (`x is AsyncDescriber`) so the async-only methods narrow; `@template` on the concurrency mapper; type-only cast of `this.constructor` (→ `typeof PageDescriptionService`) to keep dynamic dispatch. No runtime change; 8 related unit tests green. |
 
 Top strict-error areas (pre-burn-down baseline; `scripts/github` now ≈42):
 
