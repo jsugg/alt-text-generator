@@ -12,7 +12,7 @@ with dependency updates — re-measure (`npm run typecheck`) before each burn-do
 |---|---:|
 | `strict: true` — original baseline 2026-07-02 | 1409 |
 | `strict: true` — measured 2026-07-02 (dependency drift) | 1438 |
-| `strict: true` — current (after burn-down log below) | 1039 |
+| `strict: true` — current (after burn-down log below) | 1004 |
 | `strict: false` (reference only) | 170 |
 
 ## Burn-down log
@@ -30,6 +30,7 @@ with dependency updates — re-measure (`npm run typecheck`) before each burn-do
 | 2026-07-03 | `src/services/OpenAiCompatibleVisionDescriberService.js` | 42 → 0 | `@typedef` collaborators (`Logger`/`HttpClient`/`ProviderConfig`/`RequestOptions`/`ImageAsset`) and axios-style `HttpError`; error helpers take `@param {unknown}` and cast to `HttpError` internally so `unknown` catch-vars flow without caller changes; added the undocumented `sleep` constructor dep; type-only `this.constructor` cast; `Set.has` args cast where the value is `\| undefined \| null`. No runtime change; 6 related unit tests green. |
 | 2026-07-03 | `src/services/ReplicateDescriberService.js` | 42 → 0 | `@typedef` `Logger`/`ProviderConfig`/`RequestOptions`/`Prediction`/`ReplicateClient`/`ProviderJob`; typed the SDK-shaped `predictions.{create,get,cancel}` client; `replace_all` the 3 `this.constructor.normalizePrediction` static-access casts; boundary-cast the `unknown` error message. No runtime change; 4 related unit tests green. |
 | 2026-07-03 | `src/services/PageDescriptionJobService.js` | 65 → 0 | Sibling of DescriptionJobService: `@typedef` `PageJob`/`DescriptionJob`/`JobStore`/`Logger`/`PageDescriptionServiceLike`/`DescriptionJobServiceLike`/`PageResolveResult`; cast the optional `descriptionJobService` once at the resolver boundary; typed the inner recursive `waitForTerminalDescriptionJob` arrow; `replace_all` the `this.constructor` static casts (`buildExpirationIso` ×4, `buildJobError` ×2); `Error & { code }` casts in the job-error builders; `buildFailedJob` takes `unknown` + internal cast. No runtime change; 13 related unit tests green. |
+| 2026-07-03 | `src/services/{Azure,Ollama,Scraper}Service.js` | 35 → 0 | **`src/services` area now 0** (from 273 baseline). Per-file `Logger`/`HttpClient`/`ProviderConfig`/`RequestOptions` typedefs; `AzureError` shape cast for the axios-error skip-check; type-only `this.constructor` casts; `URLSearchParams.set` / `new URL` arg casts (constructor-guaranteed non-null endpoint); `Scraper` `images` accumulator cast + `(value:any)=>Promise<URL>` outbound-policy type. No runtime change; 31 related unit tests green. |
 
 Top strict-error areas (pre-burn-down baseline; `scripts/github` now ≈42):
 

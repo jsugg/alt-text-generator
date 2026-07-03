@@ -4,17 +4,42 @@ const { extractCaptionText } = require('../providers/shared/extractCaptionText')
 const { isSkippableImageSourceError } = require('../providers/shared/isSkippableImageSourceError');
 
 /**
+ * @typedef {object} Logger
+ * @property {(...args: unknown[]) => void} info
+ * @property {(...args: unknown[]) => void} debug
+ * @property {(...args: unknown[]) => void} error
+ */
+
+/**
+ * @typedef {object} HttpClient
+ * @property {(url: string, body: unknown, config: object) => Promise<{ data?: unknown }>} post
+ */
+
+/**
+ * @typedef {object} ProviderConfig
+ * @property {string} [baseUrl]
+ * @property {string} [model]
+ * @property {string} [prompt]
+ * @property {string} [keepAlive]
+ */
+
+/**
+ * @typedef {object} RequestOptions
+ * @property {number} [timeout]
+ */
+
+/**
  * Image description service backed by Ollama's local multimodal chat API.
  */
 class OllamaDescriberService {
   /**
    * @param {object} deps
-   * @param {object} deps.logger
-   * @param {object} deps.httpClient
-   * @param {object} [deps.apiClient]
+   * @param {Logger} deps.logger
+   * @param {HttpClient} deps.httpClient
+   * @param {HttpClient} [deps.apiClient]
    * @param {Function} [deps.outboundUrlPolicy]
-   * @param {object} deps.providerConfig
-   * @param {object} [deps.requestOptions]
+   * @param {ProviderConfig} deps.providerConfig
+   * @param {RequestOptions} [deps.requestOptions]
    */
   constructor({
     logger,
@@ -40,13 +65,19 @@ class OllamaDescriberService {
   }
 
   buildChatUrl() {
-    return this.endpoint.endsWith('/api')
-      ? `${this.endpoint}/chat`
-      : `${this.endpoint}/api/chat`;
+    const endpoint = /** @type {string} */ (this.endpoint);
+    return endpoint.endsWith('/api')
+      ? `${endpoint}/chat`
+      : `${endpoint}/api/chat`;
   }
 
+  /**
+   * @param {unknown} error
+   * @returns {boolean}
+   */
   shouldSkipDescriptionError(error) {
-    const message = typeof error?.message === 'string' ? error.message : '';
+    const rawMessage = (/** @type {{ message?: unknown }} */ (error))?.message;
+    const message = typeof rawMessage === 'string' ? rawMessage : '';
 
     if (message === 'Ollama provider received an empty image payload') {
       return true;
