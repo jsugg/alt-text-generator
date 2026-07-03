@@ -12,7 +12,7 @@ with dependency updates — re-measure (`npm run typecheck`) before each burn-do
 |---|---:|
 | `strict: true` — original baseline 2026-07-02 | 1409 |
 | `strict: true` — measured 2026-07-02 (dependency drift) | 1438 |
-| `strict: true` — current (after burn-down log below) | 1104 |
+| `strict: true` — current (after burn-down log below) | 1039 |
 | `strict: false` (reference only) | 170 |
 
 ## Burn-down log
@@ -29,6 +29,7 @@ with dependency updates — re-measure (`npm run typecheck`) before each burn-do
 | 2026-07-03 | `src/services/DescriptionJobService.js` | 42 → 0 | `@typedef` the job model (`Job`/`JobSeed`/`JobError`/`ProviderJob`) and collaborators (`Describer`/`JobStore`/`ImageDescriberFactory`); `ResolveDescriptionResult` union for the resolver; typed `now`/`sleep` constructor deps; `this.constructor` static-access casts (`replace_all` for the 4 `buildExpirationIso` calls) and one `providerJobId` boundary cast in `refreshJob`. No runtime change; 7 related unit tests green. |
 | 2026-07-03 | `src/services/OpenAiCompatibleVisionDescriberService.js` | 42 → 0 | `@typedef` collaborators (`Logger`/`HttpClient`/`ProviderConfig`/`RequestOptions`/`ImageAsset`) and axios-style `HttpError`; error helpers take `@param {unknown}` and cast to `HttpError` internally so `unknown` catch-vars flow without caller changes; added the undocumented `sleep` constructor dep; type-only `this.constructor` cast; `Set.has` args cast where the value is `\| undefined \| null`. No runtime change; 6 related unit tests green. |
 | 2026-07-03 | `src/services/ReplicateDescriberService.js` | 42 → 0 | `@typedef` `Logger`/`ProviderConfig`/`RequestOptions`/`Prediction`/`ReplicateClient`/`ProviderJob`; typed the SDK-shaped `predictions.{create,get,cancel}` client; `replace_all` the 3 `this.constructor.normalizePrediction` static-access casts; boundary-cast the `unknown` error message. No runtime change; 4 related unit tests green. |
+| 2026-07-03 | `src/services/PageDescriptionJobService.js` | 65 → 0 | Sibling of DescriptionJobService: `@typedef` `PageJob`/`DescriptionJob`/`JobStore`/`Logger`/`PageDescriptionServiceLike`/`DescriptionJobServiceLike`/`PageResolveResult`; cast the optional `descriptionJobService` once at the resolver boundary; typed the inner recursive `waitForTerminalDescriptionJob` arrow; `replace_all` the `this.constructor` static casts (`buildExpirationIso` ×4, `buildJobError` ×2); `Error & { code }` casts in the job-error builders; `buildFailedJob` takes `unknown` + internal cast. No runtime change; 13 related unit tests green. |
 
 Top strict-error areas (pre-burn-down baseline; `scripts/github` now ≈42):
 

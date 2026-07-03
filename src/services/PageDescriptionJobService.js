@@ -6,25 +6,91 @@ const {
   isTerminalStatus,
 } = require('./DescriptionJobService');
 
+/**
+ * @param {number} ms
+ * @returns {Promise<void>}
+ */
 const sleep = (ms) => new Promise((resolve) => {
   setTimeout(resolve, ms);
 });
 
+/**
+ * @typedef {object} JobError
+ * @property {string} message
+ * @property {string} [code]
+ */
+
+/**
+ * @typedef {object} PageJob
+ * @property {string} id
+ * @property {string} model
+ * @property {string} pageUrl
+ * @property {string} status
+ * @property {string} [jobType]
+ * @property {unknown} [result]
+ * @property {JobError} [error]
+ * @property {string} [runnerId]
+ * @property {string} [createdAt]
+ * @property {string} [updatedAt]
+ * @property {string} [expiresAt]
+ * @property {string} [leaseExpiresAt]
+ * @property {number} [leaseExpiresAtEpochMs]
+ */
+
+/**
+ * @typedef {object} DescriptionJob
+ * @property {string} id
+ * @property {string} status
+ * @property {unknown} [result]
+ * @property {JobError} [error]
+ */
+
+/**
+ * @typedef {object} JobStore
+ * @property {(jobId: string) => Promise<PageJob | null>} get
+ * @property {(job: PageJob) => Promise<unknown>} set
+ * @property {(jobId: string, runnerId: string, ttlMs: number) => Promise<PageJob | null>} [claim]
+ */
+
+/**
+ * @typedef {object} Logger
+ * @property {(...args: unknown[]) => void} [info]
+ * @property {(...args: unknown[]) => void} [warn]
+ * @property {(...args: unknown[]) => void} [error]
+ * @property {(...args: unknown[]) => void} [debug]
+ */
+
+/**
+ * @typedef {object} PageDescriptionServiceLike
+ * @property {(params: { pageUrl: string, model: string, describeImage: (imageUrl: string) => Promise<unknown> }) => Promise<unknown>} describePageWithResolver
+ * @property {(params: { pageUrl: string, model: string }) => Promise<unknown>} describePageWithAsyncJobs
+ */
+
+/**
+ * @typedef {object} DescriptionJobServiceLike
+ * @property {(params: { model: string, imageUrl: string }) => Promise<{ kind: string, result?: unknown, job?: DescriptionJob }>} resolveDescription
+ * @property {(jobId: string) => Promise<DescriptionJob | null>} getJobStatus
+ */
+
+/**
+ * @typedef {{ kind: 'completed', result: unknown, job: PageJob } | { kind: 'pending', job: PageJob }} PageResolveResult
+ */
+
 class PageDescriptionJobService {
   /**
    * @param {object} deps
-   * @param {object} deps.pageDescriptionService
-   * @param {object} [deps.descriptionJobService]
-   * @param {object} deps.jobStore
-   * @param {object} deps.logger
+   * @param {PageDescriptionServiceLike} deps.pageDescriptionService
+   * @param {DescriptionJobServiceLike} [deps.descriptionJobService]
+   * @param {JobStore} deps.jobStore
+   * @param {Logger} deps.logger
    * @param {number} deps.waitTimeoutMs
    * @param {number} deps.pollIntervalMs
    * @param {number} deps.pendingTtlMs
    * @param {number} deps.completedTtlMs
    * @param {number} deps.failedTtlMs
    * @param {number} deps.claimTtlMs
-   * @param {Function} [deps.now]
-   * @param {Function} [deps.sleep]
+   * @param {() => number} [deps.now]
+   * @param {(ms: number) => Promise<void>} [deps.sleep]
    * @param {Function} [deps.setInterval]
    * @param {Function} [deps.clearInterval]
    * @param {string} [deps.runnerId]
@@ -69,6 +135,10 @@ class PageDescriptionJobService {
     );
   }
 
+  /**
+   * @param {{ model: string, pageUrl: string }} params
+   * @returns {string}
+   */
   static buildJobId({ model, pageUrl }) {
     return crypto
       .createHash('sha256')
@@ -76,10 +146,19 @@ class PageDescriptionJobService {
       .digest('hex');
   }
 
+  /**
+   * @param {string} jobId
+   * @returns {string}
+   */
   static buildStatusUrl(jobId) {
     return `/api/v1/accessibility/page-description-jobs/${jobId}`;
   }
 
+  /**
+   * @param {number} ttlMs
+   * @param {number} [nowEpochMs]
+   * @returns {string}
+   */
   static buildExpirationIso(ttlMs, nowEpochMs = Date.now()) {
     return new Date(nowEpochMs + ttlMs).toISOString();
   }
@@ -88,6 +167,9 @@ class PageDescriptionJobService {
     return new Date(nowEpochMs).toISOString();
   }
 
+  /**
+   * @param {PageJob} job
+   */
   buildJobResponse(job) {
     return {
       jobId: job.id,
@@ -99,17 +181,25 @@ class PageDescriptionJobService {
       ...(isPendingStatus(job.status)
         ? {
             pollAfterMs: this.pollIntervalMs,
-            statusUrl: this.constructor.buildStatusUrl(job.id),
+            statusUrl: (/** @type {typeof PageDescriptionJobService} */ (this.constructor)).buildStatusUrl(job.id),
           }
         : {}),
     };
   }
 
+  /**
+   * @param {PageJob} job
+   * @returns {Promise<PageJob>}
+   */
   async saveJob(job) {
     await this.jobStore.set(job);
     return job;
   }
 
+  /**
+   * @param {{ id: string, model: string, pageUrl: string }} params
+   * @returns {Promise<PageJob>}
+   */
   async buildPendingJob({ id, model, pageUrl }) {
     const nowEpochMs = this.now();
     const timestamp = this.buildTimestampIso(nowEpochMs);
@@ -122,10 +212,14 @@ class PageDescriptionJobService {
       status: 'pending',
       createdAt: timestamp,
       updatedAt: timestamp,
-      expiresAt: this.constructor.buildExpirationIso(this.pendingTtlMs, nowEpochMs),
+      expiresAt: (/** @type {typeof PageDescriptionJobService} */ (this.constructor)).buildExpirationIso(this.pendingTtlMs, nowEpochMs),
     });
   }
 
+  /**
+   * @param {PageJob} job
+   * @returns {Promise<PageJob>}
+   */
   async buildProcessingJob(job) {
     const nowEpochMs = this.now();
 
@@ -134,10 +228,15 @@ class PageDescriptionJobService {
       status: 'processing',
       runnerId: this.runnerId,
       updatedAt: this.buildTimestampIso(nowEpochMs),
-      expiresAt: this.constructor.buildExpirationIso(this.pendingTtlMs, nowEpochMs),
+      expiresAt: (/** @type {typeof PageDescriptionJobService} */ (this.constructor)).buildExpirationIso(this.pendingTtlMs, nowEpochMs),
     });
   }
 
+  /**
+   * @param {PageJob} job
+   * @param {unknown} result
+   * @returns {Promise<PageJob>}
+   */
   async buildSucceededJob(job, result) {
     const nowEpochMs = this.now();
 
@@ -150,31 +249,41 @@ class PageDescriptionJobService {
       leaseExpiresAt: undefined,
       leaseExpiresAtEpochMs: undefined,
       updatedAt: this.buildTimestampIso(nowEpochMs),
-      expiresAt: this.constructor.buildExpirationIso(this.completedTtlMs, nowEpochMs),
+      expiresAt: (/** @type {typeof PageDescriptionJobService} */ (this.constructor)).buildExpirationIso(this.completedTtlMs, nowEpochMs),
     });
   }
 
+  /**
+   * @param {PageJob} job
+   * @param {unknown} error
+   * @returns {Promise<PageJob>}
+   */
   async buildFailedJob(job, error) {
     const nowEpochMs = this.now();
+    const failure = /** @type {Error & { code?: string }} */ (error);
 
     return this.saveJob({
       ...job,
       status: 'failed',
       result: undefined,
       error: {
-        message: error.message,
-        ...(error.code ? { code: error.code } : {}),
+        message: failure.message,
+        ...(failure.code ? { code: failure.code } : {}),
       },
       runnerId: undefined,
       leaseExpiresAt: undefined,
       leaseExpiresAtEpochMs: undefined,
       updatedAt: this.buildTimestampIso(nowEpochMs),
-      expiresAt: this.constructor.buildExpirationIso(this.failedTtlMs, nowEpochMs),
+      expiresAt: (/** @type {typeof PageDescriptionJobService} */ (this.constructor)).buildExpirationIso(this.failedTtlMs, nowEpochMs),
     });
   }
 
+  /**
+   * @param {{ error?: { message?: string, code?: string } } | null | undefined} job
+   * @returns {Error & { code?: string }}
+   */
   static buildJobError(job) {
-    const error = new Error(job?.error?.message ?? 'Page description job failed');
+    const error = /** @type {Error & { code?: string }} */ (new Error(job?.error?.message ?? 'Page description job failed'));
 
     if (job?.error?.code) {
       error.code = job.error.code;
@@ -183,8 +292,12 @@ class PageDescriptionJobService {
     return error;
   }
 
+  /**
+   * @param {{ error?: { message?: string, code?: string } } | null | undefined} job
+   * @returns {Error & { code?: string }}
+   */
   static buildDescriptionJobError(job) {
-    const error = new Error(job?.error?.message ?? 'Description job failed');
+    const error = /** @type {Error & { code?: string }} */ (new Error(job?.error?.message ?? 'Description job failed'));
 
     if (job?.error?.code) {
       error.code = job.error.code;
@@ -193,6 +306,10 @@ class PageDescriptionJobService {
     return error;
   }
 
+  /**
+   * @param {string} jobId
+   * @returns {Promise<PageJob | null>}
+   */
   async claimJob(jobId) {
     if (typeof this.jobStore.claim === 'function') {
       return this.jobStore.claim(jobId, this.runnerId, this.claimTtlMs);
@@ -201,6 +318,10 @@ class PageDescriptionJobService {
     return this.jobStore.get(jobId);
   }
 
+  /**
+   * @param {string} jobId
+   * @returns {Promise<PageJob | null>}
+   */
   async refreshJobLease(jobId) {
     const claimedJob = await this.claimJob(jobId);
 
@@ -211,6 +332,9 @@ class PageDescriptionJobService {
     return this.buildProcessingJob(claimedJob);
   }
 
+  /**
+   * @param {string} jobId
+   */
   startLeaseHeartbeat(jobId) {
     const intervalHandle = this.setInterval(() => {
       this.refreshJobLease(jobId).catch((error) => {
@@ -227,8 +351,13 @@ class PageDescriptionJobService {
     return intervalHandle;
   }
 
+  /**
+   * @param {{ imageUrl: string, model: string }} params
+   * @returns {Promise<unknown>}
+   */
   async resolveImageDescription({ imageUrl, model }) {
-    const outcome = await this.descriptionJobService.resolveDescription({
+    const descriptionJobService = /** @type {DescriptionJobServiceLike} */ (this.descriptionJobService);
+    const outcome = await descriptionJobService.resolveDescription({
       model,
       imageUrl,
     });
@@ -237,13 +366,17 @@ class PageDescriptionJobService {
       return outcome.result;
     }
 
+    /**
+     * @param {DescriptionJob | null | undefined} descriptionJob
+     * @returns {Promise<DescriptionJob | null | undefined>}
+     */
     const waitForTerminalDescriptionJob = async (descriptionJob) => {
       if (!descriptionJob || !isPendingStatus(descriptionJob.status)) {
         return descriptionJob;
       }
 
       await this.sleep(this.pollIntervalMs);
-      const refreshedJob = await this.descriptionJobService.getJobStatus(descriptionJob.id);
+      const refreshedJob = await descriptionJobService.getJobStatus(descriptionJob.id);
       return waitForTerminalDescriptionJob(refreshedJob);
     };
 
@@ -253,9 +386,13 @@ class PageDescriptionJobService {
       return descriptionJob.result;
     }
 
-    throw this.constructor.buildDescriptionJobError(descriptionJob);
+    throw (/** @type {typeof PageDescriptionJobService} */ (this.constructor)).buildDescriptionJobError(descriptionJob);
   }
 
+  /**
+   * @param {PageJob} job
+   * @returns {Promise<void>}
+   */
   async runJob(job) {
     let heartbeat;
 
@@ -306,6 +443,10 @@ class PageDescriptionJobService {
     }
   }
 
+  /**
+   * @param {PageJob} job
+   * @returns {Promise<boolean>}
+   */
   async ensureExecution(job) {
     if (isTerminalStatus(job.status)) {
       return false;
@@ -328,10 +469,20 @@ class PageDescriptionJobService {
     return true;
   }
 
+  /**
+   * @param {string} jobId
+   * @param {number} waitTimeoutMs
+   * @returns {Promise<PageJob | null>}
+   */
   async waitForJob(jobId, waitTimeoutMs) {
     return this.pollJobUntilDeadline(jobId, this.now() + waitTimeoutMs);
   }
 
+  /**
+   * @param {string} jobId
+   * @param {number} deadline
+   * @returns {Promise<PageJob | null>}
+   */
   async pollJobUntilDeadline(jobId, deadline) {
     const job = await this.jobStore.get(jobId);
 
@@ -350,8 +501,12 @@ class PageDescriptionJobService {
     return this.pollJobUntilDeadline(jobId, deadline);
   }
 
+  /**
+   * @param {{ model: string, pageUrl: string }} params
+   * @returns {Promise<PageResolveResult>}
+   */
   async resolvePageDescription({ model, pageUrl }) {
-    const jobId = this.constructor.buildJobId({ model, pageUrl });
+    const jobId = (/** @type {typeof PageDescriptionJobService} */ (this.constructor)).buildJobId({ model, pageUrl });
     const existingJob = await this.jobStore.get(jobId);
 
     if (existingJob?.status === 'succeeded' && existingJob.result) {
@@ -375,7 +530,7 @@ class PageDescriptionJobService {
       }
 
       if (pendingJob?.status === 'failed' || pendingJob?.status === 'canceled') {
-        throw this.constructor.buildJobError(pendingJob);
+        throw (/** @type {typeof PageDescriptionJobService} */ (this.constructor)).buildJobError(pendingJob);
       }
 
       return {
@@ -401,7 +556,7 @@ class PageDescriptionJobService {
     }
 
     if (maybeCompletedJob?.status === 'failed' || maybeCompletedJob?.status === 'canceled') {
-      throw this.constructor.buildJobError(maybeCompletedJob);
+      throw (/** @type {typeof PageDescriptionJobService} */ (this.constructor)).buildJobError(maybeCompletedJob);
     }
 
     return {
@@ -410,6 +565,10 @@ class PageDescriptionJobService {
     };
   }
 
+  /**
+   * @param {string} jobId
+   * @returns {Promise<PageJob | null>}
+   */
   async getJobStatus(jobId) {
     const job = await this.jobStore.get(jobId);
 
