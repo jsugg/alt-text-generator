@@ -12,7 +12,7 @@ with dependency updates — re-measure (`npm run typecheck`) before each burn-do
 |---|---:|
 | `strict: true` — original baseline 2026-07-02 | 1409 |
 | `strict: true` — measured 2026-07-02 (dependency drift) | 1438 |
-| `strict: true` — current (after burn-down log below) | 1188 |
+| `strict: true` — current (after burn-down log below) | 1146 |
 | `strict: false` (reference only) | 170 |
 
 ## Burn-down log
@@ -27,6 +27,7 @@ with dependency updates — re-measure (`npm run typecheck`) before each burn-do
 | 2026-07-03 | `scripts/github/create-github-app-installation-token.js` | 34 → 0 | Same shape: `ParsedArgs`/`ValidatedArgs` for the CLI args, `InstallationLookupResponse`/`InstallationTokenResponse` for the App API; `fetchGitHubJson` returns `unknown` and each caller casts at the boundary; `Record<string,string>` header map for the conditional `Content-Type`. No runtime change; 12 related unit tests green. |
 | 2026-07-03 | `src/services/PageDescriptionService.js` | 47 → 0 | `@typedef` the duck-typed collaborators (`Describer`/`AsyncDescriber`/`ScraperService`/`ImageDescriberFactory`) and domain shapes (`ImageDescription`/`ProviderJob`/`SettledDescription`); made `supportsAsyncJobs` a type-predicate (`x is AsyncDescriber`) so the async-only methods narrow; `@template` on the concurrency mapper; type-only cast of `this.constructor` (→ `typeof PageDescriptionService`) to keep dynamic dispatch. No runtime change; 8 related unit tests green. |
 | 2026-07-03 | `src/services/DescriptionJobService.js` | 42 → 0 | `@typedef` the job model (`Job`/`JobSeed`/`JobError`/`ProviderJob`) and collaborators (`Describer`/`JobStore`/`ImageDescriberFactory`); `ResolveDescriptionResult` union for the resolver; typed `now`/`sleep` constructor deps; `this.constructor` static-access casts (`replace_all` for the 4 `buildExpirationIso` calls) and one `providerJobId` boundary cast in `refreshJob`. No runtime change; 7 related unit tests green. |
+| 2026-07-03 | `src/services/OpenAiCompatibleVisionDescriberService.js` | 42 → 0 | `@typedef` collaborators (`Logger`/`HttpClient`/`ProviderConfig`/`RequestOptions`/`ImageAsset`) and axios-style `HttpError`; error helpers take `@param {unknown}` and cast to `HttpError` internally so `unknown` catch-vars flow without caller changes; added the undocumented `sleep` constructor dep; type-only `this.constructor` cast; `Set.has` args cast where the value is `\| undefined \| null`. No runtime change; 6 related unit tests green. |
 
 Top strict-error areas (pre-burn-down baseline; `scripts/github` now ≈42):
 
