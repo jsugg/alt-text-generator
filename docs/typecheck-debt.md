@@ -12,7 +12,7 @@ with dependency updates — re-measure (`npm run typecheck`) before each burn-do
 |---|---:|
 | `strict: true` — original baseline 2026-07-02 | 1409 |
 | `strict: true` — measured 2026-07-02 (dependency drift) | 1438 |
-| `strict: true` — current (after burn-down log below) | 931 |
+| `strict: true` — current (after burn-down log below) | 898 |
 | `strict: false` (reference only) | 170 |
 
 ## Burn-down log
@@ -33,6 +33,7 @@ with dependency updates — re-measure (`npm run typecheck`) before each burn-do
 | 2026-07-03 | `src/services/{Azure,Ollama,Scraper}Service.js` | 35 → 0 | **`src/services` area now 0** (from 273 baseline). Per-file `Logger`/`HttpClient`/`ProviderConfig`/`RequestOptions` typedefs; `AzureError` shape cast for the axios-error skip-check; type-only `this.constructor` casts; `URLSearchParams.set` / `new URL` arg casts (constructor-guaranteed non-null endpoint); `Scraper` `images` accumulator cast + `(value:any)=>Promise<URL>` outbound-policy type. No runtime change; 31 related unit tests green. |
 | 2026-07-03 | `src/infrastructure/descriptionJobStore.js` | 32 → 0 | The concrete `JobStore` (in-memory + Redis): `@typedef` `StoredJob`/`RedisClient`/`RedisTransaction`/`DescriptionJobsConfig`; annotate module helpers + both stores' methods (4-space indent distinguishes the returned Redis object's methods from the class's); double-cast the real `redis` client → loose `RedisClient` at the boundary (avoids fighting the generic redis types); typed the `initialize` options object so the destructuring-default stops hiding `config`/`logger`. No runtime change; 6 related unit tests green. |
 | 2026-07-03 | `src/providers/definitions/{buildOpenAiCompatibleProvider,helpers}.js` | 41 → 0 | Provider-definition builder + shared helpers: `OpenAiCompatibleProviderOptions` typedef for the options bag; typed the inner `buildEnvSchema`/`buildConfig`/`isConfiguredInConfig`/`createRuntime` arrows; cast the runtime ctor arg via `ConstructorParameters<typeof Service>[0]` (the collaborator's param types are file-local); **root-caused** the `never[]` errors to `helpers.js`'s `dependentEnvNames = []` default — typed `validateApiKeyBackedProviderEnv` (+ the other helpers) so `dependentEnvNames` is `string[]`. No runtime change; 51 related provider unit tests green. |
+| 2026-07-03 | `src/api/v1/controllers/descriptionController.js` | 33 → 0 | Express controller: minimal duck-typed collaborators (factory + 3 service-likes) and `ControllerRequest`/`ControllerResponse` (query/params as `Record<string,string>`, chainable `res`); `@param` appended to each handler's existing `@swagger` block; `replace_all` the two uniform catch-error casts (`error.message` → `(Error)`, `cause: error` → `(object)`). No runtime change; 24 related controller unit tests green. |
 
 Top strict-error areas (pre-burn-down baseline; `scripts/github` now ≈42):
 
