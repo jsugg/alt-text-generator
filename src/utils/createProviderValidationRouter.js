@@ -6,12 +6,31 @@ const {
 } = require('../providerValidation/fixtures');
 
 /**
+ * @typedef {object} ValidationRequest
+ * @property {string} protocol
+ * @property {(name: string) => string | undefined} get
+ * @property {Record<string, string>} params
+ */
+
+/**
+ * @typedef {object} ValidationResponse
+ * @property {(contentType: string) => ValidationResponse} type
+ * @property {(body: unknown) => unknown} send
+ * @property {(code: number) => ValidationResponse} status
+ */
+
+/**
+ * @typedef {object} ValidationRouter
+ * @property {(path: string, handler: (req: ValidationRequest, res: ValidationResponse) => unknown) => unknown} get
+ */
+
+/**
  * Builds the public provider-validation router used by production live checks.
  *
  * @returns {object} Express Router
  */
 module.exports.createProviderValidationRouter = () => {
-  const router = express.Router();
+  const router = /** @type {ValidationRouter} */ (express.Router());
 
   router.get('/provider-validation/page', (req, res) => {
     const baseUrl = `${req.protocol}://${req.get('host')}`;

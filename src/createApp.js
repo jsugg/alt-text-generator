@@ -32,6 +32,34 @@ const createRequestFilter = require('./api/v1/middleware/request-filter');
 const { createRouter } = require('./utils/createRouter');
 const buildApiRouter = require('./api/v1/routes/api');
 
+/**
+ * Composition root: every property is an injectable dependency that defaults to
+ * the real implementation, so the wiring bag is duck-typed (`any`) except the
+ * heavily-read `config`, which keeps its precise module type.
+ *
+ * @typedef {object} CreateAppOptions
+ * @property {typeof import('../config')} [config]
+ * @property {any} [appLogger]
+ * @property {any} [requestLogger]
+ * @property {any} [httpClient]
+ * @property {any} [scraperService]
+ * @property {any} [imageDescriberFactory]
+ * @property {any} [pageDescriptionService]
+ * @property {any} [descriptionJobService]
+ * @property {any} [pageDescriptionJobService]
+ * @property {any} [descriptionJobStore]
+ * @property {any} [health]
+ * @property {any} [outboundClients]
+ * @property {any} [outboundUrlPolicy]
+ * @property {any} [rateLimitStoreProvider]
+ * @property {any} [providerClients]
+ * @property {any} [replicateClient]
+ * @property {any} [runtimeState]
+ */
+
+/**
+ * @param {CreateAppOptions} [options]
+ */
 const createApp = ({
   config = defaultConfig,
   appLogger = defaultAppLogger,
