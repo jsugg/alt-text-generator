@@ -1,6 +1,15 @@
 const crypto = require('crypto');
-const pino = require('pino');
-const pinoHttp = require('pino-http');
+
+/** @typedef {typeof import('pino-http')} PinoHttpModule */
+
+// pino and pino-http publish ESM-shaped types; the CJS export is the callable
+// default with the namespace members attached, so cast once at the require.
+const pino = /** @type {typeof import('pino')['default']} */ (
+  /** @type {unknown} */ (require('pino'))
+);
+const pinoHttp = /** @type {PinoHttpModule['default'] & PinoHttpModule} */ (
+  /** @type {unknown} */ (require('pino-http'))
+);
 const config = require('../../config');
 
 const REDACTED_HEADER_VALUE = '[Redacted]';
@@ -13,6 +22,10 @@ const SENSITIVE_LOGGED_HEADERS = new Set([
   'x-api-key',
 ]);
 
+/**
+ * @param {Record<string, unknown> | null | undefined} headers
+ * @returns {Record<string, unknown> | null | undefined}
+ */
 const redactLoggedHeaders = (headers) => {
   if (!headers || typeof headers !== 'object') {
     return headers;
@@ -28,9 +41,15 @@ const redactLoggedHeaders = (headers) => {
   );
 };
 
+/**
+ * @param {Error & { cause?: unknown }} error
+ * @returns {object}
+ */
 const serializeLoggedError = (error) => {
   const serialized = pinoHttp.stdSerializers.err(error);
-  const serializedCause = error?.cause ? serializeLoggedError(error.cause) : undefined;
+  const serializedCause = error?.cause
+    ? serializeLoggedError(/** @type {Error & { cause?: unknown }} */ (error.cause))
+    : undefined;
 
   if (!serialized || typeof serialized !== 'object') {
     return serialized;
@@ -46,6 +65,10 @@ const serializeLoggedError = (error) => {
   };
 };
 
+/**
+ * @param {Parameters<typeof pinoHttp.stdSerializers.req>[0]} request
+ * @returns {object}
+ */
 const serializeLoggedRequest = (request) => {
   const serialized = pinoHttp.stdSerializers.req(request);
 
@@ -59,6 +82,10 @@ const serializeLoggedRequest = (request) => {
   };
 };
 
+/**
+ * @param {Parameters<typeof pinoHttp.stdSerializers.res>[0]} response
+ * @returns {object}
+ */
 const serializeLoggedResponse = (response) => {
   const serialized = pinoHttp.stdSerializers.res(response);
 
@@ -80,6 +107,10 @@ const createAppLogger = () => pino({
   },
 });
 
+/**
+ * @param {import('pino').Logger} appLogger
+ * @returns {import('pino-http').HttpLogger}
+ */
 const createRequestLogger = (appLogger) => pinoHttp({
   logger: appLogger.child({ name: 'serverLogger' }),
   genReqId: (req, res) => {

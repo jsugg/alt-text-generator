@@ -5,6 +5,10 @@ const tls = require('tls');
 const axios = require('axios');
 const { Agent: UndiciAgent, fetch: undiciFetch } = require('undici');
 
+/**
+ * @param {string | undefined} filePath
+ * @returns {string | undefined}
+ */
 const resolveOptionalFile = (filePath) => {
   if (!filePath) {
     return undefined;
@@ -15,6 +19,10 @@ const resolveOptionalFile = (filePath) => {
     : path.resolve(process.cwd(), filePath);
 };
 
+/**
+ * @param {string | undefined} caBundleFile
+ * @returns {{ caBundle: string | undefined, caBundleFile: string | undefined }}
+ */
 const readCaBundle = (caBundleFile) => {
   const resolvedBundleFile = resolveOptionalFile(caBundleFile);
   if (!resolvedBundleFile) {
@@ -31,6 +39,9 @@ const readCaBundle = (caBundleFile) => {
   };
 };
 
+/**
+ * @param {{ outboundTls?: { caBundleFile?: string } }} config
+ */
 const createOutboundClients = (config) => {
   const { caBundle, caBundleFile } = readCaBundle(config.outboundTls?.caBundleFile);
   const trustedCas = caBundle
@@ -43,6 +54,10 @@ const createOutboundClients = (config) => {
   const fetchDispatcher = new UndiciAgent(
     trustedCas ? { connect: { ca: trustedCas } } : {},
   );
+  /**
+   * @param {import('undici').RequestInfo} input
+   * @param {import('undici').RequestInit} [init]
+   */
   const fetch = (input, init = {}) => undiciFetch(input, {
     dispatcher: init.dispatcher ?? fetchDispatcher,
     ...init,
