@@ -85,6 +85,16 @@ async function allocateNamedPorts(roleNames, { host = DEFAULT_HOST } = {}) {
 }
 
 /**
+ * @typedef {object} PortCheckResult
+ * @property {string} role
+ * @property {boolean} available
+ * @property {string | null} code
+ * @property {string} host
+ * @property {string | null} message
+ * @property {number} port
+ */
+
+/**
  * Checks whether a specific port can currently be bound on the given host.
  *
  * @param {number} port
@@ -104,7 +114,7 @@ function checkPortAvailable(port, { host = DEFAULT_HOST } = {}) {
     server.once('error', (error) => {
       resolve({
         available: false,
-        code: error.code || 'EUNKNOWN',
+        code: /** @type {NodeJS.ErrnoException} */ (error).code || 'EUNKNOWN',
         host,
         message: error.message,
         port,
@@ -129,7 +139,7 @@ function checkPortAvailable(port, { host = DEFAULT_HOST } = {}) {
  *
  * @param {{ role: string, port: number }[]} portSpecs
  * @param {{ host?: string }} [options]
- * @returns {Promise<{ conflicts: object[], results: object[] }>}
+ * @returns {Promise<{ conflicts: PortCheckResult[], results: PortCheckResult[] }>}
  */
 async function diagnoseFixedPorts(portSpecs, { host = DEFAULT_HOST } = {}) {
   const results = await Promise.all(portSpecs.map(async ({ role, port }) => ({
@@ -146,7 +156,7 @@ async function diagnoseFixedPorts(portSpecs, { host = DEFAULT_HOST } = {}) {
 /**
  * Formats fixed-port conflicts into a single actionable error message.
  *
- * @param {object[]} conflicts
+ * @param {PortCheckResult[]} conflicts
  * @param {{ host?: string }} [options]
  * @returns {string}
  */

@@ -31,6 +31,10 @@ const {
   readCollection,
 } = require('./collection-utils');
 
+/** @typedef {import('./collection-utils').CollectionItem} CollectionItem */
+/** @typedef {import('./collection-utils').PostmanCollection} PostmanCollection */
+/** @typedef {{ rule: string, location: string, message: string }} LintViolation */
+
 const DEFAULT_COLLECTION_PATH = path.resolve(
   __dirname,
   '../../postman/collections/alt-text-generator.postman_collection.json',
@@ -92,7 +96,7 @@ Options:
  * Builds a `folder > request` location label for a request item.
  *
  * @param {string} folder
- * @param {object} item
+ * @param {CollectionItem} item
  * @returns {string}
  */
 function requestLocation(folder, item) {
@@ -102,7 +106,7 @@ function requestLocation(folder, item) {
 /**
  * Extracts the raw URL string and dotted host of a request item.
  *
- * @param {object} item
+ * @param {CollectionItem} item
  * @returns {{ raw: string, host: string }}
  */
 function getRequestUrl(item) {
@@ -121,13 +125,14 @@ function getRequestUrl(item) {
 /**
  * Enforces deterministic, uniquely ordered top-level folder names.
  *
- * @param {object} collection
- * @returns {{ rule: string, location: string, message: string }[]}
+ * @param {PostmanCollection} collection
+ * @returns {LintViolation[]}
  */
 function lintFolderNames(collection) {
   const folders = listTopLevelFolderNames(collection);
   const nameCounts = new Map();
   const prefixOwners = new Map();
+  /** @type {LintViolation[]} */
   const violations = [];
   let previousPrefix = -1;
 
@@ -185,8 +190,8 @@ function lintFolderNames(collection) {
 /**
  * Enforces non-empty, trimmed, folder-unique request names.
  *
- * @param {object} collection
- * @returns {{ rule: string, location: string, message: string }[]}
+ * @param {PostmanCollection} collection
+ * @returns {LintViolation[]}
  */
 function lintRequestNames(collection) {
   const namesByFolder = listRequestItems(collection).reduce((acc, { item, topLevelFolderName }) => {
@@ -194,8 +199,9 @@ function lintRequestNames(collection) {
     names.push(item.name);
     acc.set(topLevelFolderName, names);
     return acc;
-  }, new Map());
+  }, /** @type {Map<string, (string | undefined)[]>} */ (new Map()));
 
+  /** @type {LintViolation[]} */
   const violations = [];
 
   namesByFolder.forEach((names, folder) => {
@@ -238,8 +244,8 @@ function lintRequestNames(collection) {
 /**
  * Enforces an exact status expectation on every request.
  *
- * @param {object} collection
- * @returns {{ rule: string, location: string, message: string }[]}
+ * @param {PostmanCollection} collection
+ * @returns {LintViolation[]}
  */
 function lintStatusExpectations(collection) {
   return listRequestItems(collection)
@@ -255,8 +261,8 @@ function lintStatusExpectations(collection) {
 /**
  * Enforces public error-contract assertions on auth/error (>= 400) responses.
  *
- * @param {object} collection
- * @returns {{ rule: string, location: string, message: string }[]}
+ * @param {PostmanCollection} collection
+ * @returns {LintViolation[]}
  */
 function lintErrorContract(collection) {
   return listRequestItems(collection).reduce((violations, { item, topLevelFolderName }) => {
@@ -280,14 +286,14 @@ function lintErrorContract(collection) {
     }
 
     return violations;
-  }, []);
+  }, /** @type {LintViolation[]} */ ([]));
 }
 
 /**
  * Enforces that request URLs target Postman variables, never literal/live hosts.
  *
- * @param {object} collection
- * @returns {{ rule: string, location: string, message: string }[]}
+ * @param {PostmanCollection} collection
+ * @returns {LintViolation[]}
  */
 function lintForbiddenUrls(collection) {
   return listRequestItems(collection).reduce((violations, { item, topLevelFolderName }) => {
@@ -322,7 +328,7 @@ function lintForbiddenUrls(collection) {
     }
 
     return violations;
-  }, []);
+  }, /** @type {LintViolation[]} */ ([]));
 }
 
 const RULE_FUNCTIONS = [
@@ -336,8 +342,8 @@ const RULE_FUNCTIONS = [
 /**
  * Runs every policy rule and returns the aggregated violations.
  *
- * @param {object} collection
- * @returns {{ rule: string, location: string, message: string }[]}
+ * @param {PostmanCollection} collection
+ * @returns {LintViolation[]}
  */
 function lintCollection(collection) {
   return RULE_FUNCTIONS.flatMap((rule) => rule(collection));
@@ -346,7 +352,7 @@ function lintCollection(collection) {
 /**
  * Summarizes the scope that was linted.
  *
- * @param {object} collection
+ * @param {PostmanCollection} collection
  * @returns {{ folders: number, requests: number }}
  */
 function summarize(collection) {
@@ -391,7 +397,11 @@ function parseArgs(argv) {
 /**
  * Writes a human-readable report and points each violation at its folder/request.
  *
- * @param {{ violations: object[], stats: object, collectionPath: string }} report
+ * @param {{
+ *   violations: LintViolation[],
+ *   stats: { folders: number, requests: number },
+ *   collectionPath: string,
+ * }} report
  */
 function writeReport({ violations, stats, collectionPath }) {
   const relativePath = path.relative(process.cwd(), collectionPath) || collectionPath;
@@ -413,7 +423,7 @@ function writeReport({ violations, stats, collectionPath }) {
     list.push(violation);
     acc.set(violation.rule, list);
     return acc;
-  }, new Map());
+  }, /** @type {Map<string, LintViolation[]>} */ (new Map()));
 
   byRule.forEach((list, rule) => {
     process.stderr.write(`\n  [${rule}] ${list.length} issue(s):\n`);
@@ -439,7 +449,7 @@ function main(argv) {
   try {
     args = parseArgs(argv);
   } catch (error) {
-    process.stderr.write(`postman:lint ${error.message}\n\n${USAGE}`);
+    process.stderr.write(`postman:lint ${/** @type {Error} */ (error).message}\n\n${USAGE}`);
     return 2;
   }
 
@@ -454,7 +464,8 @@ function main(argv) {
     collection = readCollection(args.collectionPath);
   } catch (error) {
     process.stderr.write(
-      `postman:lint failed to read collection at ${args.collectionPath}: ${error.message}\n`,
+      `postman:lint failed to read collection at ${args.collectionPath}: `
+      + `${/** @type {Error} */ (error).message}\n`,
     );
     return 2;
   }

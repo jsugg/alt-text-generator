@@ -1,10 +1,38 @@
 const fs = require('node:fs');
 
 /**
+ * Postman collection shapes (external JSON — every property optional).
+ *
+ * @typedef {object} CollectionHeader
+ * @property {string} [key]
+ * @property {unknown} [value]
+ */
+
+/**
+ * @typedef {object} CollectionEvent
+ * @property {string} [listen]
+ * @property {{ exec?: string[] }} [script]
+ */
+
+/**
+ * @typedef {object} CollectionItem
+ * @property {string} [id]
+ * @property {string} [name]
+ * @property {{
+ *   header?: CollectionHeader[],
+ *   url?: string | { raw?: unknown, host?: unknown },
+ * }} [request]
+ * @property {CollectionEvent[]} [event]
+ * @property {CollectionItem[]} [item]
+ */
+
+/** @typedef {{ item?: CollectionItem[] }} PostmanCollection */
+
+/**
  * Reads and parses a Postman collection JSON file.
  *
  * @param {string} collectionPath
- * @returns {object}
+ * @returns {PostmanCollection}
  */
 function readCollection(collectionPath) {
   return JSON.parse(fs.readFileSync(collectionPath, 'utf8'));
@@ -13,12 +41,17 @@ function readCollection(collectionPath) {
 /**
  * Returns all request items in a collection, including nested folders.
  *
- * @param {object} collection
- * @returns {{ item: object, topLevelFolderName: string }[]}
+ * @param {PostmanCollection} collection
+ * @returns {{ item: CollectionItem, topLevelFolderName: string }[]}
  */
 function listRequestItems(collection) {
+  /** @type {{ item: CollectionItem, topLevelFolderName: string }[]} */
   const requestItems = [];
 
+  /**
+   * @param {CollectionItem} item
+   * @param {string} topLevelFolderName
+   */
   const visit = (item, topLevelFolderName) => {
     if (!item || typeof item !== 'object') {
       return;
@@ -47,7 +80,7 @@ function listRequestItems(collection) {
 /**
  * Returns true when the request item includes a numeric X-Expected-Status-Code header.
  *
- * @param {object} item
+ * @param {CollectionItem} item
  * @returns {boolean}
  */
 function hasExpectedStatusCodeHeader(item) {
@@ -60,7 +93,7 @@ function hasExpectedStatusCodeHeader(item) {
 /**
  * Returns true when the request item includes an exact status assertion in its own tests.
  *
- * @param {object} item
+ * @param {CollectionItem} item
  * @returns {boolean}
  */
 function hasExactStatusAssertion(item) {
@@ -79,7 +112,7 @@ function hasExactStatusAssertion(item) {
 /**
  * Returns true when the request item includes a specific status contract.
  *
- * @param {object} item
+ * @param {CollectionItem} item
  * @returns {boolean}
  */
 function hasSpecificStatusExpectation(item) {
@@ -89,7 +122,7 @@ function hasSpecificStatusExpectation(item) {
 /**
  * Returns the concatenated source of every test-listener script on a request item.
  *
- * @param {object} item
+ * @param {CollectionItem} item
  * @returns {string}
  */
 function getRequestTestScript(item) {
@@ -97,7 +130,7 @@ function getRequestTestScript(item) {
 
   return events
     .filter((event) => event?.listen === 'test' && Array.isArray(event?.script?.exec))
-    .map((event) => event.script.exec.join('\n'))
+    .map((event) => /** @type {{ script: { exec: string[] } }} */ (event).script.exec.join('\n'))
     .join('\n');
 }
 
@@ -105,7 +138,7 @@ function getRequestTestScript(item) {
  * Resolves the status code a request is expected to return, preferring the
  * X-Expected-Status-Code header and falling back to an inline status assertion.
  *
- * @param {object} item
+ * @param {CollectionItem} item
  * @returns {number | null}
  */
 function getExpectedStatusCode(item) {
@@ -125,7 +158,7 @@ function getExpectedStatusCode(item) {
 /**
  * Throws when one or more requests are missing a specific status expectation.
  *
- * @param {object} collection
+ * @param {PostmanCollection} collection
  */
 function assertRequestItemsHaveSpecificStatusExpectations(collection) {
   const missingAssertions = listRequestItems(collection)
@@ -144,13 +177,13 @@ function assertRequestItemsHaveSpecificStatusExpectations(collection) {
 /**
  * Returns the top-level folder names in a Postman collection.
  *
- * @param {object} collection
+ * @param {PostmanCollection} collection
  * @returns {string[]}
  */
 function listTopLevelFolderNames(collection) {
-  return (collection.item ?? [])
+  return /** @type {string[]} */ ((collection.item ?? [])
     .map((item) => item.name)
-    .filter((name) => typeof name === 'string' && name.length > 0);
+    .filter((name) => typeof name === 'string' && name.length > 0));
 }
 
 /**
@@ -176,12 +209,17 @@ function assertTopLevelFoldersExist(availableFolders, requiredFolders, context) 
 /**
  * Builds a map of collection item ids to their top-level folder name.
  *
- * @param {object} collection
+ * @param {PostmanCollection} collection
  * @returns {Map<string, string>}
  */
 function buildItemFolderMap(collection) {
+  /** @type {Map<string, string>} */
   const itemFolderMap = new Map();
 
+  /**
+   * @param {CollectionItem} item
+   * @param {string} topLevelFolderName
+   */
   const visit = (item, topLevelFolderName) => {
     if (!item || typeof item !== 'object') {
       return;
