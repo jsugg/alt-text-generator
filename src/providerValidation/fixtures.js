@@ -5,6 +5,7 @@ const PROVIDER_VALIDATION_ASSET_DIRECTORY = path.resolve(
   __dirname,
   '../../tests/fixtures/provider-validation/public/assets',
 );
+/** @type {Readonly<Record<string, string>>} */
 const PROVIDER_VALIDATION_ASSET_FILENAMES = Object.freeze({
   'a.png': 'a.png',
   'b.png': 'b.png',

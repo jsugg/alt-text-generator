@@ -19,6 +19,10 @@ const {
   RATE_LIMIT_STORE_MODES,
 } = require('../../config/rateLimitStore');
 
+/**
+ * @param {unknown} value
+ * @returns {string[]}
+ */
 const parseAuthTokens = (value) => {
   if (typeof value !== 'string') {
     return [];
@@ -106,6 +110,10 @@ const envVarsSchema = Joi.object({
   ...buildProviderEnvSchema(Joi),
 }).unknown();
 
+/**
+ * @param {object} [options]
+ * @param {{ warn?: (details: object, message?: string) => void } | null} [options.logger]
+ */
 const validateEnvVars = ({ logger = null } = {}) => {
   const { error } = envVarsSchema.validate(process.env);
   if (error) {
@@ -135,7 +143,7 @@ const validateEnvVars = ({ logger = null } = {}) => {
 
   if (configuredProviders.length === 0) {
     const providerHints = getProviderCatalog()
-      .map((provider) => provider.startupHint)
+      .map((provider) => /** @type {{ startupHint?: string }} */ (provider).startupHint)
       .join(', or set ');
 
     throw new Error(
@@ -208,7 +216,9 @@ const validateEnvVars = ({ logger = null } = {}) => {
   }
 
   return {
-    configuredProviders: configuredProviders.map((provider) => provider.key),
+    configuredProviders: configuredProviders.map(
+      (provider) => /** @type {{ key: string }} */ (provider).key,
+    ),
     providerStartupWarnings,
   };
 };

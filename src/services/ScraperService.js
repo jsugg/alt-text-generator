@@ -28,7 +28,8 @@ class ScraperService {
   /**
    * @param {object} deps
    * @param {Logger} deps.logger - pino logger instance
-   * @param {object} deps.httpClient - axios-compatible HTTP client
+   * @param {Record<string, (url: string, options?: object) => Promise<any>>} deps.httpClient
+   *   - axios-compatible HTTP client
    * @param {(value: any) => Promise<URL>} deps.outboundUrlPolicy - validates user-controlled outbound URLs
    * @param {RequestOptions} deps.requestOptions - bounded axios request options
    */
