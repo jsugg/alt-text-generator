@@ -5,6 +5,10 @@ const { buildServers, getSwaggerJSDocOptions } = require('./swagger-base');
 
 const generatedSpecPath = path.join(__dirname, '..', 'docs', 'openapi.base.json');
 
+/**
+ * @param {unknown} value
+ * @returns {any}
+ */
 const cloneJsonValue = (value) => JSON.parse(JSON.stringify(value));
 
 const loadGeneratedSpec = () => {

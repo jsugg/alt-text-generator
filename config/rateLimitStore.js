@@ -15,6 +15,10 @@ const VALID_RATE_LIMIT_REDIS_TOPOLOGIES = new Set(
   Object.values(RATE_LIMIT_REDIS_TOPOLOGIES),
 );
 
+/**
+ * @param {unknown} value
+ * @returns {string | undefined}
+ */
 const toNonEmptyString = (value) => {
   if (typeof value !== 'string') {
     return undefined;
@@ -24,6 +28,10 @@ const toNonEmptyString = (value) => {
   return trimmedValue.length > 0 ? trimmedValue : undefined;
 };
 
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
 const normalizeRedisPrefix = (value) => {
   const trimmedValue = toNonEmptyString(value);
   if (!trimmedValue) {
@@ -33,12 +41,21 @@ const normalizeRedisPrefix = (value) => {
   return trimmedValue.endsWith(':') ? trimmedValue : `${trimmedValue}:`;
 };
 
+/**
+ * @param {any} value
+ * @returns {string}
+ */
 const resolveRateLimitRedisTopology = (value) => (
   VALID_RATE_LIMIT_REDIS_TOPOLOGIES.has(value)
     ? value
     : RATE_LIMIT_REDIS_TOPOLOGIES.EXTERNAL
 );
 
+/**
+ * @param {Record<string, any>} [envLike]
+ * @param {string} [redisTopology]
+ * @returns {string | undefined}
+ */
 const resolveRateLimitRedisUrl = (
   envLike = {},
   redisTopology = RATE_LIMIT_REDIS_TOPOLOGIES.EXTERNAL,
@@ -52,12 +69,20 @@ const resolveRateLimitRedisUrl = (
   )
 );
 
+/**
+ * @param {any} value
+ * @returns {string}
+ */
 const resolveRateLimitStoreMode = (value) => (
   VALID_RATE_LIMIT_STORE_MODES.has(value)
     ? value
     : RATE_LIMIT_STORE_MODES.AUTO
 );
 
+/**
+ * @param {{ mode?: string, redisUrl?: string }} [options]
+ * @returns {string}
+ */
 const resolveEffectiveRateLimitStoreKind = ({
   mode = RATE_LIMIT_STORE_MODES.AUTO,
   redisUrl,
