@@ -9,8 +9,40 @@
  */
 const config = require('../../../../config');
 
+/**
+ * @typedef {object} FilterLogger
+ * @property {(...args: any[]) => void} info
+ * @property {(...args: any[]) => void} warn
+ * @property {(...args: any[]) => void} debug
+ */
+
+/**
+ * @typedef {object} FilterRequest
+ * @property {Record<string, string | string[] | undefined>} headers
+ * @property {string} [originalUrl]
+ * @property {string} [url]
+ * @property {string} [protocol]
+ * @property {FilterLogger} [log]
+ */
+
+/**
+ * @typedef {object} FilterResponse
+ * @property {(code: number) => FilterResponse} status
+ * @property {(body: unknown) => unknown} send
+ * @property {(url: string) => unknown} redirect
+ */
+
+/**
+ * @typedef {object} FilterRouter
+ * @property {(handler: (req: FilterRequest, res: FilterResponse, next: (err?: unknown) => void) => unknown) => void} use
+ */
+
 const INVALID_REDIRECT_HOST_MESSAGE = 'Bad request. Invalid redirect host.';
 
+/**
+ * @param {unknown} headerValue
+ * @returns {{ hostname: string, port: string } | null}
+ */
 const parseRedirectHost = (headerValue) => {
   if (typeof headerValue !== 'string') {
     return null;
@@ -40,6 +72,10 @@ const parseRedirectHost = (headerValue) => {
   }
 };
 
+/**
+ * @param {FilterRequest} req
+ * @returns {{ hostname: string, port: string } | null}
+ */
 const resolveRedirectHost = (req) => {
   const forwardedHost = req.headers['x-forwarded-host'];
   if (forwardedHost !== undefined) {
@@ -49,6 +85,10 @@ const resolveRedirectHost = (req) => {
   return parseRedirectHost(req.headers.host);
 };
 
+/**
+ * @param {FilterRequest} req
+ * @returns {string | null}
+ */
 const buildHttpsRedirectUrl = (req) => {
   const redirectHost = resolveRedirectHost(req);
   if (!redirectHost) {
@@ -77,11 +117,15 @@ const buildHttpsRedirectUrl = (req) => {
   return location.toString();
 };
 
+/**
+ * @param {FilterLogger} logger - app logger instance
+ * @returns {{ loadRequestFilter: (appRouter: FilterRouter) => void }}
+ */
 module.exports = (logger) => {
   /**
    * Registers the request filter on appRouter.
    * The logger comes from the outer factory closure.
-   * @param {object} appRouter - Express application or router
+   * @param {FilterRouter} appRouter - Express application or router
    */
   function loadRequestFilter(appRouter) {
     logger.info('Loading request-filter...');

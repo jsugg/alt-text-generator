@@ -1,5 +1,11 @@
 const { ApiError } = require('../../../errors/ApiError');
 
+/**
+ * @typedef {object} AccessRequest
+ * @property {string} path
+ * @property {(name: string) => string | undefined} get
+ */
+
 const PUBLIC_PATHS = new Set([
   '/api',
   '/api/',
@@ -12,6 +18,10 @@ const PUBLIC_PATHS = new Set([
 
 const isApiPath = (path = '') => path === '/api' || path.startsWith('/api/');
 
+/**
+ * @param {unknown} authorizationHeader
+ * @returns {string | null}
+ */
 const extractBearerToken = (authorizationHeader) => {
   if (typeof authorizationHeader !== 'string') {
     return null;
@@ -25,6 +35,10 @@ const extractBearerToken = (authorizationHeader) => {
   return token;
 };
 
+/**
+ * @param {AccessRequest} req
+ * @returns {string | null}
+ */
 const extractApiAuthToken = (req) => {
   const apiKey = req.get('x-api-key');
   if (typeof apiKey === 'string' && apiKey.trim()) {
@@ -41,7 +55,7 @@ const isPublicPath = (path = '') => path.startsWith('/api-docs')
  * @param {object} authConfig
  * @param {boolean} [authConfig.enabled]
  * @param {string[]} [authConfig.tokens]
- * @returns {Function}
+ * @returns {(req: AccessRequest, res: object, next: (err?: unknown) => void) => unknown}
  */
 const createAccessControlMiddleware = (authConfig = {}) => {
   const allowedTokens = new Set(authConfig.tokens ?? []);

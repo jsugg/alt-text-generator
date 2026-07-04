@@ -2,12 +2,27 @@ const { isValidUrl } = require('../../../utils/urlValidator');
 const { ApiError } = require('../../../errors/ApiError');
 
 /**
+ * @typedef {object} ScraperServiceLike
+ * @property {(url: string) => Promise<unknown>} getImages
+ */
+
+/**
+ * @typedef {object} ScraperRequest
+ * @property {Record<string, string>} query
+ */
+
+/**
+ * @typedef {object} ScraperResponse
+ * @property {(body: unknown) => unknown} json
+ */
+
+/**
  * Handles requests to scrape images from a website.
  */
 class ScraperController {
   /**
    * @param {object} deps
-   * @param {object} deps.scraperService - ScraperService instance
+   * @param {ScraperServiceLike} deps.scraperService - ScraperService instance
    * @param {object} deps.logger - pino logger instance
    */
   constructor({ scraperService, logger }) {
@@ -65,6 +80,12 @@ class ScraperController {
    *             schema:
    *               $ref: '#/components/schemas/ApiErrorResponse'
    */
+  /**
+   * @param {ScraperRequest} req
+   * @param {ScraperResponse} res
+   * @param {(err?: unknown) => void} next
+   * @returns {Promise<unknown>}
+   */
   async getImages(req, res, next) {
     const { url } = req.query;
 
@@ -93,7 +114,7 @@ class ScraperController {
       return next(ApiError.internal({
         message: 'Error fetching images from the provided URL',
         code: 'SCRAPE_FETCH_FAILED',
-        cause: error,
+        cause: /** @type {Error} */ (error),
       }));
     }
   }

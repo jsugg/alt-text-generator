@@ -1,10 +1,22 @@
 const { ApiError, buildErrorResponse } = require('../../../errors/ApiError');
 
 /**
+ * @typedef {object} ErrorRequest
+ * @property {string} [id]
+ */
+
+/**
+ * @typedef {object} ErrorResponse
+ * @property {boolean} headersSent
+ * @property {(code: number) => ErrorResponse} status
+ * @property {(body: unknown) => ErrorResponse} json
+ */
+
+/**
  * Wraps an async route handler so rejected promises reach Express error handling.
  *
  * @param {Function} handler
- * @returns {Function}
+ * @returns {(req: unknown, res: unknown, next: (err?: unknown) => void) => Promise<void>}
  */
 const asyncHandler = (handler) => (req, res, next) => Promise
   .resolve(handler(req, res, next))
@@ -25,8 +37,8 @@ const notFoundHandler = (req, res, next) => {
 
 /**
  * @param {Error} error
- * @param {object} req
- * @param {object} res
+ * @param {ErrorRequest} req
+ * @param {ErrorResponse} res
  * @param {Function} next
  * @returns {object|void}
  */

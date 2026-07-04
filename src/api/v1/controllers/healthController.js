@@ -1,5 +1,17 @@
 const packageMetadata = require('../../../../package.json');
 
+/**
+ * @typedef {object} HttpRequest
+ * @property {string} [id]
+ */
+
+/**
+ * @typedef {object} HttpResponse
+ * @property {(code: number) => HttpResponse} status
+ * @property {(body: unknown) => HttpResponse} json
+ * @property {(body: unknown) => HttpResponse} send
+ */
+
 const ROOT_INDEX_LINKS = Object.freeze({
   api: '/api/v1',
   docs: '/api-docs/',
@@ -12,6 +24,9 @@ const defaultRuntimeState = Object.freeze({
   isReady: () => true,
 });
 
+/**
+ * @param {string} [requestId]
+ */
 const buildServiceIndexResponse = (requestId) => ({
   name: packageMetadata.name,
   version: packageMetadata.version,
@@ -101,6 +116,11 @@ const buildHealthResponse = ({
  *       500:
  *         description: Server error
  */
+/**
+ * @param {HttpRequest} req
+ * @param {HttpResponse} res
+ * @returns {HttpResponse}
+ */
 const index = (req, res) => res.status(200).json(buildServiceIndexResponse(req.id));
 
 /**
@@ -118,6 +138,11 @@ const index = (req, res) => res.status(200).json(buildServiceIndexResponse(req.i
  *               example: pong
  *       500:
  *         description: Server error
+ */
+/**
+ * @param {HttpRequest} req
+ * @param {HttpResponse} res
+ * @returns {HttpResponse}
  */
 const ping = (req, res) => res.status(200).send('pong');
 
@@ -177,6 +202,11 @@ const createHealthController = ({
   runtimeState = defaultRuntimeState,
   uptime = process.uptime,
 } = {}) => {
+  /**
+   * @param {HttpRequest} req
+   * @param {HttpResponse} res
+   * @returns {HttpResponse}
+   */
   const health = (req, res) => {
     const ready = runtimeState.isReady();
     const payload = buildHealthResponse({

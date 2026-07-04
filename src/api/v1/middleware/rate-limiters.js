@@ -1,8 +1,36 @@
-const rateLimit = require('express-rate-limit');
+const rateLimit = /** @type {(options: object) => Function} */ (
+  /** @type {unknown} */ (require('express-rate-limit'))
+);
 const config = require('../../../../config');
 const {
   RATE_LIMIT_STORE_SCOPES,
 } = require('../../../infrastructure/rateLimitStore');
+
+/**
+ * @typedef {object} LimiterWindowConfig
+ * @property {number} max
+ * @property {number} windowMs
+ */
+
+/**
+ * @typedef {object} RateLimitStoreProvider
+ * @property {(scope: string) => unknown} [createStore]
+ */
+
+/**
+ * @typedef {object} RateLimitAppConfig
+ * @property {LimiterWindowConfig} [rateLimit]
+ * @property {LimiterWindowConfig} [statusRateLimit]
+ */
+
+/**
+ * @typedef {object} RateLimiterOptions
+ * @property {LimiterWindowConfig} limiterConfig
+ * @property {unknown} message
+ * @property {string} scope
+ * @property {(req: { path: string }) => boolean} [skip]
+ * @property {RateLimitStoreProvider} [storeProvider]
+ */
 
 const STATUS_ENDPOINT_PATHS = new Set([
   '/api/health',
@@ -11,8 +39,16 @@ const STATUS_ENDPOINT_PATHS = new Set([
   '/api/v1/ping',
 ]);
 
+/**
+ * @param {unknown} message
+ * @returns {unknown}
+ */
 const buildLimiterMessage = (message) => message;
 
+/**
+ * @param {RateLimiterOptions} options
+ * @returns {Function}
+ */
 const buildRateLimiter = ({
   limiterConfig,
   message,
@@ -31,6 +67,11 @@ const buildRateLimiter = ({
   });
 };
 
+/**
+ * @param {RateLimitAppConfig} [appConfig]
+ * @param {RateLimitStoreProvider} [storeProvider]
+ * @returns {Function}
+ */
 const createDefaultRateLimiter = (
   appConfig,
   storeProvider,
@@ -47,6 +88,11 @@ const createDefaultRateLimiter = (
   });
 };
 
+/**
+ * @param {RateLimitAppConfig} [appConfig]
+ * @param {RateLimitStoreProvider} [storeProvider]
+ * @returns {Function}
+ */
 const createStatusRateLimiter = (
   appConfig,
   storeProvider,
