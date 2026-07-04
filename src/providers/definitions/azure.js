@@ -9,13 +9,13 @@ module.exports = {
   configKey: 'azure',
   displayName: 'Azure Computer Vision',
   startupHint: 'ACV_API_ENDPOINT and ACV_SUBSCRIPTION_KEY to enable azure',
-  buildEnvSchema: (Joi) => ({
+  buildEnvSchema: (/** @type {import('joi').Root} */ Joi) => ({
     ACV_API_ENDPOINT: Joi.string().uri().optional(),
     ACV_SUBSCRIPTION_KEY: Joi.string().optional(),
     ACV_LANGUAGE: Joi.string().optional(),
     ACV_MAX_CANDIDATES: Joi.number().integer().min(1).optional(),
   }),
-  buildConfig: (env) => ({
+  buildConfig: (/** @type {Record<string, string | undefined>} */ env) => ({
     enabled:
       hasNonEmptyStringValue(env.ACV_API_ENDPOINT)
       && hasNonEmptyStringValue(env.ACV_SUBSCRIPTION_KEY),
@@ -24,17 +24,20 @@ module.exports = {
     language: env.ACV_LANGUAGE || 'en',
     maxCandidates: toPositiveIntegerOrFallback(env.ACV_MAX_CANDIDATES, 4),
   }),
-  isConfiguredInEnv: (env = {}) => Boolean(
+  isConfiguredInEnv: (/** @type {Record<string, string | undefined>} */ env = {}) => Boolean(
     hasNonEmptyStringValue(env.ACV_API_ENDPOINT)
     && hasNonEmptyStringValue(env.ACV_SUBSCRIPTION_KEY),
   ),
-  isConfiguredInConfig: (config = {}) => Boolean(
+  isConfiguredInConfig: (
+    /** @type {{ azure?: { enabled?: boolean, apiEndpoint?: string, subscriptionKey?: string } }} */
+    config = {},
+  ) => Boolean(
     config.azure?.enabled !== false
     && hasNonEmptyStringValue(config.azure?.apiEndpoint)
     && hasNonEmptyStringValue(config.azure?.subscriptionKey),
   ),
   validateEnv: () => [],
-  getStartupWarnings: (env = {}) => {
+  getStartupWarnings: (/** @type {Record<string, string | undefined>} */ env = {}) => {
     const hasAzureEndpoint = hasNonEmptyStringValue(env.ACV_API_ENDPOINT);
     const hasAzureCredential = hasNonEmptyStringValue(env.ACV_SUBSCRIPTION_KEY);
 
@@ -55,17 +58,20 @@ module.exports = {
     scopeRequirement: 'ACV_API_ENDPOINT and ACV_SUBSCRIPTION_KEY',
     allRequirement: 'Azure credentials',
   },
+  /**
+   * @param {{ config: Record<string, object>, logger: object, httpClient: object, outboundUrlPolicy?: Function, requestOptions?: object }} deps
+   */
   createRuntime: ({
     config,
     logger,
     httpClient,
     outboundUrlPolicy,
     requestOptions,
-  }) => new AzureDescriberService({
+  }) => new AzureDescriberService(/** @type {ConstructorParameters<typeof AzureDescriberService>[0]} */ ({
     logger,
     httpClient,
     outboundUrlPolicy,
     providerConfig: config.azure,
     requestOptions,
-  }),
+  })),
 };

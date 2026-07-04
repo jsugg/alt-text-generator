@@ -3,6 +3,10 @@ const {
   requestWithOutboundUrlPolicy,
 } = require('../../infrastructure/outboundUrlPolicy');
 
+/**
+ * @param {unknown} value
+ * @returns {string | null}
+ */
 const normalizeContentType = (value) => {
   if (!value || typeof value !== 'string') {
     return null;
@@ -15,10 +19,13 @@ const normalizeContentType = (value) => {
  * Downloads an image asset and normalizes the payload for multimodal providers.
  *
  * @param {object} params
- * @param {object} params.httpClient - axios-compatible HTTP client
+ * @param {Record<string, import('../../infrastructure/outboundUrlPolicy').PolicyRequestFn>
+ * } params.httpClient - axios-compatible HTTP client
  * @param {string} params.imageUrl
- * @param {Function} [params.outboundUrlPolicy] - validates user-controlled outbound URLs
- * @param {object} [params.requestOptions]
+ * @param {(value: any) => Promise<URL>} [params.outboundUrlPolicy]
+ *   validates user-controlled outbound URLs
+ * @param {{ timeout?: number, maxRedirects?: number, maxContentLength?: number }}
+ *   [params.requestOptions]
  * @returns {Promise<{ buffer: Buffer, contentType: string | null, imageUrl: string }>}
  */
 const fetchImageAsset = async ({

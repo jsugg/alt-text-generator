@@ -3,6 +3,18 @@ const {
 } = require('../../config/providerCatalog');
 const ImageDescriberFactory = require('../services/ImageDescriberFactory');
 
+/**
+ * @typedef {{
+ *   key: string,
+ *   configKey: string,
+ *   createRuntime?: (deps: object) => object,
+ * }} RuntimeProvider
+ */
+
+/**
+ * @param {RuntimeProvider} provider
+ * @param {Record<string, object>} [providerClients]
+ */
 const resolveProviderClient = (provider, providerClients = {}) => (
   providerClients[provider.key]
   ?? providerClients[provider.configKey]
@@ -32,7 +44,7 @@ const buildImageDescriberFactory = ({
 }) => {
   const factory = new ImageDescriberFactory();
 
-  getConfiguredProvidersFromConfig(config).forEach((provider) => {
+  /** @type {RuntimeProvider[]} */ (getConfiguredProvidersFromConfig(config)).forEach((provider) => {
     if (typeof provider.createRuntime !== 'function') {
       throw new Error(`No runtime builder registered for provider '${provider.key}'`);
     }
