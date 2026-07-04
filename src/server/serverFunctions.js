@@ -7,6 +7,18 @@ const DEFAULT_REQUEST_TIMEOUT_MS = 120_000;
 const FORCE_SOCKET_CLOSE_TIMEOUT_MS = 1_000;
 const TRACKED_SOCKETS = Symbol('trackedSockets');
 
+/** @typedef {import('node:net').Socket} Socket */
+/**
+ * @typedef {{
+ *   info: (details: object | string, message?: string) => void,
+ *   error: (details: object | string, message?: string) => void,
+ * }} ServerLogger
+ */
+
+/**
+ * @param {Set<Socket>} sockets
+ * @param {Socket} socket
+ */
 const trackSocket = (sockets, socket) => {
   sockets.add(socket);
   socket.on('close', () => {
@@ -14,7 +26,13 @@ const trackSocket = (sockets, socket) => {
   });
 };
 
+/**
+ * @template {import('node:net').Server} T
+ * @param {T} server
+ * @returns {T}
+ */
 const configureServer = (server) => {
+  /** @type {Set<Socket>} */
   const trackedSockets = new Set();
   server.on('connection', (socket) => trackSocket(trackedSockets, socket));
 
@@ -26,30 +44,39 @@ const configureServer = (server) => {
   });
 };
 
+/** @param {import('node:http').Server} server */
 const forceCloseServerConnections = (server) => {
   if (typeof server.closeAllConnections === 'function') {
     server.closeAllConnections();
   }
 
-  const sockets = server[TRACKED_SOCKETS] ?? new Set();
+  const sockets = /** @type {Set<Socket>} */ (
+    /** @type {any} */ (server)[TRACKED_SOCKETS] ?? new Set()
+  );
   sockets.forEach((socket) => {
     socket.destroy();
   });
 };
 
+/**
+ * @param {Function[] | Function} cleanupTasks
+ * @returns {Function[]}
+ */
 const normalizeCleanupTasks = (cleanupTasks) => (
   (Array.isArray(cleanupTasks) ? cleanupTasks : [cleanupTasks])
     .filter((cleanupTask) => typeof cleanupTask === 'function')
 );
 
+/** @param {import('node:http').RequestListener} app - Express application */
 module.exports.createHttpServer = (app) => configureServer(http.createServer(app));
 
 /**
  * Creates an HTTPS server.
  * A credentials loader can provide PEM strings or Buffers.
  *
- * @param {object} app - Express application
- * @param {function} [loadTlsCredentials] - TLS credential loader
+ * @param {import('node:http').RequestListener} app - Express application
+ * @param {() => { key?: string | Buffer, cert?: string | Buffer }} [loadTlsCredentials]
+ *   TLS credential loader
  * @returns {https.Server}
  */
 module.exports.createHttpsServer = (app, loadTlsCredentials = () => ({
@@ -60,6 +87,12 @@ module.exports.createHttpsServer = (app, loadTlsCredentials = () => ({
   return configureServer(https.createServer({ key, cert }, app));
 };
 
+/**
+ * @param {import('node:http').Server} server
+ * @param {number} port
+ * @param {ServerLogger} logger
+ * @returns {Promise<import('node:http').Server>}
+ */
 module.exports.startServer = (server, port, logger) => {
   if (server.listening) {
     return Promise.resolve(server);
@@ -68,6 +101,7 @@ module.exports.startServer = (server, port, logger) => {
   return new Promise((resolve, reject) => {
     let handleListening = () => {};
 
+    /** @param {Error} error */
     const handleError = (error) => {
       server.off('listening', handleListening);
       reject(error);
@@ -92,9 +126,13 @@ module.exports.startServer = (server, port, logger) => {
   });
 };
 
+/** @param {import('node:http').Server[]} servers */
 module.exports.closeServers = async (servers) => {
   await Promise.all(
-    servers.map((server) => new Promise((resolve, reject) => {
+    servers.map((server) => new Promise((
+      /** @type {(value?: unknown) => void} */ resolve,
+      reject,
+    ) => {
       const forceCloseTimer = setTimeout(() => {
         forceCloseServerConnections(server);
       }, FORCE_SOCKET_CLOSE_TIMEOUT_MS);
@@ -125,11 +163,11 @@ module.exports.closeServers = async (servers) => {
  * Returns the shared shutdown handler so fatal paths can reuse the same flow.
  *
  * @param {http.Server[]} servers - Array of servers to close
- * @param {object} logger - pino logger instance
+ * @param {ServerLogger} logger - pino logger instance
+ * @param {{ markDraining?: () => void } | null} [runtimeState] - mutable runtime readiness state
  * @param {NodeJS.Process} [processRef] - process-like object for testing
- * @param {object} [runtimeState] - mutable runtime readiness state
  * @param {Function[]|Function} [cleanupTasks] - async cleanup callbacks
- * @returns {Function}
+ * @returns {(options?: { exitCode?: number, reason?: string, signal?: string }) => Promise<void>}
  */
 module.exports.gracefulShutdown = (
   servers,
@@ -140,8 +178,10 @@ module.exports.gracefulShutdown = (
 ) => {
   const resolvedProcessRef = processRef ?? process;
   const resolvedCleanupTasks = normalizeCleanupTasks(cleanupTasks);
+  /** @type {Promise<void> | undefined} */
   let shutdownPromise;
 
+  /** @param {{ exitCode?: number, reason?: string, signal?: string }} [options] */
   const shutdown = ({
     exitCode = 0,
     reason = 'signal',

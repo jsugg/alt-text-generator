@@ -1,5 +1,18 @@
 const util = require('util');
 
+/**
+ * @typedef {{
+ *   fatal: (details: object | string, message?: string) => void,
+ *   error: (details: object | string, message?: string) => void,
+ * }} FatalLogger
+ */
+
+/**
+ * @typedef {(options: { exitCode?: number, reason?: string, signal?: string }) => unknown
+ * } ShutdownHandler
+ */
+
+/** @param {unknown} reason */
 const normalizeUnhandledRejection = (reason) => (
   reason instanceof Error
     ? { err: reason }
@@ -14,8 +27,9 @@ const normalizeUnhandledRejection = (reason) => (
  * handler when one exists.
  *
  * @param {object} params - handler dependencies
- * @param {Function} params.getShutdownHandler - returns the active shutdown fn
- * @param {object} params.logger - pino logger
+ * @param {() => (ShutdownHandler | null | undefined)} params.getShutdownHandler
+ *   returns the active shutdown fn
+ * @param {FatalLogger} params.logger - pino logger
  * @param {NodeJS.Process} [params.processRef] - process-like object for tests
  * @returns {Function}
  */
@@ -26,6 +40,10 @@ const registerFatalHandlers = ({
 }) => {
   let fatalInProgress = false;
 
+  /**
+   * @param {object} details
+   * @param {string} message
+   */
   const handleFatal = (details, message) => {
     if (fatalInProgress) {
       return;
@@ -50,9 +68,11 @@ const registerFatalHandlers = ({
     });
   };
 
+  /** @param {Error} error */
   const onUncaughtException = (error) => {
     handleFatal({ err: error }, 'Uncaught exception');
   };
+  /** @param {unknown} reason */
   const onUnhandledRejection = (reason) => {
     handleFatal(normalizeUnhandledRejection(reason), 'Unhandled promise rejection');
   };
