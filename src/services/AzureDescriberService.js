@@ -62,7 +62,7 @@ class AzureDescriberService {
    * @param {object} deps
    * @param {Logger} deps.logger - pino logger instance
    * @param {HttpClient} deps.httpClient - axios-compatible HTTP client
-   * @param {Function} deps.outboundUrlPolicy - validates user-controlled outbound URLs
+   * @param {(value: any) => Promise<URL>} deps.outboundUrlPolicy - validates user-controlled outbound URLs
    * @param {ProviderConfig} deps.providerConfig - provider config section
    * @param {RequestOptions} deps.requestOptions - bounded outbound request options
    */
@@ -193,7 +193,7 @@ class AzureDescriberService {
    */
   async fetchImageBuffer(imageUrl) {
     const { buffer, contentType } = await fetchImageAsset({
-      httpClient: this.httpClient,
+      httpClient: /** @type {any} */ (this.httpClient),
       imageUrl,
       outboundUrlPolicy: this.outboundUrlPolicy,
       requestOptions: this.requestOptions,

@@ -237,7 +237,7 @@ class OpenAiCompatibleVisionDescriberService {
    * @param {ProviderConfig} deps.providerConfig
    * @param {string} deps.providerKey
    * @param {string} deps.providerName
-   * @param {Function} [deps.outboundUrlPolicy] - validates user-controlled outbound URLs
+   * @param {(value: any) => Promise<URL>} [deps.outboundUrlPolicy] - validates user-controlled outbound URLs
    * @param {RequestOptions} [deps.requestOptions]
    * @param {(ms: number) => Promise<void>} [deps.sleep]
    */
@@ -414,7 +414,7 @@ class OpenAiCompatibleVisionDescriberService {
    */
   async describeFetchedImage(imageUrl, successMessage) {
     const imageAsset = await fetchImageAsset({
-      httpClient: this.httpClient,
+      httpClient: /** @type {any} */ (this.httpClient),
       imageUrl,
       outboundUrlPolicy: this.outboundUrlPolicy,
       requestOptions: this.requestOptions,

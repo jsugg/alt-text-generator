@@ -37,7 +37,7 @@ class OllamaDescriberService {
    * @param {Logger} deps.logger
    * @param {HttpClient} deps.httpClient
    * @param {HttpClient} [deps.apiClient]
-   * @param {Function} [deps.outboundUrlPolicy]
+   * @param {(value: any) => Promise<URL>} [deps.outboundUrlPolicy]
    * @param {ProviderConfig} deps.providerConfig
    * @param {RequestOptions} [deps.requestOptions]
    */
@@ -95,7 +95,7 @@ class OllamaDescriberService {
 
     try {
       const imageAsset = await fetchImageAsset({
-        httpClient: this.httpClient,
+        httpClient: /** @type {any} */ (this.httpClient),
         imageUrl,
         outboundUrlPolicy: this.outboundUrlPolicy,
         requestOptions: this.requestOptions,
