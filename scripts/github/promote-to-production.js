@@ -7,19 +7,23 @@ const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 
 /**
+ * @typedef {object} PromoteArgs
+ * @property {string} repo
+ * @property {string} sourceBranch
+ * @property {string} targetBranch
+ * @property {string[]|null} requiredChecks
+ * @property {string|null} outputFile
+ * @property {string|null} summaryFile
+ */
+
+/**
  * Parses command-line arguments into a key/value object.
  *
  * @param {string[]} argv
- * @returns {{
- *   repo: string,
- *   sourceBranch: string,
- *   targetBranch: string,
- *   requiredChecks: string[]|null,
- *   outputFile: string|null,
- *   summaryFile: string|null,
- * }}
+ * @returns {PromoteArgs}
  */
 function parseArgs(argv) {
+  /** @type {Partial<PromoteArgs>} */
   const args = {
     outputFile: null,
     summaryFile: null,
@@ -76,7 +80,7 @@ function parseArgs(argv) {
     throw new Error('--repo, --source-branch, and --target-branch are required');
   }
 
-  return args;
+  return /** @type {PromoteArgs} */ (args);
 }
 
 /**
