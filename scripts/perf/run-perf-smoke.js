@@ -36,11 +36,16 @@ const PAGE_FAN_OUT_ITERATIONS = 5;
 const DOCS_WARMUP_ITERATIONS = 3;
 const DOCS_MEASURE_ITERATIONS = 10;
 
+/**
+ * @param {unknown} value
+ * @param {number} fallback
+ */
 const toNumber = (value, fallback) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 };
 
+/** @param {string | undefined} envValue */
 const resolveAcceptedBudgets = (envValue) => new Set(
   (typeof envValue === 'string' ? envValue : '')
     .split(',')
@@ -48,8 +53,14 @@ const resolveAcceptedBudgets = (envValue) => new Set(
     .filter(Boolean),
 );
 
+/** @param {string} line */
 const writeLine = (line) => process.stdout.write(`${line}\n`);
 
+/**
+ * @param {import('node:http').Server} server
+ * @param {number} port
+ * @returns {Promise<void>}
+ */
 const listen = (server, port) => new Promise((resolve, reject) => {
   server.once('error', reject);
   server.listen(port, '127.0.0.1', () => {
@@ -58,19 +69,25 @@ const listen = (server, port) => new Promise((resolve, reject) => {
   });
 });
 
+/**
+ * @param {import('node:http').Server} server
+ * @returns {Promise<void>}
+ */
 const closeServer = (server) => new Promise((resolve, reject) => {
   server.close((error) => (error ? reject(error) : resolve()));
 });
 
+/** @returns {Promise<number>} */
 const reservePort = () => new Promise((resolve, reject) => {
   const server = http.createServer();
   server.once('error', reject);
   server.listen(0, '127.0.0.1', () => {
-    const { port } = server.address();
+    const { port } = /** @type {import('node:net').AddressInfo} */ (server.address());
     server.close((error) => (error ? reject(error) : resolve(port)));
   });
 });
 
+/** @param {number[]} values */
 const median = (values) => {
   const sorted = [...values].sort((first, second) => first - second);
   const middle = Math.floor(sorted.length / 2);
@@ -83,25 +100,31 @@ const median = (values) => {
 // Stub async describer: settles immediately so the smoke measures orchestration
 // and scrape overhead rather than real provider latency.
 class FastStubDescriber {
+  /** @param {string} imageUrl */
   static buildResult(imageUrl) {
     return { description: 'perf-smoke caption', imageUrl };
   }
 
+  /** @param {string} imageUrl */
   async createDescriptionJob(imageUrl) {
     return {
       providerJobId: 'perf-stub',
       imageUrl,
       status: 'succeeded',
-      result: this.constructor.buildResult(imageUrl),
+      result: /** @type {typeof FastStubDescriber} */ (this.constructor).buildResult(imageUrl),
     };
   }
 
+  /**
+   * @param {string} providerJobId
+   * @param {string} imageUrl
+   */
   async getDescriptionJob(providerJobId, imageUrl) {
     return {
       providerJobId,
       imageUrl,
       status: 'succeeded',
-      result: this.constructor.buildResult(imageUrl),
+      result: /** @type {typeof FastStubDescriber} */ (this.constructor).buildResult(imageUrl),
     };
   }
 }
@@ -120,7 +143,7 @@ const buildPerfApp = () => {
 
   const { app } = createApp({
     appLogger: noopLogger,
-    requestLogger: (req, res, next) => {
+    requestLogger: (/** @type {any} */ req, /** @type {any} */ res, /** @type {any} */ next) => {
       req.log = noopLogger;
       next();
     },
@@ -140,10 +163,19 @@ const buildPerfApp = () => {
   return app;
 };
 
+/**
+ * @param {any} app
+ * @param {string} path
+ */
 const secureGet = (app, path) => request(app)
   .get(path)
   .set('X-Forwarded-Proto', 'https');
 
+/**
+ * @param {any} app
+ * @param {string} pageUrl
+ * @returns {Promise<number>}
+ */
 const settlePageDescription = async (app, pageUrl) => {
   const start = process.hrtime.bigint();
   const startResponse = await secureGet(
@@ -152,6 +184,10 @@ const settlePageDescription = async (app, pageUrl) => {
   );
 
   let response = startResponse;
+  /**
+   * @param {string} statusUrl
+   * @param {number} attempt
+   */
   const pollUntilTerminal = async (statusUrl, attempt) => {
     if (attempt > 50) {
       throw new Error(`page fan-out did not settle for ${pageUrl}`);
@@ -174,9 +210,15 @@ const settlePageDescription = async (app, pageUrl) => {
   return elapsedMs;
 };
 
+/**
+ * @param {any} app
+ * @param {string} fixtureBaseUrl
+ */
 const measurePageFanOut = async (app, fixtureBaseUrl) => {
+  /** @type {number[]} */
   const durations = [];
 
+  /** @param {number} iteration */
   const runIteration = async (iteration) => {
     if (iteration >= PAGE_FAN_OUT_ITERATIONS) {
       return;
@@ -193,9 +235,12 @@ const measurePageFanOut = async (app, fixtureBaseUrl) => {
   return median(durations);
 };
 
+/** @param {any} app */
 const measureDocsSteadyState = async (app) => {
+  /** @type {number[]} */
   const durations = [];
 
+  /** @param {number} iteration */
   const warmUp = async (iteration) => {
     if (iteration >= DOCS_WARMUP_ITERATIONS) {
       return;
@@ -205,6 +250,7 @@ const measureDocsSteadyState = async (app) => {
     await warmUp(iteration + 1);
   };
 
+  /** @param {number} iteration */
   const measure = async (iteration) => {
     if (iteration >= DOCS_MEASURE_ITERATIONS) {
       return;
@@ -234,7 +280,7 @@ const main = async () => {
 
   const fixturePort = await reservePort();
   const fixtureBaseUrl = `http://127.0.0.1:${fixturePort}`;
-  const fixtureServer = http.createServer(createFixtureApp({ baseUrl: fixtureBaseUrl }));
+  const fixtureServer = http.createServer(/** @type {any} */ (createFixtureApp({ baseUrl: fixtureBaseUrl })));
   await listen(fixtureServer, fixturePort);
 
   try {

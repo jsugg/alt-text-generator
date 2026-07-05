@@ -12,14 +12,22 @@ const PERF_STATUS = Object.freeze({
 });
 
 /**
+ * @typedef {object} PerformanceSample
+ * @property {string} label - route/scenario name
+ * @property {number} durationMs - observed latency
+ * @property {number} budgetMs - target latency
+ * @property {boolean} [accepted] - whether the budget is an accepted gate
+ */
+
+/**
+ * @typedef {{label: string, durationMs: number, budgetMs: number, accepted: boolean, withinBudget: boolean, status: string, blocking: boolean}} EvaluatedSample
+ */
+
+/**
  * Evaluate a single latency sample against a (possibly provisional) budget.
  *
- * @param {object} sample
- * @param {string} sample.label - route/scenario name
- * @param {number} sample.durationMs - observed latency
- * @param {number} sample.budgetMs - target latency
- * @param {boolean} [sample.accepted] - whether the budget is an accepted gate
- * @returns {{label: string, durationMs: number, budgetMs: number, accepted: boolean, withinBudget: boolean, status: string, blocking: boolean}}
+ * @param {PerformanceSample} sample
+ * @returns {EvaluatedSample}
  */
 const evaluatePerformanceSample = ({
   label,
@@ -64,8 +72,8 @@ const evaluatePerformanceSample = ({
  * Evaluate many samples and summarize. Warnings never fail the run; only an
  * over-budget ACCEPTED budget is blocking.
  *
- * @param {Array<object>} samples
- * @returns {{results: Array<object>, warnings: Array<object>, failures: Array<object>, ok: boolean, blocking: boolean}}
+ * @param {PerformanceSample[]} samples
+ * @returns {{results: EvaluatedSample[], warnings: EvaluatedSample[], failures: EvaluatedSample[], ok: boolean, blocking: boolean}}
  */
 const summarizePerformanceReport = (samples) => {
   if (!Array.isArray(samples)) {
@@ -88,7 +96,7 @@ const summarizePerformanceReport = (samples) => {
 /**
  * Human-readable one-line summary for a single evaluated sample.
  *
- * @param {object} result - an evaluatePerformanceSample result
+ * @param {EvaluatedSample} result - an evaluatePerformanceSample result
  * @returns {string}
  */
 const formatSampleLine = (result) => {
