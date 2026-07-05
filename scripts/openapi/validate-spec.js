@@ -38,6 +38,9 @@ const {
   resolveRef,
 } = require('./spec-utils');
 
+/** @typedef {import('./spec-utils').OpenApiSpec} OpenApiSpec */
+/** @typedef {{ rule: string, location: string, message: string }} Violation */
+
 const RULES = {
   OPENAPI_VERSION: 'openapi-version',
   INFO_METADATA: 'info-metadata',
@@ -70,6 +73,10 @@ function operationLocation({ method, path: routePath }) {
   return `${method.toUpperCase()} ${routePath}`;
 }
 
+/**
+ * @param {unknown} value
+ * @returns {boolean}
+ */
 function isNonEmptyString(value) {
   return typeof value === 'string' && value.trim() !== '';
 }
@@ -77,8 +84,8 @@ function isNonEmptyString(value) {
 /**
  * Enforces a 3.x `openapi` version declaration.
  *
- * @param {object} spec
- * @returns {{ rule: string, location: string, message: string }[]}
+ * @param {OpenApiSpec} spec
+ * @returns {Violation[]}
  */
 function validateVersion(spec) {
   if (typeof spec.openapi !== 'string' || !/^3\./u.test(spec.openapi)) {
@@ -95,8 +102,8 @@ function validateVersion(spec) {
 /**
  * Enforces non-empty info.title and info.version.
  *
- * @param {object} spec
- * @returns {{ rule: string, location: string, message: string }[]}
+ * @param {OpenApiSpec} spec
+ * @returns {Violation[]}
  */
 function validateInfo(spec) {
   return ['title', 'version'].flatMap((field) => {
@@ -115,8 +122,8 @@ function validateInfo(spec) {
 /**
  * Enforces a server-agnostic base artifact (servers are injected at serve time).
  *
- * @param {object} spec
- * @returns {{ rule: string, location: string, message: string }[]}
+ * @param {OpenApiSpec} spec
+ * @returns {Violation[]}
  */
 function validateNoServers(spec) {
   if ('servers' in spec) {
@@ -133,8 +140,8 @@ function validateNoServers(spec) {
 /**
  * Enforces at least one documented path.
  *
- * @param {object} spec
- * @returns {{ rule: string, location: string, message: string }[]}
+ * @param {OpenApiSpec} spec
+ * @returns {Violation[]}
  */
 function validatePathsPresent(spec) {
   const { paths } = spec;
@@ -155,8 +162,8 @@ function validatePathsPresent(spec) {
  * Enforces that every operation declares responses and every JSON response body
  * declares a schema.
  *
- * @param {object} spec
- * @returns {{ rule: string, location: string, message: string }[]}
+ * @param {OpenApiSpec} spec
+ * @returns {Violation[]}
  */
 function validateOperationResponses(spec) {
   return listOperations(spec).flatMap((entry) => {
@@ -192,8 +199,8 @@ function validateOperationResponses(spec) {
 /**
  * Enforces that every local $ref resolves within the document.
  *
- * @param {object} spec
- * @returns {{ rule: string, location: string, message: string }[]}
+ * @param {OpenApiSpec} spec
+ * @returns {Violation[]}
  */
 function validateRefs(spec) {
   return [...collectRefs(spec)]
@@ -208,8 +215,8 @@ function validateRefs(spec) {
 /**
  * Enforces that every security requirement names a declared security scheme.
  *
- * @param {object} spec
- * @returns {{ rule: string, location: string, message: string }[]}
+ * @param {OpenApiSpec} spec
+ * @returns {Violation[]}
  */
 function validateSecurity(spec) {
   const declared = new Set(listSecuritySchemeNames(spec));
@@ -251,8 +258,8 @@ const RULE_FUNCTIONS = [
 /**
  * Runs every structural rule and returns the aggregated violations.
  *
- * @param {object} spec
- * @returns {{ rule: string, location: string, message: string }[]}
+ * @param {OpenApiSpec} spec
+ * @returns {Violation[]}
  */
 function validateSpec(spec) {
   return RULE_FUNCTIONS.flatMap((rule) => rule(spec));
@@ -261,7 +268,7 @@ function validateSpec(spec) {
 /**
  * Summarizes the validated surface.
  *
- * @param {object} spec
+ * @param {OpenApiSpec} spec
  * @returns {{ paths: number, operations: number }}
  */
 function summarize(spec) {
@@ -308,7 +315,7 @@ function parseArgs(argv) {
 /**
  * Writes a human-readable report grouped by rule.
  *
- * @param {{ violations: object[], stats: object, specPath: string }} report
+ * @param {{ violations: Violation[], stats: { paths: number, operations: number }, specPath: string }} report
  */
 function writeReport({ violations, stats, specPath }) {
   const relativePath = path.relative(process.cwd(), specPath) || specPath;
@@ -330,7 +337,7 @@ function writeReport({ violations, stats, specPath }) {
     list.push(violation);
     acc.set(violation.rule, list);
     return acc;
-  }, new Map());
+  }, /** @type {Map<string, Violation[]>} */ (new Map()));
 
   byRule.forEach((list, rule) => {
     process.stderr.write(`\n  [${rule}] ${list.length} issue(s):\n`);
@@ -356,7 +363,7 @@ function main(argv) {
   try {
     args = parseArgs(argv);
   } catch (error) {
-    process.stderr.write(`openapi:validate ${error.message}\n\n${USAGE}`);
+    process.stderr.write(`openapi:validate ${/** @type {Error} */ (error).message}\n\n${USAGE}`);
     return 2;
   }
 
@@ -371,7 +378,7 @@ function main(argv) {
     spec = loadSpec(args.specPath);
   } catch (error) {
     process.stderr.write(
-      `openapi:validate failed to read spec at ${args.specPath}: ${error.message}\n`,
+      `openapi:validate failed to read spec at ${args.specPath}: ${/** @type {Error} */ (error).message}\n`,
     );
     return 2;
   }

@@ -31,6 +31,10 @@ const { GENERATED_SPEC_PATH, HTTP_METHODS, loadSpec } = require('./spec-utils');
 const PROJECT_ROOT = path.resolve(__dirname, '../..');
 const DEFAULT_BASE_REFS = ['origin/main', 'main'];
 
+/** @typedef {import('./spec-utils').OpenApiSpec} OpenApiSpec */
+/** @typedef {import('./spec-utils').OpenApiNode} OpenApiNode */
+/** @typedef {{ kind: string, location: string, detail: string }} ContractChange */
+
 const KINDS = {
   REMOVED_PATH: 'removed-path',
   REMOVED_OPERATION: 'removed-operation',
@@ -52,6 +56,10 @@ Options:
   -h, --help     Show this help
 `;
 
+/**
+ * @param {unknown} pathItem
+ * @returns {string[]}
+ */
 function methodsOf(pathItem) {
   if (pathItem === null || typeof pathItem !== 'object') {
     return [];
@@ -60,19 +68,35 @@ function methodsOf(pathItem) {
   return Object.keys(pathItem).filter((key) => HTTP_METHODS.has(key.toLowerCase()));
 }
 
+/**
+ * @param {OpenApiNode} [operation]
+ * @returns {string[]}
+ */
 function responseStatusesOf(operation) {
   const responses = operation?.responses;
   return responses !== null && typeof responses === 'object' ? Object.keys(responses) : [];
 }
 
+/**
+ * @param {OpenApiNode} [schema]
+ * @returns {any[]}
+ */
 function requiredOf(schema) {
   return Array.isArray(schema?.required) ? schema.required : [];
 }
 
+/**
+ * @param {OpenApiSpec} spec
+ * @returns {Record<string, OpenApiNode>}
+ */
 function pathsOf(spec) {
   return spec?.paths !== null && typeof spec?.paths === 'object' ? spec.paths : {};
 }
 
+/**
+ * @param {OpenApiSpec} spec
+ * @returns {Record<string, OpenApiNode>}
+ */
 function schemasOf(spec) {
   const schemas = spec?.components?.schemas;
   return schemas !== null && typeof schemas === 'object' ? schemas : {};
@@ -82,9 +106,9 @@ function schemasOf(spec) {
  * Diffs response statuses for a single kept operation.
  *
  * @param {string} location
- * @param {object} baseOperation
- * @param {object} nextOperation
- * @returns {{ kind: string, location: string, detail: string }[]}
+ * @param {OpenApiNode} baseOperation
+ * @param {OpenApiNode} nextOperation
+ * @returns {ContractChange[]}
  */
 function diffResponses(location, baseOperation, nextOperation) {
   const nextStatuses = new Set(responseStatusesOf(nextOperation));
@@ -102,9 +126,9 @@ function diffResponses(location, baseOperation, nextOperation) {
  * Diffs operations (and their responses) for a single kept path.
  *
  * @param {string} routePath
- * @param {object} basePathItem
- * @param {object} nextPathItem
- * @returns {{ kind: string, location: string, detail: string }[]}
+ * @param {OpenApiNode} basePathItem
+ * @param {OpenApiNode} nextPathItem
+ * @returns {ContractChange[]}
  */
 function diffOperations(routePath, basePathItem, nextPathItem) {
   const nextMethods = new Set(methodsOf(nextPathItem));
@@ -123,9 +147,9 @@ function diffOperations(routePath, basePathItem, nextPathItem) {
 /**
  * Diffs `required` arrays of component schemas (the guaranteed response fields).
  *
- * @param {object} baseSpec
- * @param {object} nextSpec
- * @returns {{ kind: string, location: string, detail: string }[]}
+ * @param {OpenApiSpec} baseSpec
+ * @param {OpenApiSpec} nextSpec
+ * @returns {ContractChange[]}
  */
 function diffRequiredProperties(baseSpec, nextSpec) {
   const nextSchemas = schemasOf(nextSpec);
@@ -150,9 +174,9 @@ function diffRequiredProperties(baseSpec, nextSpec) {
 /**
  * Diffs the public contract surface, returning only breaking changes.
  *
- * @param {object} baseSpec
- * @param {object} nextSpec
- * @returns {{ kind: string, location: string, detail: string }[]}
+ * @param {OpenApiSpec} baseSpec
+ * @param {OpenApiSpec} nextSpec
+ * @returns {ContractChange[]}
  */
 function diffPublicContract(baseSpec, nextSpec) {
   const nextPaths = pathsOf(nextSpec);
@@ -194,6 +218,7 @@ function resolveBaseline({ refs, repoRelPath, runGit }) {
  * @returns {{ base: string|null, specPath: string, strict: boolean, json: boolean, help: boolean }}
  */
 function parseArgs(argv) {
+  /** @type {{ base: string|null, specPath: string, strict: boolean, json: boolean, help: boolean }} */
   const args = {
     base: null, specPath: GENERATED_SPEC_PATH, strict: false, json: false, help: false,
   };
@@ -234,7 +259,7 @@ function parseArgs(argv) {
 /**
  * Writes a human-readable backward-compatibility report.
  *
- * @param {{ baselineRef: string|null, breaking: object[], specPath: string }} report
+ * @param {{ baselineRef: string|null, breaking: ContractChange[], specPath: string }} report
  */
 function writeReport({ baselineRef, breaking, specPath }) {
   const relativePath = path.relative(process.cwd(), specPath) || specPath;
@@ -255,7 +280,7 @@ function writeReport({ baselineRef, breaking, specPath }) {
     list.push(change);
     acc.set(change.kind, list);
     return acc;
-  }, new Map());
+  }, /** @type {Map<string, ContractChange[]>} */ (new Map()));
 
   byKind.forEach((list, kind) => {
     process.stderr.write(`\n  [${kind}] ${list.length} change(s):\n`);
@@ -283,7 +308,7 @@ function main(argv, { runGit } = {}) {
   try {
     args = parseArgs(argv);
   } catch (error) {
-    process.stderr.write(`openapi:diff ${error.message}\n\n${USAGE}`);
+    process.stderr.write(`openapi:diff ${/** @type {Error} */ (error).message}\n\n${USAGE}`);
     return 2;
   }
 
@@ -325,7 +350,7 @@ function main(argv, { runGit } = {}) {
   try {
     breaking = diffPublicContract(JSON.parse(baseline.text), loadSpec(args.specPath));
   } catch (error) {
-    process.stderr.write(`openapi:diff failed to diff specs: ${error.message}\n`);
+    process.stderr.write(`openapi:diff failed to diff specs: ${/** @type {Error} */ (error).message}\n`);
     return 2;
   }
 

@@ -23,6 +23,27 @@ const HTTP_METHODS = new Set([
 ]);
 
 /**
+ * Loose node of a parsed OpenAPI document. The document is external JSON, so
+ * nested nodes are duck-typed and re-validated by the gates themselves.
+ *
+ * @typedef {Record<string, any>} OpenApiNode
+ */
+
+/**
+ * Parsed OpenAPI document. Only the top-level sections the gates walk are
+ * named; everything below stays loose (see {@link OpenApiNode}).
+ *
+ * @typedef {{
+ *   openapi?: any,
+ *   info?: OpenApiNode,
+ *   servers?: any,
+ *   security?: any,
+ *   paths?: Record<string, OpenApiNode>,
+ *   components?: { schemas?: Record<string, OpenApiNode>, securitySchemes?: OpenApiNode } & OpenApiNode,
+ * } & OpenApiNode} OpenApiSpec
+ */
+
+/**
  * Serializes a spec exactly the way the generator writes it to disk, so a
  * freshness comparison is a byte-for-byte string match (trailing newline
  * included).
@@ -59,7 +80,7 @@ function canonicalizeSpec(value) {
       .reduce((acc, key) => {
         acc[key] = canonicalizeSpec(value[key]);
         return acc;
-      }, {});
+      }, /** @type {Record<string, any>} */ ({}));
   }
 
   return value;
@@ -94,7 +115,7 @@ function readSpecText(specPath = GENERATED_SPEC_PATH) {
  * Reads and parses the committed spec into an object.
  *
  * @param {string} [specPath]
- * @returns {object}
+ * @returns {OpenApiSpec}
  */
 function loadSpec(specPath = GENERATED_SPEC_PATH) {
   return JSON.parse(readSpecText(specPath));
@@ -103,8 +124,8 @@ function loadSpec(specPath = GENERATED_SPEC_PATH) {
 /**
  * Flattens a spec's `paths` into one entry per operation.
  *
- * @param {object} spec
- * @returns {{ path: string, method: string, operation: object }[]}
+ * @param {OpenApiSpec} spec
+ * @returns {{ path: string, method: string, operation: OpenApiNode }[]}
  */
 function listOperations(spec) {
   const paths = spec?.paths;
@@ -131,7 +152,7 @@ function listOperations(spec) {
 /**
  * Returns the response status keys declared on an operation.
  *
- * @param {object} operation
+ * @param {OpenApiNode} operation
  * @returns {string[]}
  */
 function listResponseStatuses(operation) {
@@ -176,7 +197,7 @@ function collectRefs(node, acc = new Set()) {
  * Resolves a local JSON pointer ref (e.g. `#/components/schemas/Foo`) against a
  * spec, returning the referenced node or `undefined` when it does not resolve.
  *
- * @param {object} spec
+ * @param {OpenApiSpec} spec
  * @param {string} ref
  * @returns {*}
  */
@@ -191,13 +212,13 @@ function resolveRef(spec, ref) {
     .map((segment) => segment.replace(/~1/gu, '/').replace(/~0/gu, '~'))
     .reduce((node, segment) => (
       node !== null && typeof node === 'object' ? node[segment] : undefined
-    ), spec);
+    ), /** @type {any} */ (spec));
 }
 
 /**
  * Returns the declared security scheme names (`components.securitySchemes`).
  *
- * @param {object} spec
+ * @param {OpenApiSpec} spec
  * @returns {string[]}
  */
 function listSecuritySchemeNames(spec) {
