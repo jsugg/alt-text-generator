@@ -25,13 +25,20 @@ const OPENAI_COMPATIBLE_JSON_LIMIT = '1mb';
 const REPLICATE_SUCCESS_POLL_COUNT = 6;
 const REPLICATE_FAILURE_POLL_COUNT = 8;
 
-const ASSET_A_PNG = getProviderValidationAsset('a.png');
-const ASSET_B_PNG = getProviderValidationAsset('b.png');
+// The comparison fixtures are typed as Uint8Array once here: under TS 6 the
+// JSDoc-resolved Buffer type does not overlap Uint8Array<ArrayBufferLike>
+// (Buffer.compare's parameter type), so each cast bridges through unknown.
+const ASSET_A_PNG = /** @type {Uint8Array} */ (
+  /** @type {unknown} */ (getProviderValidationAsset('a.png'))
+);
+const ASSET_B_PNG = /** @type {Uint8Array} */ (
+  /** @type {unknown} */ (getProviderValidationAsset('b.png'))
+);
 
-const ASSET_PROVIDER_FAILURE_PNG = Buffer.from(
+const ASSET_PROVIDER_FAILURE_PNG = /** @type {Uint8Array} */ (/** @type {unknown} */ (Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAl0lEQVR4nO3QMREAIAzAwHrCvwM8FRk/kOH3XObO2Z+NDtAaoAO0BugArQE6QGuADtAaoAO0BugArQE6QGuADtAaoAO0BugArQE6QGuADtAaoAO0BugArQE6QGuADtAaoAO0BugArQE6QGuADtAaoAO0BugArQE6QGuADtAaoAO0BugArQE6QGuADtAaoAO0BugArQE6QHvjH+HSo31RkQAAAABJRU5ErkJggg==',
   'base64',
-);
+)));
 
 /**
  * Returns a deterministic caption for a given image URL.
@@ -54,7 +61,7 @@ function captionForUrl(imageUrl) {
 /**
  * Returns a deterministic caption for a known image payload.
  *
- * @param {Buffer} imageBuffer
+ * @param {Uint8Array} imageBuffer
  * @returns {string}
  */
 function captionForBuffer(imageBuffer) {
@@ -86,7 +93,7 @@ function isProviderFailureAssetUrl(imageUrl) {
 }
 
 /**
- * @param {Record<string, unknown>} requestBody
+ * @param {Record<string, any>} requestBody
  * @returns {string}
  */
 function extractReplicateImageUrl(requestBody) {
@@ -178,7 +185,7 @@ function advanceReplicatePrediction(prediction) {
 
 /**
  * @param {string} providerName
- * @returns {import('express').RequestHandler}
+ * @returns {FixtureHandler}
  */
 function createOpenAiCompatibleStubHandler(providerName) {
   return (_req, res) => {
@@ -201,8 +208,34 @@ function createOpenAiCompatibleStubHandler(providerName) {
   };
 }
 
+/**
+ * Duck-typed fixture request/response shapes: express is `any` under the
+ * ambient shim, so the app is cast to a local typed surface whose handler
+ * signature contextually types every `(req, res)` pair.
+ *
+ * @typedef {{
+ *   protocol: string,
+ *   get: (name: string) => string | undefined,
+ *   params: Record<string, string>,
+ *   body?: any,
+ * }} FixtureRequest
+ * @typedef {{
+ *   status: (code: number) => FixtureResponse,
+ *   type: (contentType: string) => FixtureResponse,
+ *   send: (body?: any) => void,
+ *   json: (body?: any) => void,
+ * }} FixtureResponse
+ * @typedef {(req: FixtureRequest, res: FixtureResponse) => void} FixtureHandler
+ * @typedef {{
+ *   use: (...args: any[]) => unknown,
+ *   get: (path: string, handler: FixtureHandler) => unknown,
+ *   post: (path: string, ...handlers: FixtureHandler[]) => unknown,
+ *   listen: (port: number, host: string, onListening?: () => void) => unknown,
+ * }} FixtureApp
+ */
+
 function createFixtureApp({ baseUrl = BASE_URL } = {}) {
-  const app = express();
+  const app = /** @type {FixtureApp} */ (express());
   app.use(express.json({ limit: OPENAI_COMPATIBLE_JSON_LIMIT }));
   const replicatePredictions = new Map();
   let nextReplicatePredictionId = 1;
@@ -374,7 +407,9 @@ function createFixtureApp({ baseUrl = BASE_URL } = {}) {
 
   app.post('/vision/v3.2/describe', express.raw({ type: 'application/octet-stream' }), (req, res) => {
     const imageUrl = typeof req.body?.url === 'string' ? req.body.url : '';
-    const imageBuffer = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
+    const imageBuffer = /** @type {Uint8Array} */ (
+      /** @type {unknown} */ (Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0))
+    );
 
     if (
       imageUrl.endsWith('/assets/provider-error.png')
