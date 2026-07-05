@@ -57,6 +57,10 @@ const DEPLOY_STABILIZATION_TIMEOUT_MS = 90_000;
 const DEPLOY_STABILIZATION_REQUEST_TIMEOUT_MS = 15_000;
 const NPX = process.platform === 'win32' ? 'npx.cmd' : 'npx';
 
+/**
+ * @param {number} durationMs
+ * @returns {Promise<void>}
+ */
 const sleep = (durationMs) => new Promise((resolve) => {
   setTimeout(resolve, durationMs);
 });
@@ -176,7 +180,7 @@ function parseArgs(argv) {
  */
 function resolvePostDeployProviderPlans(env = process.env) {
   const availableProviders = detectAvailableProviders(env, {
-    allowedProviderScopes: LOW_COST_PROVIDER_VALIDATION_SCOPES,
+    allowedProviderScopes: /** @type {string[]} */ (LOW_COST_PROVIDER_VALIDATION_SCOPES),
   });
   const providerScope = resolveProviderScope({
     requestedScope: env.LIVE_PROVIDER_SCOPE,
@@ -305,7 +309,7 @@ async function requestDeployProbe(fetchFn, url, options = {}) {
     };
   } catch (error) {
     return {
-      error,
+      error: /** @type {Error} */ (error),
     };
   }
 }
@@ -328,7 +332,7 @@ async function requestDeployProbe(fetchFn, url, options = {}) {
  *   protectedVerificationEnabled: boolean,
  *   unauthenticatedProtectedProbe: {
  *     error?: Error,
- *     jsonBody?: unknown,
+ *     jsonBody?: any,
  *     status?: number,
  *   },
  * }} input
@@ -430,6 +434,10 @@ async function waitForStableDeploy(
 ) {
   const deadline = nowFn() + timeoutMs;
   const probeUrls = buildDeployProbeUrls(baseUrl, authConfig);
+  /**
+   * @param {{ attemptCount: number, consecutiveSuccesses: number, lastIssues: string[] }} input
+   * @returns {Promise<void>}
+   */
   const attempt = async ({
     attemptCount,
     consecutiveSuccesses,
