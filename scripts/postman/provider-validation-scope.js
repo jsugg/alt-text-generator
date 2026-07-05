@@ -28,7 +28,7 @@ const { loadProviderOverrides } = require('../../config/providerOverrides');
  */
 
 const getSortedProviderValidationProviders = () => /** @type {ProviderValidationProvider[]} */ (
-  getProviderValidationProviders()
+  /** @type {unknown} */ (getProviderValidationProviders())
 )
   .sort(
     (left, right) => left.providerValidation.autoPriority - right.providerValidation.autoPriority,
@@ -248,7 +248,7 @@ function resolveProviderScope({
 
   if (!configuredProviderScopeSet.has(desiredScope)) {
     const provider = /** @type {ProviderValidationProvider} */ (
-      getProviderValidationByScope(desiredScope)
+      /** @type {unknown} */ (getProviderValidationByScope(desiredScope))
     );
 
     throw new Error(
