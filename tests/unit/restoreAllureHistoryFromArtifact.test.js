@@ -3,11 +3,36 @@ const os = require('node:os');
 const path = require('node:path');
 
 const {
+  assertArchivePayload,
+  downloadArtifactArchive,
   listArtifactsForName,
   parseArgs,
   restoreAllureHistoryFromArtifact,
   selectArtifact,
 } = require('../../scripts/reporting/restore-allure-history-from-artifact');
+
+const ZIP_HEADER = [0x50, 0x4b, 0x03, 0x04];
+
+const zipArrayBuffer = (extraBytes = 2) => Uint8Array
+  .from([...ZIP_HEADER, ...Array.from({ length: extraBytes }, () => 0)])
+  .buffer;
+
+const stubDownloadResponses = ({ archiveBuffer, contentLength }) => {
+  const initialResponse = { headers: { get: () => null } };
+  const archiveResponse = {
+    ok: true,
+    headers: {
+      get: (name) => (name === 'content-length' && contentLength !== undefined
+        ? String(contentLength)
+        : null),
+    },
+    arrayBuffer: async () => archiveBuffer,
+  };
+
+  return jest.fn()
+    .mockResolvedValueOnce(initialResponse)
+    .mockResolvedValueOnce(archiveResponse);
+};
 
 describe('Unit | Allure History Artifact Restore', () => {
   it('parses the required CLI arguments', () => {
@@ -252,5 +277,93 @@ describe('Unit | Allure History Artifact Restore', () => {
     } finally {
       await fs.rm(resultsDir, { force: true, recursive: true });
     }
+  });
+
+  describe('assertArchivePayload', () => {
+    it('returns the bytes for a valid, bounded ZIP payload', () => {
+      const bytes = assertArchivePayload(zipArrayBuffer(4));
+
+      expect(bytes).toBeInstanceOf(Uint8Array);
+      expect(Array.from(bytes.subarray(0, 4))).toEqual(ZIP_HEADER);
+    });
+
+    it('rejects an empty payload', () => {
+      expect(() => assertArchivePayload(new ArrayBuffer(0)))
+        .toThrow('Artifact archive is empty.');
+    });
+
+    it('rejects a payload that exceeds the size limit', () => {
+      expect(() => assertArchivePayload(zipArrayBuffer(4), 1))
+        .toThrow(/exceeding the 1-byte limit/);
+    });
+
+    it('rejects a payload whose magic bytes are not a ZIP header', () => {
+      const notZip = Uint8Array.from([0x25, 0x50, 0x44, 0x46]).buffer;
+
+      expect(() => assertArchivePayload(notZip))
+        .toThrow('Artifact archive is not a ZIP (unexpected magic bytes).');
+    });
+  });
+
+  describe('downloadArtifactArchive', () => {
+    it('writes a validated ZIP archive to the destination path', async () => {
+      const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'allure-download-'));
+      const destinationPath = path.join(dir, 'artifact.zip');
+
+      try {
+        await downloadArtifactArchive({
+          artifact: { archive_download_url: 'https://example.com/download' },
+          destinationPath,
+          fetchImpl: stubDownloadResponses({ archiveBuffer: zipArrayBuffer(4) }),
+          token: 'token',
+        });
+
+        const written = await fs.readFile(destinationPath);
+        expect(Array.from(written.subarray(0, 4))).toEqual(ZIP_HEADER);
+      } finally {
+        await fs.rm(dir, { force: true, recursive: true });
+      }
+    });
+
+    it('refuses to write when content-length exceeds the size limit', async () => {
+      const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'allure-download-'));
+      const destinationPath = path.join(dir, 'artifact.zip');
+
+      try {
+        await expect(downloadArtifactArchive({
+          artifact: { archive_download_url: 'https://example.com/download' },
+          destinationPath,
+          fetchImpl: stubDownloadResponses({
+            archiveBuffer: zipArrayBuffer(4),
+            contentLength: 500 * 1024 * 1024,
+          }),
+          token: 'token',
+        })).rejects.toThrow(/exceeding the .*-byte limit/);
+
+        await expect(fs.access(destinationPath)).rejects.toThrow();
+      } finally {
+        await fs.rm(dir, { force: true, recursive: true });
+      }
+    });
+
+    it('refuses to write a non-ZIP payload', async () => {
+      const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'allure-download-'));
+      const destinationPath = path.join(dir, 'artifact.zip');
+
+      try {
+        await expect(downloadArtifactArchive({
+          artifact: { archive_download_url: 'https://example.com/download' },
+          destinationPath,
+          fetchImpl: stubDownloadResponses({
+            archiveBuffer: Uint8Array.from([0x00, 0x01, 0x02, 0x03]).buffer,
+          }),
+          token: 'token',
+        })).rejects.toThrow('Artifact archive is not a ZIP (unexpected magic bytes).');
+
+        await expect(fs.access(destinationPath)).rejects.toThrow();
+      } finally {
+        await fs.rm(dir, { force: true, recursive: true });
+      }
+    });
   });
 });
