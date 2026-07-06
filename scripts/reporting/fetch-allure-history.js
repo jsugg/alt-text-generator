@@ -191,7 +191,7 @@ async function restoreAllureHistory({
 
   await Promise.all(restoredResults.map((result) => fs.writeFile(
     path.join(historyDir, result.filename),
-    result.content,
+    /** @type {string} */ (result.content),
     'utf8',
   )));
 

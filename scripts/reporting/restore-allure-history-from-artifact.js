@@ -139,6 +139,10 @@ async function listArtifactsForName({
   repository,
   token,
 }) {
+  /**
+   * @param {number} page
+   * @param {Array<{ archive_download_url: string, created_at: string, expired: boolean, id: number, name: string, workflow_run?: { id?: number } }>} [artifacts]
+   */
   const collectPage = async (page, artifacts = []) => {
     const response = await fetchGitHubJson({
       fetchImpl,
@@ -252,7 +256,7 @@ async function downloadArtifactArchive({
     throw new Error(`Artifact download failed with status ${archiveResponse.status}`);
   }
 
-  await fs.writeFile(destinationPath, Buffer.from(await archiveResponse.arrayBuffer()));
+  await fs.writeFile(destinationPath, /** @type {Uint8Array} */ (/** @type {unknown} */ (Buffer.from(await archiveResponse.arrayBuffer()))));
 }
 
 /**
@@ -340,9 +344,12 @@ function toOutputLines(values) {
  *   apiBaseUrl?: string,
  *   artifactName: string,
  *   currentRunId?: string,
+ *   downloadArtifactArchiveImpl?: typeof downloadArtifactArchive,
  *   execFileImpl?: typeof execFileAsync,
+ *   extractArchiveImpl?: typeof extractArchive,
  *   fetchImpl?: typeof fetch,
  *   historyKey: string,
+ *   listArtifactsForNameImpl?: typeof listArtifactsForName,
  *   logger?: Pick<Console, 'info' | 'warn'>,
  *   repository?: string,
  *   resultsDir: string,

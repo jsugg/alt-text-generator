@@ -172,17 +172,7 @@ function resolvePullRequestContext({
  *   serverUrl?: string,
  *   env?: NodeJS.ProcessEnv,
  * }} options
- * @returns {{
- *   historyArtifactName: string,
- *   historyFallbackReportUrl: string,
- *   historyKey: string,
- *   historyRetentionDays: string,
- *   persistHistory: string,
- *   publishPages: string,
- *   reportKind: string,
- *   reportLabel: string,
- *   restoreHistory: string,
- * }}
+ * @returns {Record<string, string>}
  */
 function resolveCiPolicy({
   eventPayload = {},
@@ -294,23 +284,13 @@ function resolveCiPolicy({
  *   env?: NodeJS.ProcessEnv,
  *   persistHistory?: boolean,
  * }} options
- * @returns {{
- *   historyArtifactName: string,
- *   historyFallbackReportUrl: string,
- *   historyKey: string,
- *   historyRetentionDays: string,
- *   persistHistory: string,
- *   publishPages: string,
- *   reportKind: string,
- *   reportLabel: string,
- *   restoreHistory: string,
- * }}
+ * @returns {Record<string, string>}
  */
 function resolveDeployPolicy({
   baseUrl,
   env = process.env,
   persistHistory = false,
-} = {}) {
+} = /** @type {{ baseUrl: string | null, env?: NodeJS.ProcessEnv, persistHistory?: boolean }} */ ({})) {
   const canonicalBaseUrl = normalizeUrl(DEFAULT_DEPLOY_BASE_URL);
   const normalizedBaseUrl = baseUrl ? normalizeUrl(baseUrl) : canonicalBaseUrl;
   const isCanonicalBaseUrl = normalizedBaseUrl === canonicalBaseUrl;
@@ -394,7 +374,7 @@ function resolveAllureHistoryPolicy({
   persistHistory = false,
   workflowKind,
   env = process.env,
-} = {}) {
+} = /** @type {{ baseUrl: string | null, eventPayload?: Record<string, unknown>, persistHistory: boolean, workflowKind: 'ci' | 'deploy', env?: NodeJS.ProcessEnv }} */ ({})) {
   if (workflowKind === 'deploy') {
     return resolveDeployPolicy({
       baseUrl,
