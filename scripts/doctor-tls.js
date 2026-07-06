@@ -17,7 +17,35 @@ const TLS_ISSUER_ERRORS = new Set([
   'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
 ]);
 
+/**
+ * @typedef {string | { CN?: string }} CertName
+ * A certificate subject/issuer: X509Certificate yields a string, while the
+ * synthesized trust-anchor candidate uses a { CN } object.
+ */
+
+/**
+ * @typedef {object} InspectedCertificate
+ * @property {string} [fingerprint256]
+ * @property {CertName} issuer
+ * @property {string} [pemText]
+ * @property {CertName} subject
+ */
+
+/**
+ * @typedef {object} DoctorTlsArgs
+ * @property {string} bundleFile
+ * @property {string} envFile
+ * @property {boolean} fix
+ * @property {boolean} writeEnv
+ * @property {string} targetUrl
+ */
+
+/**
+ * @param {string[]} argv
+ * @returns {DoctorTlsArgs}
+ */
 const parseArgs = (argv) => {
+  /** @type {{ bundleFile: string, envFile: string, fix: boolean, writeEnv: boolean, targetUrl: string | undefined }} */
   const args = {
     bundleFile: DEFAULT_BUNDLE_FILE,
     envFile: DEFAULT_ENV_FILE,
@@ -63,25 +91,35 @@ const parseArgs = (argv) => {
     throw new Error('Usage: npm run doctor:tls -- <url> [--fix] [--write-env] [--bundle-file path] [--env-file path]');
   }
 
-  return args;
+  return /** @type {DoctorTlsArgs} */ (args);
 };
 
+/** @param {string} filePath */
 const resolveFile = (filePath) => (
   path.isAbsolute(filePath)
     ? filePath
     : path.resolve(process.cwd(), filePath)
 );
 
+/** @param {Buffer} rawBuffer */
 const rawToPem = (rawBuffer) => {
   const base64 = rawBuffer.toString('base64');
   const lines = base64.match(/.{1,64}/g) ?? [];
   return `-----BEGIN CERTIFICATE-----\n${lines.join('\n')}\n-----END CERTIFICATE-----\n`;
 };
 
+/**
+ * @param {string} pemText
+ * @returns {string[]}
+ */
 const splitPemCertificates = (pemText) => (
   pemText.match(/-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----\n?/g) ?? []
 );
 
+/**
+ * @param {CertName | undefined} subject
+ * @returns {string | undefined}
+ */
 const getCommonName = (subject) => {
   if (!subject) {
     return undefined;
@@ -95,8 +133,13 @@ const getCommonName = (subject) => {
   return subject.CN;
 };
 
+/** @param {string} pemText */
 const getFingerprint = (pemText) => new X509Certificate(pemText).fingerprint256;
 
+/**
+ * @param {string} pemText
+ * @param {InspectedCertificate} expectedCertificate
+ */
 const matchesExpectedCertificate = (pemText, expectedCertificate) => {
   const certificate = new X509Certificate(pemText);
   if (expectedCertificate.fingerprint256
@@ -109,6 +152,7 @@ const matchesExpectedCertificate = (pemText, expectedCertificate) => {
   return subjectCommonName && expectedCommonName && subjectCommonName === expectedCommonName;
 };
 
+/** @param {string} bundleFile */
 const readBundleIfPresent = (bundleFile) => {
   const resolvedBundleFile = resolveFile(bundleFile);
   if (!fs.existsSync(resolvedBundleFile)) {
@@ -118,6 +162,10 @@ const readBundleIfPresent = (bundleFile) => {
   return fs.readFileSync(resolvedBundleFile, 'utf8');
 };
 
+/**
+ * @param {string} bundleFile
+ * @param {string} pemText
+ */
 const appendCertificateToBundle = (bundleFile, pemText) => {
   const resolvedBundleFile = resolveFile(bundleFile);
   const existing = readBundleIfPresent(resolvedBundleFile);
@@ -140,6 +188,11 @@ const appendCertificateToBundle = (bundleFile, pemText) => {
   return resolvedBundleFile;
 };
 
+/**
+ * @param {string} envFile
+ * @param {string} key
+ * @param {string} value
+ */
 const updateEnvFile = (envFile, key, value) => {
   const resolvedEnvFile = resolveFile(envFile);
   const nextLine = `${key}=${value}`;
@@ -173,6 +226,10 @@ const updateEnvFile = (envFile, key, value) => {
   return resolvedEnvFile;
 };
 
+/**
+ * @param {string} targetUrl
+ * @param {string} [bundleFile]
+ */
 const probeUrl = (targetUrl, bundleFile) => new Promise((resolve) => {
   const url = new URL(targetUrl);
   const request = https.get(url, {
@@ -189,6 +246,7 @@ const probeUrl = (targetUrl, bundleFile) => new Promise((resolve) => {
   });
 });
 
+/** @param {string} targetUrl */
 const inspectCertificateChain = (targetUrl) => new Promise((resolve, reject) => {
   const url = new URL(targetUrl);
 
@@ -227,12 +285,17 @@ const inspectCertificateChain = (targetUrl) => new Promise((resolve, reject) => 
   }
 });
 
+/**
+ * @param {string} pemText
+ * @param {InspectedCertificate} expectedCertificate
+ */
 const loadCertificatesFromPemText = (pemText, expectedCertificate) => (
   splitPemCertificates(pemText).find((certificate) => (
     matchesExpectedCertificate(certificate, expectedCertificate)
   ))
 );
 
+/** @param {InspectedCertificate} expectedCertificate */
 const findCertificateOnMacOS = (expectedCertificate) => {
   const commonName = getCommonName(expectedCertificate.subject);
   if (!commonName) {
@@ -264,6 +327,7 @@ const findCertificateOnMacOS = (expectedCertificate) => {
   return undefined;
 };
 
+/** @param {InspectedCertificate} expectedCertificate */
 const findCertificateOnLinux = (expectedCertificate) => {
   const bundleCandidates = [
     '/etc/ssl/cert.pem',
@@ -288,8 +352,10 @@ const findCertificateOnLinux = (expectedCertificate) => {
   return undefined;
 };
 
+/** @param {string} base64Der */
 const derToPem = (base64Der) => rawToPem(Buffer.from(base64Der, 'base64'));
 
+/** @param {InspectedCertificate} expectedCertificate */
 const findCertificateOnWindows = (expectedCertificate) => {
   const commonName = getCommonName(expectedCertificate.subject);
   if (!commonName) {
@@ -320,6 +386,7 @@ const findCertificateOnWindows = (expectedCertificate) => {
   }
 };
 
+/** @param {InspectedCertificate} expectedCertificate */
 const findCertificateInSystemStore = (expectedCertificate) => {
   switch (process.platform) {
     case 'darwin':
@@ -333,13 +400,15 @@ const findCertificateInSystemStore = (expectedCertificate) => {
   }
 };
 
+/** @param {InspectedCertificate[]} chain */
 const printChain = (chain) => {
   console.log('Observed certificate chain:');
   chain.forEach((certificate, index) => {
-    console.log(`  ${index + 1}. subject=${getCommonName(certificate.subject) || certificate.subject.CN || 'unknown'} issuer=${getCommonName(certificate.issuer) || certificate.issuer.CN || 'unknown'}`);
+    console.log(`  ${index + 1}. subject=${getCommonName(certificate.subject) || /** @type {any} */ (certificate.subject).CN || 'unknown'} issuer=${getCommonName(certificate.issuer) || /** @type {any} */ (certificate.issuer).CN || 'unknown'}`);
   });
 };
 
+/** @param {InspectedCertificate[]} chain */
 const selectTrustAnchorCandidate = (chain) => {
   const lastCertificate = chain[chain.length - 1];
   if (!lastCertificate) {
