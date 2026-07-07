@@ -2,8 +2,10 @@
 
 `npm run typecheck` runs strict JSDoc type checking (`tsconfig.checkjs.json`:
 `checkJs` + `strict`, TypeScript 6) over `src/`, `config/`, and `scripts/`.
-The CI `typecheck` job is **advisory** (`continue-on-error: true`) until this
-ledger reaches zero; it is intentionally not a required status check.
+The CI `typecheck` job is a **required, blocking** status check as of
+2026-07-07 (promotion `#233`): the ledger reached zero, so `continue-on-error`
+was removed and `typecheck` was added to live `main` branch protection. A
+regression now fails the run.
 
 Owner: @jsugg. Baseline measured 2026-07-02 (TypeScript 6.0.3). The count drifts
 with dependency updates — re-measure (`npm run typecheck`) before each burn-down.
@@ -72,13 +74,16 @@ Top strict-error areas (pre-burn-down baseline; `scripts/github` now ≈42):
 | `scripts/openapi` | 64 |
 | `scripts/perf` | 45 |
 
-## Promotion criteria (advisory → required)
+## Promotion (advisory → required) — completed 2026-07-07
 
-1. `npm run typecheck` exits 0 on `main`.
-2. Remove `continue-on-error: true` from the CI `typecheck` job (update the
-   `jestLaneConfigs` invariant in the same PR).
-3. Add `typecheck` to `config/github/required-checks.json` contexts and patch
-   live branch protection per `docs/required-checks.md`.
+All three criteria met; the gate is now required and blocking:
+
+1. ✅ `npm run typecheck` exits 0 on `main` (burn-down `#232`, `590e5a856`).
+2. ✅ `continue-on-error: true` removed from the CI `typecheck` job and the
+   `jestLaneConfigs` invariant flipped (promotion `#233`, `c6fb3ed10`).
+3. ✅ `typecheck` added to `config/github/required-checks.json` and to live
+   `main` branch protection + production ruleset `13764136`
+   (`npm run checks:verify -- --live` green).
 
 Burn down by area (highest counts first); do not weaken the committed strict
 profile to make the number smaller — the strict profile is the target the
