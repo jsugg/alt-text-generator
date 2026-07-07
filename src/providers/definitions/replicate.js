@@ -1,7 +1,12 @@
-const Replicate = require('replicate');
+// The replicate package ships ESM-shaped types (default-export class) for a
+// CJS require, so cast the require once to the constructable class type.
+const Replicate = /** @type {typeof import('replicate')['default']} */ (
+  /** @type {unknown} */ (require('replicate'))
+);
 
 const ReplicateDescriberService = require('../../services/ReplicateDescriberService');
 
+/** @param {unknown} value */
 const toPositiveIntegerOrUndefined = (value) => {
   if (value === undefined) {
     return undefined;
@@ -11,6 +16,10 @@ const toPositiveIntegerOrUndefined = (value) => {
   return Number.isInteger(parsedValue) && parsedValue > 0 ? parsedValue : undefined;
 };
 
+/**
+ * @param {{ apiToken?: string, apiEndpoint?: string, userAgent?: string }} providerConfig
+ * @param {typeof globalThis.fetch} fetch
+ */
 const buildReplicateClient = (providerConfig, fetch) => new Replicate({
   auth: providerConfig.apiToken,
   baseUrl: providerConfig.apiEndpoint,
@@ -23,7 +32,7 @@ module.exports = {
   configKey: 'replicate',
   displayName: 'Replicate',
   startupHint: 'REPLICATE_API_TOKEN to enable replicate',
-  buildEnvSchema: (Joi) => ({
+  buildEnvSchema: (/** @type {import('joi').Root} */ Joi) => ({
     REPLICATE_API_TOKEN: Joi.string().optional(),
     REPLICATE_API_ENDPOINT: Joi.string().uri().optional(),
     REPLICATE_USER_AGENT: Joi.string().optional(),
@@ -33,7 +42,7 @@ module.exports = {
     REPLICATE_REQUEST_TIMEOUT_MS: Joi.number().integer().min(1).optional(),
     REPLICATE_POLL_INTERVAL_MS: Joi.number().integer().min(1).optional(),
   }),
-  buildConfig: (env) => ({
+  buildConfig: (/** @type {Record<string, string | undefined>} */ env) => ({
     enabled: Boolean(env.REPLICATE_API_TOKEN),
     apiToken: env.REPLICATE_API_TOKEN,
     apiEndpoint: env.REPLICATE_API_ENDPOINT,
@@ -46,8 +55,12 @@ module.exports = {
     requestTimeoutMs: toPositiveIntegerOrUndefined(env.REPLICATE_REQUEST_TIMEOUT_MS),
     pollIntervalMs: toPositiveIntegerOrUndefined(env.REPLICATE_POLL_INTERVAL_MS),
   }),
-  isConfiguredInEnv: (env = {}) => Boolean(env.REPLICATE_API_TOKEN),
-  isConfiguredInConfig: (config = {}) => (
+  isConfiguredInEnv: (
+    /** @type {Record<string, string | undefined>} */ env = {},
+  ) => Boolean(env.REPLICATE_API_TOKEN),
+  isConfiguredInConfig: (
+    /** @type {{ replicate?: { enabled?: boolean, apiToken?: string } }} */ config = {},
+  ) => (
     config.replicate?.enabled !== false && Boolean(config.replicate?.apiToken)
   ),
   validateEnv: () => [],
@@ -63,6 +76,9 @@ module.exports = {
     scopeRequirement: 'REPLICATE_API_TOKEN',
     allRequirement: 'REPLICATE_API_TOKEN',
   },
+  /**
+   * @param {{ config: Record<string, object>, logger: object, outboundClients: { fetch: typeof globalThis.fetch }, requestOptions?: object, providerClient?: object }} deps
+   */
   createRuntime: ({
     config,
     logger,
@@ -76,11 +92,11 @@ module.exports = {
       outboundClients.fetch,
     );
 
-    return new ReplicateDescriberService({
+    return new ReplicateDescriberService(/** @type {ConstructorParameters<typeof ReplicateDescriberService>[0]} */ ({
       logger,
       replicateClient,
       providerConfig,
       requestOptions,
-    });
+    }));
   },
 };

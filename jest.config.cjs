@@ -2,6 +2,7 @@ const {
   COVERAGE_COLLECTION_PATTERNS,
   COVERAGE_PATH_IGNORE_PATTERNS,
   COVERAGE_THRESHOLD,
+  JEST_SETUP_FILE,
   resolveTestEnvironment,
 } = require('./config/jest/jest.base.cjs');
 
@@ -14,6 +15,7 @@ const config = {
   coverageDirectory: 'coverage',
   coveragePathIgnorePatterns: COVERAGE_PATH_IGNORE_PATTERNS,
   coverageThreshold: COVERAGE_THRESHOLD,
+  setupFilesAfterEnv: [JEST_SETUP_FILE],
   testMatch: [
     '**/tests/**/*.test.js',
   ],

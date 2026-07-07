@@ -2,7 +2,18 @@
 
 const fs = require('node:fs');
 
+/**
+ * @typedef {object} AuditArgs
+ * @property {string} outputFile
+ * @property {string} reportFile
+ */
+
+/**
+ * @param {string[]} argv
+ * @returns {AuditArgs}
+ */
 function parseArgs(argv) {
+  /** @type {Partial<AuditArgs>} */
   const args = {};
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -37,11 +48,30 @@ function parseArgs(argv) {
     throw new Error('--report-file and --output-file are required');
   }
 
-  return args;
+  return /** @type {AuditArgs} */ (args);
 }
 
+/**
+ * @typedef {object} AuditVulnerabilities
+ * @property {number} [critical]
+ * @property {number} [high]
+ * @property {number} [low]
+ * @property {number} [moderate]
+ */
+
+/**
+ * @typedef {object} AuditReport
+ * @property {{ vulnerabilities?: AuditVulnerabilities }} [metadata]
+ * @property {string} [parseError]
+ */
+
+/**
+ * @param {string} reportFile
+ * @returns {{ critical: number, high: number, low: number, moderate: number }}
+ */
 function parseSecurityAuditReport(reportFile) {
   const fallback = { metadata: { vulnerabilities: {} } };
+  /** @type {AuditReport} */
   let report = fallback;
 
   try {
@@ -50,11 +80,12 @@ function parseSecurityAuditReport(reportFile) {
   } catch (error) {
     report = {
       ...fallback,
-      parseError: error.message,
+      parseError: error instanceof Error ? error.message : String(error),
     };
     fs.writeFileSync(reportFile, `${JSON.stringify(report, null, 2)}\n`);
   }
 
+  /** @type {AuditVulnerabilities} */
   const vulnerabilities = report.metadata?.vulnerabilities || {};
 
   return {
@@ -65,6 +96,11 @@ function parseSecurityAuditReport(reportFile) {
   };
 }
 
+/**
+ * @param {string} outputFile
+ * @param {string} key
+ * @param {string|number} value
+ */
 function appendOutput(outputFile, key, value) {
   fs.appendFileSync(outputFile, `${key}=${value}\n`, 'utf8');
 }
@@ -82,7 +118,7 @@ if (require.main === module) {
   try {
     main();
   } catch (error) {
-    process.stderr.write(`${error.message}\n`);
+    process.stderr.write(`${error instanceof Error ? error.message : error}\n`);
     process.exitCode = 1;
   }
 }

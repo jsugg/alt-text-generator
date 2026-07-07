@@ -5,7 +5,7 @@
     "noEmit": true,
     "module": "node20",
     "target": "ES2022",
-    "lib": ["ESNext"],
+    "lib": ["ESNext", "DOM"],
     "strict": true,
     "skipLibCheck": true,
     "resolveJsonModule": true
@@ -13,7 +13,8 @@
   "include": [
     "src/**/*.js",
     "config/**/*.js",
-    "scripts/**/*.js"
+    "scripts/**/*.js",
+    "types/**/*.d.ts"
   ],
   "exclude": [
     "node_modules",

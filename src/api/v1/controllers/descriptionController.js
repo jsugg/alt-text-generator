@@ -4,6 +4,52 @@ const { ApiError } = require('../../../errors/ApiError');
 const { isProviderTimeoutError } = require('../../../errors/ProviderTimeoutError');
 const { DescriptionJobService, isPendingStatus } = require('../../../services/DescriptionJobService');
 
+/**
+ * @typedef {object} Logger
+ * @property {(...args: unknown[]) => void} info
+ */
+
+/**
+ * @typedef {object} ImageDescriberFactory
+ * @property {(model: string) => { describeImage: (imageUrl: string) => Promise<unknown> }} get
+ */
+
+/**
+ * @typedef {object} DescriptionJobServiceLike
+ * @property {(params: { model: string, imageUrl: string }) => Promise<{ kind: string, result?: unknown, job?: object }>} resolveDescription
+ * @property {(job: unknown) => object} buildJobResponse
+ * @property {(jobId: string) => Promise<{ status: string } | null>} getJobStatus
+ */
+
+/**
+ * @typedef {object} PageDescriptionJobServiceLike
+ * @property {(params: { model: string, pageUrl: string }) => Promise<{ kind: string, result?: unknown, job?: object }>} resolvePageDescription
+ * @property {(job: unknown) => object} buildJobResponse
+ * @property {(jobId: string) => Promise<{ status: string } | null>} getJobStatus
+ */
+
+/**
+ * @typedef {object} PageDescriptionServiceLike
+ * @property {(params: { pageUrl: string, model: string }) => Promise<unknown>} describePage
+ */
+
+/**
+ * @typedef {object} ControllerRequest
+ * @property {Record<string, string>} query
+ * @property {Record<string, string>} params
+ * @property {Logger} [log]
+ */
+
+/**
+ * @typedef {object} ControllerResponse
+ * @property {(body: unknown) => ControllerResponse} json
+ * @property {(code: number) => ControllerResponse} status
+ */
+
+/**
+ * @param {string[]} fields
+ * @returns {{ field: string, issue: string }[]}
+ */
 const buildRequiredQueryDetails = (fields) => fields.map((field) => ({
   field,
   issue: 'required',
@@ -15,11 +61,11 @@ const buildRequiredQueryDetails = (fields) => fields.map((field) => ({
 class DescriptionController {
   /**
    * @param {object} deps
-   * @param {object} deps.imageDescriberFactory - ImageDescriberFactory instance
-   * @param {object} deps.pageDescriptionService - PageDescriptionService instance
-   * @param {object} deps.descriptionJobService - DescriptionJobService instance
-   * @param {object} deps.pageDescriptionJobService - PageDescriptionJobService instance
-   * @param {object} deps.logger - pino logger instance
+   * @param {ImageDescriberFactory} deps.imageDescriberFactory - ImageDescriberFactory instance
+   * @param {PageDescriptionServiceLike} deps.pageDescriptionService - PageDescriptionService instance
+   * @param {DescriptionJobServiceLike} deps.descriptionJobService - DescriptionJobService instance
+   * @param {PageDescriptionJobServiceLike} deps.pageDescriptionJobService - PageDescriptionJobService instance
+   * @param {Logger} deps.logger - pino logger instance
    */
   constructor({
     imageDescriberFactory,
@@ -120,6 +166,9 @@ class DescriptionController {
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/ApiErrorResponse'
+   * @param {ControllerRequest} req
+   * @param {ControllerResponse} res
+   * @param {(error?: unknown) => void} next
    */
   async describe(req, res, next) {
     const requestLogger = req.log ?? this.logger;
@@ -165,9 +214,9 @@ class DescriptionController {
       return res.json([result]);
     } catch (error) {
       // factory.get() throws a user-facing error for unknown models
-      if (error.message.startsWith('Unknown model')) {
+      if ((/** @type {Error} */ (error)).message.startsWith('Unknown model')) {
         return next(ApiError.badRequest({
-          message: error.message,
+          message: (/** @type {Error} */ (error)).message,
           code: 'UNKNOWN_MODEL',
           details: [{ field: 'model', issue: 'unsupported_value' }],
         }));
@@ -183,7 +232,7 @@ class DescriptionController {
       return next(ApiError.internal({
         message: 'Error fetching description for the provided image',
         code: 'DESCRIPTION_FETCH_FAILED',
-        cause: error,
+        cause: /** @type {object} */ (error),
       }));
     }
   }
@@ -257,6 +306,9 @@ class DescriptionController {
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/ApiErrorResponse'
+   * @param {ControllerRequest} req
+   * @param {ControllerResponse} res
+   * @param {(error?: unknown) => void} next
    */
   async describePage(req, res, next) {
     const requestLogger = req.log ?? this.logger;
@@ -304,9 +356,9 @@ class DescriptionController {
       });
       return res.json(result);
     } catch (error) {
-      if (error.message.startsWith('Unknown model')) {
+      if ((/** @type {Error} */ (error)).message.startsWith('Unknown model')) {
         return next(ApiError.badRequest({
-          message: error.message,
+          message: (/** @type {Error} */ (error)).message,
           code: 'UNKNOWN_MODEL',
           details: [{ field: 'model', issue: 'unsupported_value' }],
         }));
@@ -322,7 +374,7 @@ class DescriptionController {
       return next(ApiError.internal({
         message: 'Error fetching descriptions for the provided page',
         code: 'PAGE_DESCRIPTION_FETCH_FAILED',
-        cause: error,
+        cause: /** @type {object} */ (error),
       }));
     }
   }
@@ -374,6 +426,9 @@ class DescriptionController {
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/ApiErrorResponse'
+   * @param {ControllerRequest} req
+   * @param {ControllerResponse} res
+   * @param {(error?: unknown) => void} next
    */
   async getPageDescriptionJob(req, res, next) {
     const { jobId } = req.params;
@@ -401,7 +456,7 @@ class DescriptionController {
       return next(ApiError.internal({
         message: 'Error fetching page-description job status',
         code: 'PAGE_DESCRIPTION_JOB_FETCH_FAILED',
-        cause: error,
+        cause: /** @type {object} */ (error),
       }));
     }
   }
@@ -459,6 +514,9 @@ class DescriptionController {
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/ApiErrorResponse'
+   * @param {ControllerRequest} req
+   * @param {ControllerResponse} res
+   * @param {(error?: unknown) => void} next
    */
   async getDescriptionJob(req, res, next) {
     const { jobId } = req.params;
@@ -493,7 +551,7 @@ class DescriptionController {
       return next(ApiError.internal({
         message: 'Error fetching description job status',
         code: 'DESCRIPTION_JOB_FETCH_FAILED',
-        cause: error,
+        cause: /** @type {object} */ (error),
       }));
     }
   }

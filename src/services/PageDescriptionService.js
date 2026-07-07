@@ -1,3 +1,51 @@
+/**
+ * @typedef {{ description: string, imageUrl: string }} ImageDescription
+ */
+
+/**
+ * @typedef {object} ProviderJob
+ * @property {string} status
+ * @property {string} providerJobId
+ * @property {ImageDescription} [result]
+ * @property {unknown} [error]
+ */
+
+/**
+ * @typedef {{ status: 'fulfilled', value: ImageDescription } | { status: 'rejected', reason: unknown }} SettledDescription
+ */
+
+/**
+ * A duck-typed image describer. Capability methods beyond describeImage are
+ * probed with typeof checks before use.
+ * @typedef {object} Describer
+ * @property {(imageSource: string) => Promise<ImageDescription>} describeImage
+ * @property {(imageSources: string[]) => string[]} [filterSupportedImageSources]
+ * @property {(reason: unknown) => boolean} [shouldSkipDescriptionError]
+ * @property {(imageSource: string) => Promise<ProviderJob>} [createDescriptionJob]
+ * @property {(providerJobId: string, imageSource: string) => Promise<ProviderJob>} [getDescriptionJob]
+ */
+
+/**
+ * A describer that supports async provider jobs (createDescriptionJob and
+ * getDescriptionJob are guaranteed present).
+ * @typedef {Describer & { createDescriptionJob: (imageSource: string) => Promise<ProviderJob>, getDescriptionJob: (providerJobId: string, imageSource: string) => Promise<ProviderJob> }} AsyncDescriber
+ */
+
+/**
+ * @typedef {object} ScraperService
+ * @property {(pageUrl: string) => Promise<{ imageSources: string[] }>} getImages
+ */
+
+/**
+ * @typedef {object} ImageDescriberFactory
+ * @property {(model: string) => Describer} get
+ */
+
+/**
+ * @param {unknown} value
+ * @param {number} fallback
+ * @returns {number}
+ */
 const toPositiveInteger = (value, fallback) => {
   const parsedValue = Number(value);
   return Number.isInteger(parsedValue) && parsedValue > 0 ? parsedValue : fallback;
@@ -5,10 +53,21 @@ const toPositiveInteger = (value, fallback) => {
 
 const DEFAULT_ASYNC_POLL_INTERVAL_MS = 1000;
 
+/**
+ * @param {number} ms
+ * @returns {Promise<void>}
+ */
 const sleep = (ms) => new Promise((resolve) => {
   setTimeout(resolve, ms);
 });
 
+/**
+ * @template T, R
+ * @param {T[]} items
+ * @param {number} limit
+ * @param {(item: T, index: number) => Promise<R>} mapper
+ * @returns {Promise<R[]>}
+ */
 const mapWithConcurrencyLimit = async (items, limit, mapper) => {
   if (items.length === 0) {
     return [];
@@ -44,8 +103,8 @@ const mapWithConcurrencyLimit = async (items, limit, mapper) => {
 class PageDescriptionService {
   /**
    * @param {object} deps
-   * @param {object} deps.scraperService - ScraperService instance
-   * @param {object} deps.imageDescriberFactory - ImageDescriberFactory instance
+   * @param {ScraperService} deps.scraperService - ScraperService instance
+   * @param {ImageDescriberFactory} deps.imageDescriberFactory - ImageDescriberFactory instance
    * @param {number} [deps.concurrency] - max concurrent provider calls for page descriptions
    * @param {number} [deps.asyncPollIntervalMs] - polling interval for async provider jobs
    * @param {Function} [deps.sleep] - injected delay helper for tests
@@ -67,11 +126,19 @@ class PageDescriptionService {
     this.sleep = wait;
   }
 
+  /**
+   * @param {Describer} describer
+   * @returns {describer is AsyncDescriber}
+   */
   static supportsAsyncJobs(describer) {
     return typeof describer?.createDescriptionJob === 'function'
       && typeof describer?.getDescriptionJob === 'function';
   }
 
+  /**
+   * @param {{ pageUrl: string, model: string }} params
+   * @returns {Promise<{ describer: Describer, filteredImageSources: string[], uniqueImageSources: string[] }>}
+   */
   async collectPageImages({ pageUrl, model }) {
     const describer = this.imageDescriberFactory.get(model);
     const { imageSources } = await this.scraperService.getImages(pageUrl);
@@ -86,6 +153,11 @@ class PageDescriptionService {
     };
   }
 
+  /**
+   * @param {string[]} uniqueImageSources
+   * @param {(imageSource: string) => Promise<ImageDescription>} describeImage
+   * @returns {Promise<Map<string, SettledDescription>>}
+   */
   async describeUniqueImages(uniqueImageSources, describeImage) {
     return new Map(
       await mapWithConcurrencyLimit(
@@ -93,18 +165,22 @@ class PageDescriptionService {
         this.concurrency,
         async (imageSource) => {
           try {
-            return [imageSource, {
+            return /** @type {[string, SettledDescription]} */ ([imageSource, {
               status: 'fulfilled',
               value: await describeImage(imageSource),
-            }];
+            }]);
           } catch (error) {
-            return [imageSource, { status: 'rejected', reason: error }];
+            return /** @type {[string, SettledDescription]} */ ([imageSource, { status: 'rejected', reason: error }]);
           }
         },
       ),
     );
   }
 
+  /**
+   * @param {{ describer: Describer, filteredImageSources: string[], uniqueImageSources: string[], pageUrl: string, model: string, describeImage: (imageSource: string) => Promise<ImageDescription> }} params
+   * @returns {Promise<{ pageUrl: string, model: string, totalImages: number, uniqueImages: number, descriptions: ImageDescription[] }>}
+   */
   async describeCollectedPage({
     describer,
     filteredImageSources,
@@ -118,7 +194,7 @@ class PageDescriptionService {
       describeImage,
     );
 
-    return this.constructor.buildPageResult({
+    return /** @type {typeof PageDescriptionService} */ (this.constructor).buildPageResult({
       describer,
       filteredImageSources,
       settledDescriptions,
@@ -127,9 +203,13 @@ class PageDescriptionService {
     });
   }
 
+  /**
+   * @param {{ describer: AsyncDescriber, imageSource: string, providerJob: ProviderJob }} params
+   * @returns {Promise<ImageDescription>}
+   */
   async waitForAsyncDescriptionJob({ describer, imageSource, providerJob }) {
     if (providerJob.status === 'succeeded') {
-      return providerJob.result;
+      return /** @type {ImageDescription} */ (providerJob.result);
     }
 
     if (providerJob.status === 'failed' || providerJob.status === 'canceled') {
@@ -143,12 +223,16 @@ class PageDescriptionService {
     });
   }
 
+  /**
+   * @param {{ describer: AsyncDescriber, imageSource: string, providerJobId: string }} params
+   * @returns {Promise<ImageDescription>}
+   */
   async pollAsyncDescriptionJob({ describer, imageSource, providerJobId }) {
     await this.sleep(this.asyncPollIntervalMs);
     const providerJob = await describer.getDescriptionJob(providerJobId, imageSource);
 
     if (providerJob.status === 'succeeded') {
-      return providerJob.result;
+      return /** @type {ImageDescription} */ (providerJob.result);
     }
 
     if (providerJob.status === 'failed' || providerJob.status === 'canceled') {
@@ -162,6 +246,10 @@ class PageDescriptionService {
     });
   }
 
+  /**
+   * @param {{ describer: Describer, filteredImageSources: string[], settledDescriptions: Map<string, SettledDescription>, pageUrl: string, model: string }} params
+   * @returns {{ pageUrl: string, model: string, totalImages: number, uniqueImages: number, descriptions: ImageDescription[] }}
+   */
   static buildPageResult({
     describer,
     filteredImageSources,
@@ -169,8 +257,8 @@ class PageDescriptionService {
     pageUrl,
     model,
   }) {
-    const successfulImageSources = [];
-    const descriptions = [];
+    const successfulImageSources = /** @type {string[]} */ ([]);
+    const descriptions = /** @type {ImageDescription[]} */ ([]);
 
     filteredImageSources.forEach((imageSource) => {
       const result = settledDescriptions.get(imageSource);
@@ -233,6 +321,10 @@ class PageDescriptionService {
     });
   }
 
+  /**
+   * @param {{ pageUrl: string, model: string, describeImage: (imageSource: string) => Promise<ImageDescription> }} params
+   * @returns {Promise<{ pageUrl: string, model: string, totalImages: number, uniqueImages: number, descriptions: ImageDescription[] }>}
+   */
   async describePageWithResolver({ pageUrl, model, describeImage }) {
     const {
       describer,
@@ -250,6 +342,10 @@ class PageDescriptionService {
     });
   }
 
+  /**
+   * @param {{ pageUrl: string, model: string }} params
+   * @returns {Promise<{ pageUrl: string, model: string, totalImages: number, uniqueImages: number, descriptions: ImageDescription[] }>}
+   */
   async describePageWithAsyncJobs({ pageUrl, model }) {
     const {
       describer,
@@ -257,7 +353,7 @@ class PageDescriptionService {
       uniqueImageSources,
     } = await this.collectPageImages({ pageUrl, model });
 
-    if (!this.constructor.supportsAsyncJobs(describer)) {
+    if (!(/** @type {typeof PageDescriptionService} */ (this.constructor)).supportsAsyncJobs(describer)) {
       return this.describeCollectedPage({
         describer,
         filteredImageSources,

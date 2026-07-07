@@ -1,10 +1,20 @@
 const express = require('express');
 const { createProviderValidationRouter } = require('./createProviderValidationRouter');
 
+/**
+ * @typedef {object} SwaggerRouter
+ * @property {(path: string, handler: (req: unknown, res: unknown, next: (err?: unknown) => void) => unknown) => unknown} use
+ */
+
+/**
+ * @typedef {object} RouterLogger
+ * @property {(...args: any[]) => void} debug
+ */
+
 const createSwaggerRouter = () => {
-  const swaggerRouter = express.Router();
-  let swaggerUiServe = null;
-  let swaggerUiMiddleware = null;
+  const swaggerRouter = /** @type {SwaggerRouter} */ (express.Router());
+  let swaggerUiServe = /** @type {any} */ (null);
+  let swaggerUiMiddleware = /** @type {any} */ (null);
 
   swaggerRouter.use('/api-docs', (req, res, next) => {
     if (!swaggerUiMiddleware) {
@@ -22,6 +32,7 @@ const createSwaggerRouter = () => {
     }
 
     let middlewareIndex = 0;
+    /** @param {unknown} [error] */
     const runSwaggerServe = (error) => {
       if (error) {
         return next(error);
@@ -50,7 +61,7 @@ const createSwaggerRouter = () => {
  *  - The dependency graph is explicit (visible in the composition root)
  *  - This module stays testable without loading the full route tree
  *
- * @param {object} logger - app logger instance
+ * @param {RouterLogger} logger - app logger instance
  * @param {object} apiRouter - Express router with all API routes mounted
  * @returns {object} Express Router
  */

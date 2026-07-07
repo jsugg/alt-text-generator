@@ -1,15 +1,40 @@
 /**
- * Configures and starts Node.js cluster workers.
- *
- * Forks the requested number of workers, reforks only on unexpected exits, and
- * applies bounded restart policy controls to avoid tight crash loops.
- *
- * @param {object} cluster - Node.js cluster module
- * @param {object} logger - pino logger instance (appLogger)
- * @param {number} workerCount - number of workers to fork
- * @param {object} [clusterConfig] - cluster lifecycle config
- * @param {NodeJS.Process} [processRef] - process-like object for tests
+ * @typedef {object} ClusterPolicyConfig
+ * @property {number} [crashWindowMs]
+ * @property {number} [maxCrashCount]
+ * @property {number} [maxRestartBackoffMs]
+ * @property {number} [restartBackoffMs]
+ * @property {number} [shutdownTimeoutMs]
  */
+
+/**
+ * @typedef {object} ClusterWorkerLike
+ * @property {{ pid?: number }} [process]
+ * @property {boolean} [exitedAfterDisconnect]
+ */
+
+/**
+ * Duck-typed slice of the Node.js cluster module (tests inject fakes).
+ *
+ * @typedef {object} ClusterLike
+ * @property {() => void} setupPrimary
+ * @property {() => unknown} fork
+ * @property {(
+ *   event: 'exit',
+ *   listener: (worker: ClusterWorkerLike, code: number, signal: string) => void,
+ * ) => unknown} on
+ * @property {(callback?: () => void) => void} [disconnect]
+ */
+
+/**
+ * @typedef {{
+ *   info: (details: object | string, message?: string) => void,
+ *   warn: (details: object | string, message?: string) => void,
+ *   error: (details: object | string, message?: string) => void,
+ *   fatal: (details: object | string, message?: string) => void,
+ * }} ClusterLogger
+ */
+
 const DEFAULT_CLUSTER_POLICY = Object.freeze({
   crashWindowMs: 60000,
   maxCrashCount: 5,
@@ -18,6 +43,7 @@ const DEFAULT_CLUSTER_POLICY = Object.freeze({
   shutdownTimeoutMs: 10000,
 });
 
+/** @param {ClusterPolicyConfig} [clusterConfig] */
 const resolveClusterPolicy = (clusterConfig = {}) => ({
   ...DEFAULT_CLUSTER_POLICY,
   crashWindowMs: clusterConfig.crashWindowMs ?? DEFAULT_CLUSTER_POLICY.crashWindowMs,
@@ -28,6 +54,13 @@ const resolveClusterPolicy = (clusterConfig = {}) => ({
   shutdownTimeoutMs: clusterConfig.shutdownTimeoutMs ?? DEFAULT_CLUSTER_POLICY.shutdownTimeoutMs,
 });
 
+/**
+ * @param {{
+ *   maxRestartBackoffMs: number,
+ *   restartBackoffMs: number,
+ *   unexpectedExitCount: number,
+ * }} options
+ */
 const calculateRestartDelay = ({
   maxRestartBackoffMs,
   restartBackoffMs,
@@ -37,6 +70,18 @@ const calculateRestartDelay = ({
   maxRestartBackoffMs,
 );
 
+/**
+ * Configures and starts Node.js cluster workers.
+ *
+ * Forks the requested number of workers, reforks only on unexpected exits, and
+ * applies bounded restart policy controls to avoid tight crash loops.
+ *
+ * @param {ClusterLike} cluster - Node.js cluster module
+ * @param {ClusterLogger} logger - pino logger instance (appLogger)
+ * @param {number} workerCount - number of workers to fork
+ * @param {ClusterPolicyConfig} [clusterConfig] - cluster lifecycle config
+ * @param {NodeJS.Process} [processRef] - process-like object for tests
+ */
 const setupCluster = (
   cluster,
   logger,
@@ -48,8 +93,11 @@ const setupCluster = (
     ? workerCount
     : 1;
   const clusterPolicy = resolveClusterPolicy(clusterConfig);
+  /** @type {Set<NodeJS.Timeout>} */
   const pendingRestarts = new Set();
+  /** @type {number[]} */
   const recentUnexpectedExits = [];
+  /** @type {NodeJS.Timeout | undefined} */
   let shutdownTimer;
   let shuttingDown = false;
 
@@ -58,10 +106,12 @@ const setupCluster = (
     pendingRestarts.clear();
   };
 
+  /** @param {number} exitCode */
   const exitPrimary = (exitCode) => {
     processRef.exit(exitCode);
   };
 
+  /** @param {{ exitCode: number, signal: string }} options */
   const shutdownPrimary = ({ exitCode, signal }) => {
     if (shuttingDown) {
       return;

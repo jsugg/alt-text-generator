@@ -30,6 +30,10 @@ const BLOCKED_IPV6_PREFIXES = [
   'ff',
 ];
 
+/**
+ * @param {string} address
+ * @returns {number | null}
+ */
 const parseIpv4 = (address) => {
   const octets = address.split('.').map((octet) => Number.parseInt(octet, 10));
   if (
@@ -42,8 +46,16 @@ const parseIpv4 = (address) => {
   return octets.reduce((value, octet) => (value * 256) + octet, 0);
 };
 
+/**
+ * @param {string} address
+ * @returns {string}
+ */
 const normalizeIpv6 = (address) => address.toLowerCase().replace(/^\[|\]$/g, '');
 
+/**
+ * @param {string} address
+ * @returns {boolean}
+ */
 const isBlockedIpv4 = (address) => {
   const value = parseIpv4(address);
   if (value === null) {
@@ -53,6 +65,10 @@ const isBlockedIpv4 = (address) => {
   return PRIVATE_IPV4_RANGES.some(([start, end]) => value >= start && value <= end);
 };
 
+/**
+ * @param {string} address
+ * @returns {boolean}
+ */
 const isBlockedIpv6 = (address) => {
   const normalized = normalizeIpv6(address);
   if (normalized.includes('.')) {
@@ -63,6 +79,10 @@ const isBlockedIpv6 = (address) => {
   return BLOCKED_IPV6_PREFIXES.some((prefix) => normalized.startsWith(prefix));
 };
 
+/**
+ * @param {string} address
+ * @returns {boolean}
+ */
 const isBlockedAddress = (address) => {
   const family = net.isIP(address);
 
@@ -77,6 +97,11 @@ const isBlockedAddress = (address) => {
   return true;
 };
 
+/**
+ * @param {unknown} value
+ * @param {number} [maxUrlLength]
+ * @returns {URL}
+ */
 const parseUrl = (value, maxUrlLength = DEFAULT_MAX_URL_LENGTH) => {
   if (typeof value !== 'string' || value.length === 0 || value.length > maxUrlLength) {
     throw new Error('Outbound URL must be a non-empty string within the configured length limit');
@@ -104,14 +129,26 @@ const parseUrl = (value, maxUrlLength = DEFAULT_MAX_URL_LENGTH) => {
   return parsedUrl;
 };
 
+/**
+ * @param {string} address
+ * @returns {void}
+ */
 const assertPublicAddress = (address) => {
   if (isBlockedAddress(address)) {
     throw new Error(`Outbound URL resolves to a blocked network address: ${address}`);
   }
 };
 
+/**
+ * @param {string} hostname
+ * @returns {string}
+ */
 const normalizeHostnameForAddressCheck = (hostname) => hostname.replace(/^\[|\]$/g, '');
 
+/**
+ * @param {unknown} value
+ * @returns {string | null}
+ */
 const normalizeAllowedHost = (value) => {
   if (typeof value !== 'string') {
     return null;
@@ -121,12 +158,23 @@ const normalizeAllowedHost = (value) => {
   return normalized || null;
 };
 
+/**
+ * @param {Array<string | null | undefined> | null | undefined} allowedHosts
+ * @returns {Set<string>}
+ */
 const createAllowedHostSet = (allowedHosts) => new Set(
-  (allowedHosts ?? [])
-    .map(normalizeAllowedHost)
-    .filter(Boolean),
+  /** @type {string[]} */ (
+    (allowedHosts ?? [])
+      .map(normalizeAllowedHost)
+      .filter(Boolean)
+  ),
 );
 
+/**
+ * @param {URL} parsedUrl
+ * @param {Set<string>} allowedHosts
+ * @returns {boolean}
+ */
 const isAllowedHost = (parsedUrl, allowedHosts) => {
   if (allowedHosts.size === 0) {
     return false;
@@ -135,9 +183,26 @@ const isAllowedHost = (parsedUrl, allowedHosts) => {
   const hostname = normalizeAllowedHost(parsedUrl.hostname);
   const host = normalizeAllowedHost(parsedUrl.host);
 
-  return allowedHosts.has(host) || allowedHosts.has(hostname);
+  return (
+    allowedHosts.has(/** @type {string} */ (host))
+    || allowedHosts.has(/** @type {string} */ (hostname))
+  );
 };
 
+/**
+ * @typedef {(
+ *   hostname: string,
+ *   options: { all: true, verbatim: true },
+ * ) => Promise<Array<{ address?: unknown }>>} DnsLookupFn
+ */
+
+/**
+ * @param {object} [options]
+ * @param {string[]} [options.allowedHosts]
+ * @param {DnsLookupFn} [options.lookup]
+ * @param {number} [options.maxUrlLength]
+ * @returns {(value: unknown) => Promise<URL>}
+ */
 const createOutboundUrlPolicy = ({
   allowedHosts = [],
   lookup = dns.promises.lookup,
@@ -182,10 +247,29 @@ const createOutboundUrlPolicy = ({
 
 const defaultOutboundUrlPolicy = createOutboundUrlPolicy();
 
+/**
+ * @param {number} status
+ * @returns {boolean}
+ */
 const isRedirectStatus = (status) => (
   Number.isInteger(status) && status >= HTTP_REDIRECT_MIN && status <= HTTP_REDIRECT_MAX
 );
 
+/**
+ * @typedef {{
+ *   status: number,
+ *   headers?: Record<string, string | string[] | undefined>,
+ * } & Record<string, any>} PolicyHttpResponse
+ */
+
+/**
+ * @typedef {(url: string, options?: object) => Promise<PolicyHttpResponse>} PolicyRequestFn
+ */
+
+/**
+ * @param {PolicyHttpResponse} response
+ * @returns {string | undefined}
+ */
 const getRedirectLocation = (response) => {
   const location = response?.headers?.location;
   if (Array.isArray(location)) {
@@ -194,6 +278,15 @@ const getRedirectLocation = (response) => {
   return location;
 };
 
+/**
+ * @param {object} params
+ * @param {Record<string, PolicyRequestFn>} params.httpClient
+ * @param {string} [params.method]
+ * @param {string} params.url
+ * @param {{ maxRedirects?: number } & Record<string, any>} [params.options]
+ * @param {(value: any) => Promise<URL>} [params.outboundUrlPolicy]
+ * @returns {Promise<PolicyHttpResponse>}
+ */
 const requestWithOutboundUrlPolicy = async ({
   httpClient,
   method = 'get',
@@ -201,7 +294,9 @@ const requestWithOutboundUrlPolicy = async ({
   options = {},
   outboundUrlPolicy = defaultOutboundUrlPolicy,
 }) => {
-  const maxRedirects = Number.isInteger(options.maxRedirects) ? options.maxRedirects : 0;
+  const maxRedirects = Number.isInteger(options.maxRedirects)
+    ? /** @type {number} */ (options.maxRedirects)
+    : 0;
   let currentUrl = url;
 
   for (let redirectCount = 0; redirectCount <= maxRedirects; redirectCount += 1) {
@@ -212,7 +307,7 @@ const requestWithOutboundUrlPolicy = async ({
     const response = await httpClient[method](currentUrl, {
       ...options,
       maxRedirects: 0,
-      validateStatus: (status) => status >= 200 && status < 400,
+      validateStatus: (/** @type {number} */ status) => status >= 200 && status < 400,
     });
 
     if (!isRedirectStatus(response.status)) {

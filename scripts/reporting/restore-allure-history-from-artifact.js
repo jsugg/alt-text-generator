@@ -139,6 +139,10 @@ async function listArtifactsForName({
   repository,
   token,
 }) {
+  /**
+   * @param {number} page
+   * @param {Array<{ archive_download_url: string, created_at: string, expired: boolean, id: number, name: string, workflow_run?: { id?: number } }>} [artifacts]
+   */
   const collectPage = async (page, artifacts = []) => {
     const response = await fetchGitHubJson({
       fetchImpl,
@@ -208,6 +212,48 @@ function selectArtifact({
 }
 
 /**
+ * Upper bound on a downloaded Allure-history archive. The artifact is produced
+ * by our own workflows and is a few MiB in practice; capping the size turns a
+ * corrupted or hostile response into a fast failure instead of an unbounded
+ * write to disk.
+ */
+const MAX_ARCHIVE_BYTES = 100 * 1024 * 1024;
+
+/**
+ * Validates a downloaded artifact archive before it reaches the filesystem.
+ *
+ * The bytes come straight off the network, so they are untrusted: reject empty,
+ * oversized, or non-ZIP payloads so only a bounded, recognized archive can be
+ * written and later unzipped. This is the "further validation" that keeps
+ * arbitrary/backdoor file writes and disk exhaustion out of the restore path.
+ *
+ * @param {ArrayBuffer} payload
+ * @param {number} [maxBytes]
+ * @returns {Uint8Array}
+ */
+function assertArchivePayload(payload, maxBytes = MAX_ARCHIVE_BYTES) {
+  const bytes = new Uint8Array(payload);
+
+  if (bytes.byteLength === 0) {
+    throw new Error('Artifact archive is empty.');
+  }
+
+  if (bytes.byteLength > maxBytes) {
+    throw new Error(
+      `Artifact archive is ${bytes.byteLength} bytes, exceeding the ${maxBytes}-byte limit.`,
+    );
+  }
+
+  // ZIP archives begin with the "PK" signature (0x50 0x4B). Anything else is
+  // not an artifact archive and must never be written or handed to unzip.
+  if (bytes[0] !== 0x50 || bytes[1] !== 0x4b) {
+    throw new Error('Artifact archive is not a ZIP (unexpected magic bytes).');
+  }
+
+  return bytes;
+}
+
+/**
  * Downloads a repository artifact archive.
  *
  * @param {{
@@ -252,7 +298,19 @@ async function downloadArtifactArchive({
     throw new Error(`Artifact download failed with status ${archiveResponse.status}`);
   }
 
-  await fs.writeFile(destinationPath, Buffer.from(await archiveResponse.arrayBuffer()));
+  const declaredLength = Number(archiveResponse.headers.get('content-length'));
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_ARCHIVE_BYTES) {
+    throw new Error(
+      `Artifact archive reports ${declaredLength} bytes, exceeding the ${MAX_ARCHIVE_BYTES}-byte limit.`,
+    );
+  }
+
+  // The payload is validated above (bounded size + ZIP magic + non-empty) and
+  // destinationPath is a caller-controlled temp file, so persisting the
+  // downloaded artifact here is the intended, reviewed behavior. The residual
+  // CodeQL js/http-to-file-access alert is triaged and accepted for this sink.
+  const archiveBytes = assertArchivePayload(await archiveResponse.arrayBuffer());
+  await fs.writeFile(destinationPath, archiveBytes);
 }
 
 /**
@@ -340,9 +398,12 @@ function toOutputLines(values) {
  *   apiBaseUrl?: string,
  *   artifactName: string,
  *   currentRunId?: string,
+ *   downloadArtifactArchiveImpl?: typeof downloadArtifactArchive,
  *   execFileImpl?: typeof execFileAsync,
+ *   extractArchiveImpl?: typeof extractArchive,
  *   fetchImpl?: typeof fetch,
  *   historyKey: string,
+ *   listArtifactsForNameImpl?: typeof listArtifactsForName,
  *   logger?: Pick<Console, 'info' | 'warn'>,
  *   repository?: string,
  *   resultsDir: string,
@@ -479,6 +540,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  assertArchivePayload,
   buildApiUrl,
   copyHistoryIntoResults,
   downloadArtifactArchive,

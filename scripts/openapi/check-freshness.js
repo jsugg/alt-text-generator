@@ -25,6 +25,10 @@ const {
   serializeSpec,
 } = require('./spec-utils');
 
+/** @typedef {import('./spec-utils').OpenApiSpec} OpenApiSpec */
+/** @typedef {{ pathsAdded: string[], pathsRemoved: string[], schemasAdded: string[], schemasRemoved: string[] }} DriftSummary */
+/** @typedef {{ fresh: boolean, drift: DriftSummary | null }} FreshnessResult */
+
 const USAGE = `Usage: node scripts/openapi/check-freshness.js [options]
 
 Fails when the committed OpenAPI artifact (docs/openapi.base.json) does not match
@@ -37,10 +41,19 @@ Options:
   -h, --help     Show this help
 `;
 
+/**
+ * @param {unknown} value
+ * @returns {string[]}
+ */
 function keysOf(value) {
   return value !== null && typeof value === 'object' ? Object.keys(value) : [];
 }
 
+/**
+ * @param {string[]} a
+ * @param {string[]} b
+ * @returns {string[]}
+ */
 function difference(a, b) {
   const other = new Set(b);
   return a.filter((key) => !other.has(key));
@@ -52,9 +65,9 @@ function difference(a, b) {
  * committed artifact; "removed" = present in the committed artifact but no longer
  * generated.
  *
- * @param {object} committedSpec
- * @param {object} freshSpec
- * @returns {{ pathsAdded: string[], pathsRemoved: string[], schemasAdded: string[], schemasRemoved: string[] }}
+ * @param {OpenApiSpec} committedSpec
+ * @param {OpenApiSpec} freshSpec
+ * @returns {DriftSummary}
  */
 function summarizeDrift(committedSpec, freshSpec) {
   const committedPaths = keysOf(committedSpec.paths);
@@ -74,7 +87,7 @@ function summarizeDrift(committedSpec, freshSpec) {
  * Compares committed spec text against freshly generated text.
  *
  * @param {{ committedText: string, freshText: string }} input
- * @returns {{ fresh: boolean, drift: object | null }}
+ * @returns {FreshnessResult}
  */
 function checkFreshness({ committedText, freshText }) {
   if (committedText === freshText) {
@@ -122,16 +135,16 @@ function parseArgs(argv) {
 /**
  * Lists the drift lines for a human-readable report.
  *
- * @param {object} drift
+ * @param {DriftSummary} drift
  * @returns {string[]}
  */
 function driftLines(drift) {
-  return [
+  return /** @type {[string, string[]][]} */ ([
     ['path(s) only in committed artifact (removed from sources)', drift.pathsRemoved],
     ['path(s) only in sources (missing from artifact)', drift.pathsAdded],
     ['schema(s) only in committed artifact (removed from sources)', drift.schemasRemoved],
     ['schema(s) only in sources (missing from artifact)', drift.schemasAdded],
-  ]
+  ])
     .filter(([, items]) => items.length > 0)
     .map(([label, items]) => `    - ${items.length} ${label}: ${items.join(', ')}`);
 }
@@ -139,7 +152,7 @@ function driftLines(drift) {
 /**
  * Writes a human-readable freshness report.
  *
- * @param {{ result: object, specPath: string }} report
+ * @param {{ result: FreshnessResult, specPath: string }} report
  */
 function writeReport({ result, specPath }) {
   const relativePath = path.relative(process.cwd(), specPath) || specPath;
@@ -155,7 +168,7 @@ function writeReport({ result, specPath }) {
     `openapi:check FAILED: ${relativePath} is stale (does not match the generated contract)\n`,
   );
 
-  const lines = driftLines(result.drift);
+  const lines = driftLines(/** @type {DriftSummary} */ (result.drift));
 
   if (lines.length > 0) {
     process.stderr.write('\n  Structural drift:\n');
@@ -181,7 +194,7 @@ function main(argv) {
   try {
     args = parseArgs(argv);
   } catch (error) {
-    process.stderr.write(`openapi:check ${error.message}\n\n${USAGE}`);
+    process.stderr.write(`openapi:check ${/** @type {Error} */ (error).message}\n\n${USAGE}`);
     return 2;
   }
 
@@ -206,7 +219,7 @@ function main(argv) {
       freshText: serializeSpec(generateFreshSpec()),
     });
   } catch (error) {
-    process.stderr.write(`openapi:check failed to compute freshness: ${error.message}\n`);
+    process.stderr.write(`openapi:check failed to compute freshness: ${/** @type {Error} */ (error).message}\n`);
     return 2;
   }
 

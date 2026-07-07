@@ -8,6 +8,8 @@ const {
   buildReportSummary,
 } = require('./newman-summary');
 
+/** @typedef {import('./newman-summary').FailureRecord} FailureRecord */
+
 const DIAGNOSTIC_LOG_TAIL_BYTES = 6000;
 const DIAGNOSTIC_LOG_TAIL_LINES = 30;
 
@@ -20,16 +22,16 @@ function formatFolderList(folders) {
 }
 
 /**
- * @param {object[]} failures
+ * @param {FailureRecord[]} failures
  * @param {string} category
- * @returns {object[]}
+ * @returns {FailureRecord[]}
  */
 function filterFailuresByCategory(failures, category) {
   return failures.filter((failure) => failure.category === category);
 }
 
 /**
- * @param {object} failure
+ * @param {FailureRecord} failure
  * @returns {string}
  */
 function formatFailureDiagnosticLine(failure) {
@@ -40,7 +42,7 @@ function formatFailureDiagnosticLine(failure) {
 /**
  * @param {string[]} lines
  * @param {string} heading
- * @param {object[]} failures
+ * @param {FailureRecord[]} failures
  */
 function appendFailureDiagnostics(lines, heading, failures) {
   if (failures.length === 0) {
@@ -70,7 +72,13 @@ function readDiagnosticLogTail(logPath, maxBytes = DIAGNOSTIC_LOG_TAIL_BYTES) {
   const fd = fs.openSync(logPath, 'r');
 
   try {
-    fs.readSync(fd, buffer, 0, size, Math.max(0, stats.size - size));
+    fs.readSync(
+      fd,
+      /** @type {NodeJS.ArrayBufferView} */ (/** @type {unknown} */ (buffer)),
+      0,
+      size,
+      Math.max(0, stats.size - size),
+    );
   } finally {
     fs.closeSync(fd);
   }
@@ -191,7 +199,7 @@ function emitDiagnosticLines(lines, writeLog) {
 }
 
 /**
- * @param {string[]} paths
+ * @param {(string | null)[]} paths
  */
 function removeStaleReports(paths) {
   paths.forEach((reportPath) => {
@@ -202,7 +210,7 @@ function removeStaleReports(paths) {
     try {
       fs.rmSync(reportPath, { force: true });
     } catch (error) {
-      if (error.code !== 'ENOENT') {
+      if (/** @type {NodeJS.ErrnoException} */ (error).code !== 'ENOENT') {
         throw error;
       }
     }

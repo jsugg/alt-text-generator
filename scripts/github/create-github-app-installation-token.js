@@ -3,11 +3,40 @@
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 
+/**
+ * @typedef {object} ParsedArgs
+ * @property {string} apiBaseUrl
+ * @property {string|null} outputFile
+ * @property {string} [appId]
+ * @property {string} [owner]
+ * @property {string} [repo]
+ */
+
+/**
+ * ParsedArgs after validation guarantees app-id/owner/repo are present.
+ * @typedef {ParsedArgs & { appId: string, owner: string, repo: string }} ValidatedArgs
+ */
+
+/**
+ * @typedef {object} InstallationLookupResponse
+ * @property {number} id
+ */
+
+/**
+ * @typedef {object} InstallationTokenResponse
+ * @property {string} token
+ * @property {string} [expires_at]
+ */
+
+/**
+ * @param {string[]} argv
+ * @returns {ValidatedArgs}
+ */
 function parseArgs(argv) {
-  const args = {
+  const args = /** @type {ParsedArgs} */ ({
     apiBaseUrl: 'https://api.github.com/',
     outputFile: null,
-  };
+  });
 
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
@@ -53,9 +82,15 @@ function parseArgs(argv) {
     throw new Error('--app-id, --owner, and --repo are required');
   }
 
-  return args;
+  return /** @type {ValidatedArgs} */ (args);
 }
 
+/**
+ * @param {string|null} outputFile
+ * @param {string} key
+ * @param {string|number} value
+ * @returns {void}
+ */
 function appendOutput(outputFile, key, value) {
   if (!outputFile) {
     return;
@@ -64,18 +99,35 @@ function appendOutput(outputFile, key, value) {
   fs.appendFileSync(outputFile, `${key}=${value}\n`);
 }
 
+/**
+ * @param {string} privateKey
+ * @returns {string}
+ */
 function normalizePrivateKey(privateKey) {
   return privateKey.includes('\n') ? privateKey : privateKey.replace(/\\n/gu, '\n');
 }
 
+/**
+ * @param {string} value
+ * @returns {string}
+ */
 function base64UrlEncode(value) {
   return Buffer.from(value).toString('base64url');
 }
 
+/**
+ * @param {string} apiBaseUrl
+ * @param {string} pathname
+ * @returns {string}
+ */
 function buildApiUrl(apiBaseUrl, pathname) {
   return new URL(pathname, apiBaseUrl.endsWith('/') ? apiBaseUrl : `${apiBaseUrl}/`).toString();
 }
 
+/**
+ * @param {{ appId: string, nowMs?: number, privateKey: string }} params
+ * @returns {string}
+ */
 function buildAppJwt({
   appId,
   nowMs = Date.now(),
@@ -99,6 +151,10 @@ function buildAppJwt({
   return `${header}.${payload}.${signature}`;
 }
 
+/**
+ * @param {{ body?: unknown, fetchImpl?: typeof fetch, method?: string, token: string, url: string }} params
+ * @returns {Promise<unknown>}
+ */
 async function fetchGitHubJson({
   body,
   fetchImpl = fetch,
@@ -106,12 +162,12 @@ async function fetchGitHubJson({
   token,
   url,
 }) {
-  const headers = {
+  const headers = /** @type {Record<string, string>} */ ({
     Accept: 'application/vnd.github+json',
     Authorization: `Bearer ${token}`,
     'User-Agent': 'alt-text-generator-github-app-token',
     'X-GitHub-Api-Version': '2022-11-28',
-  };
+  });
 
   if (body !== undefined) {
     headers['Content-Type'] = 'application/json';
@@ -132,6 +188,10 @@ async function fetchGitHubJson({
   return text ? JSON.parse(text) : {};
 }
 
+/**
+ * @param {{ apiBaseUrl: string, appJwt: string, fetchImpl?: typeof fetch, owner: string, repo: string }} params
+ * @returns {Promise<number>}
+ */
 async function resolveInstallationId({
   apiBaseUrl,
   appJwt,
@@ -139,11 +199,11 @@ async function resolveInstallationId({
   owner,
   repo,
 }) {
-  const response = await fetchGitHubJson({
+  const response = /** @type {InstallationLookupResponse} */ (await fetchGitHubJson({
     fetchImpl,
     token: appJwt,
     url: buildApiUrl(apiBaseUrl, `/repos/${owner}/${repo}/installation`),
-  });
+  }));
 
   if (!response.id) {
     throw new Error('GitHub App installation lookup did not return an installation id');
@@ -152,6 +212,10 @@ async function resolveInstallationId({
   return response.id;
 }
 
+/**
+ * @param {{ apiBaseUrl: string, appJwt: string, fetchImpl?: typeof fetch, installationId: number, repo: string }} params
+ * @returns {Promise<InstallationTokenResponse>}
+ */
 async function createInstallationAccessToken({
   apiBaseUrl,
   appJwt,
@@ -159,7 +223,7 @@ async function createInstallationAccessToken({
   installationId,
   repo,
 }) {
-  const response = await fetchGitHubJson({
+  const response = /** @type {InstallationTokenResponse} */ (await fetchGitHubJson({
     body: {
       repositories: [repo],
     },
@@ -167,7 +231,7 @@ async function createInstallationAccessToken({
     method: 'POST',
     token: appJwt,
     url: buildApiUrl(apiBaseUrl, `/app/installations/${installationId}/access_tokens`),
-  });
+  }));
 
   if (!response.token) {
     throw new Error('GitHub App installation token response did not include a token');
@@ -176,6 +240,11 @@ async function createInstallationAccessToken({
   return response;
 }
 
+/**
+ * @param {NodeJS.ProcessEnv} env
+ * @param {string} key
+ * @returns {string}
+ */
 function requireEnv(env, key) {
   const value = env[key];
   if (!value) {
@@ -184,6 +253,12 @@ function requireEnv(env, key) {
   return value;
 }
 
+/**
+ * @param {ValidatedArgs} options
+ * @param {NodeJS.ProcessEnv} [env]
+ * @param {{ fetchImpl?: typeof fetch, nowMs?: number }} [helpers]
+ * @returns {Promise<{ expiresAt: string, installationId: number, token: string }>}
+ */
 async function createGitHubAppInstallationToken(options, env = process.env, helpers = {}) {
   const fetchImpl = helpers.fetchImpl || fetch;
   const privateKey = requireEnv(env, 'REPO_TOOLING_GITHUB_APP_PRIVATE_KEY');

@@ -12,6 +12,95 @@ const FAILURE_CATEGORY_HTTP_CONTRACT = 'http-contract';
 const FAILURE_CATEGORY_PERFORMANCE_BUDGET = 'performance-budget';
 
 /**
+ * @typedef {object} NewmanItemRef
+ * @property {string} [id]
+ * @property {string} [name]
+ */
+
+/**
+ * @typedef {object} NewmanAssertion
+ * @property {string} [assertion]
+ * @property {{ message?: string }} [error]
+ */
+
+/**
+ * @typedef {object} NewmanExecution
+ * @property {NewmanItemRef} [item]
+ * @property {NewmanAssertion[]} [assertions]
+ * @property {{ responseTime?: number }} [response]
+ */
+
+/**
+ * @typedef {object} NewmanFailure
+ * @property {NewmanItemRef} [source]
+ * @property {{ message?: string }} [error]
+ */
+
+/**
+ * @typedef {object} NewmanReport
+ * @property {string} reportPath
+ * @property {{
+ *   executions?: NewmanExecution[],
+ *   failures?: NewmanFailure[],
+ *   timings?: { started?: number, completed?: number },
+ *   stats?: {
+ *     requests?: { total?: number },
+ *     assertions?: { total?: number, failed?: number },
+ *   },
+ * }} [run]
+ */
+
+/**
+ * @typedef {object} AssertionFailureMatch
+ * @property {string} assertion
+ * @property {string} category
+ */
+
+/**
+ * @typedef {object} FailureRecord
+ * @property {string} source
+ * @property {string} folder
+ * @property {string} requestName
+ * @property {string | null} assertion
+ * @property {string} category
+ * @property {string} message
+ */
+
+/**
+ * @typedef {object} FolderStats
+ * @property {string} folder
+ * @property {number} requestTotal
+ * @property {number} assertionTotal
+ * @property {number} assertionFailed
+ * @property {number} totalResponseTimeMs
+ * @property {number} maxResponseTimeMs
+ */
+
+/** @typedef {FolderStats & { avgResponseTimeMs: number }} FolderSummary */
+
+/**
+ * @typedef {object} ReportSummary
+ * @property {string} label
+ * @property {number} durationMs
+ * @property {number} requestTotal
+ * @property {number} assertionTotal
+ * @property {number} assertionFailed
+ * @property {FolderSummary[]} folders
+ * @property {FailureRecord[]} failures
+ */
+
+/**
+ * @typedef {object} AggregateSummary
+ * @property {number} reportCount
+ * @property {number} requestTotal
+ * @property {number} assertionTotal
+ * @property {number} assertionFailed
+ * @property {FailureRecord[]} failures
+ * @property {Map<string, FolderStats>} folders
+ * @property {ReportSummary[]} reports
+ */
+
+/**
  * @param {string} collectionPath
  * @returns {{ itemFolderMap: Map<string, string>, issues: string[] }}
  */
@@ -25,14 +114,14 @@ function loadItemFolderMap(collectionPath) {
     return {
       itemFolderMap: new Map(),
       issues: [
-        `Unable to read collection metadata from ${collectionPath}: ${error.message}`,
+        `Unable to read collection metadata from ${collectionPath}: ${/** @type {Error} */ (error).message}`,
       ],
     };
   }
 }
 
 /**
- * @param {object} report
+ * @param {NewmanReport} report
  * @returns {number}
  */
 function getReportDurationMs(report) {
@@ -58,7 +147,7 @@ function classifyAssertionFailure(assertionName) {
 }
 
 /**
- * @param {object} item
+ * @param {NewmanItemRef | undefined} item
  * @returns {string}
  */
 function getItemKey(item) {
@@ -66,10 +155,11 @@ function getItemKey(item) {
 }
 
 /**
- * @param {object[]} executions
- * @returns {Map<string, object[]>}
+ * @param {NewmanExecution[]} executions
+ * @returns {Map<string, AssertionFailureMatch[]>}
  */
 function buildAssertionFailureIndex(executions) {
+  /** @type {Map<string, AssertionFailureMatch[]>} */
   const assertionFailureIndex = new Map();
 
   executions.forEach((execution) => {
@@ -93,8 +183,8 @@ function buildAssertionFailureIndex(executions) {
 }
 
 /**
- * @param {object} failure
- * @param {Map<string, object[]>} assertionFailureIndex
+ * @param {NewmanFailure} failure
+ * @param {Map<string, AssertionFailureMatch[]>} assertionFailureIndex
  * @returns {{ assertion: string|null, category: string }}
  */
 function resolveFailureMetadata(failure, assertionFailureIndex) {
@@ -113,18 +203,19 @@ function resolveFailureMetadata(failure, assertionFailureIndex) {
 }
 
 /**
- * @param {object} report
+ * @param {NewmanReport} report
  * @param {Map<string, string>} itemFolderMap
- * @returns {object}
+ * @returns {ReportSummary}
  */
 function summarizeReport(report, itemFolderMap) {
   const label = path.basename(report.reportPath, '.json');
+  /** @type {Map<string, FolderStats>} */
   const folderBreakdown = new Map();
   const executions = report.run?.executions ?? [];
 
   executions.forEach((execution) => {
-    const folder = itemFolderMap.get(execution.item?.id)
-      ?? itemFolderMap.get(execution.item?.name)
+    const folder = itemFolderMap.get(/** @type {string} */ (execution.item?.id))
+      ?? itemFolderMap.get(/** @type {string} */ (execution.item?.name))
       ?? 'unknown';
     const assertionTotal = execution.assertions?.length ?? 0;
     const assertionFailed = (execution.assertions ?? [])
@@ -154,8 +245,8 @@ function summarizeReport(report, itemFolderMap) {
 
     return {
       source: label,
-      folder: itemFolderMap.get(failure.source?.id)
-        ?? itemFolderMap.get(failure.source?.name)
+      folder: itemFolderMap.get(/** @type {string} */ (failure.source?.id))
+        ?? itemFolderMap.get(/** @type {string} */ (failure.source?.name))
         ?? 'unknown',
       requestName: failure.source?.name ?? 'unknown',
       assertion: metadata.assertion,
@@ -181,8 +272,8 @@ function summarizeReport(report, itemFolderMap) {
 }
 
 /**
- * @param {object[]} reports
- * @returns {object}
+ * @param {ReportSummary[]} reports
+ * @returns {AggregateSummary}
  */
 function aggregateSummaries(reports) {
   return reports.reduce((aggregate, report) => ({
@@ -210,7 +301,7 @@ function aggregateSummaries(reports) {
       return folderAggregate;
     }, aggregate.folders),
     reports: aggregate.reports.concat(report),
-  }), {
+  }), /** @type {AggregateSummary} */ ({
     reportCount: 0,
     requestTotal: 0,
     assertionTotal: 0,
@@ -218,20 +309,20 @@ function aggregateSummaries(reports) {
     failures: [],
     folders: new Map(),
     reports: [],
-  });
+  }));
 }
 
 /**
- * @param {object[]} failures
+ * @param {FailureRecord[]} failures
  * @param {string} category
- * @returns {object[]}
+ * @returns {FailureRecord[]}
  */
 function filterFailuresByCategory(failures, category) {
   return failures.filter((failure) => failure.category === category);
 }
 
 /**
- * @param {object} failure
+ * @param {FailureRecord} failure
  * @returns {string}
  */
 function formatFailureLine(failure) {
@@ -242,7 +333,7 @@ function formatFailureLine(failure) {
 /**
  * @param {string[]} lines
  * @param {string} heading
- * @param {object[]} failures
+ * @param {FailureRecord[]} failures
  */
 function appendFailureSection(lines, heading, failures) {
   lines.push('', heading);
@@ -258,7 +349,7 @@ function appendFailureSection(lines, heading, failures) {
 }
 
 /**
- * @param {object} aggregate
+ * @param {AggregateSummary} aggregate
  * @param {string[]} [issues]
  * @param {number} [reportDiscoveryCount]
  * @returns {string[]}
@@ -354,6 +445,7 @@ function formatSummaryLines(
  * @returns {string[]}
  */
 function listReportPaths(reportsDir, { reservedSubdirs = RESERVED_REPORT_SUBDIRS } = {}) {
+  /** @type {string[]} */
   const reportPaths = [];
 
   fs.readdirSync(reportsDir, { withFileTypes: true }).forEach((entry) => {
@@ -378,22 +470,26 @@ function listReportPaths(reportsDir, { reservedSubdirs = RESERVED_REPORT_SUBDIRS
 
 /**
  * @param {{ collectionPath: string, reportsDir: string }} args
- * @returns {{ lines: string[], aggregate: object, issues: string[] }}
+ * @returns {{ lines: string[], aggregate: AggregateSummary, issues: string[] }}
  */
 function buildSummary(args) {
   const { itemFolderMap, issues } = loadItemFolderMap(args.collectionPath);
+  /** @type {string[]} */
   let reportPaths = [];
 
   try {
     reportPaths = listReportPaths(args.reportsDir);
   } catch (error) {
-    issues.push(`Unable to read Newman reports from ${args.reportsDir}: ${error.message}`);
+    issues.push(
+      `Unable to read Newman reports from ${args.reportsDir}: ${/** @type {Error} */ (error).message}`,
+    );
   }
 
   if (reportPaths.length === 0) {
     issues.push(NO_REPORTS_MESSAGE);
   }
 
+  /** @type {ReportSummary[]} */
   const reports = [];
   reportPaths.forEach((reportPath) => {
     try {
@@ -401,7 +497,9 @@ function buildSummary(args) {
       report.reportPath = reportPath;
       reports.push(summarizeReport(report, itemFolderMap));
     } catch (error) {
-      issues.push(`Unable to parse Newman JSON report ${path.basename(reportPath)}: ${error.message}`);
+      issues.push(
+        `Unable to parse Newman JSON report ${path.basename(reportPath)}: ${/** @type {Error} */ (error).message}`,
+      );
     }
   });
 
@@ -416,7 +514,7 @@ function buildSummary(args) {
 
 /**
  * @param {{ collectionPath: string, reportPath: string }} args
- * @returns {{ issues: string[], reportSummary: object|null }}
+ * @returns {{ issues: string[], reportSummary: ReportSummary | null }}
  */
 function buildReportSummary(args) {
   const { collectionPath, reportPath } = args;
@@ -431,7 +529,9 @@ function buildReportSummary(args) {
       reportSummary: summarizeReport(report, itemFolderMap),
     };
   } catch (error) {
-    issues.push(`Unable to parse Newman JSON report ${path.basename(reportPath)}: ${error.message}`);
+    issues.push(
+      `Unable to parse Newman JSON report ${path.basename(reportPath)}: ${/** @type {Error} */ (error).message}`,
+    );
 
     return {
       issues,

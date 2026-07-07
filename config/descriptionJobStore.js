@@ -12,11 +12,20 @@ const DEFAULT_DESCRIPTION_JOB_COMPLETED_TTL_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_DESCRIPTION_JOB_FAILED_TTL_MS = 5 * 60 * 1000;
 const DEFAULT_DESCRIPTION_JOB_CLAIM_TTL_MS = 30 * 1000;
 
+/**
+ * @param {unknown} value
+ * @param {number} fallback
+ * @returns {number}
+ */
 const toNumber = (value, fallback) => {
   const parsedValue = Number(value);
   return Number.isFinite(parsedValue) ? parsedValue : fallback;
 };
 
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
 const normalizeRedisPrefix = (value) => {
   if (typeof value !== 'string' || value.trim().length === 0) {
     return DEFAULT_DESCRIPTION_JOB_REDIS_PREFIX;
@@ -25,12 +34,19 @@ const normalizeRedisPrefix = (value) => {
   return value.endsWith(':') ? value : `${value}:`;
 };
 
+/**
+ * @param {Record<string, any>} [envLike]
+ */
 const resolveDescriptionJobRedisUrl = (envLike = {}) => (
   envLike.DESCRIPTION_JOB_REDIS_URL
   || envLike.REDIS_URL
   || envLike.RATE_LIMIT_REDIS_URL
 );
 
+/**
+ * @param {{ mode?: string, redisUrl?: string }} options
+ * @returns {string}
+ */
 const resolveDescriptionJobStoreKind = ({ mode, redisUrl }) => {
   if (mode === DESCRIPTION_JOB_STORE_MODES.MEMORY) {
     return DESCRIPTION_JOB_STORE_MODES.MEMORY;
@@ -43,6 +59,9 @@ const resolveDescriptionJobStoreKind = ({ mode, redisUrl }) => {
   return redisUrl ? DESCRIPTION_JOB_STORE_MODES.REDIS : DESCRIPTION_JOB_STORE_MODES.MEMORY;
 };
 
+/**
+ * @param {Record<string, any>} [envLike]
+ */
 const buildDescriptionJobStoreConfig = (envLike = {}) => {
   const mode = Object.values(DESCRIPTION_JOB_STORE_MODES).includes(envLike.DESCRIPTION_JOB_STORE)
     ? envLike.DESCRIPTION_JOB_STORE

@@ -102,6 +102,7 @@ const SIGNAL_EXIT_CODES = {
 // Newman environment keys whose values embed a harness port, mapped to a
 // builder that recomputes them from the resolved ports. Used to materialize a
 // per-run environment file that carries the actually-bound ports.
+/** @type {Record<string, (input: { host: string, ports: Record<string, number> }) => string | null>} */
 const RESOLVED_ENV_VALUE_BUILDERS = {
   baseUrl: ({ host, ports }) => `https://${host}:${ports.appHttps}`,
   baseUrlHttp: ({ host, ports }) => `http://${host}:${ports.appHttp}`,
@@ -214,6 +215,7 @@ async function resolveHarnessPorts({
     return allocateNamedPorts(roles, { host });
   }
 
+  /** @type {Record<string, number>} */
   const fixedPorts = {
     appHttp: readFixedPort(env, 'POSTMAN_APP_HTTP_PORT', DEFAULT_APP_HTTP_PORT),
     appHttps: readFixedPort(env, 'POSTMAN_APP_HTTPS_PORT', DEFAULT_APP_HTTPS_PORT),
@@ -256,6 +258,7 @@ function buildHarnessUrlEnvVars({ host, ports }) {
  * @returns {object}
  */
 function buildResolvedNewmanEnvironment(staticEnvironment, { host, ports }) {
+  /** @type {{ values?: { key: string, value?: string }[] } & Record<string, any>} */
   const resolved = JSON.parse(JSON.stringify(staticEnvironment));
 
   resolved.values = (resolved.values || []).map((entry) => {
@@ -303,7 +306,7 @@ async function waitForUrl(
     try {
       // Poll sequentially until the endpoint becomes healthy.
       // eslint-disable-next-line no-await-in-loop
-      await new Promise((resolve, reject) => {
+      await new Promise((/** @type {(value?: unknown) => void} */ resolve, reject) => {
         const url = new URL(urlString);
         const client = url.protocol === 'https:' ? https : http;
 
@@ -359,6 +362,7 @@ function fetchUrl(urlString, { insecure = false, timeoutMs = DOCS_WARMUP_TIMEOUT
         rejectUnauthorized: !insecure,
       },
       (res) => {
+        /** @type {Uint8Array[]} */
         const chunks = [];
 
         res.on('data', (chunk) => chunks.push(chunk));
@@ -459,12 +463,10 @@ function spawnLogged(label, command, args, env = {}, { logPath = null } = {}) {
 /**
  * Runs Newman for the given folder list.
  *
- * @param {string} label
- * @param {string[]} folders
- * @param {{
+ * @typedef {{
  *   allureResultsDir?: string | null,
  *   diagnosticsDir: string,
- *   envPath?: string,
+ *   envPath: string,
  *   envVars?: string[],
  *   extraArgs?: string[],
  *   harnessEnvVars?: string[],
@@ -478,7 +480,11 @@ function spawnLogged(label, command, args, env = {}, { logPath = null } = {}) {
  *   reportsDir: string,
  *   diagnosticLogs?: { label: string, path: string }[],
  *   timeoutRequestMs?: number,
- * }} options
+ * }} RunNewmanOptions
+ *
+ * @param {string} label
+ * @param {string[]} folders
+ * @param {RunNewmanOptions} options
  * @returns {Promise<void>}
  */
 function runNewman(
@@ -496,7 +502,7 @@ function runNewman(
     providerValidationFixtureUrls = buildPublicProviderValidationFixtureUrls(),
     reportsDir,
     timeoutRequestMs = DEFAULT_NEWMAN_TIMEOUT_REQUEST_MS,
-  } = {},
+  } = /** @type {RunNewmanOptions} */ ({}),
 ) {
   const folderArgs = folders.flatMap((folder) => ['--folder', folder]);
   const { jsonReportPath } = buildNewmanReportPaths({
@@ -611,7 +617,7 @@ function installSignalCleanup(children) {
     };
 
     process.on(signal, handler);
-    return [signal, handler];
+    return /** @type {[string, () => void]} */ ([signal, handler]);
   });
 
   return () => {
@@ -705,7 +711,7 @@ async function main() {
   const publicProviderValidationFixtures = buildPublicProviderValidationFixtureUrls();
   const availableLiveProviders = realProviderModeEnabled
     ? detectAvailableProviders(process.env, {
-        allowedProviderScopes: LOW_COST_PROVIDER_VALIDATION_SCOPES,
+        allowedProviderScopes: /** @type {string[]} */ (LOW_COST_PROVIDER_VALIDATION_SCOPES),
       })
     : { configuredProviderScopes: LOCAL_PROVIDER_VALIDATION_SCOPES.slice() };
   const configuredProviderScopes = fullModeEnabled
@@ -729,11 +735,14 @@ async function main() {
   const selectedProviderScopeSet = new Set(
     selectedProviderPlans.map((providerPlan) => providerPlan.scopeKey),
   );
+  /** @type {string | null | undefined} */
   let appReplicateApiToken = fullModeEnabled ? mockProviderConfig.replicateApiToken : 'test-token';
   let appReplicateApiEndpoint = fullModeEnabled ? mockProviderConfig.replicateApiEndpoint : null;
+  /** @type {string | null | undefined} */
   let appAzureApiEndpoint = fullModeEnabled
     ? mockProviderConfig.azureApiEndpoint
     : `http://${host}:${ports.fixture}/vision/v3.2/describe`;
+  /** @type {string | null | undefined} */
   let appAzureSubscriptionKey = 'stub-key';
   let appOpenAiApiKey = null;
   let appOpenAiBaseUrl = null;
@@ -823,6 +832,7 @@ async function main() {
     `apiAuthToken=${API_AUTH_TOKEN}`,
   ];
 
+  /** @type {{ label: string, path: string }[]} */
   const childDiagnosticLogs = [];
   const fixtureLogPath = path.join(runLayout.diagnosticsDir, 'fixture.log');
   const appLogPath = path.join(runLayout.diagnosticsDir, 'app.log');
@@ -845,7 +855,7 @@ async function main() {
     'app',
     NODE,
     [path.join(ROOT, 'src', 'app.js')],
-    buildAppServerEnv({
+    /** @type {Record<string, string>} */ (buildAppServerEnv({
       httpPort: String(ports.appHttp),
       httpsPort: String(ports.appHttps),
       replicateApiEndpoint: appReplicateApiEndpoint,
@@ -867,20 +877,21 @@ async function main() {
       descriptionJobPollIntervalMs: fullModeDescriptionJobPollIntervalMs,
       replicatePollIntervalMs: fullModeReplicatePollIntervalMs,
       outboundAllowedHosts: localFixtureAllowedHost,
-    }),
+    })),
     { logPath: appLogPath },
   );
   childDiagnosticLogs.push({ label: 'app', path: appLogPath });
   managedChildren.add(appServer);
   appServer.once('exit', () => managedChildren.delete(appServer));
 
+  /** @type {import('node:child_process').ChildProcess | undefined} */
   let authAppServer;
   if (requiresAuthHarness) {
     authAppServer = spawnLogged(
       'app-auth',
       NODE,
       [path.join(ROOT, 'src', 'app.js')],
-      buildAppServerEnv({
+      /** @type {Record<string, string>} */ (buildAppServerEnv({
         httpPort: String(ports.authHttp),
         httpsPort: String(ports.authHttps),
         replicateApiToken: 'test-token',
@@ -888,7 +899,7 @@ async function main() {
         azureSubscriptionKey: 'stub-key',
         apiAuthTokens: API_AUTH_TOKEN,
         outboundAllowedHosts: localFixtureAllowedHost,
-      }),
+      })),
       { logPath: authAppLogPath },
     );
     childDiagnosticLogs.push({ label: 'app-auth', path: authAppLogPath });
@@ -896,6 +907,11 @@ async function main() {
     authAppServer.once('exit', () => managedChildren.delete(authAppServer));
   }
   const cleanupSignalHandlers = installSignalCleanup(managedChildren);
+  /**
+   * @param {string} label
+   * @param {string[]} folders
+   * @param {Partial<RunNewmanOptions>} [options]
+   */
   const runHarnessNewman = (label, folders, options = {}) => runNewman(label, folders, {
     diagnosticLogs: childDiagnosticLogs,
     diagnosticsDir: runLayout.diagnosticsDir,
@@ -1062,7 +1078,7 @@ async function main() {
       );
     }
   } catch (error) {
-    emitHarnessFailureDiagnostics(error, childDiagnosticLogs);
+    emitHarnessFailureDiagnostics(/** @type {Error} */ (error), childDiagnosticLogs);
     throw error;
   } finally {
     cleanupSignalHandlers();

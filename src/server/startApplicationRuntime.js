@@ -19,17 +19,23 @@ const {
 /**
  * Starts the HTTP/HTTPS application runtime in the current process.
  *
- * @param {object} params - runtime dependencies
- * @param {object} params.appLogger - pino logger
- * @param {object} params.config - resolved runtime config
- * @param {object} [params.processRef] - process-like object for tests
- * @param {Function} [params.createAppFn] - injected createApp implementation
- * @param {Function} [params.createHttpServerFn] - injected HTTP server factory
- * @param {Function} [params.createHttpsServerFn] - injected HTTPS server factory
- * @param {Function} [params.gracefulShutdownFn] - injected shutdown registrar
- * @param {Function} [params.loadTlsCredentialsFn] - injected TLS loader
- * @param {object} [params.serverPorts] - injected server ports for tests
- * @param {Function} [params.startServerFn] - injected listen helper
+ * All dependencies are injectable for tests; the loose `Function` types keep
+ * the fakes assignable while the real defaults stay strongly typed at source.
+ *
+ * @param {{
+ *   appLogger?: import('./registerFatalHandlers').FatalLogger,
+ *   config?: object,
+ *   processRef?: NodeJS.Process,
+ *   createAppFn?: Function,
+ *   createHttpServerFn?: Function,
+ *   createHttpsServerFn?: Function,
+ *   gracefulShutdownFn?: Function,
+ *   initializeDescriptionJobStoreFn?: Function,
+ *   initializeRateLimitStoreProviderFn?: Function,
+ *   loadTlsCredentialsFn?: Function,
+ *   serverPorts?: { httpPort?: number, httpsPort?: number },
+ *   startServerFn?: Function,
+ * }} [params] - runtime dependencies
  * @returns {Promise<object>}
  */
 const startApplicationRuntime = async ({
@@ -46,12 +52,15 @@ const startApplicationRuntime = async ({
   serverPorts = serverConfig,
   startServerFn = startServer,
 } = {}) => {
+  /** @type {import('./registerFatalHandlers').ShutdownHandler | undefined} */
   let shutdown;
+  /** @type {{ close?: () => Promise<void> | void } | undefined} */
   let descriptionJobStore;
+  /** @type {{ close?: () => Promise<void> | void } | undefined} */
   let rateLimitStoreProvider;
   const cleanupFatalHandlers = registerFatalHandlers({
     getShutdownHandler: () => shutdown,
-    logger: appLogger,
+    logger: /** @type {import('./registerFatalHandlers').FatalLogger} */ (appLogger),
     processRef,
   });
 

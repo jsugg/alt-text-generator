@@ -8,6 +8,35 @@ const NO_PROVIDER_OVERRIDES_FILE = path.join(
   'provider-overrides.missing.yaml',
 );
 
+/**
+ * Builds the environment for a harness-launched app server.
+ *
+ * @param {{
+ *   httpPort: string | number,
+ *   httpsPort: string | number,
+ *   replicateApiEndpoint?: string | null,
+ *   replicateApiToken?: string | null,
+ *   azureApiEndpoint?: string | null,
+ *   azureSubscriptionKey?: string | null,
+ *   openaiApiKey?: string | null,
+ *   openaiBaseUrl?: string | null,
+ *   openaiModel?: string | null,
+ *   hfApiKey?: string | null,
+ *   hfBaseUrl?: string | null,
+ *   hfModel?: string | null,
+ *   openrouterApiKey?: string | null,
+ *   openrouterBaseUrl?: string | null,
+ *   openrouterModel?: string | null,
+ *   apiAuthTokens?: string | null,
+ *   scraperRequestTimeoutMs?: string | number | null,
+ *   pageDescriptionConcurrency?: string | number | null,
+ *   descriptionJobWaitTimeoutMs?: string | number | null,
+ *   descriptionJobPollIntervalMs?: string | number | null,
+ *   replicatePollIntervalMs?: string | number | null,
+ *   outboundAllowedHosts?: string | null,
+ * }} options
+ * @returns {Record<string, string | number>}
+ */
 function buildAppServerEnv({
   httpPort,
   httpsPort,
@@ -32,6 +61,7 @@ function buildAppServerEnv({
   replicatePollIntervalMs = null,
   outboundAllowedHosts = null,
 }) {
+  /** @type {Record<string, string | number>} */
   const env = {
     NODE_ENV: 'development',
     PORT: httpPort,

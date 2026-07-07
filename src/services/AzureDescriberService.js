@@ -5,6 +5,38 @@ const { fetchImageAsset } = require('../providers/shared/fetchImageAsset');
 const { isSkippableImageSourceError } = require('../providers/shared/isSkippableImageSourceError');
 
 /**
+ * @typedef {object} Logger
+ * @property {(...args: unknown[]) => void} debug
+ * @property {(...args: unknown[]) => void} error
+ */
+
+/**
+ * @typedef {object} HttpClient
+ * @property {(url: string, body: unknown, config: object) => Promise<{ data?: unknown }>} post
+ */
+
+/**
+ * @typedef {object} ProviderConfig
+ * @property {string} [apiEndpoint]
+ * @property {string} [subscriptionKey]
+ * @property {string} [language]
+ * @property {string | number} [maxCandidates]
+ */
+
+/**
+ * @typedef {object} RequestOptions
+ * @property {number} [timeout]
+ */
+
+/**
+ * A duck-typed axios-style Azure request error.
+ * @typedef {object} AzureError
+ * @property {string} [message]
+ * @property {{ url?: string }} [config]
+ * @property {{ status?: number, data?: { error?: { code?: string, innererror?: { code?: string } } } }} [response]
+ */
+
+/**
  * Image description service backed by Azure Computer Vision.
  *
  * Implements the IImageDescriber interface:
@@ -28,11 +60,11 @@ class AzureDescriberService {
 
   /**
    * @param {object} deps
-   * @param {object} deps.logger - pino logger instance
-   * @param {object} deps.httpClient - axios-compatible HTTP client
-   * @param {Function} deps.outboundUrlPolicy - validates user-controlled outbound URLs
-   * @param {object} deps.providerConfig - provider config section
-   * @param {object} deps.requestOptions - bounded outbound request options
+   * @param {Logger} deps.logger - pino logger instance
+   * @param {HttpClient} deps.httpClient - axios-compatible HTTP client
+   * @param {(value: any) => Promise<URL>} deps.outboundUrlPolicy - validates user-controlled outbound URLs
+   * @param {ProviderConfig} deps.providerConfig - provider config section
+   * @param {RequestOptions} deps.requestOptions - bounded outbound request options
    */
   constructor({
     logger,
@@ -72,7 +104,7 @@ class AzureDescriberService {
    * @returns {string[]}
    */
   filterSupportedImageSources(imageSources) {
-    return imageSources.filter((imageSource) => this.constructor.supportsImageSource(imageSource));
+    return imageSources.filter((imageSource) => (/** @type {typeof AzureDescriberService} */ (this.constructor)).supportsImageSource(imageSource));
   }
 
   /**
@@ -82,7 +114,9 @@ class AzureDescriberService {
    * @returns {boolean}
    */
   shouldSkipDescriptionError(error) {
-    const message = typeof error?.message === 'string' ? error.message : '';
+    const azureError = /** @type {AzureError} */ (error);
+    const rawMessage = azureError?.message;
+    const message = typeof rawMessage === 'string' ? rawMessage : '';
 
     if (
       message.startsWith('Azure provider does not support content type')
@@ -91,15 +125,15 @@ class AzureDescriberService {
       return true;
     }
 
-    const requestUrl = typeof error?.config?.url === 'string'
-      ? error.config.url
+    const requestUrl = typeof azureError?.config?.url === 'string'
+      ? azureError.config.url
       : null;
-    const isAzureRequest = Boolean(requestUrl && requestUrl.startsWith(this.endpoint));
+    const isAzureRequest = Boolean(requestUrl && requestUrl.startsWith(/** @type {string} */ (this.endpoint)));
 
     if (isAzureRequest) {
-      const status = error?.response?.status;
-      const errorCode = error?.response?.data?.error?.innererror?.code
-        || error?.response?.data?.error?.code
+      const status = azureError?.response?.status;
+      const errorCode = azureError?.response?.data?.error?.innererror?.code
+        || azureError?.response?.data?.error?.code
         || null;
 
       return status === 400 && (
@@ -140,9 +174,9 @@ class AzureDescriberService {
    * @returns {string}
    */
   buildDescribeUrl(useStream = false) {
-    const url = new URL(this.endpoint);
-    url.searchParams.set('maxCandidates', this.maxCandidates);
-    url.searchParams.set('language', this.language);
+    const url = new URL(/** @type {string} */ (this.endpoint));
+    url.searchParams.set('maxCandidates', /** @type {string} */ (this.maxCandidates));
+    url.searchParams.set('language', /** @type {string} */ (this.language));
     url.searchParams.set('model-version', 'latest');
 
     if (useStream) {
@@ -159,7 +193,7 @@ class AzureDescriberService {
    */
   async fetchImageBuffer(imageUrl) {
     const { buffer, contentType } = await fetchImageAsset({
-      httpClient: this.httpClient,
+      httpClient: /** @type {any} */ (this.httpClient),
       imageUrl,
       outboundUrlPolicy: this.outboundUrlPolicy,
       requestOptions: this.requestOptions,
@@ -202,7 +236,7 @@ class AzureDescriberService {
         },
       );
 
-      const captions = response?.data?.description?.captions;
+      const captions = (/** @type {{ data?: { description?: { captions?: unknown } } }} */ (response))?.data?.description?.captions;
 
       if (!Array.isArray(captions) || captions.length === 0) {
         throw new Error('Azure provider returned no captions');

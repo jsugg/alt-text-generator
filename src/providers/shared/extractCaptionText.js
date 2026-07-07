@@ -1,3 +1,7 @@
+/**
+ * @param {unknown} value
+ * @returns {string | null}
+ */
 const normalizeText = (value) => {
   if (typeof value !== 'string') {
     return null;
@@ -7,6 +11,10 @@ const normalizeText = (value) => {
   return trimmedValue.length > 0 ? trimmedValue : null;
 };
 
+/**
+ * @param {unknown} content
+ * @returns {string | null}
+ */
 const extractTextFromContent = (content) => {
   if (typeof content === 'string') {
     return normalizeText(content);
@@ -60,18 +68,20 @@ const extractCaptionText = (payload) => {
     return null;
   }
 
-  const directText = normalizeText(payload.output_text)
-    || normalizeText(payload.response)
-    || normalizeText(payload.generated_text)
-    || extractTextFromContent(payload.message?.content)
-    || extractTextFromContent(payload.content);
+  const record = /** @type {Record<string, any>} */ (payload);
+
+  const directText = normalizeText(record.output_text)
+    || normalizeText(record.response)
+    || normalizeText(record.generated_text)
+    || extractTextFromContent(record.message?.content)
+    || extractTextFromContent(record.content);
 
   if (directText) {
     return directText;
   }
 
-  if (Array.isArray(payload.choices)) {
-    const choiceText = payload.choices
+  if (Array.isArray(record.choices)) {
+    const choiceText = record.choices
       .map((choice) => extractTextFromContent(choice?.message?.content)
         || extractTextFromContent(choice?.delta?.content))
       .find(Boolean);
@@ -81,14 +91,14 @@ const extractCaptionText = (payload) => {
     }
   }
 
-  if (Array.isArray(payload.output)) {
-    return payload.output
+  if (Array.isArray(record.output)) {
+    return record.output
       .map((item) => extractCaptionText(item))
       .find(Boolean) || null;
   }
 
-  if (Array.isArray(payload.data)) {
-    return extractCaptionText(payload.data);
+  if (Array.isArray(record.data)) {
+    return extractCaptionText(record.data);
   }
 
   return null;

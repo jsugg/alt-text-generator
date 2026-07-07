@@ -9,18 +9,31 @@ const DEFAULT_LOCAL_TLS_PATHS = {
   cert: path.resolve(__dirname, '../../certs/localhost.pem'),
 };
 
+/**
+ * @typedef {{ generate: (
+ *   attributes: Array<{ name: string, value: string }>,
+ *   options: object,
+ * ) => Promise<{ private: string, cert: string }> }} SelfsignedModule
+ */
+
+/** @type {Promise<{ key: string, cert: string }> | undefined} */
 let generatedDevelopmentCredentialsPromise;
+/** @type {SelfsignedModule | undefined} */
 let selfsignedModule;
 const requireFromHere = createRequire(__filename);
 
 const getSelfsigned = () => {
   if (!selfsignedModule) {
-    selfsignedModule = requireFromHere('selfsigned');
+    selfsignedModule = /** @type {SelfsignedModule} */ (requireFromHere('selfsigned'));
   }
 
   return selfsignedModule;
 };
 
+/**
+ * @param {string} source
+ * @returns {string | undefined}
+ */
 const resolveInlineCredential = (source) => {
   const trimmedSource = source.trim();
   if (INLINE_PEM_PATTERN.test(trimmedSource)) {
@@ -40,6 +53,11 @@ const resolveInlineCredential = (source) => {
   return INLINE_PEM_PATTERN.test(decoded) ? decoded : undefined;
 };
 
+/**
+ * @param {string | undefined} source
+ * @param {string} envVarName
+ * @returns {string | Buffer}
+ */
 const readCredential = (source, envVarName) => {
   if (!source) {
     throw new Error(`${envVarName} is not configured.`);
@@ -128,7 +146,7 @@ const loadTlsCredentials = async () => {
     throw new Error(
       'TLS credentials could not be loaded. '
       + 'Ensure TLS_KEY and TLS_CERT are valid file paths, PEM values, or base64-encoded PEM values. '
-      + `Detail: ${err.message}`,
+      + `Detail: ${/** @type {Error} */ (err).message}`,
     );
   }
 };

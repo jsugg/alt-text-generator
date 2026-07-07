@@ -15,19 +15,23 @@ const fs = require('node:fs');
 const VALID_STATES = ['success', 'failure'];
 
 /**
+ * @typedef {object} DeploymentStatusArgs
+ * @property {string} repo
+ * @property {string} sha
+ * @property {string} state
+ * @property {string|null} environmentUrl
+ * @property {string|null} logUrl
+ * @property {string|null} outputFile
+ */
+
+/**
  * Parses command-line arguments.
  *
  * @param {string[]} argv
- * @returns {{
- *   repo: string,
- *   sha: string,
- *   state: string,
- *   environmentUrl: string|null,
- *   logUrl: string|null,
- *   outputFile: string|null,
- * }}
+ * @returns {DeploymentStatusArgs}
  */
 function parseArgs(argv) {
+  /** @type {Partial<DeploymentStatusArgs>} */
   const args = {
     environmentUrl: null,
     logUrl: null,
@@ -81,7 +85,7 @@ function parseArgs(argv) {
     throw new Error(`--state must be one of: ${VALID_STATES.join(', ')}`);
   }
 
-  return args;
+  return /** @type {DeploymentStatusArgs} */ (args);
 }
 
 /**

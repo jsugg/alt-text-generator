@@ -7,6 +7,19 @@ const {
 } = require('../infrastructure/outboundUrlPolicy');
 
 /**
+ * @typedef {object} Logger
+ * @property {(...args: unknown[]) => void} info
+ * @property {(...args: unknown[]) => void} warn
+ */
+
+/**
+ * @typedef {object} RequestOptions
+ * @property {number} [timeout]
+ * @property {number} [maxRedirects]
+ * @property {number} [maxContentLength]
+ */
+
+/**
  * Scrapes images from a given website URL.
  *
  * Dependencies are injected via the constructor to keep this class testable.
@@ -14,10 +27,11 @@ const {
 class ScraperService {
   /**
    * @param {object} deps
-   * @param {object} deps.logger - pino logger instance
-   * @param {object} deps.httpClient - axios-compatible HTTP client
-   * @param {Function} deps.outboundUrlPolicy - validates user-controlled outbound URLs
-   * @param {object} deps.requestOptions - bounded axios request options
+   * @param {Logger} deps.logger - pino logger instance
+   * @param {Record<string, (url: string, options?: object) => Promise<any>>} deps.httpClient
+   *   - axios-compatible HTTP client
+   * @param {(value: any) => Promise<URL>} deps.outboundUrlPolicy - validates user-controlled outbound URLs
+   * @param {RequestOptions} deps.requestOptions - bounded axios request options
    */
   constructor({
     logger,
@@ -85,7 +99,7 @@ class ScraperService {
    */
   extractImageSources(html, targetUrl) {
     const $ = cheerio.load(html);
-    const images = [];
+    const images = /** @type {string[]} */ ([]);
 
     $('img').each((index, img) => {
       const attrs = $(img)[0].attribs;

@@ -19,14 +19,13 @@ const { startApplicationRuntime } = require('./server/startApplicationRuntime');
 const { startApplication } = require('./server/runtimeBootstrap');
 
 startApplication({
-  cluster,
+  cluster: /** @type {any} */ (cluster),
   config,
   logger: appLogger,
   setupClusterFn: setupCluster,
-  startRuntimeFn: () => startApplicationRuntime({
-    appLogger,
-    config,
-  }),
+  startRuntimeFn: /** @type {() => Promise<void>} */ (
+    /** @type {unknown} */ (() => startApplicationRuntime({ appLogger, config }))
+  ),
 }).catch((error) => {
   appLogger.fatal({ err: error }, 'Application bootstrap failed');
   process.exit(1);

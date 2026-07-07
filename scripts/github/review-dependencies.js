@@ -23,8 +23,55 @@ const DEFAULT_ALLOWED_LICENSES = [
   'Unlicense',
 ];
 
+/**
+ * @typedef {object} Vulnerability
+ * @property {string} severity
+ * @property {string} advisory_ghsa_id
+ * @property {string} advisory_summary
+ * @property {string} advisory_url
+ */
+
+/**
+ * @typedef {object} DependencyChange
+ * @property {string} change_type
+ * @property {string} manifest
+ * @property {string} name
+ * @property {string} version
+ * @property {string} [scope]
+ * @property {string|null} [license]
+ * @property {Vulnerability[]} [vulnerabilities]
+ */
+
+/**
+ * A dependency change guaranteed to carry a vulnerabilities array.
+ * @typedef {DependencyChange & { vulnerabilities: Vulnerability[] }} VulnerableChange
+ */
+
+/**
+ * @typedef {object} ParsedArgs
+ * @property {string[]} allowedLicenses
+ * @property {string} apiBaseUrl
+ * @property {boolean} failOnDisallowedLicenses
+ * @property {string[]} failOnScopes
+ * @property {string} failOnSeverity
+ * @property {number} perPage
+ * @property {string|null} summaryFile
+ * @property {string} [repo]
+ * @property {string} [baseRef]
+ * @property {string} [headRef]
+ */
+
+/**
+ * ParsedArgs after validation guarantees repo/base-ref/head-ref are present.
+ * @typedef {ParsedArgs & { repo: string, baseRef: string, headRef: string }} ValidatedArgs
+ */
+
+/**
+ * @param {string[]} argv
+ * @returns {ValidatedArgs}
+ */
 function parseArgs(argv) {
-  const args = {
+  const args = /** @type {ParsedArgs} */ ({
     allowedLicenses: [...DEFAULT_ALLOWED_LICENSES],
     apiBaseUrl: DEFAULT_API_BASE_URL,
     failOnDisallowedLicenses: false,
@@ -32,7 +79,7 @@ function parseArgs(argv) {
     failOnSeverity: DEFAULT_FAIL_ON_SEVERITY,
     perPage: DEFAULT_PER_PAGE,
     summaryFile: process.env.GITHUB_STEP_SUMMARY || null,
-  };
+  });
 
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
@@ -105,9 +152,14 @@ function parseArgs(argv) {
     throw new Error('--per-page must be a positive integer up to 100');
   }
 
-  return args;
+  return /** @type {ValidatedArgs} */ (args);
 }
 
+/**
+ * @param {string} name
+ * @param {NodeJS.ProcessEnv} [env]
+ * @returns {string}
+ */
 function requireEnv(name, env = process.env) {
   const value = env[name];
 
@@ -118,6 +170,10 @@ function requireEnv(name, env = process.env) {
   return value;
 }
 
+/**
+ * @param {{ apiBaseUrl: string, repo: string, baseRef: string, headRef: string, page: number, perPage: number }} params
+ * @returns {URL}
+ */
 function buildApiUrl({
   apiBaseUrl,
   repo,
@@ -143,6 +199,10 @@ function buildApiUrl({
   return url;
 }
 
+/**
+ * @param {{ fetchImpl?: typeof fetch, token: string, url: URL }} params
+ * @returns {Promise<{ data: unknown, headers: Headers }>}
+ */
 async function fetchGitHubJson({ fetchImpl = fetch, token, url }) {
   const response = await fetchImpl(url, {
     headers: {
@@ -168,6 +228,10 @@ async function fetchGitHubJson({ fetchImpl = fetch, token, url }) {
   };
 }
 
+/**
+ * @param {Headers} headers
+ * @returns {string}
+ */
 function decodeSnapshotWarnings(headers) {
   const rawValue = headers?.get?.('x-github-dependency-graph-snapshot-warnings');
 
@@ -178,8 +242,13 @@ function decodeSnapshotWarnings(headers) {
   return Buffer.from(rawValue, 'base64').toString('utf8');
 }
 
+/**
+ * @param {ValidatedArgs} args
+ * @param {{ fetchImpl?: typeof fetch, token: string }} deps
+ * @returns {Promise<{ changes: DependencyChange[], snapshotWarnings: string }>}
+ */
 async function listDependencyChanges(args, { fetchImpl = fetch, token }) {
-  const changes = [];
+  const changes = /** @type {DependencyChange[]} */ ([]);
   let page = 1;
   let hasMorePages = true;
   let snapshotWarnings = '';
@@ -253,8 +322,8 @@ function isLicenseAllowed(allowedLicenses, license) {
  * Returns added dependency changes whose license is unknown or disallowed.
  *
  * @param {string[]} allowedLicenses
- * @param {{ change_type: string, license?: string|null }[]} changes
- * @returns {object[]}
+ * @param {DependencyChange[]} changes
+ * @returns {DependencyChange[]}
  */
 function filterAddedChangesByLicense(allowedLicenses, changes) {
   return changes.filter((change) => (
@@ -262,6 +331,11 @@ function filterAddedChangesByLicense(allowedLicenses, changes) {
   ));
 }
 
+/**
+ * @param {DependencyChange[]} flaggedChanges
+ * @param {boolean} failOnDisallowedLicenses
+ * @returns {string}
+ */
 function formatLicenseSummary(flaggedChanges, failOnDisallowedLicenses) {
   if (flaggedChanges.length === 0) {
     return [
@@ -286,10 +360,20 @@ function formatLicenseSummary(flaggedChanges, failOnDisallowedLicenses) {
   return lines.join('\n');
 }
 
+/**
+ * @param {string[]} scopes
+ * @param {DependencyChange[]} changes
+ * @returns {DependencyChange[]}
+ */
 function filterChangesByScopes(scopes, changes) {
   return changes.filter((change) => scopes.includes(change.scope || 'runtime'));
 }
 
+/**
+ * @param {string} severity
+ * @param {DependencyChange[]} changes
+ * @returns {VulnerableChange[]}
+ */
 function filterChangesBySeverity(severity, changes) {
   const severityIndex = SEVERITIES.indexOf(severity);
 
@@ -297,13 +381,18 @@ function filterChangesBySeverity(severity, changes) {
     .filter((change) => change.change_type === 'added' && Array.isArray(change.vulnerabilities))
     .map((change) => ({
       ...change,
-      vulnerabilities: change.vulnerabilities.filter((vulnerability) => (
+      vulnerabilities: /** @type {Vulnerability[]} */ (change.vulnerabilities).filter((vulnerability) => (
         SEVERITIES.indexOf(vulnerability.severity) <= severityIndex
       )),
     }))
     .filter((change) => change.vulnerabilities.length > 0);
 }
 
+/**
+ * @param {string|null|undefined} summaryFile
+ * @param {string} content
+ * @returns {void}
+ */
 function appendStepSummary(summaryFile, content) {
   if (!summaryFile) {
     return;
@@ -312,6 +401,11 @@ function appendStepSummary(summaryFile, content) {
   fs.appendFileSync(summaryFile, `${content}\n`, 'utf8');
 }
 
+/**
+ * @param {VulnerableChange[]} vulnerableChanges
+ * @param {string} severity
+ * @returns {string}
+ */
 function formatVulnerabilitySummary(vulnerableChanges, severity) {
   const noVulnerabilityMessage = [
     'No added dependencies introduced vulnerabilities with severity',
@@ -344,13 +438,19 @@ function formatVulnerabilitySummary(vulnerableChanges, severity) {
   return lines.join('\n');
 }
 
+/**
+ * @param {ValidatedArgs} args
+ * @param {NodeJS.ProcessEnv} [env]
+ * @param {{ fetchImpl?: typeof fetch, writeStderr?: (message: string) => void, writeStdout?: (message: string) => void }} [io]
+ * @returns {Promise<{ changes: DependencyChange[], licenseFlaggedChanges: DependencyChange[], vulnerableChanges: VulnerableChange[] }>}
+ */
 async function reviewDependencies(
   args,
   env = process.env,
   {
     fetchImpl = fetch,
-    writeStderr = (message) => process.stderr.write(`${message}\n`),
-    writeStdout = (message) => process.stdout.write(`${message}\n`),
+    writeStderr = (/** @type {string} */ message) => process.stderr.write(`${message}\n`),
+    writeStdout = (/** @type {string} */ message) => process.stdout.write(`${message}\n`),
   } = {},
 ) {
   const token = requireEnv('GITHUB_TOKEN', env);

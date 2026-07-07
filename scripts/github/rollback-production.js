@@ -12,20 +12,24 @@ const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 
 /**
+ * @typedef {object} RollbackArgs
+ * @property {string} repo
+ * @property {string} targetBranch
+ * @property {string} toSha
+ * @property {string} reason
+ * @property {boolean} dryRun
+ * @property {string|null} outputFile
+ * @property {string|null} summaryFile
+ */
+
+/**
  * Parses command-line arguments.
  *
  * @param {string[]} argv
- * @returns {{
- *   repo: string,
- *   targetBranch: string,
- *   toSha: string,
- *   reason: string,
- *   dryRun: boolean,
- *   outputFile: string|null,
- *   summaryFile: string|null,
- * }}
+ * @returns {RollbackArgs}
  */
 function parseArgs(argv) {
+  /** @type {Partial<RollbackArgs>} */
   const args = {
     dryRun: true,
     outputFile: null,
@@ -83,7 +87,7 @@ function parseArgs(argv) {
     throw new Error('--repo, --to-sha, and --reason are required');
   }
 
-  return args;
+  return /** @type {RollbackArgs} */ (args);
 }
 
 /**

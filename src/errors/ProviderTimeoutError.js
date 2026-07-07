@@ -35,6 +35,10 @@ class ProviderTimeoutError extends Error {
   }
 }
 
+/**
+ * @param {unknown} error
+ * @returns {error is ProviderTimeoutError}
+ */
 const isProviderTimeoutError = (error) => error instanceof ProviderTimeoutError;
 
 module.exports = {

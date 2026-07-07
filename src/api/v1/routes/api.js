@@ -5,17 +5,42 @@ const {
 } = require('../middleware/error-handler');
 
 /**
+ * @typedef {object} HealthController
+ * @property {Function} index
+ * @property {Function} ping
+ * @property {Function} health
+ */
+
+/**
+ * @typedef {object} ScraperControllerLike
+ * @property {Function} getImages
+ */
+
+/**
+ * @typedef {object} DescriptionControllerLike
+ * @property {Function} describe
+ * @property {Function} getDescriptionJob
+ * @property {Function} getPageDescriptionJob
+ * @property {Function} describePage
+ */
+
+/**
+ * @typedef {object} RouteLogger
+ * @property {(...args: any[]) => void} info
+ */
+
+/**
  * Registers all API routes onto an Express router.
  *
  * Controllers are passed in — this module only wires HTTP paths to handlers.
  * Business logic lives in controllers and services, not here.
  *
  * @param {object} controllers
- * @param {object} controllers.health - healthController
- * @param {object} controllers.scraper - ScraperController instance
- * @param {object} controllers.description - DescriptionController instance
+ * @param {HealthController} controllers.health - healthController
+ * @param {ScraperControllerLike} controllers.scraper - ScraperController instance
+ * @param {DescriptionControllerLike} controllers.description - DescriptionController instance
  * @param {Function} [controllers.statusRateLimiter] - rate limiter for status routes
- * @param {object} logger - app logger instance
+ * @param {RouteLogger} logger - app logger instance
  * @returns {object} Express Router
  */
 module.exports = ({

@@ -3,12 +3,30 @@ const path = require('path');
 
 const DEFAULT_PID_FILE = path.resolve(__dirname, '../../alt-text-generator.pid');
 
+/** @typedef {{ env?: string, cluster?: { workers?: number } }} BootstrapConfig */
+/**
+ * @typedef {{
+ *   info: (details: object | string, message?: string) => void,
+ *   fatal: (details: object | string, message?: string) => void,
+ * }} BootstrapLogger
+ */
+
+/** @param {BootstrapConfig} config */
 const resolveWorkerCount = (config) => config.cluster?.workers ?? 1;
 
+/** @param {number} workerCount */
 const shouldUseCluster = (workerCount) => (
   Number.isInteger(workerCount) && workerCount > 1
 );
 
+/**
+ * @param {{
+ *   cluster: { isPrimary?: boolean },
+ *   fsModule?: { writeFileSync: (file: string, data: string) => void },
+ *   pidFile?: string,
+ *   processRef?: NodeJS.Process,
+ * }} options
+ */
 const writePrimaryPidFile = ({
   cluster,
   fsModule = fs,
@@ -26,13 +44,14 @@ const writePrimaryPidFile = ({
  * Bootstraps the app in standalone or clustered mode.
  *
  * @param {object} params - bootstrap dependencies
- * @param {object} params.cluster - Node cluster module or test double
- * @param {object} params.config - resolved runtime config
- * @param {object} params.logger - pino logger
+ * @param {{ isPrimary?: boolean }} params.cluster - Node cluster module or test double
+ * @param {BootstrapConfig} params.config - resolved runtime config
+ * @param {BootstrapLogger} params.logger - pino logger
  * @param {NodeJS.Process} [params.processRef] - process-like object for tests
  * @param {Function} params.setupClusterFn - cluster setup function
- * @param {Function} params.startRuntimeFn - standalone/worker runtime starter
- * @param {object} [params.fsModule] - injected fs module for tests
+ * @param {() => Promise<void> | void} params.startRuntimeFn - standalone/worker runtime starter
+ * @param {{ writeFileSync: (file: string, data: string) => void }} [params.fsModule]
+ *   injected fs module for tests
  * @param {string} [params.pidFile] - injected pid path for tests
  * @returns {Promise<void>}
  */

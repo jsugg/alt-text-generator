@@ -19,16 +19,71 @@ const RETRY_BASE_DELAY_MS = 1000;
 const RETRY_MAX_DELAY_MS = 5000;
 const RETRY_JITTER_MS = 250;
 
+/**
+ * @typedef {object} Logger
+ * @property {(...args: unknown[]) => void} info
+ * @property {(...args: unknown[]) => void} debug
+ * @property {(...args: unknown[]) => void} error
+ * @property {(...args: unknown[]) => void} [warn]
+ */
+
+/**
+ * @typedef {object} HttpClient
+ * @property {(url: string, body: unknown, config: object) => Promise<{ data?: unknown }>} post
+ */
+
+/**
+ * @typedef {object} ProviderConfig
+ * @property {string} [baseUrl]
+ * @property {string} [apiKey]
+ * @property {string} [model]
+ * @property {number} [maxTokens]
+ * @property {string} [prompt]
+ * @property {Record<string, string>} [headers]
+ * @property {number} [requestAttempts]
+ */
+
+/**
+ * @typedef {object} RequestOptions
+ * @property {number} [timeout]
+ */
+
+/**
+ * @typedef {object} ImageAsset
+ * @property {Buffer} buffer
+ * @property {string | null} contentType
+ */
+
+/**
+ * A duck-typed axios-style request error.
+ * @typedef {object} HttpError
+ * @property {{ status?: number, headers?: Record<string, unknown> }} [response]
+ * @property {string} [code]
+ * @property {string} [message]
+ */
+
+/**
+ * @param {ImageAsset} asset
+ * @returns {string}
+ */
 const toDataUrl = ({ buffer, contentType }) => (
   `data:${contentType || 'application/octet-stream'};base64,${buffer.toString('base64')}`
 );
 
+/**
+ * @param {number} ms
+ * @returns {Promise<void>}
+ */
 const sleep = (ms) => new Promise((resolve) => {
   setTimeout(resolve, ms);
 });
 
+/**
+ * @param {unknown} error
+ * @returns {boolean}
+ */
 const shouldRetryWithDataUrl = (error) => {
-  const status = error?.response?.status;
+  const status = (/** @type {HttpError} */ (error))?.response?.status;
 
   return status === 400
     || status === 413
@@ -36,6 +91,10 @@ const shouldRetryWithDataUrl = (error) => {
     || status === 422;
 };
 
+/**
+ * @param {string} imageUrl
+ * @returns {string}
+ */
 const getImageExtension = (imageUrl) => {
   try {
     const { pathname } = new URL(imageUrl);
@@ -52,6 +111,10 @@ const getImageExtension = (imageUrl) => {
   }
 };
 
+/**
+ * @param {string} hostname
+ * @returns {boolean}
+ */
 const isPrivateIpv4Hostname = (hostname) => {
   const octets = hostname.split('.').map(Number);
 
@@ -69,6 +132,10 @@ const isPrivateIpv4Hostname = (hostname) => {
     || (octets[0] === 192 && octets[1] === 168);
 };
 
+/**
+ * @param {string} imageUrl
+ * @returns {boolean}
+ */
 const shouldUseFetchedImageInput = (imageUrl) => {
   try {
     const { hostname, protocol } = new URL(imageUrl);
@@ -85,6 +152,10 @@ const shouldUseFetchedImageInput = (imageUrl) => {
   }
 };
 
+/**
+ * @param {string} imageUrl
+ * @returns {boolean}
+ */
 const isSupportedImageSource = (imageUrl) => {
   const imageExtension = getImageExtension(imageUrl);
 
@@ -95,8 +166,12 @@ const isSupportedImageSource = (imageUrl) => {
   return SUPPORTED_IMAGE_EXTENSIONS.has(imageExtension);
 };
 
+/**
+ * @param {unknown} error
+ * @returns {number|null}
+ */
 const parseRetryAfterMs = (error) => {
-  const retryAfterHeader = error?.response?.headers?.['retry-after'];
+  const retryAfterHeader = (/** @type {HttpError} */ (error))?.response?.headers?.['retry-after'];
   const retryAfterValue = Array.isArray(retryAfterHeader) ? retryAfterHeader[0] : retryAfterHeader;
 
   if (typeof retryAfterValue !== 'string') {
@@ -116,15 +191,25 @@ const parseRetryAfterMs = (error) => {
   return Math.max(retryAfterTimestamp - Date.now(), 0);
 };
 
+/**
+ * @param {unknown} error
+ * @returns {boolean}
+ */
 const isRetryableRequestError = (error) => {
-  const status = error?.response?.status;
-  if (RETRYABLE_STATUS_CODES.has(status)) {
+  const httpError = /** @type {HttpError} */ (error);
+  const status = httpError?.response?.status;
+  if (RETRYABLE_STATUS_CODES.has(/** @type {number} */ (status))) {
     return true;
   }
 
-  return RETRYABLE_ERROR_CODES.has(error?.code);
+  return RETRYABLE_ERROR_CODES.has(/** @type {string} */ (httpError?.code));
 };
 
+/**
+ * @param {unknown} error
+ * @param {number} attemptNumber
+ * @returns {number}
+ */
 const getRetryDelayMs = (error, attemptNumber) => {
   const retryAfterMs = parseRetryAfterMs(error);
   if (retryAfterMs !== null) {
@@ -146,14 +231,15 @@ const getRetryDelayMs = (error, attemptNumber) => {
 class OpenAiCompatibleVisionDescriberService {
   /**
    * @param {object} deps
-   * @param {object} deps.logger
-   * @param {object} deps.httpClient - axios-compatible HTTP client for image downloads
-   * @param {object} [deps.apiClient] - axios-compatible API client for provider requests
-   * @param {object} deps.providerConfig
+   * @param {Logger} deps.logger
+   * @param {HttpClient} deps.httpClient - axios-compatible HTTP client for image downloads
+   * @param {HttpClient} [deps.apiClient] - axios-compatible API client for provider requests
+   * @param {ProviderConfig} deps.providerConfig
    * @param {string} deps.providerKey
    * @param {string} deps.providerName
-   * @param {Function} [deps.outboundUrlPolicy] - validates user-controlled outbound URLs
-   * @param {object} [deps.requestOptions]
+   * @param {(value: any) => Promise<URL>} [deps.outboundUrlPolicy] - validates user-controlled outbound URLs
+   * @param {RequestOptions} [deps.requestOptions]
+   * @param {(ms: number) => Promise<void>} [deps.sleep]
    */
   constructor({
     logger,
@@ -193,6 +279,9 @@ class OpenAiCompatibleVisionDescriberService {
     return `${this.endpoint}/chat/completions`;
   }
 
+  /**
+   * @param {string} imageInput
+   */
   buildRequestBody(imageInput) {
     return {
       model: this.model,
@@ -218,6 +307,12 @@ class OpenAiCompatibleVisionDescriberService {
     };
   }
 
+  /**
+   * @param {string} imageInput
+   * @param {string} imageUrl
+   * @param {number} [attemptNumber]
+   * @returns {Promise<{ description: string, imageUrl: string }>}
+   */
   async requestCaption(imageInput, imageUrl, attemptNumber = 1) {
     try {
       const response = await this.apiClient.post(
@@ -261,10 +356,19 @@ class OpenAiCompatibleVisionDescriberService {
     }
   }
 
+  /**
+   * @param {string} imageUrl
+   * @returns {boolean}
+   */
   static supportsImageSource(imageUrl) {
     return isSupportedImageSource(imageUrl);
   }
 
+  /**
+   * @param {unknown} error
+   * @param {string} imageUrl
+   * @returns {void}
+   */
   logFailure(error, imageUrl) {
     this.logger.error({
       err: error,
@@ -276,12 +380,21 @@ class OpenAiCompatibleVisionDescriberService {
     }, `${this.providerName} description request failed`);
   }
 
+  /**
+   * @param {string[]} imageSources
+   * @returns {string[]}
+   */
   filterSupportedImageSources(imageSources) {
-    return imageSources.filter((imageSource) => this.constructor.supportsImageSource(imageSource));
+    return imageSources.filter((imageSource) => (/** @type {typeof OpenAiCompatibleVisionDescriberService} */ (this.constructor)).supportsImageSource(imageSource));
   }
 
+  /**
+   * @param {unknown} error
+   * @returns {boolean}
+   */
   shouldSkipDescriptionError(error) {
-    const message = typeof error?.message === 'string' ? error.message : '';
+    const rawMessage = (/** @type {HttpError} */ (error))?.message;
+    const message = typeof rawMessage === 'string' ? rawMessage : '';
 
     if (message.endsWith('provider received an empty image payload')) {
       return true;
@@ -294,9 +407,14 @@ class OpenAiCompatibleVisionDescriberService {
     return isSkippableImageSourceError(error, this.endpoint);
   }
 
+  /**
+   * @param {string} imageUrl
+   * @param {string} successMessage
+   * @returns {Promise<{ description: string, imageUrl: string }>}
+   */
   async describeFetchedImage(imageUrl, successMessage) {
     const imageAsset = await fetchImageAsset({
-      httpClient: this.httpClient,
+      httpClient: /** @type {any} */ (this.httpClient),
       imageUrl,
       outboundUrlPolicy: this.outboundUrlPolicy,
       requestOptions: this.requestOptions,
@@ -306,7 +424,7 @@ class OpenAiCompatibleVisionDescriberService {
       throw new Error(`${this.providerName} provider received an empty image payload`);
     }
 
-    if (UNSUPPORTED_CONTENT_TYPES.has(imageAsset.contentType)) {
+    if (UNSUPPORTED_CONTENT_TYPES.has(/** @type {string} */ (imageAsset.contentType))) {
       throw new Error(
         `${this.providerName} provider does not support content type '${imageAsset.contentType}'`,
       );

@@ -81,6 +81,7 @@ function buildHistoryArtifactManifest({
   now = new Date().toISOString(),
   reportKind,
 }) {
+  /** @type {Record<string, string>} */
   const manifest = {
     historyKey,
     reportKind,

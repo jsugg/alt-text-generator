@@ -6,7 +6,30 @@ const {
 } = require('../../config/providerCatalog');
 const { loadProviderOverrides } = require('../../config/providerOverrides');
 
-const getSortedProviderValidationProviders = () => getProviderValidationProviders()
+/**
+ * Provider-validation metadata attached to catalog entries (duck-typed from
+ * config/providerCatalog.js).
+ *
+ * @typedef {object} ProviderValidationInfo
+ * @property {string} scopeKey
+ * @property {number} autoPriority
+ * @property {string} allRequirement
+ * @property {string} scopeRequirement
+ * @property {string} folderName
+ * @property {string[]} [requestEnvVars]
+ * @property {string[]} [liveEnvVars]
+ * @property {string[]} [providerIntegrationEnvVars]
+ */
+
+/** @typedef {{ providerValidation: ProviderValidationInfo }} ProviderValidationProvider */
+
+/**
+ * @typedef {'auto'|'azure'|'replicate'|'huggingface'|'openai'|'openrouter'|'together'|'all'} ProviderScope
+ */
+
+const getSortedProviderValidationProviders = () => /** @type {ProviderValidationProvider[]} */ (
+  /** @type {unknown} */ (getProviderValidationProviders())
+)
   .sort(
     (left, right) => left.providerValidation.autoPriority - right.providerValidation.autoPriority,
   );
@@ -23,6 +46,14 @@ const LOW_COST_PROVIDER_VALIDATION_SCOPES = Object.freeze([
   'together',
 ]);
 
+/**
+ * @param {{
+ *   configuredProviderScopes?: string[] | null,
+ *   hasAzureProvider?: boolean,
+ *   hasReplicateProvider?: boolean,
+ * }} [options]
+ * @returns {string[]}
+ */
 const resolveConfiguredProviderScopes = ({
   configuredProviderScopes,
   hasAzureProvider,
@@ -57,6 +88,11 @@ const buildAllRequirementMessage = () => {
   return requirements.join(', ');
 };
 
+/**
+ * @param {string} scope
+ * @param {string[] | null} [configuredProviderScopes]
+ * @returns {string[]}
+ */
 const resolveSelectedProviderScopes = (scope, configuredProviderScopes = null) => {
   if (scope !== 'all') {
     return [scope];
@@ -77,8 +113,8 @@ const resolveSelectedProviderScopes = (scope, configuredProviderScopes = null) =
  * Normalizes a provider-scope string.
  *
  * @param {string|undefined|null} value
- * @param {{ label?: string, fallback?: string }} [options]
- * @returns {'auto'|'azure'|'replicate'|'huggingface'|'openai'|'openrouter'|'together'|'all'}
+ * @param {{ label?: string, fallback?: ProviderScope }} [options]
+ * @returns {ProviderScope}
  */
 function normalizeProviderScope(
   value,
@@ -99,13 +135,17 @@ function normalizeProviderScope(
     );
   }
 
-  return normalizedValue;
+  return /** @type {ProviderScope} */ (normalizedValue);
 }
 
 /**
  * Detects which provider-validation targets are configured from the supplied environment.
  *
  * @param {NodeJS.ProcessEnv} [env]
+ * @param {{
+ *   allowedProviderScopes?: string[] | null,
+ *   providerOverrides?: object | null,
+ * }} [options]
  * @returns {{
  *   configuredProviderScopes: string[],
  *   hasAzureProvider: boolean,
@@ -120,9 +160,11 @@ function detectAvailableProviders(
     ? new Set(allowedProviderScopes)
     : null;
   const resolvedProviderOverrides = providerOverrides ?? loadProviderOverrides(env).providers;
-  const configuredProviderScopes = getConfiguredProvidersFromEnv(env, {
-    providerOverrides: resolvedProviderOverrides,
-  })
+  const configuredProviderScopes = /** @type {{ providerValidation?: ProviderValidationInfo }[]} */ (
+    getConfiguredProvidersFromEnv(env, {
+      providerOverrides: resolvedProviderOverrides,
+    })
+  )
     .filter((provider) => (
       provider.providerValidation
       && (
@@ -130,7 +172,9 @@ function detectAvailableProviders(
         || allowedProviderScopeSet.has(provider.providerValidation.scopeKey)
       )
     ))
-    .map((provider) => provider.providerValidation.scopeKey);
+    .map((provider) => (
+      /** @type {ProviderValidationInfo} */ (provider.providerValidation).scopeKey
+    ));
 
   return {
     configuredProviderScopes,
@@ -182,7 +226,9 @@ function resolveProviderScope({
       .at(0);
 
     if (autoProvider) {
-      return autoProvider.providerValidation.scopeKey;
+      return /** @type {Exclude<ProviderScope, 'auto'>} */ (
+        autoProvider.providerValidation.scopeKey
+      );
     }
 
     throw new Error(
@@ -200,8 +246,10 @@ function resolveProviderScope({
     return desiredScope;
   }
 
-  if (desiredScope !== 'all' && !configuredProviderScopeSet.has(desiredScope)) {
-    const provider = getProviderValidationByScope(desiredScope);
+  if (!configuredProviderScopeSet.has(desiredScope)) {
+    const provider = /** @type {ProviderValidationProvider} */ (
+      /** @type {unknown} */ (getProviderValidationByScope(desiredScope))
+    );
 
     throw new Error(
       `provider_scope=${desiredScope} requires ${provider.providerValidation.scopeRequirement}`,
@@ -215,6 +263,7 @@ function resolveProviderScope({
  * Expands a resolved scope into provider booleans.
  *
  * @param {'azure'|'replicate'|'huggingface'|'openai'|'openrouter'|'together'|'all'} scope
+ * @param {{ configuredProviderScopes?: string[] | null }} [options]
  * @returns {{
  *   selectedProviderScopes: string[],
  *   runAzure: boolean,
@@ -241,7 +290,10 @@ function getSelectedProviders(scope, { configuredProviderScopes } = {}) {
  * Builds provider-validation execution plans for the resolved provider scope.
  *
  * @param {'azure'|'replicate'|'huggingface'|'openai'|'openrouter'|'together'|'all'} scope
- * @param {{ mode?: 'live'|'provider-integration' }} [options]
+ * @param {{
+ *   configuredProviderScopes?: string[] | null,
+ *   mode?: 'live'|'provider-integration',
+ * }} [options]
  * @returns {{ folderName: string, envVars: string[], scopeKey: string }[]}
  */
 function getSelectedProviderPlans(scope, {
@@ -251,7 +303,9 @@ function getSelectedProviderPlans(scope, {
   const { selectedProviderScopes } = getSelectedProviders(scope, { configuredProviderScopes });
 
   return selectedProviderScopes.map((selectedScope) => {
-    const provider = getProviderValidationByScope(selectedScope);
+    const provider = /** @type {ProviderValidationProvider | undefined} */ (
+      getProviderValidationByScope(selectedScope)
+    );
 
     if (!provider) {
       throw new Error(`Resolved provider validation scope is invalid: ${scope}`);
@@ -275,6 +329,14 @@ function getSelectedProviderPlans(scope, {
   });
 }
 
+/**
+ * @param {'azure'|'replicate'|'huggingface'|'openai'|'openrouter'|'together'|'all'} scope
+ * @param {{
+ *   configuredProviderScopes?: string[] | null,
+ *   mode?: 'live'|'provider-integration',
+ * }} [options]
+ * @returns {string[]}
+ */
 function getSelectedProviderFolders(scope, options) {
   return Array.from(new Set(
     getSelectedProviderPlans(scope, options).map((providerPlan) => providerPlan.folderName),

@@ -285,7 +285,7 @@ module.exports = {
   normalizeBaseUrl,
   parseBaseUrlArgs,
   runLiveProviderNewman,
-  ensureReportsDir: async (allureResultsDir = null) => {
+  ensureReportsDir: async (/** @type {string | null | undefined} */ allureResultsDir = null) => {
     await fs.mkdir(REPORTS_DIR, { recursive: true });
     if (allureResultsDir) {
       await fs.mkdir(allureResultsDir, { recursive: true });

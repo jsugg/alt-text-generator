@@ -1,4 +1,12 @@
 /**
+ * @typedef {{
+ *   config?: { url?: unknown },
+ *   response?: { status?: number },
+ *   code?: string,
+ * }} SkippableSourceError
+ */
+
+/**
  * Returns whether an error is isolated to downloading or resolving one source image.
  *
  * @param {unknown} error
@@ -6,8 +14,9 @@
  * @returns {boolean}
  */
 const isSkippableImageSourceError = (error, providerBaseUrl) => {
-  const requestUrl = typeof error?.config?.url === 'string'
-    ? error.config.url
+  const err = /** @type {SkippableSourceError | null | undefined} */ (error);
+  const requestUrl = typeof err?.config?.url === 'string'
+    ? err.config.url
     : null;
   const isProviderRequest = Boolean(
     requestUrl
@@ -19,8 +28,8 @@ const isSkippableImageSourceError = (error, providerBaseUrl) => {
     return false;
   }
 
-  const status = error?.response?.status;
-  const code = error?.code;
+  const status = err?.response?.status;
+  const code = err?.code;
 
   return (
     status === 403

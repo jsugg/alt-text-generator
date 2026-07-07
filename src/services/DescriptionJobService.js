@@ -3,26 +3,93 @@ const crypto = require('node:crypto');
 const DEFAULT_PENDING_STATUSES = new Set(['pending', 'processing', 'starting']);
 const DEFAULT_TERMINAL_STATUSES = new Set(['succeeded', 'failed', 'canceled']);
 
+/**
+ * @param {number} ms
+ * @returns {Promise<void>}
+ */
 const sleep = (ms) => new Promise((resolve) => {
   setTimeout(resolve, ms);
 });
 
+/**
+ * @param {string} status
+ * @returns {boolean}
+ */
 const isPendingStatus = (status) => DEFAULT_PENDING_STATUSES.has(status);
+/**
+ * @param {string} status
+ * @returns {boolean}
+ */
 const isTerminalStatus = (status) => DEFAULT_TERMINAL_STATUSES.has(status);
+
+/**
+ * @typedef {object} JobError
+ * @property {string} message
+ * @property {string} [code]
+ */
+
+/**
+ * @typedef {object} Job
+ * @property {string} id
+ * @property {string} imageUrl
+ * @property {string} model
+ * @property {string} status
+ * @property {string} [providerJobId]
+ * @property {unknown} [result]
+ * @property {JobError} [error]
+ * @property {string} [createdAt]
+ * @property {string} [updatedAt]
+ * @property {string} [expiresAt]
+ */
+
+/**
+ * A partial job used to seed job construction; status is always set by the
+ * builder that consumes it.
+ * @typedef {Partial<Job> & { id: string, imageUrl: string, model: string }} JobSeed
+ */
+
+/**
+ * @typedef {object} ProviderJob
+ * @property {string} status
+ * @property {string} providerJobId
+ * @property {unknown} [result]
+ * @property {Error & { code?: string }} [error]
+ */
+
+/**
+ * @typedef {object} Describer
+ * @property {(imageSource: string) => Promise<ProviderJob>} createDescriptionJob
+ * @property {(providerJobId: string, imageSource: string) => Promise<ProviderJob>} getDescriptionJob
+ */
+
+/**
+ * @typedef {object} JobStore
+ * @property {(jobId: string) => Promise<Job | null>} get
+ * @property {(job: Job) => Promise<unknown>} set
+ */
+
+/**
+ * @typedef {object} ImageDescriberFactory
+ * @property {(model: string) => Describer} get
+ */
+
+/**
+ * @typedef {{ kind: 'completed', result: unknown, job: Job } | { kind: 'pending', job: Job }} ResolveDescriptionResult
+ */
 
 class DescriptionJobService {
   /**
    * @param {object} deps
-   * @param {object} deps.imageDescriberFactory
-   * @param {object} deps.jobStore
+   * @param {ImageDescriberFactory} deps.imageDescriberFactory
+   * @param {JobStore} deps.jobStore
    * @param {object} deps.logger
    * @param {number} deps.waitTimeoutMs
    * @param {number} deps.pollIntervalMs
    * @param {number} deps.pendingTtlMs
    * @param {number} deps.completedTtlMs
    * @param {number} deps.failedTtlMs
-   * @param {Function} [deps.now]
-   * @param {Function} [deps.sleep]
+   * @param {() => number} [deps.now]
+   * @param {(ms: number) => Promise<void>} [deps.sleep]
    */
   constructor({
     imageDescriberFactory,
@@ -48,6 +115,10 @@ class DescriptionJobService {
     this.sleep = wait;
   }
 
+  /**
+   * @param {{ model: string, imageUrl: string }} params
+   * @returns {string}
+   */
   static buildJobId({ model, imageUrl }) {
     return crypto
       .createHash('sha256')
@@ -55,15 +126,26 @@ class DescriptionJobService {
       .digest('hex');
   }
 
+  /**
+   * @param {Record<string, unknown> | null | undefined} describer
+   * @returns {boolean}
+   */
   static supportsAsyncJobs(describer) {
     return typeof describer?.createDescriptionJob === 'function'
       && typeof describer?.getDescriptionJob === 'function';
   }
 
+  /**
+   * @param {string} jobId
+   * @returns {string}
+   */
   static buildStatusUrl(jobId) {
     return `/api/v1/accessibility/description-jobs/${jobId}`;
   }
 
+  /**
+   * @param {Job} job
+   */
   buildJobResponse(job) {
     return {
       jobId: job.id,
@@ -75,12 +157,17 @@ class DescriptionJobService {
       ...(isPendingStatus(job.status)
         ? {
             pollAfterMs: this.pollIntervalMs,
-            statusUrl: this.constructor.buildStatusUrl(job.id),
+            statusUrl: (/** @type {typeof DescriptionJobService} */ (this.constructor)).buildStatusUrl(job.id),
           }
         : {}),
     };
   }
 
+  /**
+   * @param {number} ttlMs
+   * @param {number} [nowEpochMs]
+   * @returns {string}
+   */
   static buildExpirationIso(ttlMs, nowEpochMs = Date.now()) {
     return new Date(nowEpochMs + ttlMs).toISOString();
   }
@@ -89,11 +176,20 @@ class DescriptionJobService {
     return new Date(nowEpochMs).toISOString();
   }
 
+  /**
+   * @param {Job} job
+   * @returns {Promise<Job>}
+   */
   async saveJob(job) {
     await this.jobStore.set(job);
     return job;
   }
 
+  /**
+   * @param {JobSeed} existingJob
+   * @param {unknown} result
+   * @returns {Promise<Job>}
+   */
   async buildSucceededJob(existingJob, result) {
     const nowEpochMs = this.now();
 
@@ -103,10 +199,15 @@ class DescriptionJobService {
       result,
       error: undefined,
       updatedAt: this.buildTimestampIso(nowEpochMs),
-      expiresAt: this.constructor.buildExpirationIso(this.completedTtlMs, nowEpochMs),
+      expiresAt: (/** @type {typeof DescriptionJobService} */ (this.constructor)).buildExpirationIso(this.completedTtlMs, nowEpochMs),
     });
   }
 
+  /**
+   * @param {Job} existingJob
+   * @param {Error & { code?: string }} error
+   * @returns {Promise<Job>}
+   */
   async buildFailedJob(existingJob, error) {
     const nowEpochMs = this.now();
 
@@ -119,10 +220,14 @@ class DescriptionJobService {
         ...(error.code ? { code: error.code } : {}),
       },
       updatedAt: this.buildTimestampIso(nowEpochMs),
-      expiresAt: this.constructor.buildExpirationIso(this.failedTtlMs, nowEpochMs),
+      expiresAt: (/** @type {typeof DescriptionJobService} */ (this.constructor)).buildExpirationIso(this.failedTtlMs, nowEpochMs),
     });
   }
 
+  /**
+   * @param {{ id: string, imageUrl: string, model: string, providerJobId: string, status: string }} params
+   * @returns {Promise<Job>}
+   */
   async buildPendingJob({
     id,
     imageUrl,
@@ -141,12 +246,20 @@ class DescriptionJobService {
       status,
       createdAt: timestamp,
       updatedAt: timestamp,
-      expiresAt: this.constructor.buildExpirationIso(this.pendingTtlMs, nowEpochMs),
+      expiresAt: (/** @type {typeof DescriptionJobService} */ (this.constructor)).buildExpirationIso(this.pendingTtlMs, nowEpochMs),
     });
   }
 
+  /**
+   * @param {Job} job
+   * @param {Describer} describer
+   * @returns {Promise<Job>}
+   */
   async refreshJob(job, describer) {
-    const providerJob = await describer.getDescriptionJob(job.providerJobId, job.imageUrl);
+    const providerJob = await describer.getDescriptionJob(
+      /** @type {string} */ (job.providerJobId),
+      job.imageUrl,
+    );
 
     if (providerJob.status === 'succeeded') {
       return this.buildSucceededJob(job, providerJob.result);
@@ -163,14 +276,26 @@ class DescriptionJobService {
       ...job,
       status: providerJob.status,
       updatedAt: this.buildTimestampIso(nowEpochMs),
-      expiresAt: this.constructor.buildExpirationIso(this.pendingTtlMs, nowEpochMs),
+      expiresAt: (/** @type {typeof DescriptionJobService} */ (this.constructor)).buildExpirationIso(this.pendingTtlMs, nowEpochMs),
     });
   }
 
+  /**
+   * @param {Job} job
+   * @param {Describer} describer
+   * @param {number} waitTimeoutMs
+   * @returns {Promise<Job>}
+   */
   async waitForJob(job, describer, waitTimeoutMs) {
     return this.pollJobUntilDeadline(job, describer, this.now() + waitTimeoutMs);
   }
 
+  /**
+   * @param {Job} job
+   * @param {Describer} describer
+   * @param {number} deadline
+   * @returns {Promise<Job>}
+   */
   async pollJobUntilDeadline(job, describer, deadline) {
     if (this.now() >= deadline) {
       return job;
@@ -190,9 +315,13 @@ class DescriptionJobService {
     return this.pollJobUntilDeadline(refreshedJob, describer, deadline);
   }
 
+  /**
+   * @param {{ model: string, imageUrl: string }} params
+   * @returns {Promise<ResolveDescriptionResult>}
+   */
   async resolveDescription({ model, imageUrl }) {
     const describer = this.imageDescriberFactory.get(model);
-    const jobId = this.constructor.buildJobId({ model, imageUrl });
+    const jobId = (/** @type {typeof DescriptionJobService} */ (this.constructor)).buildJobId({ model, imageUrl });
     const existingJob = await this.jobStore.get(jobId);
 
     if (existingJob?.status === 'succeeded' && existingJob.result) {
@@ -264,6 +393,10 @@ class DescriptionJobService {
     };
   }
 
+  /**
+   * @param {string} jobId
+   * @returns {Promise<Job | null>}
+   */
   async getJobStatus(jobId) {
     const job = await this.jobStore.get(jobId);
     if (!job) {

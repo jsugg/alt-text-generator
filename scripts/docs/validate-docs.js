@@ -11,10 +11,20 @@ const SKIPPED_DIRS = new Set([
   'reports',
 ]);
 
+/**
+ * @typedef {{ file: string, line: number, message: string }} DocViolation
+ */
+
+/** @param {string} filePath */
 function isMarkdownFile(filePath) {
   return filePath.toLowerCase().endsWith('.md');
 }
 
+/**
+ * @param {string} dirPath
+ * @param {string[]} [files]
+ * @returns {string[]}
+ */
 function walkFiles(dirPath, files = []) {
   fs.readdirSync(dirPath, { withFileTypes: true }).forEach((entry) => {
     const entryPath = path.join(dirPath, entry.name);
@@ -40,6 +50,11 @@ function listMarkdownFiles(rootDir = ROOT) {
     .sort((left, right) => left.localeCompare(right));
 }
 
+/**
+ * @param {string} filePath
+ * @param {string} [rootDir]
+ * @returns {DocViolation[]}
+ */
 function validateMarkdownFile(filePath, rootDir = ROOT) {
   const relativePath = path.relative(rootDir, filePath) || filePath;
   const content = fs.readFileSync(filePath, 'utf8');
@@ -83,6 +98,7 @@ function validateDocs({ rootDir = ROOT } = {}) {
   };
 }
 
+/** @param {{ files: string[], violations: DocViolation[] }} report */
 function writeReport({ files, violations }) {
   if (violations.length === 0) {
     process.stdout.write(`docs:validate OK (${files.length} Markdown files)\n`);
@@ -95,6 +111,10 @@ function writeReport({ files, violations }) {
   });
 }
 
+/**
+ * @param {string[]} argv
+ * @returns {{ json: boolean, rootDir: string }}
+ */
 function parseArgs(argv) {
   const args = { json: false, rootDir: ROOT };
 
@@ -125,7 +145,7 @@ function main(argv = process.argv.slice(2)) {
   try {
     args = parseArgs(argv);
   } catch (error) {
-    process.stderr.write(`docs:validate ${error.message}\n`);
+    process.stderr.write(`docs:validate ${error instanceof Error ? error.message : error}\n`);
     return 2;
   }
 

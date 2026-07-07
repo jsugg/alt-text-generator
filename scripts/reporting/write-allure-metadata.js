@@ -55,6 +55,7 @@ function toPropertiesFile(values) {
  * @returns {Record<string, string>}
  */
 function buildEnvironmentProperties({ env = process.env, rootDir = ROOT } = {}) {
+  /** @type {Record<string, string>} */
   const environmentProperties = {
     node_version: process.version,
     jest_version: getInstalledPackageVersion('jest', rootDir),
@@ -109,6 +110,7 @@ function buildExecutorMetadata({ env = process.env } = {}) {
   const runNumber = Number(env.GITHUB_RUN_NUMBER);
   const hasGitHubRunUrl = serverUrl && repository && runId;
 
+  /** @type {Record<string, string | number>} */
   const executor = {
     name: 'GitHub Actions',
     type: 'github',

@@ -7,6 +7,22 @@ const SAFE_RESPONSE_HEADER_NAMES = [
 
 const MAX_BODY_PREVIEW_LENGTH = 512;
 
+/**
+ * @typedef {{ get?: (name: string) => unknown } & Record<string, unknown>} HeaderBag
+ */
+
+/**
+ * @typedef {object} UpstreamErrorLike
+ * @property {any} [request]
+ * @property {any} [config]
+ * @property {any} [response]
+ * @property {unknown} [code]
+ */
+
+/**
+ * @param {unknown} value
+ * @returns {unknown}
+ */
 const truncate = (value) => {
   if (typeof value !== 'string' || value.length <= MAX_BODY_PREVIEW_LENGTH) {
     return value;
@@ -15,20 +31,27 @@ const truncate = (value) => {
   return `${value.slice(0, MAX_BODY_PREVIEW_LENGTH)}...`;
 };
 
+/**
+ * @param {unknown} headers
+ * @param {string} headerName
+ * @returns {unknown}
+ */
 const getHeaderValue = (headers, headerName) => {
   if (!headers) {
     return undefined;
   }
 
-  if (typeof headers.get === 'function') {
-    return headers.get(headerName) ?? undefined;
+  const headerBag = /** @type {HeaderBag} */ (headers);
+
+  if (typeof headerBag.get === 'function') {
+    return headerBag.get(headerName) ?? undefined;
   }
 
   if (typeof headers !== 'object') {
     return undefined;
   }
 
-  const matchingKey = Object.keys(headers).find(
+  const matchingKey = Object.keys(headerBag).find(
     (key) => key.toLowerCase() === headerName.toLowerCase(),
   );
 
@@ -36,7 +59,7 @@ const getHeaderValue = (headers, headerName) => {
     return undefined;
   }
 
-  const value = headers[matchingKey];
+  const value = headerBag[matchingKey];
 
   if (Array.isArray(value)) {
     return value.join(', ');
@@ -45,6 +68,10 @@ const getHeaderValue = (headers, headerName) => {
   return value;
 };
 
+/**
+ * @param {{ baseURL?: string, url?: string }} [config]
+ * @returns {string | undefined}
+ */
 const buildRequestUrl = (config = {}) => {
   const { baseURL, url } = config;
 
@@ -63,6 +90,10 @@ const buildRequestUrl = (config = {}) => {
   }
 };
 
+/**
+ * @param {unknown} body
+ * @returns {unknown}
+ */
 const serializeBodyPreview = (body) => {
   if (body == null) {
     return undefined;
@@ -79,6 +110,10 @@ const serializeBodyPreview = (body) => {
   }
 };
 
+/**
+ * @param {UpstreamErrorLike} error
+ * @returns {object | undefined}
+ */
 const summarizeRequest = (error) => {
   const request = error?.request;
   const config = error?.config;
@@ -95,6 +130,10 @@ const summarizeRequest = (error) => {
   };
 };
 
+/**
+ * @param {{ headers?: unknown }} response
+ * @returns {Record<string, unknown> | undefined}
+ */
 const summarizeResponseHeaders = (response) => {
   const headers = SAFE_RESPONSE_HEADER_NAMES.reduce((accumulator, headerName) => {
     const value = getHeaderValue(response?.headers, headerName);
@@ -104,11 +143,15 @@ const summarizeResponseHeaders = (response) => {
     }
 
     return accumulator;
-  }, {});
+  }, /** @type {Record<string, unknown>} */ ({}));
 
   return Object.keys(headers).length > 0 ? headers : undefined;
 };
 
+/**
+ * @param {UpstreamErrorLike} error
+ * @returns {object | undefined}
+ */
 const summarizeResponse = (error) => {
   const response = error?.response;
 
@@ -138,9 +181,10 @@ const getUpstreamErrorSummary = (error) => {
     return undefined;
   }
 
-  const request = summarizeRequest(error);
-  const response = summarizeResponse(error);
-  const code = typeof error.code === 'string' ? error.code : undefined;
+  const err = /** @type {UpstreamErrorLike} */ (error);
+  const request = summarizeRequest(err);
+  const response = summarizeResponse(err);
+  const code = typeof err.code === 'string' ? err.code : undefined;
 
   if (!request && !response && !code) {
     return undefined;
