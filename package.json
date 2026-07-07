@@ -104,6 +104,14 @@
     "supertest": "^6.3.4",
     "typescript": "^6.0.3"
   },
+  "overrides": {
+    "handlebars": "^4.7.9",
+    "flatted": "^3.4.2",
+    "lodash": "^4.18.1",
+    "node-forge": "^1.4.0",
+    "qs": "^6.15.3",
+    "underscore": "^1.13.8"
+  },
   "nodemonConfig": {
     "ignore": [
       "**/test/**",
