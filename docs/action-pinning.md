@@ -58,6 +58,22 @@ A pin with no update pipeline rots into a stale, vulnerable version. Dependabot
 `# vX.Y.Z` comment. Never hand-freeze an action without letting Dependabot track
 it.
 
+## Adjacent pinning surfaces
+
+The same posture — pin what you own, trust the platform for what you don't,
+automate the bumps — applies beyond Actions. These are enforced by
+`tests/unit/supplyChainPolicy.test.js`:
+
+- **App dependencies** — `package-lock.json` is committed and installed frozen
+  with `npm ci`; the manifest keeps semver ranges, and Dependabot bumps the
+  lockfile (never hand-pin exact versions in `package.json`).
+- **Publish safety** — `package.json` is `"private": true`. This is a service,
+  not a published library, so it must never be `npm publish`ed by accident; a
+  library, by contrast, would ship ranges and stay publishable.
+- **Installer scripts** — no `curl … | bash` / `wget … | sh`. The one binary we
+  fetch (`scripts/github/install-actionlint.sh`) pins a version and verifies a
+  `sha256sum` before executing.
+
 ## Relationship to `sha_pinning_required`
 
 The runner-level `sha_pinning_required` is intentionally **off**: it over-reached
