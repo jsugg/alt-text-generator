@@ -178,17 +178,15 @@ jobs:
         if: needs.changes.outputs.docs_only == 'true'
         run: echo "Docs-only change; OpenAPI gate satisfied by docs validation."
 
-  # Advisory JSDoc type gate: strict checkJs carries known debt
-  # (docs/typecheck-debt.md), so the job may fail without blocking the run.
-  # Drop continue-on-error and add the context to required checks only when
-  # the debt reaches zero.
+  # Blocking JSDoc type gate: strict checkJs (docs/typecheck-debt.md) is at
+  # zero, so a regression fails the run. This is a required status check; keep
+  # the job name stable ("typecheck") so branch protection keeps matching it.
   typecheck:
     name: typecheck
     needs:
       - changes
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    continue-on-error: true
     steps:
       - name: Checkout
         if: needs.changes.outputs.docs_only != 'true'
