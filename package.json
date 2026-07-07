@@ -1,6 +1,7 @@
 {
   "name": "alt-text-generator",
   "version": "1.0.0",
+  "private": true,
   "description": "A simple service that uses AI services to propose Alt Text descriptions for your website images.",
   "keywords": [
     "alt",
