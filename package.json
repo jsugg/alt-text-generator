@@ -24,6 +24,7 @@
     "allure:generate": "allure generate reports/allure-results --clean -o reports/allure-report",
     "allure:open": "allure open reports/allure-report",
     "checks:verify": "node scripts/github/verify-required-checks.js",
+    "verify:action-pins": "node scripts/github/verify-action-pins.js",
     "doctor:tls": "node scripts/doctor-tls.js",
     "docs:validate": "node scripts/docs/validate-docs.js",
     "dev:test-env": "ENV_FILE=.env.test NODE_ENV=development nodemon src/app.js | pino-pretty -i streams,options",
