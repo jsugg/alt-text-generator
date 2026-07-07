@@ -1,5 +1,14 @@
 # Dependency-update policy (see tests/unit/dependabotPolicy.test.js).
 #
+# Posture: GROUP ALL, MERGE MANUALLY. Each ecosystem gets one grouped
+# version-update PR and one grouped security-update PR — every update type
+# (major/minor/patch) and both production and development dependencies land in
+# the same PR. Nothing auto-merges: after the recent wave of supply-chain
+# compromises of popular, widely-trusted packages, a human reviews the whole
+# batch (diff + changelog + provenance) before it merges. There is deliberately
+# no auto-merge workflow, and grouping majors keeps peer-coupled bumps (e.g.
+# pino / pino-http) together in one reviewable PR.
+#
 # Ignore rules suppress the known out-of-scope majors only:
 #   - ESLint stays on 9.x: the flat-config toolchain decision pins ESLint 9;
 #     ESLint 10 migration is a deliberate project, not a routine bump.
@@ -10,7 +19,7 @@
 # updates for the matched majors. If a security advisory is only fixed in a
 # suppressed major, remove the ignore entry for that package (or apply the fix
 # manually) — never leave a known-vulnerable version pinned because of noise
-# policy. Security fixes within the current majors flow normally, and
+# policy. Security fixes within the current majors flow normally (grouped), and
 # Dependabot security updates are enabled repo-side.
 version: 2
 updates:
@@ -20,18 +29,14 @@ updates:
       interval: weekly
     open-pull-requests-limit: 5
     groups:
-      npm-production:
-        dependency-type: production
+      npm-all:
         applies-to: version-updates
-        update-types:
-          - minor
-          - patch
-      npm-development:
-        dependency-type: development
-        applies-to: version-updates
-        update-types:
-          - minor
-          - patch
+        patterns:
+          - "*"
+      npm-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
     ignore:
       - dependency-name: eslint
         update-types:
@@ -50,5 +55,9 @@ updates:
     groups:
       github-actions-all:
         applies-to: version-updates
+        patterns:
+          - "*"
+      github-actions-security:
+        applies-to: security-updates
         patterns:
           - "*"
