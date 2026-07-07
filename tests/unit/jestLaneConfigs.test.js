@@ -433,9 +433,9 @@ describe('Unit | Jest Lane Configs', () => {
       'typecheck',
     );
     assertEqualInvariant(
-      'CI typecheck stays advisory until the debt ledger reaches zero',
+      'CI typecheck is a blocking gate now that the debt ledger is zero',
       typecheckJob['continue-on-error'],
-      true,
+      undefined,
     );
     assertEqualInvariant(
       'CI typecheck declares a timeout',

@@ -11,7 +11,8 @@
       "newman",
       "openapi",
       "test:ci (24)",
-      "test:unit (24)"
+      "test:unit (24)",
+      "typecheck"
     ]
   },
   "productionRuleset": {
@@ -26,7 +27,8 @@
       "newman",
       "openapi",
       "test:ci (24)",
-      "test:unit (24)"
+      "test:unit (24)",
+      "typecheck"
     ],
     "bypassActors": [
       {
