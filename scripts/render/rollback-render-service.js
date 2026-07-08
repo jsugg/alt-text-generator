@@ -274,7 +274,10 @@ async function waitForDeploy({
 }) {
   const deadline = nowFn() + POLL_TIMEOUT_MS;
 
-  for (;;) {
+  // Recursion (rather than an await-in-loop) keeps each poll sequential while
+  // satisfying the repo's lint posture, mirroring waitForStableDeploy.
+  /** @returns {Promise<RenderDeploy>} */
+  const poll = async () => {
     const deploy = /** @type {RenderDeploy} */ (
       await renderRequest(fetchFn, apiKey, `/services/${serviceId}/deploys/${deployId}`)
     );
@@ -296,7 +299,10 @@ async function waitForDeploy({
 
     log(`Rollback deploy ${deployId} status "${deploy.status}"; waiting...`);
     await sleepFn(POLL_INTERVAL_MS);
-  }
+    return poll();
+  };
+
+  return poll();
 }
 
 /**
