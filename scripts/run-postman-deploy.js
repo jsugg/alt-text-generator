@@ -419,7 +419,9 @@ function collectDeployStabilizationIssues({
  * }} authConfig
  * @param {{
  *   fetchFn?: typeof fetch,
+ *   maxPollIntervalMs?: number,
  *   nowFn?: () => number,
+ *   pollBackoffFactor?: number,
  *   pollIntervalMs?: number,
  *   requiredConsecutiveSuccesses?: number,
  *   sleepFn?: (durationMs: number) => Promise<void>,
@@ -446,7 +448,7 @@ async function waitForStableDeploy(
   const deadline = nowFn() + timeoutMs;
   const probeUrls = buildDeployProbeUrls(baseUrl, authConfig);
   /**
-   * @param {{ attemptCount: number, consecutiveSuccesses: number, lastIssues: string[] }} input
+   * @param {{ attemptCount: number, consecutiveSuccesses: number, currentPollIntervalMs: number, lastIssues: string[] }} input
    * @returns {Promise<void>}
    */
   const attempt = async ({
