@@ -11,6 +11,12 @@
 const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 
+// gh responses such as `compare/<base>...<head>` include the full diff of every
+// commit between the branches and can exceed execFileSync's 1MB default maxBuffer
+// (ENOBUFS) when history has diverged widely. Allow generous headroom so a
+// rollback never fails on buffer size while an incident is in progress.
+const GH_MAX_BUFFER_BYTES = 64 * 1024 * 1024;
+
 /**
  * @typedef {object} RollbackArgs
  * @property {string} repo
@@ -99,6 +105,7 @@ function runGh(args) {
     encoding: 'utf8',
     env: process.env,
     stdio: ['ignore', 'pipe', 'pipe'],
+    maxBuffer: GH_MAX_BUFFER_BYTES,
   }).trim();
 }
 
@@ -121,6 +128,7 @@ function runGhJsonWithBody(args, body) {
     env: process.env,
     input: JSON.stringify(body),
     stdio: ['pipe', 'pipe', 'pipe'],
+    maxBuffer: GH_MAX_BUFFER_BYTES,
   }).trim());
 }
 
