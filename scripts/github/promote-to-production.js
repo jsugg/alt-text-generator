@@ -132,6 +132,38 @@ function runGhJsonWithBody(args, body) {
 }
 
 /**
+ * Blocks synchronously for the given duration, so this sync CLI script can back
+ * off between retries without being rewritten as async.
+ *
+ * @param {number} ms
+ * @returns {void}
+ */
+function sleepSync(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, Math.max(0, ms));
+}
+
+/**
+ * Re-reads a branch head SHA until it matches the expected value or attempts run
+ * out. GitHub's REST API can briefly return a stale ref immediately after an
+ * update (read-after-write), so a short bounded retry prevents a false
+ * "verification failed" after a ref update that actually succeeded.
+ *
+ * @param {string} repo
+ * @param {string} branch
+ * @param {string} expectedSha
+ * @returns {string} the last observed head SHA
+ */
+function verifyBranchHeadSha(repo, branch, expectedSha) {
+  const maxAttempts = 5;
+  let latestSha = getBranchHeadSha(repo, branch);
+  for (let attempt = 1; latestSha !== expectedSha && attempt < maxAttempts; attempt += 1) {
+    sleepSync(1000 * attempt);
+    latestSha = getBranchHeadSha(repo, branch);
+  }
+  return latestSha;
+}
+
+/**
  * @param {unknown} error
  * @returns {boolean}
  */
@@ -569,7 +601,7 @@ async function main() {
   }
 
   updateBranchRef(options.repo, options.targetBranch, sourceSha, { force: plan.force });
-  const targetShaAfter = getBranchHeadSha(options.repo, options.targetBranch);
+  const targetShaAfter = verifyBranchHeadSha(options.repo, options.targetBranch, sourceSha);
   if (targetShaAfter !== sourceSha) {
     throw new Error(
       `Promotion verification failed: expected ${options.targetBranch} to point to ${sourceSha}, `
