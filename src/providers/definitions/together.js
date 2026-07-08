@@ -8,7 +8,7 @@ module.exports = buildOpenAiCompatibleProvider({
   baseUrlEnvName: 'TOGETHER_BASE_URL',
   defaultBaseUrl: 'https://api.together.xyz/v1',
   modelEnvName: 'TOGETHER_MODEL',
-  defaultModel: 'Qwen/Qwen3-VL-8B-Instruct',
+  defaultModel: 'Qwen/Qwen3.5-9B',
   maxTokensEnvName: 'TOGETHER_MAX_TOKENS',
   promptEnvName: 'TOGETHER_PROMPT',
   providerValidation: {
