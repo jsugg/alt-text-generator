@@ -90,7 +90,7 @@ describe('Unit | Config | Provider Catalog', () => {
       together: {
         apiKey: 'together-key',
         baseUrl: 'https://api.together.xyz/v1',
-        model: 'Qwen/Qwen3-VL-8B-Instruct',
+        model: 'Qwen/Qwen3.5-9B',
         maxTokens: 160,
         prompt: expect.any(String),
         headers: {},
@@ -163,7 +163,7 @@ describe('Unit | Config | Provider Catalog', () => {
       OPENROUTER_TITLE: 'Alt Text 4 All',
     })[0]).toMatch(/OPENROUTER_API_KEY/);
     expect(validateProviderEnv({
-      TOGETHER_MODEL: 'Qwen/Qwen3-VL-8B-Instruct',
+      TOGETHER_MODEL: 'Qwen/Qwen3.5-9B',
     })[0]).toMatch(/TOGETHER_API_KEY/);
     expect(getProviderCatalog().map((provider) => provider.key)).toEqual([
       'replicate',
