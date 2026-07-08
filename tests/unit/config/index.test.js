@@ -214,10 +214,21 @@ describe('Unit | Config | Index', () => {
     });
 
     expect(config.https).toEqual({
+      enabled: true,
       port: 9443,
       keyPath: 'tls-key',
       certPath: 'tls-cert',
     });
+  });
+
+  it('disables the HTTPS listener when TLS_ENABLED is "false"', () => {
+    const config = loadConfig({
+      overrides: {
+        TLS_ENABLED: 'false',
+      },
+    });
+
+    expect(config.https.enabled).toBe(false);
   });
 
   it('allows auth tokens to stay configured while auth is explicitly disabled', () => {

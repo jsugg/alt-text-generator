@@ -33,7 +33,7 @@ const {
  *   initializeDescriptionJobStoreFn?: Function,
  *   initializeRateLimitStoreProviderFn?: Function,
  *   loadTlsCredentialsFn?: Function,
- *   serverPorts?: { httpPort?: number, httpsPort?: number },
+ *   serverPorts?: { httpPort?: number, httpsPort?: number, httpsEnabled?: boolean },
  *   startServerFn?: Function,
  * }} [params] - runtime dependencies
  * @returns {Promise<object>}
@@ -81,18 +81,36 @@ const startApplicationRuntime = async ({
       rateLimitStoreProvider,
       runtimeState,
     });
-    const tlsCredentials = await loadTlsCredentialsFn();
+    // Skip the app's own TLS listener where TLS terminates at the platform edge
+    // (httpsEnabled === false). This avoids loading certificates that do not
+    // exist there and binds only the plain HTTP listener the platform probes.
+    const httpsEnabled = serverPorts.httpsEnabled !== false;
     const httpServer = createHttpServerFn(app);
-    const httpsServer = createHttpsServerFn(app, () => tlsCredentials);
+    /** @type {import('node:http').Server[]} */
+    const servers = [httpServer];
+    /** @type {import('node:http').Server | undefined} */
+    let httpsServer;
 
-    await Promise.all([
-      startServerFn(httpServer, serverPorts.httpPort, appLogger),
-      startServerFn(httpsServer, serverPorts.httpsPort, appLogger),
-    ]);
+    // Load certificates before binding any listener so a TLS failure aborts the
+    // whole boot rather than leaving a half-open HTTP socket behind.
+    if (httpsEnabled) {
+      const tlsCredentials = await loadTlsCredentialsFn();
+      const createdHttpsServer = createHttpsServerFn(app, () => tlsCredentials);
+      httpsServer = createdHttpsServer;
+      servers.push(createdHttpsServer);
+    }
+
+    /** @type {Array<Promise<unknown>>} */
+    const listeners = [startServerFn(httpServer, serverPorts.httpPort, appLogger)];
+    if (httpsServer) {
+      listeners.push(startServerFn(httpsServer, serverPorts.httpsPort, appLogger));
+    }
+
+    await Promise.all(listeners);
     runtimeState.markReady();
 
     shutdown = gracefulShutdownFn(
-      [httpServer, httpsServer],
+      servers,
       appLogger,
       runtimeState,
       processRef,
@@ -107,7 +125,7 @@ const startApplicationRuntime = async ({
       descriptionJobStore,
       rateLimitStoreProvider,
       runtimeState,
-      servers: [httpServer, httpsServer],
+      servers,
       shutdown,
     };
   } catch (error) {

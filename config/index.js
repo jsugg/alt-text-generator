@@ -78,6 +78,10 @@ module.exports = {
   },
 
   https: {
+    // Disable the app's own TLS listener where TLS terminates at the platform
+    // edge (e.g. a managed host that routes plain HTTP to $PORT). Enabled by
+    // default so local and self-hosted runs keep their HTTPS listener.
+    enabled: process.env.TLS_ENABLED !== 'false',
     port: Number(process.env.TLS_PORT) || 8443,
     keyPath: process.env.TLS_KEY,
     certPath: process.env.TLS_CERT,
