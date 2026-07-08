@@ -41,6 +41,9 @@ const RETRY_JITTER_MS = 250;
  * @property {string} [prompt]
  * @property {Record<string, string>} [headers]
  * @property {number} [requestAttempts]
+ * @property {Record<string, unknown>} [requestParams] - extra top-level request-body
+ *   params merged into every chat request (e.g. provider-specific flags). Cannot
+ *   override the core `model`/`messages`/`max_tokens`/`stream` fields.
  */
 
 /**
@@ -264,6 +267,7 @@ class OpenAiCompatibleVisionDescriberService {
     this.maxTokens = providerConfig.maxTokens;
     this.prompt = providerConfig.prompt;
     this.headers = providerConfig.headers ?? {};
+    this.requestParams = providerConfig.requestParams ?? {};
     this.requestOptions = requestOptions;
     this.requestAttempts = providerConfig.requestAttempts ?? DEFAULT_REQUEST_ATTEMPTS;
     this.sleep = wait;
@@ -284,6 +288,7 @@ class OpenAiCompatibleVisionDescriberService {
    */
   buildRequestBody(imageInput) {
     return {
+      ...this.requestParams,
       model: this.model,
       messages: [
         {
