@@ -90,8 +90,8 @@
   "devDependencies": {
     "@eslint/js": "^9.39.4",
     "@stylistic/eslint-plugin": "^5.10.0",
-    "allure-commandline": "^2.37.0",
-    "allure-jest": "^3.10.1",
+    "allure-commandline": "^2.43.0",
+    "allure-jest": "^3.10.2",
     "eslint": "^9.39.4",
     "eslint-plugin-import": "^2.32.0",
     "globals": "^17.7.0",
