@@ -1,0 +1,11 @@
+{
+    "Accept": "application/json",
+    "X-Expected-Status-Code": "200",
+    "Authorization": "Bearer postman-api-token",
+    "User-Agent": "PostmanRuntime/7.39.1",
+    "Cache-Control": "no-cache",
+    "Postman-Token": "ec8b5c08-8d52-4bdd-9169-d12af95a3ca6",
+    "Host": "127.0.0.1:35707",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Connection": "keep-alive"
+}
