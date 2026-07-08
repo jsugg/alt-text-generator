@@ -11,6 +11,15 @@ module.exports = buildOpenAiCompatibleProvider({
   defaultModel: 'Qwen/Qwen3.5-9B',
   maxTokensEnvName: 'TOGETHER_MAX_TOKENS',
   promptEnvName: 'TOGETHER_PROMPT',
+  // Qwen3.x models default to "thinking" mode. With a small max_tokens the model
+  // spends the entire completion budget on reasoning and is cut off before it
+  // emits any caption (finish_reason=length, content=""). Disable thinking so the
+  // caption is produced directly in `content` and no reasoning tokens are billed.
+  buildAdditionalConfig: () => ({
+    requestParams: {
+      chat_template_kwargs: { enable_thinking: false },
+    },
+  }),
   providerValidation: {
     scopeKey: 'together',
     autoPriority: 60,

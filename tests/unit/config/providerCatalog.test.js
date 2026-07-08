@@ -94,6 +94,9 @@ describe('Unit | Config | Provider Catalog', () => {
         maxTokens: 160,
         prompt: expect.any(String),
         headers: {},
+        requestParams: {
+          chat_template_kwargs: { enable_thinking: false },
+        },
       },
     });
     expect(buildProviderConfigSections({
