@@ -72,6 +72,48 @@ describe('Unit | Server | Start Application Runtime', () => {
     );
   });
 
+  it('starts only the HTTP server when TLS is terminated at the edge', async () => {
+    const app = { name: 'express-app' };
+    const httpServer = { kind: 'http' };
+    const shutdown = jest.fn();
+    const createHttpsServerFn = jest.fn();
+    const loadTlsCredentialsFn = jest.fn();
+    const startServerFn = jest.fn().mockResolvedValue(undefined);
+    const gracefulShutdownFn = jest.fn(() => shutdown);
+
+    const result = await startApplicationRuntime({
+      appLogger: { info: jest.fn() },
+      config: { env: 'production' },
+      createAppFn: jest.fn(() => ({ app })),
+      createHttpServerFn: jest.fn(() => httpServer),
+      createHttpsServerFn,
+      gracefulShutdownFn,
+      initializeDescriptionJobStoreFn: jest.fn(() => ({ close: jest.fn() })),
+      initializeRateLimitStoreProviderFn: jest.fn(() => ({
+        close: jest.fn(),
+        createStore: jest.fn(),
+        kind: 'memory',
+      })),
+      loadTlsCredentialsFn,
+      processRef: createProcessRef(),
+      serverPorts: { httpPort: 8080, httpsPort: 8443, httpsEnabled: false },
+      startServerFn,
+    });
+
+    expect(result.servers).toEqual([httpServer]);
+    expect(loadTlsCredentialsFn).not.toHaveBeenCalled();
+    expect(createHttpsServerFn).not.toHaveBeenCalled();
+    expect(startServerFn).toHaveBeenCalledTimes(1);
+    expect(startServerFn).toHaveBeenCalledWith(httpServer, 8080, expect.any(Object));
+    expect(gracefulShutdownFn).toHaveBeenCalledWith(
+      [httpServer],
+      expect.any(Object),
+      result.runtimeState,
+      expect.any(EventEmitter),
+      [expect.any(Function), expect.any(Function)],
+    );
+  });
+
   it('cleans up fatal handlers when bootstrap fails before servers are ready', async () => {
     const processRef = createProcessRef();
     const removeListenerSpy = jest.spyOn(processRef, 'off');
