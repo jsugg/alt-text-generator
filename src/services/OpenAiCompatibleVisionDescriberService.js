@@ -331,6 +331,7 @@ class OpenAiCompatibleVisionDescriberService {
       const description = extractCaptionText(response?.data);
 
       if (!description) {
+        this.logEmptyCaptionDiagnostics(response?.data);
         throw new Error(`${this.providerName} provider returned no caption text`);
       }
 
@@ -354,6 +355,40 @@ class OpenAiCompatibleVisionDescriberService {
 
       return this.requestCaption(imageInput, imageUrl, attemptNumber + 1);
     }
+  }
+
+  /**
+   * Logs the raw provider response shape when caption extraction yields nothing.
+   * Diagnoses empty-content cases such as hybrid-thinking models that emit only
+   * `reasoning_content`, or that truncate the answer once `max_tokens` is spent.
+   * @param {any} data - the provider response body
+   * @returns {void}
+   */
+  logEmptyCaptionDiagnostics(data) {
+    const choice = Array.isArray(data?.choices) ? data.choices[0] : undefined;
+    const message = choice?.message;
+    const content = message?.content;
+    const reasoning = message?.reasoning_content;
+    let rawSample = null;
+    try {
+      rawSample = JSON.stringify(data)?.slice(0, 1500) ?? null;
+    } catch {
+      rawSample = null;
+    }
+    this.logger.warn?.({
+      provider: this.providerKey,
+      model: this.model,
+      finishReason: choice?.finish_reason,
+      messageKeys: message && typeof message === 'object' ? Object.keys(message) : null,
+      contentType: Array.isArray(content) ? 'array' : typeof content,
+      contentLength: typeof content === 'string'
+        ? content.length
+        : (Array.isArray(content) ? content.length : null),
+      reasoningType: typeof reasoning,
+      reasoningLength: typeof reasoning === 'string' ? reasoning.length : null,
+      usage: data?.usage,
+      rawSample,
+    }, `${this.providerName} returned no caption text (diagnostics)`);
   }
 
   /**
