@@ -2,7 +2,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 const yaml = require('js-yaml');
 
-const DEPENDABOT_CONFIG_PATH = path.resolve(__dirname, '..', '..', '.github', 'dependabot.yml');
+const REPO_ROOT = path.resolve(__dirname, '..', '..');
+const DEPENDABOT_CONFIG_PATH = path.join(REPO_ROOT, '.github', 'dependabot.yml');
+const WORKFLOWS_DIR = path.join(REPO_ROOT, '.github', 'workflows');
 
 describe('Unit | Dependabot Policy', () => {
   const raw = fs.readFileSync(DEPENDABOT_CONFIG_PATH, 'utf8');
@@ -39,19 +41,49 @@ describe('Unit | Dependabot Policy', () => {
     });
   });
 
-  it('groups version updates to cut PR noise without hiding security updates', () => {
-    expect(Object.keys(npmUpdate.groups)).toEqual(['npm-production', 'npm-development']);
-    Object.values(npmUpdate.groups).forEach((group) => {
-      expect(group['applies-to']).toBe('version-updates');
-      expect(group['update-types']).toEqual(['minor', 'patch']);
-    });
-    expect(actionsUpdate.groups['github-actions-all']).toEqual({
-      'applies-to': 'version-updates',
-      patterns: ['*'],
-    });
+  it('groups every update — all types, prod and dev — into one PR per stream', () => {
+    // "Group all": one catch-all group per applies-to stream. No update-types
+    // filter, so majors are included; no dependency-type filter, so production
+    // and development dependencies land in the same PR.
+    /**
+     * @param {unknown} group
+     * @param {string} appliesTo
+     */
+    const assertCatchAll = (group, appliesTo) => {
+      expect(group).toEqual({ 'applies-to': appliesTo, patterns: ['*'] });
+    };
+
+    expect(Object.keys(npmUpdate.groups)).toEqual(['npm-all', 'npm-security']);
+    assertCatchAll(npmUpdate.groups['npm-all'], 'version-updates');
+    assertCatchAll(npmUpdate.groups['npm-security'], 'security-updates');
+
+    expect(Object.keys(actionsUpdate.groups)).toEqual([
+      'github-actions-all',
+      'github-actions-security',
+    ]);
+    assertCatchAll(actionsUpdate.groups['github-actions-all'], 'version-updates');
+    assertCatchAll(actionsUpdate.groups['github-actions-security'], 'security-updates');
   });
 
-  it('documents the security-update override for suppressed majors', () => {
+  it('does not auto-merge dependabot PRs (manual-review posture)', () => {
+    const dependabotSignal = /dependabot/i;
+    const mergeAction = /(gh pr merge|pull-request-merge|auto-?merge|merge-action)/i;
+
+    /** @type {string[]} */
+    const offenders = fs
+      .readdirSync(WORKFLOWS_DIR)
+      .filter((name) => name.endsWith('.yml') || name.endsWith('.yaml'))
+      .filter((name) => {
+        const body = fs.readFileSync(path.join(WORKFLOWS_DIR, name), 'utf8');
+        return dependabotSignal.test(body) && mergeAction.test(body);
+      });
+
+    expect(offenders).toEqual([]);
+  });
+
+  it('documents the group-all, manual-merge posture and the security-update override', () => {
+    expect(raw).toContain('GROUP ALL');
+    expect(raw).toContain('no auto-merge');
     expect(raw).toContain('Security-update override');
     expect(raw).toContain('remove the ignore entry');
   });
