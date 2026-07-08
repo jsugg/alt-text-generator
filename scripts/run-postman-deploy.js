@@ -52,8 +52,17 @@ const REPORTS_DIR = path.join(ROOT, 'reports', 'newman');
 const PUBLIC_DEPLOY_FOLDER = '95 Post Deploy Verification';
 const PROTECTED_DEPLOY_FOLDER = '96 Post Deploy Protected Verification';
 const DEPLOY_STABILIZATION_POLL_INTERVAL_MS = 3_000;
+// While the rollout is not yet healthy, grow the poll interval (capped) so a slow
+// deploy is tolerated without hammering the endpoint; the interval resets to the
+// base once probes start succeeding so the required streak is confirmed quickly.
+const DEPLOY_STABILIZATION_MAX_POLL_INTERVAL_MS = 20_000;
+const DEPLOY_STABILIZATION_POLL_BACKOFF_FACTOR = 1.5;
 const DEPLOY_STABILIZATION_REQUIRED_SUCCESSES = 3;
-const DEPLOY_STABILIZATION_TIMEOUT_MS = 90_000;
+// Total budget to wait for the deployed rollout to become healthy. Overridable
+// via env so a slow (e.g. cold-provisioned free-tier) deploy can be given more
+// room without a code change. Raised from 90s to 5min.
+const DEPLOY_STABILIZATION_TIMEOUT_MS = Number(process.env.DEPLOY_STABILIZATION_TIMEOUT_MS)
+  || 300_000;
 const DEPLOY_STABILIZATION_REQUEST_TIMEOUT_MS = 15_000;
 const NPX = process.platform === 'win32' ? 'npx.cmd' : 'npx';
 
@@ -410,7 +419,9 @@ function collectDeployStabilizationIssues({
  * }} authConfig
  * @param {{
  *   fetchFn?: typeof fetch,
+ *   maxPollIntervalMs?: number,
  *   nowFn?: () => number,
+ *   pollBackoffFactor?: number,
  *   pollIntervalMs?: number,
  *   requiredConsecutiveSuccesses?: number,
  *   sleepFn?: (durationMs: number) => Promise<void>,
@@ -424,7 +435,9 @@ async function waitForStableDeploy(
   authConfig,
   {
     fetchFn = fetch,
+    maxPollIntervalMs = DEPLOY_STABILIZATION_MAX_POLL_INTERVAL_MS,
     nowFn = Date.now,
+    pollBackoffFactor = DEPLOY_STABILIZATION_POLL_BACKOFF_FACTOR,
     pollIntervalMs = DEPLOY_STABILIZATION_POLL_INTERVAL_MS,
     requiredConsecutiveSuccesses = DEPLOY_STABILIZATION_REQUIRED_SUCCESSES,
     sleepFn = sleep,
@@ -435,12 +448,13 @@ async function waitForStableDeploy(
   const deadline = nowFn() + timeoutMs;
   const probeUrls = buildDeployProbeUrls(baseUrl, authConfig);
   /**
-   * @param {{ attemptCount: number, consecutiveSuccesses: number, lastIssues: string[] }} input
+   * @param {{ attemptCount: number, consecutiveSuccesses: number, currentPollIntervalMs: number, lastIssues: string[] }} input
    * @returns {Promise<void>}
    */
   const attempt = async ({
     attemptCount,
     consecutiveSuccesses,
+    currentPollIntervalMs,
     lastIssues,
   }) => {
     if (nowFn() >= deadline) {
@@ -492,16 +506,21 @@ async function waitForStableDeploy(
       await attempt({
         attemptCount: nextAttemptCount,
         consecutiveSuccesses: nextConsecutiveSuccesses,
+        currentPollIntervalMs: pollIntervalMs,
         lastIssues,
       });
       return;
     }
 
     writeLog(`[deploy] waiting for stable deploy rollout: ${issues.join('; ')}`);
-    await sleepFn(pollIntervalMs);
+    await sleepFn(currentPollIntervalMs);
     await attempt({
       attemptCount: nextAttemptCount,
       consecutiveSuccesses: 0,
+      currentPollIntervalMs: Math.min(
+        Math.round(currentPollIntervalMs * pollBackoffFactor),
+        maxPollIntervalMs,
+      ),
       lastIssues: issues,
     });
   };
@@ -509,6 +528,7 @@ async function waitForStableDeploy(
   await attempt({
     attemptCount: 0,
     consecutiveSuccesses: 0,
+    currentPollIntervalMs: pollIntervalMs,
     lastIssues: ['no rollout probes executed'],
   });
 }
