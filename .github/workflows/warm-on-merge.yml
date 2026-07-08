@@ -1,0 +1,39 @@
+name: Warm Production On Merge
+
+# Warms the production service whenever something lands on main. A merge is a
+# leading indicator that a promotion (and therefore a deploy) is likely soon, so
+# waking the free-tier instance now shortens the cold-start when that deploy
+# provisions. This is event-driven — it fires on real merges, not a fixed cron —
+# so it does not read as a dedicated anti-hibernation keep-alive.
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: warm-production
+  cancel-in-progress: true
+
+jobs:
+  warm:
+    name: warm
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Harden runner (audit)
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Pre-warm production service
+        continue-on-error: true
+        env:
+          PRODUCTION_HEALTH_URL: ${{ vars.PRODUCTION_HEALTH_URL || 'https://alt-text-generator-zhsb.onrender.com/api/health' }}
+        run: bash scripts/render/prewarm-service.sh

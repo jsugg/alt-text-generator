@@ -52,6 +52,12 @@ jobs:
         with:
           node-version-file: .nvmrc
 
+      - name: Pre-warm production service
+        continue-on-error: true
+        env:
+          PRODUCTION_HEALTH_URL: ${{ vars.PRODUCTION_HEALTH_URL || 'https://alt-text-generator-zhsb.onrender.com/api/health' }}
+        run: bash scripts/render/prewarm-service.sh
+
       - name: Require Render configuration
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
