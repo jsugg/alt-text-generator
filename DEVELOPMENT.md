@@ -418,17 +418,28 @@ Notes:
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
-| `PORT` | No | `8080` | HTTP listener port (same app as HTTPS). |
-| `TLS_PORT` | No | `8443` | HTTPS listener port. |
-| `TLS_KEY` | Prod: Yes, Dev: No | none | TLS private key (inline PEM, base64-encoded PEM, or file path). Prefer absolute paths. |
-| `TLS_CERT` | Prod: Yes, Dev: No | none | TLS certificate (inline PEM, base64-encoded PEM, or file path). Prefer absolute paths. |
+| `PORT` | No | `8080` | HTTP listener port (same app as HTTPS). Platforms that inject a port (Render, Heroku, Cloud Run) set this automatically. |
+| `TLS_ENABLED` | No | `true` | When `false`, the app runs HTTP-only: it binds `PORT`, skips certificate loading, and never starts the HTTPS listener. Set `false` only where TLS terminates at the platform edge (see [Inbound TLS posture](#inbound-tls-posture-https-first-vs-edge-termination)). |
+| `TLS_PORT` | No | `8443` | HTTPS listener port. Ignored when `TLS_ENABLED=false`. |
+| `TLS_KEY` | Prod (in-process TLS): Yes | none | TLS private key (inline PEM, base64-encoded PEM, or file path). Prefer absolute paths. Not needed when `TLS_ENABLED=false`. |
+| `TLS_CERT` | Prod (in-process TLS): Yes | none | TLS certificate (inline PEM, base64-encoded PEM, or file path). Prefer absolute paths. Not needed when `TLS_ENABLED=false`. |
 
-Development TLS behavior:
+Development TLS behavior (applies when `TLS_ENABLED` is not `false`):
 
 - If `TLS_KEY` and `TLS_CERT` are set, they are used.
 - If unset and `NODE_ENV` is not `production`, the app tries `certs/localhost-key.pem` and `certs/localhost.pem`.
 - If those files are absent, the app generates a short-lived self-signed localhost certificate in-process.
-- In production, explicit TLS credentials are required.
+- In production, explicit TLS credentials are required — unless `TLS_ENABLED=false`, in which case no certificates are loaded at all.
+
+The in-process HTTPS listener is covered end-to-end by `tests/integration/httpsListener.test.js`, which stands up `createHttpsServer` with the loaded credentials and asserts a real TLS handshake (`socket.encrypted === true`).
+
+#### Inbound TLS posture: HTTPS-first vs. edge termination
+
+This service is **HTTPS-first by default.** Out of the box it starts an in-process HTTPS listener, self-signs a localhost certificate for development, redirects HTTP → HTTPS (`src/api/v1/middleware/request-filter.js`, keyed on `X-Forwarded-Proto`), and emits HSTS via `helmet`. A plain `git clone` and run gives you TLS with no extra setup, and self-hosters terminating their own TLS keep this behavior unchanged.
+
+**The managed deployment (Render) intentionally runs with `TLS_ENABLED=false`.** On Render — and any comparable PaaS — TLS terminates at the platform edge: the edge holds the managed certificate for `wcag.qcraft.com.br`, serves clients over HTTPS, and forwards requests to the container as plain HTTP over the provider's private network on the injected `$PORT`. Running the app's own HTTPS listener there would be redundant and harmful: it would bind a second port the edge never probes and would require certificates that do not exist in that environment. So on Render the app serves HTTP-only on `$PORT`, and the edge owns TLS.
+
+Public traffic is still end-to-end HTTPS to the client; only the edge→app hop inside the provider network is HTTP. HTTPS *enforcement* still holds behind the edge because `X-Forwarded-Proto: https` (set by the edge) drives `req.secure`, the HTTP→HTTPS redirect, secure-cookie flags, and HSTS — provided `TRUST_PROXY_HOPS` matches the ingress (see [Worker, Proxy, and Scraper Runtime Controls](#worker-proxy-and-scraper-runtime-controls)). This edge-termination model is also why the Node 24 cutover deploy boots in seconds: no certificate load, no second listener to stand up.
 
 ### Outbound TLS (scraper and providers)
 
@@ -441,7 +452,7 @@ Development TLS behavior:
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
-| `TRUST_PROXY_HOPS` | No | `1` | Number of proxy hops Express trusts when processing forwarded headers. Render production uses `1`. |
+| `TRUST_PROXY_HOPS` | No | `1` | Number of proxy hops Express trusts when reading `X-Forwarded-*` headers. Must equal the count of trusted proxies in front of the app: Render's edge is one hop, so `1` (also the code default). This governs whether `req.secure` / `req.protocol` reflect the edge's TLS, which in turn drives the HTTP→HTTPS redirect, secure-cookie flags, and HSTS — so it is required for correct HTTPS behavior under [edge termination](#inbound-tls-posture-https-first-vs-edge-termination). Set it explicitly on the Render service (do not rely on the default), and raise it (e.g. `2`) if you front Render with another proxy or CDN such as Cloudflare, so forwarded headers are trusted at the correct hop and cannot be spoofed. |
 | `WORKER_COUNT` | No | `1` | Number of app processes to run. `1` uses single-process mode; values greater than `1` enable Node cluster mode. |
 | `CLUSTER_RESTART_BACKOFF_MS` | No | `1000` | Base backoff for restarting an unexpectedly exited worker in cluster mode. |
 | `CLUSTER_RESTART_MAX_BACKOFF_MS` | No | `30000` | Maximum backoff between clustered worker restart attempts. Must be greater than or equal to `CLUSTER_RESTART_BACKOFF_MS`. |
@@ -564,6 +575,8 @@ At least one provider must be configured at startup: `REPLICATE_API_TOKEN`, Azur
 - Render reads the Node runtime version from [`package.json`](./package.json) `engines.node`.
 - Render builds with `npm ci` so production installs are lockfile-exact and reproducible; never revert to `npm install` except as a temporary escape hatch while repairing a broken lockfile.
 - Secrets such as `REPLICATE_API_TOKEN`, `TLS_KEY`, and `TLS_CERT` stay dashboard-managed and are represented in the Blueprint with `sync: false`.
+- Inbound TLS terminates at Render's edge, so the service runs with `TLS_ENABLED=false` and serves HTTP-only on the injected `$PORT`; `TLS_KEY`/`TLS_CERT` are therefore not required on the service. This is a deliberate edge-termination choice, not a downgrade of the project's HTTPS-first default — see [Inbound TLS posture](#inbound-tls-posture-https-first-vs-edge-termination). Public traffic stays HTTPS via the edge certificate.
+- Set `TRUST_PROXY_HOPS=1` explicitly on the service (Render is a single ingress hop) so `req.secure`, the HTTP→HTTPS redirect, secure cookies, and HSTS remain correct behind the edge. Raise it if a further proxy/CDN is added in front.
 
 ### Deployment evidence and rollback
 
