@@ -12,26 +12,32 @@ const {
 // credential path can take a moment on a cold CI runner.
 jest.setTimeout(30_000);
 
-const HOST = '127.0.0.1';
+// The dev certificate's SAN covers `localhost`, so connect by that name and let
+// full certificate + hostname validation run against it.
+const HOST = 'localhost';
 
 /**
  * Issues a genuine TLS request and resolves with the response plus low-level
  * proof that the transport was actually encrypted.
  *
+ * Validation stays enabled: the server's own self-signed certificate is passed
+ * as the trusted CA, so this exercises a real, verified TLS handshake rather
+ * than bypassing certificate checks.
+ *
  * @param {number} port
  * @param {string} path
+ * @param {string | Buffer} ca - PEM certificate to trust for this request
  * @returns {Promise<{ statusCode: number|undefined, body: string, encrypted: boolean, protocol: string|null }>}
  */
-const httpsGet = (port, path) => new Promise((resolve, reject) => {
+const httpsGet = (port, path, ca) => new Promise((resolve, reject) => {
   const req = https.request(
     {
       host: HOST,
+      servername: HOST,
       port,
       path,
       method: 'GET',
-      // The dev credentials are self-signed: the point of this test is that TLS
-      // is negotiated and served, not that a CA vouches for the certificate.
-      rejectUnauthorized: false,
+      ca,
     },
     (res) => {
       // The socket is live when the response arrives; it may be detached by the
@@ -85,7 +91,7 @@ describe('Integration | Server | In-process HTTPS listener', () => {
       throw new Error('HTTPS server did not bind a TCP port');
     }
 
-    const response = await httpsGet(address.port, '/ping');
+    const response = await httpsGet(address.port, '/ping', credentials.cert);
 
     expect(response.statusCode).toBe(200);
     // The app itself sees the request as secure over the in-process listener.
