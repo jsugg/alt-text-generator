@@ -1,12 +1,35 @@
 const https = require('node:https');
 const express = require('express');
+const selfsigned = require('selfsigned');
 
-const { loadTlsCredentials } = require('../../src/infrastructure/loadTlsCredentials');
 const {
   createHttpsServer,
   startServer,
   closeServers,
 } = require('../../src/server/serverFunctions');
+
+/**
+ * Generates a self-signed localhost certificate in-memory. Kept independent of
+ * the file-capable `loadTlsCredentials` (unit-tested separately) so this spec's
+ * trusted CA never originates from disk.
+ *
+ * @returns {Promise<{ key: string, cert: string }>}
+ */
+const generateLocalhostCredentials = async () => {
+  const pems = await selfsigned.generate(
+    [{ name: 'commonName', value: 'localhost' }],
+    {
+      algorithm: 'sha256',
+      days: 1,
+      keySize: 2048,
+      extensions: [
+        { name: 'subjectAltName', altNames: [{ type: 2, value: 'localhost' }] },
+      ],
+    },
+  );
+
+  return { key: pems.private, cert: pems.cert };
+};
 
 // Generating a self-signed key pair (via `selfsigned`, 2048-bit) on the dev
 // credential path can take a moment on a cold CI runner.
@@ -79,7 +102,7 @@ describe('Integration | Server | In-process HTTPS listener', () => {
       res.status(200).json({ ok: true, secure: req.secure });
     });
 
-    const credentials = await loadTlsCredentials();
+    const credentials = await generateLocalhostCredentials();
     expect(credentials.key).toBeTruthy();
     expect(credentials.cert).toBeTruthy();
 
