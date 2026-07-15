@@ -1,52 +1,37 @@
 #!/usr/bin/env node
 
+const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 
 const ROOT = path.resolve(__dirname, '../..');
-const SKIPPED_DIRS = new Set([
-  '.git',
-  'coverage',
-  'node_modules',
-  'reports',
-]);
 
 /**
  * @typedef {{ file: string, line: number, message: string }} DocViolation
  */
 
-/** @param {string} filePath */
-function isMarkdownFile(filePath) {
-  return filePath.toLowerCase().endsWith('.md');
-}
-
 /**
- * @param {string} dirPath
- * @param {string[]} [files]
+ * Enumerates the Markdown files git tracks under `rootDir`.
+ *
+ * This deliberately asks git rather than walking the filesystem. A walk with a
+ * hardcoded skip list saw whatever happened to be on the developer's disk, so
+ * the gate's verdict depended on untracked local state: it validated scratch
+ * notes under `.local/`, and a note saved with CRLF failed the gate locally
+ * while CI — which only ever has the tracked files — passed. Asking git makes
+ * the local result and the clean-checkout result the same set by construction.
+ *
+ * @param {string} [rootDir]
  * @returns {string[]}
  */
-function walkFiles(dirPath, files = []) {
-  fs.readdirSync(dirPath, { withFileTypes: true }).forEach((entry) => {
-    const entryPath = path.join(dirPath, entry.name);
-
-    if (entry.isDirectory()) {
-      if (!SKIPPED_DIRS.has(entry.name)) {
-        walkFiles(entryPath, files);
-      }
-      return;
-    }
-
-    if (entry.isFile()) {
-      files.push(entryPath);
-    }
+function listMarkdownFiles(rootDir = ROOT) {
+  const stdout = execFileSync('git', ['-C', rootDir, 'ls-files', '-z', '--', '*.md'], {
+    encoding: 'utf8',
   });
 
-  return files;
-}
-
-function listMarkdownFiles(rootDir = ROOT) {
-  return walkFiles(rootDir)
-    .filter(isMarkdownFile)
+  return stdout
+    .split('\0')
+    .filter(Boolean)
+    .map((relativePath) => path.join(rootDir, relativePath))
     .sort((left, right) => left.localeCompare(right));
 }
 
