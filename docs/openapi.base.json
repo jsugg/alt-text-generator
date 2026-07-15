@@ -219,8 +219,8 @@
     }
   },
   "info": {
-    "description": "This API provides descriptions to images, to contribute to the world-wide accessibility efforts.",
-    "title": "AI-Powered Alternative Text Provider API",
+    "description": "Scrapes website images and generates AI-powered alt text to improve accessibility workflows.",
+    "title": "Alt-Text 4 All",
     "version": "1.0.0"
   },
   "openapi": "3.0.0",
