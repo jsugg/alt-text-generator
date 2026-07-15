@@ -56,23 +56,7 @@ jobs:
             git ls-tree -r --name-only "${HEAD_SHA}" > changed-files.txt
           fi
 
-          node <<'NODE'
-          const fs = require('node:fs');
-
-          const changedFiles = fs.readFileSync('changed-files.txt', 'utf8')
-            .split('\n')
-            .map((line) => line.trim())
-            .filter(Boolean);
-          const isDocsPath = (filePath) => (
-            filePath === 'LICENSE'
-            || filePath.endsWith('.md')
-            || filePath.startsWith('docs/')
-            || filePath.startsWith('.github/assets/')
-          );
-          const docsOnly = changedFiles.length > 0 && changedFiles.every(isDocsPath);
-
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `docs_only=${docsOnly}\n`);
-          NODE
+          node scripts/ci/classify-changed-paths.js --input changed-files.txt
 
   analyze:
     name: codeql
