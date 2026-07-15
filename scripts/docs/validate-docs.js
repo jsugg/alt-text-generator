@@ -154,6 +154,50 @@ function checkImageAlt(content, relativePath) {
 }
 
 /**
+ * A documented `Expiry: YYYY-MM-DD` is a promise to revisit something by a date.
+ * Nothing was keeping that promise: coverage-thresholds.md's ratchet exceptions
+ * carry one, and the day it passes the document silently becomes wrong. This
+ * turns the date into the thing that tells you.
+ *
+ * @param {string} content
+ * @param {string} relativePath
+ * @param {Date} [now]
+ * @returns {DocViolation[]}
+ */
+function checkExpiry(content, relativePath, now = new Date()) {
+  /** @type {DocViolation[]} */
+  const violations = [];
+  const today = now.toISOString().slice(0, 10);
+
+  stripCode(content).split('\n').forEach((line, index) => {
+    const pattern = /Expiry:\s*(\d{4}-\d{2}-\d{2})/g;
+    let match = pattern.exec(line);
+
+    while (match !== null) {
+      const expiry = match[1];
+
+      if (Number.isNaN(Date.parse(expiry))) {
+        violations.push({
+          file: relativePath,
+          line: index + 1,
+          message: `Expiry date is not a valid date: ${expiry}`,
+        });
+      } else if (expiry < today) {
+        violations.push({
+          file: relativePath,
+          line: index + 1,
+          message: `Documented Expiry ${expiry} has passed (today is ${today}) — revisit or extend it`,
+        });
+      }
+
+      match = pattern.exec(line);
+    }
+  });
+
+  return violations;
+}
+
+/**
  * @param {string} content
  * @param {string} relativePath
  * @returns {DocViolation[]}
@@ -375,6 +419,7 @@ function validateMarkdownFile(filePath, rootDir = ROOT) {
 
   violations.push(...checkImageAlt(content, relativePath));
   violations.push(...checkProhibitedReferences(content, relativePath));
+  violations.push(...checkExpiry(content, relativePath));
 
   return violations;
 }
@@ -460,6 +505,7 @@ if (require.main === module) {
 
 module.exports = {
   checkEnvVarCoverage,
+  checkExpiry,
   checkImageAlt,
   checkInternalLinks,
   checkProhibitedReferences,
