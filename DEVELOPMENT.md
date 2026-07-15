@@ -463,7 +463,37 @@ Public traffic is still end-to-end HTTPS to the client; only the edge→app hop 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
 | `OUTBOUND_CA_BUNDLE_FILE` | No | unset | App-managed supplemental PEM bundle used to extend Node trust for outbound HTTPS. |
+| `OUTBOUND_ALLOWED_HOSTS` | No | unset | Comma-separated `host[:port]` allowlist for outbound fetches. **Each entry bypasses the private-network SSRF guard** — see [Outbound host allowlist](#outbound-host-allowlist) before setting it. |
 | `NODE_EXTRA_CA_CERTS` | No | unset | Node-supported extra CA file. This app also accepts it as a fallback. Not validated by Joi. |
+
+#### Outbound host allowlist
+
+`OUTBOUND_ALLOWED_HOSTS` names hosts that outbound fetches may reach **without
+the private-network check**. Read this before setting it: it is the one setting
+here that can turn the scraper into an SSRF primitive.
+
+**Syntax.** A comma-separated list of `host[:port]` entries, validated at boot:
+
+```dotenv
+OUTBOUND_ALLOWED_HOSTS=127.0.0.1:19090,fixtures.internal:8080
+```
+
+**Semantics.** Matching is exact and case-normalized against the URL's `host`
+(with port) or `hostname` (without). There are **no wildcards and no suffix
+matching** — `example.com` does not match `api.example.com`, and
+`example.com:8443` does not match `example.com`. Entries are compared verbatim
+(`src/infrastructure/outboundUrlPolicy.js`).
+
+**What it bypasses.** A matching host returns *before* `assertPublicAddress()`
+and before DNS resolution, which are the guards that stop the app from being
+pointed at loopback, link-local, or private-range addresses. An allowlisted host
+that resolves to `169.254.169.254` will be fetched. That is the entire point of
+the setting, and the entire risk of it.
+
+**Use it for** a local fixture or test-harness origin — which is what
+`npm run postman:full` does. **Do not use it** to work around a legitimate
+rejection of a public host; nothing about the allowlist is scoped to a path,
+method, or protocol.
 
 ### Worker, Proxy, and Scraper Runtime Controls
 

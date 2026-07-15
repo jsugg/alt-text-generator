@@ -50,28 +50,27 @@ jobs:
 
           node scripts/ci/classify-changed-paths.js --input changed-files.txt
 
+  # Runs unconditionally, unlike the other gates' docs-only skips. docs:validate
+  # now asserts across the repository, not just within the changed files: it
+  # holds every env var read by config/*.js to being documented. A change that
+  # adds one without touching any Markdown is exactly the case worth catching,
+  # and a docs_changed condition would skip precisely that change.
   docs:
     name: docs
-    needs:
-      - changes
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      - name: Setup Node
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
-        with:
-          node-version-file: .nvmrc
+      - name: Setup project
+        uses: ./.github/actions/setup-node-project
 
       - name: Validate docs
-        if: needs.changes.outputs.docs_changed == 'true'
         run: npm run docs:validate
 
-      - name: Skip docs validation when no docs changed
-        if: needs.changes.outputs.docs_changed != 'true'
-        run: echo "No docs-only validation needed for this change."
+      - name: Lint Markdown
+        run: npm run docs:lint
 
   actionlint:
     name: actionlint

@@ -1,0 +1,29 @@
+{
+  // Structure and heading hierarchy are what this gate is for. Three default
+  // rules are off because they contradict deliberate choices in these docs
+  // rather than catching mistakes in them:
+  //
+  //   MD013 line-length   prose, tables, and command lines are intentionally
+  //                       long; enforcing 80 columns would rewrap every file
+  //                       and change nothing about correctness.
+  //   MD033 no-inline-html the README banner is a <div>/<img> block, and the
+  //                       img is exactly where the alt attribute has to live.
+  //   MD041 first-line-h1  the README opens with that banner, not a heading.
+  //   MD029 ol-prefix     the runbook sequences interleave unindented code
+  //                       fences, which ends each list and starts the next at
+  //                       its own number. That renders correctly (<ol start=N>)
+  //                       and re-indenting eight fences to satisfy the rule
+  //                       would churn the document without fixing anything.
+  //
+  // Everything else stays on, including the heading-hierarchy rules this gate
+  // is for: MD001 increment, MD024 duplicates, MD025 single H1, MD022 spacing.
+  "config": {
+    "default": true,
+    "MD013": false,
+    "MD033": false,
+    "MD041": false,
+    "MD029": false
+  },
+  "globs": ["**/*.md"],
+  "gitignore": true
+}
