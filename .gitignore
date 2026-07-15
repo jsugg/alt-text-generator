@@ -128,4 +128,7 @@ reports/jest/*
 
 repotoolingbot.2026-03-10.private-key.pem
 
+# Internal working notes must stay out of version control (keep them in .local/)
 .local/
+/jobs.md
+docs/typecheck-debt.md

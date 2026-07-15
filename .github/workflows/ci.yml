@@ -110,7 +110,7 @@ jobs:
         run: /tmp/actionlint -color
 
       # Advisory workflow SAST: findings warn, never block, until the signal
-      # proves low-noise (plan W09/F09 promotion criteria).
+      # proves low-noise enough to promote to a required gate.
       - name: Run zizmor workflow audit (advisory)
         run: |
           pipx install zizmor==1.26.1 >/dev/null
@@ -178,9 +178,9 @@ jobs:
         if: needs.changes.outputs.docs_only == 'true'
         run: echo "Docs-only change; OpenAPI gate satisfied by docs validation."
 
-  # Blocking JSDoc type gate: strict checkJs (docs/typecheck-debt.md) is at
-  # zero, so a regression fails the run. This is a required status check; keep
-  # the job name stable ("typecheck") so branch protection keeps matching it.
+  # Blocking JSDoc type gate: strict checkJs (tsconfig.checkjs.json) holds at
+  # zero errors, so a regression fails the run. This is a required status check;
+  # keep the job name stable ("typecheck") so branch protection keeps matching it.
   typecheck:
     name: typecheck
     needs:

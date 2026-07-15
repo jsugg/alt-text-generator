@@ -14,10 +14,12 @@ If you only need a quick local boot, start with `README.md` and come back here f
 - Quick Start (Dev)
 - Common Commands
 - GitHub Workflows
+- Repository Automation GitHub App
 - Postman/Newman Harness
 - Supported Models
 - Configuration and Profiles
 - Environment Variable Reference
+- Render Deployment Contract
 - Quality Gates
 - External Integration Validation Runbook
 - TLS and Outbound Trust Troubleshooting
@@ -59,7 +61,7 @@ npm run validate:fast      # lint + openapi:validate/check + unit lane (pre-comm
 npm run validate:contract  # openapi:diff + postman:lint + postman:smoke (HTTP contract)
 npm run validate:ci        # lint + openapi gates + test:ci + contract (CI repro; needs Redis)
 npm run lint
-npm run typecheck          # strict JSDoc typecheck (advisory in CI; docs/typecheck-debt.md)
+npm run typecheck          # strict JSDoc typecheck (required, blocking CI gate)
 
 # openapi contract
 npm run openapi:generate   # regenerate docs/openapi.base.json from JSDoc sources
@@ -118,12 +120,12 @@ After changing routes, controllers, or `config/swagger-base.js`, run `npm run op
 
 ## GitHub Workflows
 
-The repository uses a small workflow set with separate responsibilities:
+The repository gives each workflow a single responsibility:
 
 - `CI` in `.github/workflows/ci.yml`
   - runs on pushes to `main` and `production`
   - runs on pull requests targeting `main` and `production`
-  - executes `actionlint`, docs validation, `npm run lint`, OpenAPI validation, the fast `test:unit` lane on Node 22/24, and the canonical Node 24 `test:ci` lane
+  - executes `actionlint`, docs validation, `npm run lint`, OpenAPI validation, the strict JSDoc `typecheck` gate, the fast `test:unit` lane on Node 22/24, and the canonical Node 24 `test:ci` lane
   - uses `postman:smoke` as the required deterministic Newman contract gate on pull requests and pushes
   - treats Markdown/docs-only changes as lightweight: docs validation runs, while lint/OpenAPI/Jest/Newman jobs publish successful no-op checks instead of booting expensive gates
   - publishes a Newman summary derived from JSON artifacts into the workflow summary
@@ -172,25 +174,40 @@ The repository uses a small workflow set with separate responsibilities:
   - treats `production` as a tracking branch for `main`; branch-only `production` history is realigned back to the validated `main` commit during promotion
   - requires a GitHub App installation token configured through `REPO_TOOLING_GITHUB_APP_ID` and `REPO_TOOLING_GITHUB_APP_PRIVATE_KEY`
   - also requires that GitHub App to be allowed to update the protected `production` branch ref
+- `Allure Pages Publish` in `.github/workflows/allure-pages-publish.yml`
+  - deploys the composed Allure site snapshot to GitHub Pages
+  - triggered by `main` CI through `workflow_run`, dispatched explicitly by same-repository pull-request CI runs, and available manually with a `run_id` backfill input
+  - details live in the Allure workflow notes under [Postman/Newman Harness](#postmannewman-harness)
+- `Rollback Production` in `.github/workflows/rollback-production.yml`
+  - manual, dry-run-first git rollback that moves the protected `production` ref back to a known-good SHA
+- `Rollback Render Service` in `.github/workflows/rollback-render.yml`
+  - manual, dry-run-first platform-native rollback that redeploys a previous known-good Render deploy through the Render API
+  - both rollback paths are detailed under [Deployment evidence and rollback](#deployment-evidence-and-rollback)
+- `Warm Production On Merge` in `.github/workflows/warm-on-merge.yml`
+  - best-effort pings the production health endpoint on pushes to `main` to shorten free-tier cold start ahead of a likely promotion
+- `Perf Smoke` in `.github/workflows/perf-smoke.yml`
+  - monthly/manual advisory run of the warning-only `npm run perf:smoke` latency budgets; never a required check
+- `Actions Storage Report` in `.github/workflows/actions-storage-report.yml`
+  - monthly/manual advisory summary of GitHub Actions cache and artifact storage volume
 
-Branch protection currently requires these checks on both `main` and `production`:
+Branch protection requires these checks on both `main` (branch protection) and `production` (repository ruleset); the policy source of truth is `config/github/required-checks.json` (see [docs/required-checks.md](./docs/required-checks.md)):
 
 - `actionlint`
 - `codeql`
-- `lint`
-- `docs`
-- `openapi`
 - `dependency-review`
+- `docs`
+- `lint`
 - `newman`
-- `test:ci (20)`
-- `test:unit (20)`
-- `test:unit (22)`
+- `openapi`
+- `test:ci (24)`
 - `test:unit (24)`
+- `typecheck`
 
 Release policy notes:
 
 - `newman` is the required fast `postman:smoke` contract check.
-- `test:unit (*)` is the supported Node compatibility check; `test:ci (20)` is the canonical full integration/coverage/reporting check.
+- Node 24 is the canonical gate: `test:unit (24)` is required, and `test:ci (24)` is the canonical full integration/coverage/reporting check. `test:unit (22)` still runs as a non-required compatibility signal.
+- `typecheck` (strict JSDoc `checkJs`) is a required, blocking check; a single new type error fails the run.
 - `postman:full` is covered by the path-gated/manual/scheduled Local Provider Integration workflow, not the always-required CI Newman check.
 - `security-audit` is weekly/manual production dependency surveillance and is reviewed before release, but it is not a per-commit required status check.
 
