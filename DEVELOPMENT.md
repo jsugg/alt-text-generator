@@ -446,7 +446,7 @@ Development TLS behavior (applies when `TLS_ENABLED` is not `false`):
 - If `TLS_KEY` and `TLS_CERT` are set, they are used.
 - If unset and `NODE_ENV` is not `production`, the app tries `certs/localhost-key.pem` and `certs/localhost.pem`.
 - If those files are absent, the app generates a short-lived self-signed localhost certificate in-process.
-- In production, explicit TLS credentials are required — unless `TLS_ENABLED=false`, in which case no certificates are loaded at all.
+- In production, explicit TLS credentials are required — unless `TLS_ENABLED=false`, in which case they are neither required nor loaded.
 
 The in-process HTTPS listener is covered end-to-end by `tests/integration/httpsListener.test.js`, which stands up `createHttpsServer` with the loaded credentials and asserts a real TLS handshake (`socket.encrypted === true`).
 
@@ -588,11 +588,12 @@ At least one provider must be configured at startup: `REPLICATE_API_TOKEN`, Azur
 
 ## Render Deployment Contract
 
-- The Render web service shape is versioned in [`render.yaml`](./render.yaml).
+- [`render.yaml`](./render.yaml) is a **reference manifest, not applied configuration.** No Blueprint is registered for this account and the service predates the file, so nothing syncs it: editing `render.yaml` changes nothing on the running service. It exists to document the intended shape and to rebuild the service if it ever has to be recreated. The **Render dashboard is the source of truth for environment variables** — read it there, not here.
+- The service *shape* does match the manifest: plan `free`, region `oregon`, `numInstances: 1`, health check `/api/health`, build `npm ci`, start `npm run prod`, runtime `node`, branch `production`, auto-deploy on commit. The environment differs by design — the dashboard also carries the provider credentials, which the manifest does not represent.
 - Render reads the Node runtime version from [`package.json`](./package.json) `engines.node`.
 - Render builds with `npm ci` so production installs are lockfile-exact and reproducible; never revert to `npm install` except as a temporary escape hatch while repairing a broken lockfile.
-- Secrets such as `REPLICATE_API_TOKEN`, `TLS_KEY`, and `TLS_CERT` stay dashboard-managed and are represented in the Blueprint with `sync: false`.
-- Inbound TLS terminates at Render's edge, so the service runs with `TLS_ENABLED=false` and serves HTTP-only on the injected `$PORT`; `TLS_KEY`/`TLS_CERT` are therefore not required on the service. This is a deliberate edge-termination choice, not a downgrade of the project's HTTPS-first default — see [Inbound TLS posture](#inbound-tls-posture-https-first-vs-edge-termination). Public traffic stays HTTPS via the edge certificate.
+- Secrets such as `REPLICATE_API_TOKEN` stay dashboard-managed; the manifest lists them with `sync: false` so it never carries a value.
+- Inbound TLS terminates at Render's edge, so the service runs with `TLS_ENABLED=false` and serves HTTP-only on `PORT`, which is pinned explicitly to `8080` on the dashboard rather than left to Render's injected default. `TLS_KEY`/`TLS_CERT` are therefore not required on the service — `validateEnvVars` asks for them only when TLS is actually enabled. This is a deliberate edge-termination choice, not a downgrade of the project's HTTPS-first default — see [Inbound TLS posture](#inbound-tls-posture-https-first-vs-edge-termination). Public traffic stays HTTPS via the edge certificate.
 - Set `TRUST_PROXY_HOPS=1` explicitly on the service (Render is a single ingress hop) so `req.secure`, the HTTP→HTTPS redirect, secure cookies, and HSTS remain correct behind the edge. Raise it if a further proxy/CDN is added in front.
 
 ### Deployment evidence and rollback
