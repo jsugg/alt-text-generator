@@ -270,10 +270,12 @@ GET `/api/accessibility/description` or `/api/v1/accessibility/description`
   - fast providers return `200` with the description array immediately
   - slow async providers such as `replicate` can return `202` with `jobId`, `status`, `pollAfterMs`, and `statusUrl`
 
-Example:
+Example — replace `<configured-model>` with a provider you configured in `.env`.
+A provider registers only when its keys are set, and an unregistered one returns
+`400 UNKNOWN_MODEL`:
 
 ```bash
-curl -sk "https://localhost:8443/api/accessibility/description?image_source=https%3A%2F%2Fwww.google.com%2Fimages%2Fbranding%2Fgooglelogo%2F1x%2Fgooglelogo_color_272x92dp.png&model=replicate"
+curl -sk "https://localhost:8443/api/accessibility/description?image_source=https%3A%2F%2Fwww.google.com%2Fimages%2Fbranding%2Fgooglelogo%2F1x%2Fgooglelogo_color_272x92dp.png&model=<configured-model>"
 ```
 
 GET `/api/accessibility/description-jobs/:jobId` or `/api/v1/accessibility/description-jobs/:jobId`
@@ -304,7 +306,7 @@ GET `/api/accessibility/descriptions` or `/api/v1/accessibility/descriptions`
 Example:
 
 ```bash
-curl -sk "https://localhost:8443/api/accessibility/descriptions?url=https%3A%2F%2Fdeveloper.chrome.com%2F&model=replicate"
+curl -sk "https://localhost:8443/api/accessibility/descriptions?url=https%3A%2F%2Fdeveloper.chrome.com%2F&model=<configured-model>"
 ```
 
 GET `/api/accessibility/page-description-jobs/:jobId` or `/api/v1/accessibility/page-description-jobs/:jobId`

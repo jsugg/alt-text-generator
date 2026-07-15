@@ -507,7 +507,7 @@ method, or protocol.
 | `CLUSTER_MAX_CRASHES` | No | `5` | Maximum unexpected worker exits allowed inside the crash window before the primary exits non-zero. |
 | `CLUSTER_SHUTDOWN_TIMEOUT_MS` | No | `10000` | Time the cluster primary waits for worker disconnect during shutdown before forcing exit. |
 | `REDIS_URL` | No | unset | Shared Redis URL used automatically for rate limiting when `RATE_LIMIT_STORE=auto` and no explicit `RATE_LIMIT_REDIS_URL` is provided. |
-| `SCRAPER_REQUEST_TIMEOUT_MS` | No | `10000` | Timeout for outbound page fetches and provider HTTP calls. |
+| `SCRAPER_REQUEST_TIMEOUT_MS` | No | `10000` | Timeout for outbound page fetches and provider HTTP calls. The Render service raises this to `90000`: hosted vision models routinely take more than 10s per image, and the free-tier instance is slower still. |
 | `SCRAPER_MAX_REDIRECTS` | No | `5` | Redirect limit for outbound page fetches. |
 | `SCRAPER_MAX_CONTENT_LENGTH_BYTES` | No | `2097152` | Maximum response body size accepted when scraping HTML. |
 
@@ -610,7 +610,7 @@ At least one provider must be configured at startup: `REPLICATE_API_TOKEN`, Azur
 - `/api/health` is the readiness signal used by Render. It returns `200` while the instance is ready and `503` once graceful shutdown begins.
 - Status routes use their own limiter so health probes are protected without sharing the main API request budget.
 - Clustered mode (`WORKER_COUNT > 1`) requires a Redis-backed limiter. Startup validation fails fast if clustered mode is enabled without `RATE_LIMIT_STORE=redis|auto` and a resolvable Redis endpoint.
-- The current Render deployment keeps `RATE_LIMIT_REDIS_TOPOLOGY=external`, so the future pod-local Redis path is explicitly disabled for now.
+- The current Render deployment runs the `external` topology — it does not set `RATE_LIMIT_REDIS_TOPOLOGY` at all, and `external` is the code default (`config/rateLimitStore.js`) — so the future pod-local Redis path is inactive for now.
 - Horizontal instance scaling should use an external/shared Redis-backed limiter, and `STATUS_RATE_LIMIT_MAX` should be sized for the aggregate health-probe budget across instances.
 - The future `RATE_LIMIT_REDIS_TOPOLOGY=unit-local` mode is meant for a Docker/Kubernetes-style resilient unit where several worker processes intentionally share one pod-local Redis instance.
 - Redis-backed limiter errors fail open at request time to preserve availability, but startup still fails fast when Redis is explicitly required and unreachable during bootstrap.
