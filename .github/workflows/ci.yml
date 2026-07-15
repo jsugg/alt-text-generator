@@ -48,29 +48,7 @@ jobs:
             git ls-tree -r --name-only "${HEAD_SHA}" > changed-files.txt
           fi
 
-          node <<'NODE'
-          const fs = require('node:fs');
-
-          const changedFiles = fs.readFileSync('changed-files.txt', 'utf8')
-            .split('\n')
-            .map((line) => line.trim())
-            .filter(Boolean);
-
-          const isDocsPath = (filePath) => (
-            filePath === 'LICENSE'
-            || filePath.endsWith('.md')
-            || filePath.startsWith('docs/')
-            || filePath.startsWith('.github/assets/')
-          );
-          const docsChanged = changedFiles.some(isDocsPath);
-          const docsOnly = changedFiles.length > 0 && changedFiles.every(isDocsPath);
-          const outputs = [
-            ['docs_changed', String(docsChanged)],
-            ['docs_only', String(docsOnly)],
-          ];
-
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `${outputs.map(([key, value]) => `${key}=${value}`).join('\n')}\n`);
-          NODE
+          node scripts/ci/classify-changed-paths.js --input changed-files.txt
 
   docs:
     name: docs
