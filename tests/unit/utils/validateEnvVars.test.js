@@ -174,10 +174,90 @@ describe('Unit | Utils | Validate Env Vars', () => {
         NODE_ENV: 'production',
         REPLICATE_API_TOKEN: 'test-token',
       },
+      remove: ['TLS_KEY', 'TLS_CERT', 'TLS_ENABLED'],
+    });
+
+    expect(() => validateEnvVars()).toThrow(/TLS_KEY/);
+  });
+
+  it('does not require production TLS credentials when TLS_ENABLED=false', () => {
+    const validateEnvVars = loadValidator({
+      overrides: {
+        NODE_ENV: 'production',
+        TLS_ENABLED: 'false',
+        REPLICATE_API_TOKEN: 'test-token',
+      },
+      remove: ['TLS_KEY', 'TLS_CERT'],
+    });
+
+    expect(() => validateEnvVars()).not.toThrow();
+  });
+
+  it('requires production TLS credentials when TLS_ENABLED=true', () => {
+    const validateEnvVars = loadValidator({
+      overrides: {
+        NODE_ENV: 'production',
+        TLS_ENABLED: 'true',
+        REPLICATE_API_TOKEN: 'test-token',
+      },
       remove: ['TLS_KEY', 'TLS_CERT'],
     });
 
     expect(() => validateEnvVars()).toThrow(/TLS_KEY/);
+  });
+
+  it('requires TLS_CERT in production when only TLS_KEY is supplied', () => {
+    const validateEnvVars = loadValidator({
+      overrides: {
+        NODE_ENV: 'production',
+        REPLICATE_API_TOKEN: 'test-token',
+        TLS_KEY: 'tls-key',
+      },
+      remove: ['TLS_CERT', 'TLS_ENABLED'],
+    });
+
+    expect(() => validateEnvVars()).toThrow(/TLS_CERT/);
+  });
+
+  it('accepts TLS_ENABLED=false in production alongside unused TLS credentials', () => {
+    const validateEnvVars = loadValidator({
+      overrides: {
+        NODE_ENV: 'production',
+        TLS_ENABLED: 'false',
+        REPLICATE_API_TOKEN: 'test-token',
+        TLS_KEY: 'tls-key',
+        TLS_CERT: 'tls-cert',
+      },
+    });
+
+    expect(() => validateEnvVars()).not.toThrow();
+  });
+
+  it('rejects a TLS_ENABLED value other than true or false', () => {
+    const validateEnvVars = loadValidator({
+      overrides: {
+        NODE_ENV: 'production',
+        TLS_ENABLED: 'disabled',
+        REPLICATE_API_TOKEN: 'test-token',
+        TLS_KEY: 'tls-key',
+        TLS_CERT: 'tls-cert',
+      },
+    });
+
+    expect(() => validateEnvVars()).toThrow(/TLS_ENABLED/);
+  });
+
+  it('leaves TLS credentials optional outside production when TLS_ENABLED=true', () => {
+    const validateEnvVars = loadValidator({
+      overrides: {
+        NODE_ENV: 'development',
+        TLS_ENABLED: 'true',
+        REPLICATE_API_TOKEN: 'test-token',
+      },
+      remove: ['TLS_KEY', 'TLS_CERT'],
+    });
+
+    expect(() => validateEnvVars()).not.toThrow();
   });
 
   it('accepts a non-negative TRUST_PROXY_HOPS override', () => {
