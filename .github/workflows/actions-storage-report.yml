@@ -1,8 +1,8 @@
 name: Actions Storage Report
 
-# Advisory observability (plan W15): monthly/manual cache + artifact volume
-# summary. Read-only; retention tuning stays a deliberate, evidence-based
-# change reviewed against report history UX.
+# Advisory observability: monthly/manual cache + artifact volume summary.
+# Read-only; retention tuning stays a deliberate, evidence-based change
+# reviewed against report history UX.
 on:
   workflow_dispatch:
   schedule:

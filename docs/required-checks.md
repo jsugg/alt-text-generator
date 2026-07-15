@@ -16,8 +16,8 @@ rename silently breaks the gate.
 ## Live-state export (before any policy mutation)
 
 Export and keep the current state before changing branch protection, rulesets,
-or repository settings. Store exports outside version control (for example
-`.local/ci-cd-evidence/`, which is gitignored):
+or repository settings. Store the exports in a gitignored directory or outside
+the repository entirely:
 
 ```bash
 gh api repos/jsugg/alt-text-generator/branches/main/protection > main-protection.json

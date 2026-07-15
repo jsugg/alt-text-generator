@@ -1,7 +1,7 @@
 name: Perf Smoke
 
-# Advisory-only performance smoke (plan W14): warning-only budgets, never a
-# required check. Promote a budget by listing it in PERF_BUDGETS_ACCEPTED.
+# Advisory-only performance smoke: warning-only budgets, never a required
+# check. Promote a budget by listing it in PERF_BUDGETS_ACCEPTED.
 on:
   workflow_dispatch:
   schedule:

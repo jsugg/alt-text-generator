@@ -2,7 +2,7 @@
 /* eslint-disable no-console */
 
 /**
- * Advisory Actions storage observability (plan W15): reports cache usage and
+ * Advisory Actions storage observability: reports cache usage and
  * artifact volume grouped by artifact name so retention tuning decisions are
  * evidence-based. Read-only; never mutates retention settings.
  */
