@@ -260,6 +260,43 @@ describe('Unit | Utils | Validate Env Vars', () => {
     expect(() => validateEnvVars()).not.toThrow();
   });
 
+  it.each([
+    ['127.0.0.1:19090'],
+    ['localhost'],
+    ['fixtures.internal:8080,127.0.0.1:19090'],
+    ['api.example.com'],
+    ['[::1]:8080'],
+    [''],
+  ])('accepts OUTBOUND_ALLOWED_HOSTS=%s', (value) => {
+    const validateEnvVars = loadValidator({
+      overrides: {
+        REPLICATE_API_TOKEN: 'test-token',
+        OUTBOUND_ALLOWED_HOSTS: value,
+      },
+    });
+
+    expect(() => validateEnvVars()).not.toThrow();
+  });
+
+  // Every one of these would previously have been accepted and then silently
+  // never matched, which for an allowlist is indistinguishable from working.
+  it.each([
+    ['*.example.com'],
+    ['example.com/path'],
+    ['https://example.com'],
+    ['example.com:99999999'],
+    ['exam ple.com'],
+  ])('rejects OUTBOUND_ALLOWED_HOSTS=%s', (value) => {
+    const validateEnvVars = loadValidator({
+      overrides: {
+        REPLICATE_API_TOKEN: 'test-token',
+        OUTBOUND_ALLOWED_HOSTS: value,
+      },
+    });
+
+    expect(() => validateEnvVars()).toThrow(/OUTBOUND_ALLOWED_HOSTS/);
+  });
+
   it('accepts a non-negative TRUST_PROXY_HOPS override', () => {
     const validateEnvVars = loadValidator({
       overrides: {

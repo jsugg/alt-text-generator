@@ -19,6 +19,17 @@ const {
   RATE_LIMIT_STORE_MODES,
 } = require('../../config/rateLimitStore');
 
+// OUTBOUND_ALLOWED_HOSTS entries are matched verbatim against a URL's `host`
+// (with port) or `hostname` (without), so the accepted syntax is exactly
+// `host[:port]` — no wildcards, no suffix matching, nothing to interpret.
+// Validating the shape here means a typo fails at boot rather than silently
+// never matching, which for an allowlist would look identical to working.
+const HOST_LABEL = '[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?';
+const HOST_ENTRY = `(?:${HOST_LABEL}(?:\\.${HOST_LABEL})*|\\[[0-9A-Fa-f:.]+\\])(?::\\d{1,5})?`;
+const OUTBOUND_ALLOWED_HOSTS_PATTERN = new RegExp(
+  `^\\s*${HOST_ENTRY}(?:\\s*,\\s*${HOST_ENTRY})*\\s*$`,
+);
+
 /**
  * @param {unknown} value
  * @returns {string[]}
@@ -74,6 +85,18 @@ const envVarsSchema = Joi.object({
     otherwise: Joi.optional(),
   }),
   OUTBOUND_CA_BUNDLE_FILE: Joi.string().optional(),
+
+  // Every entry here bypasses the private-network SSRF guard — see
+  // src/infrastructure/outboundUrlPolicy.js and the warning in DEVELOPMENT.md.
+  OUTBOUND_ALLOWED_HOSTS: Joi.string()
+    .pattern(OUTBOUND_ALLOWED_HOSTS_PATTERN)
+    .allow('')
+    .optional()
+    .messages({
+      'string.pattern.base':
+        '"OUTBOUND_ALLOWED_HOSTS" must be a comma-separated list of host[:port] '
+        + 'entries (exact matches only — wildcards and suffix patterns are not supported)',
+    }),
 
   // Scraper HTTP safeguards
   SCRAPER_REQUEST_TIMEOUT_MS: Joi.number().integer().min(1).optional(),
