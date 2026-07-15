@@ -11,20 +11,20 @@ If you only need a quick local boot, start with `README.md` and come back here f
 
 ## Table of Contents
 
-- Quick Start (Dev)
-- Common Commands
-- GitHub Workflows
-- Repository Automation GitHub App
-- Postman/Newman Harness
-- Supported Models
-- Configuration and Profiles
-- Environment Variable Reference
-- Render Deployment Contract
-- Quality Gates
-- External Integration Validation Runbook
-- TLS and Outbound Trust Troubleshooting
-- Operational Notes
-- Keeping This Doc Correct
+- [Quick Start (Dev)](#quick-start-dev)
+- [Common Commands](#common-commands)
+- [GitHub Workflows](#github-workflows)
+- [Repository Automation GitHub App](#repository-automation-github-app)
+- [Postman/Newman Harness](#postmannewman-harness)
+- [Supported Models](#supported-models)
+- [Configuration and Profiles](#configuration-and-profiles)
+- [Environment Variable Reference](#environment-variable-reference)
+- [Render Deployment Contract](#render-deployment-contract)
+- [Quality Gates](#quality-gates)
+- [External Integration Validation Runbook](#external-integration-validation-runbook)
+- [TLS and Outbound Trust Troubleshooting](#tls-and-outbound-trust-troubleshooting)
+- [Operational Notes](#operational-notes)
+- [Keeping This Doc Correct](#keeping-this-doc-correct)
 
 ## Quick Start (Dev)
 
