@@ -12,7 +12,8 @@ Use the Postman/Newman layer for external HTTP contract validation, not for re-t
   - Fast deterministic checks required on pull requests
   - Covers core health/docs/routing, protected-endpoint auth, and one representative provider path
 - `full`
-  - Full deterministic harness for `main` and `production`
+  - Full deterministic harness. Runs on manual dispatch, weekly schedule, and paths-filtered push/PR to `main` (`Local Provider Integration`)
+  - Not run on `production` — CI runs the `smoke` tier there
   - Adds broader contract, negative-path, and page-description coverage
 - `live`
   - Manual or scheduled validation against real providers
