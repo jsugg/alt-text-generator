@@ -1,0 +1,1 @@
+Found. Redirecting to https://127.0.0.1:35463/api/ping
