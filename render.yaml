@@ -25,11 +25,11 @@ services:
         value: external
       - key: TRUST_PROXY_HOPS
         value: 1
-      - key: TLS_PORT
-        value: 8443
+      # Inbound TLS terminates at Render's edge, so the app serves HTTP-only on
+      # PORT and never loads certificates. TLS_KEY/TLS_CERT are deliberately
+      # absent: since the conditional-validation fix they are not required to
+      # boot, and they were never read.
+      - key: TLS_ENABLED
+        value: "false"
       - key: REPLICATE_API_TOKEN
-        sync: false
-      - key: TLS_KEY
-        sync: false
-      - key: TLS_CERT
         sync: false

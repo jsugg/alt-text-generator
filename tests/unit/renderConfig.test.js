@@ -24,9 +24,32 @@ describe('Unit | Render Deploy Config', () => {
   it('keeps secret-bearing environment variables unsynced from the repo', () => {
     const envVars = new Map(service.envVars.map((entry) => [entry.key, entry]));
 
-    ['REPLICATE_API_TOKEN', 'TLS_KEY', 'TLS_CERT'].forEach((key) => {
-      expect(envVars.get(key)).toEqual({ key, sync: false });
+    expect(envVars.get('REPLICATE_API_TOKEN')).toEqual({
+      key: 'REPLICATE_API_TOKEN',
+      sync: false,
     });
     expect(envVars.get('NODE_ENV')).toEqual({ key: 'NODE_ENV', value: 'production' });
+  });
+
+  it('declares the edge-termination TLS posture as a string', () => {
+    const envVars = new Map(service.envVars.map((entry) => [entry.key, entry]));
+
+    // config/index.js keys off `TLS_ENABLED !== 'false'`, so the value has to be
+    // the string "false" — bare `false` is a YAML boolean and would not match.
+    expect(envVars.get('TLS_ENABLED')).toEqual({ key: 'TLS_ENABLED', value: 'false' });
+  });
+
+  it('does not declare TLS credentials the service never reads', () => {
+    const declaredKeys = service.envVars.map((entry) => entry.key);
+
+    // TLS terminates at the edge, so the app skips certificate loading entirely
+    // and the validator no longer requires the credentials to boot. Re-declaring
+    // them here would reintroduce the belief that production depends on them.
+    expect(declaredKeys).not.toContain('TLS_KEY');
+    expect(declaredKeys).not.toContain('TLS_CERT');
+
+    // TLS_PORT is inert while TLS is off, and the file and the live service
+    // disagreed on its value for as long as it was declared.
+    expect(declaredKeys).not.toContain('TLS_PORT');
   });
 });
