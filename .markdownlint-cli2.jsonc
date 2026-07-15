@@ -14,6 +14,12 @@
   //                       its own number. That renders correctly (<ol start=N>)
   //                       and re-indenting eight fences to satisfy the rule
   //                       would churn the document without fixing anything.
+  //   MD060 table-column-style
+  //                       the repo mixes `|---|` and `| --- |` delimiter rows.
+  //                       Worth settling one day, but normalising 24 rows
+  //                       across four files — including required-checks.md,
+  //                       whose content is verified correct — is churn, not a
+  //                       fix. Nothing renders differently either way.
   //
   // Everything else stays on, including the heading-hierarchy rules this gate
   // is for: MD001 increment, MD024 duplicates, MD025 single H1, MD022 spacing.
@@ -22,7 +28,8 @@
     "MD013": false,
     "MD033": false,
     "MD041": false,
-    "MD029": false
+    "MD029": false,
+    "MD060": false
   },
   "globs": ["**/*.md"],
   "gitignore": true

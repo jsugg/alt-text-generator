@@ -58,7 +58,9 @@
     "validate:contract": "npm run openapi:diff && npm run postman:lint && npm run postman:smoke",
     "validate:ci": "npm run lint && npm run openapi:validate && npm run openapi:check && NODE_ENV=test REPLICATE_API_TOKEN=test-token npm run test:ci && npm run validate:contract",
     "prod": "NODE_ENV=production node src/app.js",
-    "dev": "NODE_ENV=development nodemon src/app.js | pino-pretty -i streams,options"
+    "dev": "NODE_ENV=development nodemon src/app.js | pino-pretty -i streams,options",
+    "security:docs": "node scripts/security/residual-advisories.js",
+    "security:residual": "node scripts/security/residual-advisories.js --check-audit"
   },
   "repository": {
     "type": "git",
@@ -99,7 +101,7 @@
     "jest": "^29.7.0",
     "jest-environment-node": "^30.4.1",
     "jest-junit": "^16.0.0",
-    "markdownlint-cli2": "0.18.1",
+    "markdownlint-cli2": "0.23.0",
     "newman": "^6.2.2",
     "newman-reporter-allure": "^3.6.0",
     "nodemon": "^3.1.14",

@@ -1,0 +1,58 @@
+{
+  "$schema": "./residual-advisories.schema.json",
+  "$comment": "Approved residual advisories and override pins. docs/dependency-security.md's tables are generated from this file — edit here, then run `npm run security:docs -- --write`. Verified by scripts/security/residual-advisories.js.",
+  "verifiedAt": "2026-07-15",
+  "lockfileSha256": "9aa20c19d81ca2ec83bdaf7b02b80fd7af493e469de194e7a0e1e9926d6c2fdc",
+  "overrides": [
+    {
+      "package": "handlebars",
+      "range": "^4.7.9",
+      "fixes": "**critical** AST-injection / prototype-pollution chain"
+    },
+    {
+      "package": "lodash",
+      "range": "^4.18.1",
+      "fixes": "code-injection + prototype-pollution advisories"
+    },
+    {
+      "package": "node-forge",
+      "range": "^1.4.0",
+      "fixes": "signature/verification advisories"
+    },
+    {
+      "package": "underscore",
+      "range": "^1.13.8",
+      "fixes": "arbitrary code execution"
+    },
+    {
+      "package": "flatted",
+      "range": "^3.4.2",
+      "fixes": "prototype pollution + unbounded-recursion DoS"
+    },
+    {
+      "package": "qs",
+      "range": "^6.15.3",
+      "fixes": "transitive `qs` (the direct dep is already ≥ 6.15.3)"
+    }
+  ],
+  "accepted": [
+    {
+      "advisory": "GHSA-w5hq-g745-h8pq",
+      "package": "uuid",
+      "severity": "moderate",
+      "title": "Missing buffer bounds check in v3/v5/v6 when buf is provided",
+      "pulledBy": ["jest-junit", "postman-collection", "postman-request", "serialised-error"],
+      "productionReachable": false,
+      "why": "The fix is uuid@14, whose ESM/named-export API breaks those old consumers."
+    },
+    {
+      "advisory": "GHSA-hhhv-q57g-882q",
+      "package": "jose",
+      "severity": "moderate",
+      "title": "Resource exhaustion via a crafted JWE with compressed plaintext",
+      "pulledBy": ["postman-runtime"],
+      "productionReachable": false,
+      "why": "The fix is jose@6, two majors past what postman-runtime targets."
+    }
+  ]
+}

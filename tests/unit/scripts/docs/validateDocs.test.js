@@ -5,6 +5,7 @@ const path = require('node:path');
 
 const {
   checkEnvVarCoverage,
+  checkExpiry,
   checkImageAlt,
   checkProhibitedReferences,
   collectAnchors,
@@ -269,6 +270,49 @@ describe('Unit | Scripts | Docs | Validate Docs', () => {
     it('disambiguates repeated headings the way GitHub does', () => {
       expect([...collectAnchors('## Notes\n\n## Notes\n\n## Notes\n')])
         .toEqual(['notes', 'notes-1', 'notes-2']);
+    });
+  });
+
+  describe('documented expiry dates', () => {
+    const AS_OF = new Date('2026-07-15T00:00:00Z');
+
+    it('accepts an expiry still in the future', () => {
+      expect(checkExpiry('Owner: QE. Expiry: 2026-09-30.\n', 'x.md', AS_OF)).toEqual([]);
+    });
+
+    it('accepts an expiry falling exactly today', () => {
+      expect(checkExpiry('Expiry: 2026-07-15\n', 'x.md', AS_OF)).toEqual([]);
+    });
+
+    it('rejects an expiry that has passed', () => {
+      expect(checkExpiry('Owner: QE. Expiry: 2026-07-14.\n', 'x.md', AS_OF)).toEqual([{
+        file: 'x.md',
+        line: 1,
+        message: 'Documented Expiry 2026-07-14 has passed (today is 2026-07-15) — revisit or extend it',
+      }]);
+    });
+
+    it('rejects a date that does not exist', () => {
+      expect(checkExpiry('Expiry: 2026-13-45\n', 'x.md', AS_OF)).toEqual([{
+        file: 'x.md',
+        line: 1,
+        message: 'Expiry date is not a valid date: 2026-13-45',
+      }]);
+    });
+
+    it('ignores an expiry inside a fenced code block', () => {
+      expect(checkExpiry('```\nExpiry: 2020-01-01\n```\n', 'x.md', AS_OF)).toEqual([]);
+    });
+
+    // The live case this exists for: coverage-thresholds.md carries a real one.
+    it('is watching a real documented expiry', () => {
+      const content = fs.readFileSync(
+        path.join(__dirname, '../../../../docs/coverage-thresholds.md'),
+        'utf8',
+      );
+
+      expect(content).toMatch(/Expiry:\s*\d{4}-\d{2}-\d{2}/);
+      expect(checkExpiry(content, 'docs/coverage-thresholds.md', AS_OF)).toEqual([]);
     });
   });
 

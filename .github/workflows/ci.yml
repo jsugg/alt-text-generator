@@ -72,6 +72,13 @@ jobs:
       - name: Lint Markdown
         run: npm run docs:lint
 
+      # Deterministic and offline: asserts the generated tables in
+      # dependency-security.md match the manifest, and that the manifest's
+      # override list matches package.json. The audit itself runs unblocking on
+      # a schedule (Security Audit / residual-advisories).
+      - name: Check generated dependency-security tables
+        run: npm run security:docs
+
   actionlint:
     name: actionlint
     runs-on: ubuntu-latest

@@ -61,3 +61,42 @@ jobs:
         run: |
           echo "npm audit reported high or critical production dependency findings."
           exit 1
+
+  # Non-blocking, by design. The npm-audit job above is the production gate and
+  # stays --omit=dev --audit-level=high, which is correct for production risk but
+  # structurally cannot see what docs/dependency-security.md is about: those
+  # advisories are all dev-only and all moderate. This job runs the full tree and
+  # compares it to the approved manifest, so the document has something keeping
+  # it true rather than being true by luck.
+  #
+  # It must never block: the advisory database changes without anyone touching
+  # this repo, so a required check here would go red because a third party
+  # published overnight.
+  residual-advisories:
+    name: residual-advisories
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner (audit)
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Setup project
+        uses: ./.github/actions/setup-node-project
+
+      - name: Compare the full dependency tree against the approved manifest
+        run: |
+          if ! npm run security:residual --silent | tee residual.log; then
+            echo "::warning::Full-tree audit diverges from config/security/residual-advisories.json (advisory; see job log)"
+          fi
+          {
+            echo '### Residual dependency advisories'
+            echo ''
+            echo '```'
+            cat residual.log
+            echo '```'
+          } >> "${GITHUB_STEP_SUMMARY}"
