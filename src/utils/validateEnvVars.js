@@ -50,15 +50,27 @@ const envVarsSchema = Joi.object({
   CLUSTER_SHUTDOWN_TIMEOUT_MS: Joi.number().integer().min(1).optional(),
   REDIS_URL: Joi.string().pattern(/^rediss?:\/\//).optional(),
 
-  // TLS certs are required in production
+  // Mirrors config/index.js: any value other than 'false' enables TLS.
+  TLS_ENABLED: Joi.string().valid('true', 'false').optional(),
+
+  // TLS certs are required in production unless TLS terminates at the platform
+  // edge (TLS_ENABLED=false), where startApplicationRuntime never loads them.
   TLS_KEY: Joi.string().when('NODE_ENV', {
     is: 'production',
-    then: Joi.required(),
+    then: Joi.when('TLS_ENABLED', {
+      is: 'false',
+      then: Joi.optional(),
+      otherwise: Joi.required(),
+    }),
     otherwise: Joi.optional(),
   }),
   TLS_CERT: Joi.string().when('NODE_ENV', {
     is: 'production',
-    then: Joi.required(),
+    then: Joi.when('TLS_ENABLED', {
+      is: 'false',
+      then: Joi.optional(),
+      otherwise: Joi.required(),
+    }),
     otherwise: Joi.optional(),
   }),
   OUTBOUND_CA_BUNDLE_FILE: Joi.string().optional(),
