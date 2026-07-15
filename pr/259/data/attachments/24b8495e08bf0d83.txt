@@ -1,0 +1,1 @@
+{"error":"Error fetching description for the provided image","code":"DESCRIPTION_FETCH_FAILED","requestId":"dec2d9a8-0754-4d7f-8b0b-b7f125889a1e"}
