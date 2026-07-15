@@ -1,8 +1,8 @@
 {
   "info": {
     "_postman_id": "e379638e-f74f-4aa6-813c-6073da2cfab1",
-    "name": "alt-text-generator API Contract Harness",
-    "description": "Deterministic Postman/Newman contract harness for the alt-text-generator API. Use the local fixture environment for CI/local runs, and keep live-provider validation separate.",
+    "name": "Alt-Text 4 All API Contract Harness",
+    "description": "Deterministic Postman/Newman contract harness for the Alt-Text 4 All API. Use the local fixture environment for CI/local runs, and keep live-provider validation separate.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "event": [

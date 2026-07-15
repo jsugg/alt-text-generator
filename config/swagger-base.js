@@ -21,10 +21,10 @@ const buildServers = () => {
 const createSwaggerDefinition = () => ({
   openapi: '3.0.0',
   info: {
-    title: 'AI-Powered Alternative Text Provider API',
+    title: 'Alt-Text 4 All',
     version: '1.0.0',
     description:
-      'This API provides descriptions to images, to contribute to the world-wide accessibility efforts.',
+      'Scrapes website images and generates AI-powered alt text to improve accessibility workflows.',
   },
   servers: buildServers(),
   components: {
