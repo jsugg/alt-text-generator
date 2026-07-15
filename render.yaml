@@ -30,6 +30,6 @@ services:
       # absent: since the conditional-validation fix they are not required to
       # boot, and they were never read.
       - key: TLS_ENABLED
-        value: false
+        value: "false"
       - key: REPLICATE_API_TOKEN
         sync: false
