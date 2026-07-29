@@ -12,7 +12,7 @@ const { loadFreshModule } = require('../setup/testEnv');
 // declares whether it is set for a given config load.
 function loadJestConfig(allureResultsDir) {
   return loadFreshModule(
-    // eslint-disable-next-line import/no-dynamic-require
+    // eslint-disable-next-line import-x/no-dynamic-require
     () => require(CONFIG_PATH),
     { ALLURE_RESULTS_DIR: typeof allureResultsDir === 'string' ? allureResultsDir : undefined },
   );

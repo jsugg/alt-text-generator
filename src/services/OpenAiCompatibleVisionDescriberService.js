@@ -374,7 +374,7 @@ class OpenAiCompatibleVisionDescriberService {
     const message = choice?.message;
     const content = message?.content;
     const reasoning = message?.reasoning_content;
-    let rawSample = null;
+    let rawSample;
     try {
       rawSample = JSON.stringify(data)?.slice(0, 1500) ?? null;
     } catch {

@@ -21,48 +21,59 @@ describe('Unit | Dependabot Policy', () => {
     expect(actionsUpdate.schedule).toEqual({ interval: 'weekly' });
   });
 
-  it('suppresses only the known out-of-scope majors (ESLint 10, Jest 30)', () => {
-    const ignored = (npmUpdate.ignore || []).map((entry) => ({
-      name: entry['dependency-name'],
-      types: entry['update-types'],
-    }));
-
-    expect(ignored).toEqual([
-      { name: 'eslint', types: ['version-update:semver-major'] },
-      { name: '@eslint/js', types: ['version-update:semver-major'] },
-      { name: 'jest', types: ['version-update:semver-major'] },
-    ]);
+  it('does not suppress dependency updates', () => {
+    expect(npmUpdate).not.toHaveProperty('ignore');
   });
 
-  it('never suppresses minor or patch updates for the pinned packages', () => {
-    (npmUpdate.ignore || []).forEach((entry) => {
-      expect(entry['update-types']).toEqual(['version-update:semver-major']);
-      expect(entry).not.toHaveProperty('versions');
-    });
-  });
-
-  it('groups every update — all types, prod and dev — into one PR per stream', () => {
-    // "Group all": one catch-all group per applies-to stream. No update-types
-    // filter, so majors are included; no dependency-type filter, so production
-    // and development dependencies land in the same PR.
+  it('isolates majors while grouping routine updates by production reachability', () => {
     /**
      * @param {unknown} group
-     * @param {string} appliesTo
+     * @param {unknown} expected
      */
-    const assertCatchAll = (group, appliesTo) => {
-      expect(group).toEqual({ 'applies-to': appliesTo, patterns: ['*'] });
+    const assertGroup = (group, expected) => {
+      expect(group).toEqual(expected);
     };
 
-    expect(Object.keys(npmUpdate.groups)).toEqual(['npm-all', 'npm-security']);
-    assertCatchAll(npmUpdate.groups['npm-all'], 'version-updates');
-    assertCatchAll(npmUpdate.groups['npm-security'], 'security-updates');
+    expect(Object.keys(npmUpdate.groups)).toEqual([
+      'pino-major',
+      'npm-production-minor-patch',
+      'npm-development-minor-patch',
+      'npm-security',
+    ]);
+    assertGroup(npmUpdate.groups['pino-major'], {
+      'applies-to': 'version-updates',
+      patterns: ['pino', 'pino-http'],
+      'update-types': ['major'],
+    });
+    assertGroup(npmUpdate.groups['npm-production-minor-patch'], {
+      'applies-to': 'version-updates',
+      'dependency-type': 'production',
+      patterns: ['*'],
+      'update-types': ['minor', 'patch'],
+    });
+    assertGroup(npmUpdate.groups['npm-development-minor-patch'], {
+      'applies-to': 'version-updates',
+      'dependency-type': 'development',
+      patterns: ['*'],
+      'update-types': ['minor', 'patch'],
+    });
+    assertGroup(npmUpdate.groups['npm-security'], {
+      'applies-to': 'security-updates',
+      patterns: ['*'],
+    });
 
     expect(Object.keys(actionsUpdate.groups)).toEqual([
       'github-actions-all',
       'github-actions-security',
     ]);
-    assertCatchAll(actionsUpdate.groups['github-actions-all'], 'version-updates');
-    assertCatchAll(actionsUpdate.groups['github-actions-security'], 'security-updates');
+    assertGroup(actionsUpdate.groups['github-actions-all'], {
+      'applies-to': 'version-updates',
+      patterns: ['*'],
+    });
+    assertGroup(actionsUpdate.groups['github-actions-security'], {
+      'applies-to': 'security-updates',
+      patterns: ['*'],
+    });
   });
 
   it('does not auto-merge dependabot PRs (manual-review posture)', () => {
@@ -81,10 +92,10 @@ describe('Unit | Dependabot Policy', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('documents the group-all, manual-merge posture and the security-update override', () => {
-    expect(raw).toContain('GROUP ALL');
+  it('documents the targeted-group, manual-merge posture and visible security updates', () => {
+    expect(raw).toContain('TARGETED GROUPS');
     expect(raw).toContain('no auto-merge');
-    expect(raw).toContain('Security-update override');
-    expect(raw).toContain('remove the ignore entry');
+    expect(raw).toContain('No update ignores');
+    expect(raw).toContain('security fixes must remain visible');
   });
 });

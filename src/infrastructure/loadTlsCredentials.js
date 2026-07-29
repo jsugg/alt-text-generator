@@ -147,6 +147,7 @@ const loadTlsCredentials = async () => {
       'TLS credentials could not be loaded. '
       + 'Ensure TLS_KEY and TLS_CERT are valid file paths, PEM values, or base64-encoded PEM values. '
       + `Detail: ${/** @type {Error} */ (err).message}`,
+      { cause: err },
     );
   }
 };

@@ -2,9 +2,10 @@ const crypto = require('crypto');
 
 /** @typedef {typeof import('pino-http')} PinoHttpModule */
 
-// pino and pino-http publish ESM-shaped types; the CJS export is the callable
-// default with the namespace members attached, so cast once at the require.
-const pino = /** @type {typeof import('pino')['default']} */ (
+/** @typedef {(options?: import('pino').LoggerOptions) => import('pino').Logger} PinoFactory */
+
+// Pino 8 types expose `default`; Pino 10 uses `export =`. Runtime stays callable.
+const pino = /** @type {PinoFactory} */ (
   /** @type {unknown} */ (require('pino'))
 );
 const pinoHttp = /** @type {PinoHttpModule['default'] & PinoHttpModule} */ (

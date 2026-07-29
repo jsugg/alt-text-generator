@@ -47,6 +47,19 @@ describe('Unit | Supply-chain pinning posture', () => {
     expect(setup).toMatch(/\bnpm ci\b/);
   });
 
+  it('keeps Newman security overrides compatible with their CommonJS consumers', () => {
+    const jose = require('jose');
+    const SerialisedError = require('serialised-error');
+    const uuid = require('uuid');
+
+    const decorated = SerialisedError(new Error('compatibility probe'), true);
+
+    expect(typeof jose.SignJWT).toBe('function');
+    expect(typeof jose.importPKCS8).toBe('function');
+    expect(uuid.v4()).toMatch(/^[0-9a-f]{8}-[0-9a-f-]{27}$/);
+    expect(decorated.id).toMatch(/^[0-9a-f]{8}-[0-9a-f-]{27}$/);
+  });
+
   it('never pipes a network download straight into a shell', () => {
     const files = [
       ...collectFiles(path.join(repoRoot, '.github'), /\.(sh|ya?ml|bash)$/),

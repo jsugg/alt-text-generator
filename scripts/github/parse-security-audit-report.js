@@ -72,7 +72,7 @@ function parseArgs(argv) {
 function parseSecurityAuditReport(reportFile) {
   const fallback = { metadata: { vulnerabilities: {} } };
   /** @type {AuditReport} */
-  let report = fallback;
+  let report;
 
   try {
     const raw = fs.readFileSync(reportFile, 'utf8').trim();
