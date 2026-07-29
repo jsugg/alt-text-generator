@@ -31,6 +31,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 2
+          persist-credentials: false
 
       - name: Classify changed paths
         id: classify
@@ -61,6 +62,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup project
         uses: ./.github/actions/setup-node-project
@@ -106,6 +109,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup project
         uses: ./.github/actions/setup-node-project
@@ -130,6 +135,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Install actionlint
         run: bash scripts/github/install-actionlint.sh
@@ -137,12 +144,10 @@ jobs:
       - name: Run actionlint
         run: /tmp/actionlint -color
 
-      # Advisory workflow SAST: findings warn, never block, until the signal
-      # proves low-noise enough to promote to a required gate.
-      - name: Run zizmor workflow audit (advisory)
+      - name: Run zizmor workflow audit
         run: |
-          pipx install zizmor==1.26.1 >/dev/null
-          zizmor .github/workflows/ || echo "::warning::zizmor reported workflow findings (advisory; see job log)"
+          pipx install zizmor==1.28.0 >/dev/null
+          zizmor --offline .github/workflows/
 
   lint:
     name: lint
@@ -154,6 +159,8 @@ jobs:
       - name: Checkout
         if: needs.changes.outputs.docs_only != 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup project
         if: needs.changes.outputs.docs_only != 'true'
@@ -177,6 +184,8 @@ jobs:
       - name: Checkout
         if: needs.changes.outputs.docs_only != 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup project
         if: needs.changes.outputs.docs_only != 'true'
@@ -219,6 +228,8 @@ jobs:
       - name: Checkout
         if: needs.changes.outputs.docs_only != 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup project
         if: needs.changes.outputs.docs_only != 'true'
@@ -248,6 +259,8 @@ jobs:
       - name: Checkout
         if: needs.changes.outputs.docs_only != 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup project
         if: needs.changes.outputs.docs_only != 'true'
@@ -289,6 +302,8 @@ jobs:
       - name: Checkout
         if: needs.changes.outputs.docs_only != 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup project
         if: needs.changes.outputs.docs_only != 'true'
@@ -349,6 +364,8 @@ jobs:
       - name: Checkout
         if: needs.changes.outputs.docs_only != 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup project
         if: needs.changes.outputs.docs_only != 'true'
@@ -446,6 +463,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup Java
         uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5
@@ -489,12 +508,14 @@ jobs:
           steps.history-policy.outputs.restore_history == 'true'
         run: >-
           node scripts/reporting/restore-allure-history-from-artifact.js
-          --artifact-name "${{ steps.history-policy.outputs.history_artifact_name }}"
-          --history-key "${{ steps.history-policy.outputs.history_key }}"
+          --artifact-name "${HISTORY_ARTIFACT_NAME}"
+          --history-key "${HISTORY_KEY}"
           --results-dir reports/allure-results
           --github-output "${GITHUB_OUTPUT}"
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          HISTORY_ARTIFACT_NAME: ${{ steps.history-policy.outputs.history_artifact_name }}
+          HISTORY_KEY: ${{ steps.history-policy.outputs.history_key }}
 
       - name: Restore Allure history from GitHub Pages fallback
         if: >-
@@ -502,10 +523,12 @@ jobs:
           steps.history-policy.outputs.restore_history == 'true' &&
           steps.history-policy.outputs.history_fallback_report_url != ''
         shell: bash
+        env:
+          HISTORY_FALLBACK_REPORT_URL: ${{ steps.history-policy.outputs.history_fallback_report_url }}
         run: >-
           bash scripts/reporting/restore-allure-history-fallback.sh
           reports/allure-results
-          "${{ steps.history-policy.outputs.history_fallback_report_url }}"
+          "${HISTORY_FALLBACK_REPORT_URL}"
 
       - name: Write Allure metadata
         if: steps.allure-inputs.outputs.has-results == 'true'
@@ -532,13 +555,15 @@ jobs:
           node scripts/reporting/package-allure-history-artifact.js
           --report-dir reports/allure-report
           --output-dir reports/allure-history-artifact
-          --history-key "${{ steps.history-policy.outputs.history_key }}"
-          --report-kind "${{ steps.history-policy.outputs.report_kind }}"
+          --history-key "${HISTORY_KEY}"
+          --report-kind "${REPORT_KIND}"
         env:
           ALLURE_NEWMAN_MODE: smoke
           GITHUB_REF_NAME: ${{ github.ref_name }}
           GITHUB_EVENT_NAME: ${{ github.event_name }}
           ALLURE_PR_NUMBER: ${{ github.event.pull_request.number || '' }}
+          HISTORY_KEY: ${{ steps.history-policy.outputs.history_key }}
+          REPORT_KIND: ${{ steps.history-policy.outputs.report_kind }}
 
       - name: Upload Allure history artifact
         if: >-
@@ -599,6 +624,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Fetch published Pages branch
         run: git fetch origin gh-pages || true
@@ -618,20 +645,26 @@ jobs:
           path: reports/allure-report
 
       - name: Compose GitHub Pages site
+        env:
+          PAGES_PATH: ${{ needs.allure-report.outputs.pages_path }}
         run: >-
           node scripts/github/compose-pages-site.js
           --existing-site-dir reports/pages-site-current
           --output-dir reports/pages-site-next
-          --publish-path "${{ needs.allure-report.outputs.pages_path }}"
+          --publish-path "${PAGES_PATH}"
           --report-dir reports/allure-report
 
       - name: Write GitHub Pages metadata
+        env:
+          PAGES_PATH: ${{ needs.allure-report.outputs.pages_path || '/' }}
+          PAGES_REPORT_URL: ${{ needs.allure-report.outputs.pages_report_url }}
+          REPORT_KIND: ${{ needs.allure-report.outputs.report_kind }}
         run: >-
           node scripts/github/write-pages-metadata.js
           --metadata-path reports/pages-metadata/page-metadata.json
-          --page-path "${{ needs.allure-report.outputs.pages_path || '/' }}"
-          --page-url "${{ needs.allure-report.outputs.pages_report_url }}"
-          --report-kind "${{ needs.allure-report.outputs.report_kind }}"
+          --page-path "${PAGES_PATH}"
+          --page-url "${PAGES_REPORT_URL}"
+          --report-kind "${REPORT_KIND}"
 
       - name: Upload prepared GitHub Pages site
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -654,7 +687,7 @@ jobs:
           PAGE_ARTIFACT_PREPARED: 'true'
           PAGE_DEPLOYED: 'false'
           PAGE_PATH: ${{ needs.allure-report.outputs.pages_path || '/' }}
-          PAGE_TRANSPORT: ${{ github.event_name == 'pull_request' && 'workflow_dispatch-pages-deploy' || 'workflow_run-pages-deploy' }}
+          PAGE_TRANSPORT: workflow-dispatch-pages-deploy
           PAGE_URL: ${{ needs.allure-report.outputs.pages_report_url }}
           REPORT_KIND: ${{ needs.allure-report.outputs.report_kind }}
         run: bash scripts/github/write-pages-summary.sh "$GITHUB_STEP_SUMMARY"
@@ -662,8 +695,13 @@ jobs:
   allure-pages-publish-dispatch:
     name: allure-pages-publish-dispatch
     if: >-
-      github.event_name == 'pull_request' &&
-      github.event.pull_request.head.repo.full_name == github.repository &&
+      (
+        (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+        (
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository
+        )
+      ) &&
       needs.allure-pages.result == 'success'
     needs:
       - allure-pages
@@ -674,15 +712,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Dispatch Allure Pages publish workflow
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: >-
           node scripts/github/dispatch-pages-publish.js
-          --repo "${{ github.repository }}"
+          --repo "${GITHUB_REPOSITORY}"
           --ref "main"
-          --run-id "${{ github.run_id }}"
+          --run-id "${GITHUB_RUN_ID}"
 
   ci-summary:
     name: ci-summary
@@ -705,6 +745,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Write summary
         env:

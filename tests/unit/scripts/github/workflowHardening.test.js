@@ -61,24 +61,80 @@ describe('Unit | Scripts | GitHub | Workflow Hardening', () => {
     expect(workflowUses.length).toBeGreaterThan(50);
   });
 
-  it('audits workflow definitions with advisory zizmor in the actionlint job', () => {
+  it('blocks on pinned offline zizmor findings in the actionlint job', () => {
     const workflow = loadWorkflow('ci.yml');
     const actionlintJob = getJob(workflow, 'actionlint');
     const zizmorStep = findStepByName(
       actionlintJob,
       'actionlint',
-      'Run zizmor workflow audit (advisory)',
+      'Run zizmor workflow audit',
     );
 
     assertStringContainsInvariant(
       'zizmor installs a pinned version',
       zizmorStep.run,
-      'pipx install zizmor==1.26.1',
+      'pipx install zizmor==1.28.0',
     );
     assertStringContainsInvariant(
-      'zizmor findings warn instead of blocking',
+      'zizmor runs deterministically without network access',
       zizmorStep.run,
-      '|| echo "::warning::',
+      'zizmor --offline .github/workflows/',
+    );
+    assertEqualInvariant(
+      'zizmor findings are not converted into warnings',
+      zizmorStep.run.includes('||'),
+      false,
+    );
+  });
+
+  it('prevents checkout credential persistence in every workflow job', () => {
+    const unsafeCheckouts = fs.readdirSync(WORKFLOWS_DIR)
+      .filter((fileName) => fileName.endsWith('.yml'))
+      .flatMap((fileName) => Object.entries(loadWorkflow(fileName).jobs || {})
+        .flatMap(([jobId, job]) => (job.steps || [])
+          .filter((step) => (
+            typeof step.uses === 'string'
+            && step.uses.startsWith('actions/checkout@')
+            && step.with?.['persist-credentials'] !== false
+          ))
+          .map((step) => `${fileName}#${jobId}:${step.name || 'unnamed'}`)));
+
+    expect(unsafeCheckouts).toEqual([]);
+  });
+
+  it('passes workflow expressions through environment variables before shell execution', () => {
+    const injectedRunBlocks = fs.readdirSync(WORKFLOWS_DIR)
+      .filter((fileName) => fileName.endsWith('.yml'))
+      .flatMap((fileName) => Object.entries(loadWorkflow(fileName).jobs || {})
+        .flatMap(([jobId, job]) => (job.steps || [])
+          .filter((step) => typeof step.run === 'string' && step.run.includes('${{'))
+          .map((step) => `${fileName}#${jobId}:${step.name || 'unnamed'}`)));
+
+    expect(injectedRunBlocks).toEqual([]);
+  });
+
+  it('scopes write permissions to the jobs that consume them', () => {
+    const codeqlWorkflow = loadWorkflow('codeql.yml');
+    const promotionWorkflow = loadWorkflow('promote-to-production.yml');
+
+    assertDeepEqualInvariant(
+      'CodeQL defaults to read-only repository access',
+      codeqlWorkflow.permissions,
+      { contents: 'read' },
+    );
+    assertDeepEqualInvariant(
+      'CodeQL grants result upload only to the analysis job',
+      getJob(codeqlWorkflow, 'analyze').permissions,
+      {
+        actions: 'read',
+        contents: 'read',
+        'security-events': 'write',
+      },
+    );
+    assertDeepEqualInvariant(
+      'Production promotion uses its explicit installation token for writes',
+      promotionWorkflow.permissions,
+      { contents: 'read' },
     );
   });
 

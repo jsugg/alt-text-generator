@@ -1,6 +1,9 @@
 const path = require('node:path');
 
-const { parseArgs } = require('../../../../scripts/github/sync-pages-state-branch');
+const {
+  createGitHubAuthEnv,
+  parseArgs,
+} = require('../../../../scripts/github/sync-pages-state-branch');
 
 describe('Unit | Scripts | GitHub | Sync Pages State Branch', () => {
   it('parses supported CLI arguments', () => {
@@ -67,5 +70,34 @@ describe('Unit | Scripts | GitHub | Sync Pages State Branch', () => {
       '--unsupported',
       'nope',
     ])).toThrow('Unsupported argument: --unsupported');
+  });
+
+  it('builds non-persistent Git authentication through process environment', () => {
+    expect(createGitHubAuthEnv()).toEqual({});
+    expect(createGitHubAuthEnv({
+      serverUrl: 'https://github.example.com',
+      token: 'test-token',
+    })).toEqual({
+      GIT_CONFIG_COUNT: '1',
+      GIT_CONFIG_KEY_0: 'http.https://github.example.com/.extraheader',
+      GIT_CONFIG_VALUE_0: `AUTHORIZATION: basic ${Buffer.from(
+        'x-access-token:test-token',
+        'utf8',
+      ).toString('base64')}`,
+    });
+  });
+
+  it('rejects authentication inputs that could alter Git configuration', () => {
+    expect(() => createGitHubAuthEnv({
+      token: 'test-token\nGIT_CONFIG_COUNT=2',
+    })).toThrow('GitHub token must not contain line breaks');
+    expect(() => createGitHubAuthEnv({
+      serverUrl: 'http://github.example.com',
+      token: 'test-token',
+    })).toThrow('GitHub server URL must be an HTTPS origin');
+    expect(() => createGitHubAuthEnv({
+      serverUrl: 'https://user@github.example.com',
+      token: 'test-token',
+    })).toThrow('GitHub server URL must be an HTTPS origin');
   });
 });

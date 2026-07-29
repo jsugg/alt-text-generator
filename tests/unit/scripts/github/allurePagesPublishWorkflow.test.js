@@ -3,7 +3,6 @@ const {
   assertEnvContainsInvariant,
   assertEqualInvariant,
   assertExpressionContainsInvariant,
-  assertNoConditionContainsInvariant,
   assertStepUsesAction,
   assertStringContainsInvariant,
   findStepByName,
@@ -12,7 +11,7 @@ const {
 } = require('../../../helpers/workflowAssertions');
 
 describe('Unit | Workflows | Allure Pages Publish', () => {
-  it('deploys prepared Pages artifacts from main CI runs and supports dispatch-based PR/manual backfills', () => {
+  it('deploys prepared Pages artifacts only from explicit CI or manual dispatches', () => {
     const workflow = loadWorkflow('allure-pages-publish.yml');
     const publishJob = getJob(workflow, 'publish-allure-pages');
     const checkoutStep = findStepByName(publishJob, 'publish-allure-pages', 'Checkout');
@@ -53,14 +52,9 @@ describe('Unit | Workflows | Allure Pages Publish', () => {
     );
 
     assertDeepEqualInvariant(
-      'Allure Pages Publish triggers only after completed main CI workflow runs and manual backfills',
+      'Allure Pages Publish accepts only explicit source-run dispatches',
       workflow.on,
       {
-        workflow_run: {
-          workflows: ['CI'],
-          branches: ['main'],
-          types: ['completed'],
-        },
         workflow_dispatch: {
           inputs: {
             run_id: {
@@ -97,11 +91,16 @@ describe('Unit | Workflows | Allure Pages Publish', () => {
       checkoutStep,
       'actions/checkout',
     );
+    assertDeepEqualInvariant(
+      'Allure Pages Publish never persists checkout credentials',
+      checkoutStep.with,
+      { 'persist-credentials': false },
+    );
     assertEnvContainsInvariant(
       'Allure Pages Publish resolves source runs with the workflow token',
       resolveSourceStep.env,
       {
-        DISPATCH_RUN_ID: "${{ github.event_name == 'workflow_dispatch' && inputs.run_id || '' }}",
+        DISPATCH_RUN_ID: '${{ inputs.run_id }}',
         GITHUB_TOKEN: '${{ github.token }}',
       },
     );
@@ -165,10 +164,19 @@ describe('Unit | Workflows | Allure Pages Publish', () => {
       syncBranchStep.run,
       'node scripts/github/sync-pages-state-branch.js',
     );
-    assertNoConditionContainsInvariant(
-      workflow,
-      "github.event.workflow_run.conclusion == 'success'",
-      'Allure Pages Publish must inspect prepared artifacts even when source CI later failed',
+    assertEnvContainsInvariant(
+      'Allure Pages Publish supplies ephemeral push authentication and shell-safe metadata',
+      syncBranchStep.env,
+      {
+        GITHUB_TOKEN: '${{ github.token }}',
+        REPORT_KIND: "${{ steps.metadata.outputs.report_kind || 'not-published' }}",
+        SOURCE_RUN_ID: '${{ steps.source-run.outputs.run_id }}',
+      },
+    );
+    assertStringContainsInvariant(
+      'Allure Pages Publish expands metadata through the shell environment',
+      syncBranchStep.run,
+      '--commit-message "docs: sync allure pages site for ${REPORT_KIND} from run ${SOURCE_RUN_ID}"',
     );
     assertEqualInvariant(
       'Allure Pages Publish writes a summary regardless of artifact/deploy outcome',

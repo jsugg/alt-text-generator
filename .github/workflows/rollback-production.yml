@@ -40,6 +40,8 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
@@ -63,12 +65,15 @@ jobs:
         id: promotion-app-token
         if: steps.promotion-auth.outputs.use_github_app == 'true'
         env:
+          REPOSITORY_NAME: ${{ github.event.repository.name }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+          REPO_TOOLING_GITHUB_APP_ID: ${{ vars.REPO_TOOLING_GITHUB_APP_ID }}
           REPO_TOOLING_GITHUB_APP_PRIVATE_KEY: ${{ secrets.REPO_TOOLING_GITHUB_APP_PRIVATE_KEY }}
         run: >-
           node scripts/github/create-github-app-installation-token.js
-          --app-id "${{ vars.REPO_TOOLING_GITHUB_APP_ID }}"
-          --owner "${{ github.repository_owner }}"
-          --repo "${{ github.event.repository.name }}"
+          --app-id "${REPO_TOOLING_GITHUB_APP_ID}"
+          --owner "${REPOSITORY_OWNER}"
+          --repo "${REPOSITORY_NAME}"
           --output-file "${GITHUB_OUTPUT}"
 
       - name: Require repository automation GitHub App

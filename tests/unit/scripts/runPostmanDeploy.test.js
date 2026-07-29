@@ -568,9 +568,9 @@ describe('Unit | Scripts | Run Postman Deploy', () => {
         { workflow_dispatch: null },
       );
       assertDeepEqualInvariant(
-        'Promote to Production can write contents for the production ref update',
+        'Promote to Production keeps its workflow token read-only',
         promoteWorkflow.permissions,
-        { contents: 'write' },
+        { contents: 'read' },
       );
       assertDeepEqualInvariant(
         'Promote job waits for pre-production provider validation',

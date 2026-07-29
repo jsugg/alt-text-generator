@@ -125,6 +125,41 @@ function runGit({
 }
 
 /**
+ * Builds an ephemeral Git HTTP authorization configuration.
+ *
+ * @param {{ serverUrl?: string, token?: string }} options Authentication inputs.
+ * @returns {Record<string, string>} Environment variables consumed by Git.
+ */
+function createGitHubAuthEnv({ serverUrl = 'https://github.com', token = '' } = {}) {
+  if (!token) {
+    return {};
+  }
+
+  if (/[\r\n]/u.test(token)) {
+    throw new Error('GitHub token must not contain line breaks');
+  }
+
+  const parsedServerUrl = new URL(serverUrl);
+  if (
+    parsedServerUrl.protocol !== 'https:'
+    || parsedServerUrl.username
+    || parsedServerUrl.password
+    || parsedServerUrl.pathname !== '/'
+    || parsedServerUrl.search
+    || parsedServerUrl.hash
+  ) {
+    throw new Error('GitHub server URL must be an HTTPS origin');
+  }
+
+  const credentials = Buffer.from(`x-access-token:${token}`, 'utf8').toString('base64');
+  return {
+    GIT_CONFIG_COUNT: '1',
+    GIT_CONFIG_KEY_0: `http.${parsedServerUrl.origin}/.extraheader`,
+    GIT_CONFIG_VALUE_0: `AUTHORIZATION: basic ${credentials}`,
+  };
+}
+
+/**
  * @param {string} branch
  * @returns {string}
  */
@@ -135,18 +170,21 @@ function remoteBranchRef(branch) {
 /**
  * @param {{
  *   branch: string,
+ *   env?: Record<string, string>,
  *   repoDir: string,
  * }} options
  * @returns {void}
  */
 function fetchRemoteBranch({
   branch,
+  env = {},
   repoDir,
 }) {
   runGit({
     allowFailure: true,
     args: ['fetch', 'origin', `${branch}:${remoteBranchRef(branch)}`],
     cwd: repoDir,
+    env,
   });
 }
 
@@ -226,6 +264,8 @@ function hasStagedChanges(cwd) {
  *   actorName?: string,
  *   branch: string,
  *   commitMessage: string,
+ *   githubServerUrl?: string,
+ *   githubToken?: string,
  *   repoDir: string,
  *   siteDir: string,
  * }} options
@@ -236,12 +276,19 @@ async function syncPagesStateBranch({
   actorName = 'github-actions[bot]',
   branch,
   commitMessage,
+  githubServerUrl = 'https://github.com',
+  githubToken = '',
   repoDir,
   siteDir,
 }) {
   const worktreeDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'sync-pages-state-branch-'));
+  const gitAuthEnv = createGitHubAuthEnv({
+    serverUrl: githubServerUrl,
+    token: githubToken,
+  });
   fetchRemoteBranch({
     branch,
+    env: gitAuthEnv,
     repoDir,
   });
   const remoteBranchExists = hasRemoteBranch({
@@ -304,6 +351,7 @@ async function syncPagesStateBranch({
     runGit({
       args: ['push', 'origin', `HEAD:${branch}`],
       cwd: worktreeDir,
+      env: gitAuthEnv,
     });
 
     return {
@@ -329,7 +377,11 @@ async function syncPagesStateBranch({
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  const result = await syncPagesStateBranch(args);
+  const result = await syncPagesStateBranch({
+    ...args,
+    githubServerUrl: process.env.GITHUB_SERVER_URL,
+    githubToken: process.env.GITHUB_TOKEN,
+  });
 
   appendOutput(args.outputFile, 'branch', result.branch);
   appendOutput(args.outputFile, 'changed', result.changed ? 'true' : 'false');
@@ -344,6 +396,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  createGitHubAuthEnv,
   fetchRemoteBranch,
   hasRemoteBranch,
   hasStagedChanges,

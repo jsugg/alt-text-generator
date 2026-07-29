@@ -58,6 +58,8 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup project
         uses: ./.github/actions/setup-node-project
@@ -134,6 +136,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup Java
         uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5
@@ -158,11 +162,14 @@ jobs:
 
       - name: Resolve Allure history policy
         id: history-policy
+        env:
+          ALLURE_BASE_URL: ${{ github.event_name == 'workflow_dispatch' && inputs.base_url || 'https://wcag.qcraft.com.br' }}
+          PERSIST_HISTORY: ${{ github.event_name == 'workflow_dispatch' && inputs.persist_history && 'true' || 'false' }}
         run: >-
           node scripts/reporting/resolve-allure-history-policy.js
           --workflow-kind deploy
-          --base-url "${{ github.event_name == 'workflow_dispatch' && inputs.base_url || 'https://wcag.qcraft.com.br' }}"
-          --persist-history "${{ github.event_name == 'workflow_dispatch' && inputs.persist_history && 'true' || 'false' }}"
+          --base-url "${ALLURE_BASE_URL}"
+          --persist-history "${PERSIST_HISTORY}"
           --github-output "${GITHUB_OUTPUT}"
 
       - name: Restore Allure history from artifact
@@ -171,11 +178,13 @@ jobs:
           steps.history-policy.outputs.restore_history == 'true'
         run: >-
           node scripts/reporting/restore-allure-history-from-artifact.js
-          --artifact-name "${{ steps.history-policy.outputs.history_artifact_name }}"
-          --history-key "${{ steps.history-policy.outputs.history_key }}"
+          --artifact-name "${HISTORY_ARTIFACT_NAME}"
+          --history-key "${HISTORY_KEY}"
           --results-dir reports/allure-results
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          HISTORY_ARTIFACT_NAME: ${{ steps.history-policy.outputs.history_artifact_name }}
+          HISTORY_KEY: ${{ steps.history-policy.outputs.history_key }}
 
       - name: Write Allure metadata
         if: steps.allure-inputs.outputs.has-results == 'true'
@@ -202,13 +211,15 @@ jobs:
           node scripts/reporting/package-allure-history-artifact.js
           --report-dir reports/allure-report
           --output-dir reports/allure-history-artifact
-          --history-key "${{ steps.history-policy.outputs.history_key }}"
-          --report-kind "${{ steps.history-policy.outputs.report_kind }}"
+          --history-key "${HISTORY_KEY}"
+          --report-kind "${REPORT_KIND}"
         env:
           ALLURE_BASE_URL: ${{ github.event_name == 'workflow_dispatch' && inputs.base_url || 'https://wcag.qcraft.com.br' }}
           ALLURE_NEWMAN_MODE: deploy
           GITHUB_REF_NAME: ${{ github.ref_name }}
           GITHUB_EVENT_NAME: ${{ github.event_name }}
+          HISTORY_KEY: ${{ steps.history-policy.outputs.history_key }}
+          REPORT_KIND: ${{ steps.history-policy.outputs.report_kind }}
 
       - name: Upload Allure history artifact
         if: >-
