@@ -111,9 +111,9 @@ describe('Unit | Scripts | GitHub | Promote To Production Workflow', () => {
       15,
     );
     assertDeepEqualInvariant(
-      'Promotion workflow permissions stay limited to contents write',
+      'Promotion workflow uses its installation token rather than a write-capable workflow token',
       workflow.permissions,
-      { contents: 'write' },
+      { contents: 'read' },
     );
   });
 });

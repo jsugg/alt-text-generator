@@ -1,13 +1,6 @@
 name: Allure Pages Publish
 
 on:
-  workflow_run:
-    workflows:
-      - CI
-    branches:
-      - main
-    types:
-      - completed
   workflow_dispatch:
     inputs:
       run_id:
@@ -34,11 +27,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Resolve source workflow run
         id: source-run
         env:
-          DISPATCH_RUN_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.run_id || '' }}
+          DISPATCH_RUN_ID: ${{ inputs.run_id }}
           GITHUB_TOKEN: ${{ github.token }}
         run: >-
           node scripts/github/resolve-pages-source-run.js
@@ -96,10 +91,14 @@ jobs:
       - name: Sync Pages state branch
         if: steps.detect.outputs.found == 'true'
         id: branch-sync
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPORT_KIND: ${{ steps.metadata.outputs.report_kind || 'not-published' }}
+          SOURCE_RUN_ID: ${{ steps.source-run.outputs.run_id }}
         run: >-
           node scripts/github/sync-pages-state-branch.js
           --site-dir reports/pages-site
-          --commit-message "docs: sync allure pages site for ${{ steps.metadata.outputs.report_kind || 'not-published' }} from run ${{ steps.source-run.outputs.run_id }}"
+          --commit-message "docs: sync allure pages site for ${REPORT_KIND} from run ${SOURCE_RUN_ID}"
           --output-file "${GITHUB_OUTPUT}"
 
       - name: Write GitHub Pages summary

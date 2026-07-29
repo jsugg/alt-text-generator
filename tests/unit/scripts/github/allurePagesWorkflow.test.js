@@ -13,7 +13,7 @@ const {
 } = require('../../../helpers/workflowAssertions');
 
 describe('Unit | Workflows | CI Allure Pages', () => {
-  it('prepares a composed Pages site artifact and dispatches PR publication without deploying directly from the CI run', () => {
+  it('prepares a composed Pages site artifact and explicitly dispatches publication', () => {
     const workflow = loadWorkflow('ci.yml');
     const allurePagesJob = getJob(workflow, 'allure-pages');
     const dispatchJob = getJob(workflow, 'allure-pages-publish-dispatch');
@@ -151,42 +151,52 @@ describe('Unit | Workflows | CI Allure Pages', () => {
     );
 
     assertDeepEqualInvariant(
-      'CI PR Pages dispatch job waits only for prepared Pages artifacts',
+      'CI Pages dispatch job waits only for prepared Pages artifacts',
       dispatchJob.needs,
       ['allure-pages'],
     );
     assertExpressionContainsInvariant(
-      'CI PR Pages dispatch job runs only for pull request events',
+      'CI Pages dispatch job publishes completed main pushes',
+      dispatchJob.if,
+      "github.event_name == 'push'",
+    );
+    assertExpressionContainsInvariant(
+      'CI Pages dispatch job restricts push publication to main',
+      dispatchJob.if,
+      "github.ref == 'refs/heads/main'",
+    );
+    assertExpressionContainsInvariant(
+      'CI Pages dispatch job supports pull request previews',
       dispatchJob.if,
       "github.event_name == 'pull_request'",
     );
     assertExpressionContainsInvariant(
-      'CI PR Pages dispatch job skips forked pull requests',
+      'CI Pages dispatch job skips forked pull requests',
       dispatchJob.if,
       'github.event.pull_request.head.repo.full_name == github.repository',
     );
     assertExpressionContainsInvariant(
-      'CI PR Pages dispatch job requires prepared Pages artifacts',
+      'CI Pages dispatch job requires prepared Pages artifacts',
       dispatchJob.if,
       "needs.allure-pages.result == 'success'",
     );
     assertDeepEqualInvariant(
-      'CI PR Pages dispatch job can dispatch workflows without write-content access',
+      'CI Pages dispatch job can dispatch workflows without write-content access',
       dispatchJob.permissions,
       { actions: 'write', contents: 'read' },
     );
     assertEnvContainsInvariant(
-      'CI PR Pages dispatch job uses the workflow token',
+      'CI Pages dispatch job uses the workflow token',
       dispatchPublishStep.env,
       { GITHUB_TOKEN: '${{ github.token }}' },
     );
     assertStringContainsInvariant(
-      'CI PR Pages dispatch job calls the repository dispatch helper',
+      'CI Pages dispatch job calls the repository dispatch helper',
       dispatchPublishStep.run,
       'node scripts/github/dispatch-pages-publish.js',
     );
     assertStringContainsInvariant(
-      'CI PR Pages dispatch job targets the default-branch publish workflow',
+      'CI Pages dispatch job targets the default-branch publish workflow',
       dispatchPublishStep.run,
       '--ref "main"',
     );

@@ -10,10 +10,15 @@ describe('Unit | Scripts | GitHub | CodeQL Workflow', () => {
   const workflow = loadWorkflow('codeql.yml');
   const analyzeJob = getJob(workflow, 'analyze');
 
-  it('keeps least-privilege permissions with security-events write only', () => {
+  it('scopes security-events write permission to the analysis job', () => {
     assertDeepEqualInvariant(
-      'CodeQL workflow grants only actions/contents read plus security-events write',
+      'CodeQL workflow defaults every job to read-only repository access',
       workflow.permissions,
+      { contents: 'read' },
+    );
+    assertDeepEqualInvariant(
+      'CodeQL analysis alone can upload security events',
+      analyzeJob.permissions,
       {
         actions: 'read',
         contents: 'read',
