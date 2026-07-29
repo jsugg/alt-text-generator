@@ -125,7 +125,10 @@ function renderDoc(manifest) {
  * @returns {string[]}
  */
 function overrideMismatches(manifest) {
-  const actual = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).overrides ?? {};
+  const configured = JSON.parse(
+    fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'),
+  ).overrides ?? {};
+  const actual = flattenOverrides(configured);
   const declared = Object.fromEntries(
     manifest.overrides.map((/** @type {any} */ e) => [e.package, e.range]),
   );
@@ -229,6 +232,33 @@ function distinctAdvisories(audit) {
   });
 
   return found;
+}
+
+/**
+ * Flattens npm's nested override syntax for manifest comparison.
+ *
+ * @param {unknown} overrides
+ * @param {string} [prefix]
+ * @returns {Record<string, string>}
+ */
+function flattenOverrides(overrides, prefix = '') {
+  if (!overrides || typeof overrides !== 'object' || Array.isArray(overrides)) {
+    return {};
+  }
+
+  /** @type {Record<string, string>} */
+  const flattened = {};
+  Object.entries(/** @type {Record<string, unknown>} */ (overrides))
+    .forEach(([pkg, value]) => {
+      const key = pkg === '.' && prefix ? prefix : [prefix, pkg].filter(Boolean).join('>');
+      if (typeof value === 'string') {
+        flattened[key] = value;
+      } else {
+        Object.assign(flattened, flattenOverrides(value, key));
+      }
+    });
+
+  return flattened;
 }
 
 /**

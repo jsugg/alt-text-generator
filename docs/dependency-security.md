@@ -24,18 +24,19 @@ patched releases. They arrive through Jest coverage/reporting and Newman:
 | `babel-plugin-istanbul → ^8.0.0` | Jest coverage's legacy `test-exclude` / `glob` vulnerability chain |
 | `handlebars → ^4.7.9` | **critical** AST-injection / prototype-pollution chain |
 | `flatted → ^3.4.2` | prototype pollution + unbounded-recursion DoS |
-| `jose@>=3 <=4.15.4 → 4.15.9` | Newman's Postman runtime JWE resource-exhaustion advisory |
+| `newman>jose → 4.15.9` | Newman's Postman runtime JWE resource-exhaustion advisory |
 | `lodash → ^4.18.1` | code-injection + prototype-pollution advisories |
 | `minimatch@>=9 <10.2.6 → ^10.2.6` | Jest's `glob@10` brace-expansion OOM advisory |
 | `node-forge → ^1.4.0` | signature/verification advisories |
 | `qs → ^6.15.3` | transitive `qs` (the direct dep is already ≥ 6.15.3) |
 | `underscore → ^1.13.8` | arbitrary code execution |
-| `uuid@<11.1.1 → 11.1.1` | Newman's Postman UUID buffer-bounds advisory |
+| `newman>uuid → 11.1.1` | Newman's Postman UUID buffer-bounds advisory |
 <!-- generated:overrides end -->
 
-Override selectors target only vulnerable versions. Replacements stay within
-the CommonJS/API shapes consumed by Jest and Newman; they are removed once
-upstream dependency ranges resolve patched releases directly.
+Override scopes target vulnerable version ranges or parent dependency trees.
+Replacements stay within the CommonJS/API shapes consumed by Jest and Newman;
+they are removed once upstream dependency ranges resolve patched releases
+directly.
 
 ## Accepted residual
 
@@ -54,9 +55,9 @@ fails if this document and the manifest disagree, and if the manifest's override
 list and `package.json`'s do.
 
 <!-- generated:verified start -->
-Last verified against a full-tree `npm audit`: **2026-07-28**.
+Last verified against a full-tree `npm audit`: **2026-07-29**.
 
-Lockfile at that time: `1eb8591302a7d1265cad791802d24a572b5a265cf140819b9c98ec896d8d1289`
+Lockfile at that time: `8dd0e40bc4c54e8be5df561cdfee00e3684bc7456f0cd3f59dcf8194c2fa2adf`
 
 When `package-lock.json` changes, this stops matching — which is the signal
 to re-verify and update `config/security/residual-advisories.json`.
