@@ -50,14 +50,24 @@ jobs:
       - name: Write summary
         if: always()
         env:
+          AUDIT_AVAILABLE: ${{ steps.audit.outputs.available || 'false' }}
           AUDIT_CRITICAL: ${{ steps.audit.outputs.critical || '0' }}
           AUDIT_HIGH: ${{ steps.audit.outputs.high || '0' }}
           AUDIT_LOW: ${{ steps.audit.outputs.low || '0' }}
           AUDIT_MODERATE: ${{ steps.audit.outputs.moderate || '0' }}
+          AUDIT_STATUS: ${{ steps.audit.outputs.status || 'unknown' }}
         run: bash scripts/github/write-security-audit-summary.sh "$GITHUB_STEP_SUMMARY"
 
+      - name: Fail when the registry audit is unavailable
+        if: steps.audit.outputs.available != 'true'
+        run: |
+          echo "npm audit did not return a complete report after bounded retries."
+          exit 1
+
       - name: Fail on high or critical findings
-        if: steps.audit.outputs.status != '0'
+        if: >-
+          steps.audit.outputs.available == 'true' &&
+          (steps.audit.outputs.high != '0' || steps.audit.outputs.critical != '0')
         run: |
           echo "npm audit reported high or critical production dependency findings."
           exit 1

@@ -19,6 +19,7 @@ describe('Unit | Scripts | GitHub | Required Check Policy', () => {
     expect([...collected.checkNames.keys()]).toEqual(expect.arrayContaining([
       'actionlint',
       'codeql',
+      'dependency-audit',
       'dependency-review',
       'docs',
       'lint',

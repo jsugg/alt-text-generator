@@ -8,6 +8,7 @@ summary_file="${1:?summary file is required}"
   echo
   echo "- docs-only: ${DOCS_ONLY:-false}"
   echo "- actionlint: ${ACTIONLINT_RESULT:-unknown}"
+  echo "- dependency-audit: ${DEPENDENCY_AUDIT_RESULT:-unknown}"
   echo "- docs: ${DOCS_RESULT:-unknown}"
   echo "- lint: ${LINT_RESULT:-unknown}"
   echo "- openapi: ${OPENAPI_RESULT:-unknown}"

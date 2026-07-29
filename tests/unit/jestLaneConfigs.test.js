@@ -339,6 +339,7 @@ describe('Unit | Jest Lane Configs', () => {
       Object.keys(workflow.jobs),
       [
         'changes',
+        'dependency-audit',
         'docs',
         'actionlint',
         'lint',

@@ -5,6 +5,7 @@
     "contexts": [
       "actionlint",
       "codeql",
+      "dependency-audit",
       "dependency-review",
       "docs",
       "lint",
@@ -21,6 +22,7 @@
     "contexts": [
       "actionlint",
       "codeql",
+      "dependency-audit",
       "dependency-review",
       "docs",
       "lint",
