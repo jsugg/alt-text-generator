@@ -41,6 +41,12 @@ jest.mock('pino-http', () => mockPinoHttp);
 const mockRandomUUID = jest.fn();
 jest.mock('crypto', () => ({ randomUUID: mockRandomUUID }));
 
+jest.mock('../../../config', () => ({
+  get logging() {
+    return { level: process.env.LOG_LEVEL || 'info' };
+  },
+}));
+
 const mockFs = {
   existsSync: jest.fn(),
   mkdirSync: jest.fn(),

@@ -1,3 +1,6 @@
+const fs = require('node:fs');
+const path = require('node:path');
+
 const {
   checkAudit,
   checkDocs,
@@ -34,12 +37,27 @@ const auditFixture = (advisories, totals = {}) => ({
   },
 });
 
-const APPROVED = manifest.accepted.map((/** @type {any} */ e) => ({
-  id: e.advisory,
-  name: e.package,
-  severity: e.severity,
-  title: e.title,
-}));
+const APPROVED = [
+  {
+    id: 'GHSA-test1',
+    name: 'fixture-one',
+    severity: 'moderate',
+    title: 'First approved fixture',
+  },
+  {
+    id: 'GHSA-test2',
+    name: 'fixture-two',
+    severity: 'moderate',
+    title: 'Second approved fixture',
+  },
+];
+const TEST_MANIFEST = {
+  ...manifest,
+  accepted: APPROVED.map((entry) => ({
+    advisory: entry.id,
+    package: entry.name,
+  })),
+};
 
 describe('Unit | Scripts | Security | Residual Advisories', () => {
   let logs;
@@ -58,13 +76,22 @@ describe('Unit | Scripts | Security | Residual Advisories', () => {
 
   describe('the committed state', () => {
     it('keeps the document and package.json in step with the manifest', () => {
+      const schemaPath = path.resolve(
+        __dirname,
+        '../../../../config/security',
+        manifest.$schema,
+      );
+
+      expect(fs.existsSync(schemaPath)).toBe(true);
       expect(overrideMismatches(manifest)).toEqual([]);
       expect(checkDocs()).toBe(0);
     });
 
-    it('records the lockfile it was verified against', () => {
-      expect(manifest.lockfileSha256).toBe(lockfileSha256());
+    it('records auditable verification metadata without coupling every dependency PR to it', () => {
+      expect(manifest.accepted).toEqual([]);
+      expect(manifest.lockfileSha256).toMatch(/^[0-9a-f]{64}$/);
       expect(manifest.verifiedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(lockfileSha256()).toMatch(/^[0-9a-f]{64}$/);
     });
   });
 
@@ -104,7 +131,7 @@ describe('Unit | Scripts | Security | Residual Advisories', () => {
 
     it('passes when reality matches the approved manifest', () => {
       withAudit(auditFixture(APPROVED, { moderate: APPROVED.length, total: APPROVED.length }), (file) => {
-        expect(checkAudit(file)).toBe(0);
+        expect(checkAudit(file, TEST_MANIFEST)).toBe(0);
       });
 
       expect(logs.join('')).toContain('OK reality matches the approved manifest');
@@ -119,7 +146,7 @@ describe('Unit | Scripts | Security | Residual Advisories', () => {
       );
 
       withAudit(audit, (file) => {
-        expect(checkAudit(file)).toBe(1);
+        expect(checkAudit(file, TEST_MANIFEST)).toBe(1);
       });
 
       expect(logs.join('')).toContain('UNAPPROVED moderate left-pad GHSA-new1');
@@ -129,7 +156,7 @@ describe('Unit | Scripts | Security | Residual Advisories', () => {
     // entry upstream has fixed should be removed, not left implying live risk.
     it('fails when an approved advisory is no longer reported', () => {
       withAudit(auditFixture(APPROVED.slice(0, 1), { moderate: 1, total: 1 }), (file) => {
-        expect(checkAudit(file)).toBe(1);
+        expect(checkAudit(file, TEST_MANIFEST)).toBe(1);
       });
 
       expect(logs.join('')).toContain('is approved in the manifest but no longer reported');
@@ -137,7 +164,7 @@ describe('Unit | Scripts | Security | Residual Advisories', () => {
 
     it('fails on any high or critical, approved or not', () => {
       withAudit(auditFixture(APPROVED, { critical: 1, total: 3 }), (file) => {
-        expect(checkAudit(file)).toBe(1);
+        expect(checkAudit(file, TEST_MANIFEST)).toBe(1);
       });
 
       expect(logs.join('')).toContain('1 high/critical advisory(ies) present');

@@ -228,12 +228,10 @@ describe('Integration | Async Page Description Jobs', () => {
   };
 
   const pollJobUntilTerminal = async (app, statusUrl) => {
-    let latestResponse = null;
-
     for (let attempt = 0; attempt < 20; attempt += 1) {
       // The background page job keeps progressing between polls.
       // eslint-disable-next-line no-await-in-loop
-      latestResponse = await secureGet(app, statusUrl);
+      const latestResponse = await secureGet(app, statusUrl);
       if (latestResponse.status === 200) {
         return latestResponse;
       }

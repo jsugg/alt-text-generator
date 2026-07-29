@@ -2,11 +2,10 @@
 
 // Freshness model for docs/dependency-security.md.
 //
-// That document's central claims — which packages are pinned, which advisories
-// are knowingly tolerated — were accurate and entirely ungated. The scheduled
-// audit runs `npm audit --omit=dev --audit-level=high`, so it cannot see the
-// advisories the document is about: they are all dev-only and all moderate.
-// Nothing kept the document true; it simply was, until it would not be.
+// That document's central claims — which transitive packages are overridden
+// and whether any advisories are knowingly tolerated — must stay verifiable.
+// The required production audit omits dev dependencies, so a separate
+// full-tree comparison guards the development/test toolchain.
 //
 // Two halves, deliberately split by cost and blast radius:
 //
@@ -52,7 +51,7 @@ function renderOverridesTable(manifest) {
     '| Override | Fixes |',
     '|---|---|',
     ...manifest.overrides.map(
-      (/** @type {any} */ entry) => `| \`${entry.package} ${entry.range}\` | ${entry.fixes} |`,
+      (/** @type {any} */ entry) => `| \`${entry.package} → ${entry.range}\` | ${entry.fixes} |`,
     ),
   ].join('\n');
 }
@@ -234,10 +233,10 @@ function distinctAdvisories(audit) {
 
 /**
  * @param {string} [auditFile]
+ * @param {any} [manifest]
  * @returns {number}
  */
-function checkAudit(auditFile) {
-  const manifest = readManifest();
+function checkAudit(auditFile, manifest = readManifest()) {
   const audit = loadAudit(auditFile);
   const found = distinctAdvisories(audit);
   const accepted = new Set(manifest.accepted.map((/** @type {any} */ e) => e.advisory));

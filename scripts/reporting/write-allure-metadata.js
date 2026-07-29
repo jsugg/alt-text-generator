@@ -27,7 +27,7 @@ function escapePropertiesValue(value) {
  */
 function getInstalledPackageVersion(packageName, rootDir = ROOT) {
   try {
-    // eslint-disable-next-line global-require, import/no-dynamic-require
+    // eslint-disable-next-line global-require, import-x/no-dynamic-require
     return require(require.resolve(`${packageName}/package.json`, {
       paths: [rootDir],
     })).version;

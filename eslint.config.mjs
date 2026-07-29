@@ -1,10 +1,10 @@
 import js from '@eslint/js';
 import globals from 'globals';
-import importPlugin from 'eslint-plugin-import';
+import { importX } from 'eslint-plugin-import-x';
 import stylistic from '@stylistic/eslint-plugin';
 
 /**
- * Flat ESLint config (ESLint 9).
+ * Flat ESLint config (ESLint 10).
  *
  * Replaces the legacy `.eslintrc.js` + `eslint-config-airbnb-base` setup.
  * airbnb-base is eslintrc-only and unmaintained for flat config, and its
@@ -12,7 +12,7 @@ import stylistic from '@stylistic/eslint-plugin';
  * not use. Instead this composes a lean, airbnb-style stack from maintained,
  * flat-native pieces:
  *   - @eslint/js recommended       -> correctness baseline airbnb builds on
- *   - eslint-plugin-import          -> module/import hygiene
+ *   - eslint-plugin-import-x        -> module/import hygiene
  *   - @stylistic                    -> airbnb-equivalent formatting
  *   - a focused airbnb rule block   -> the practices this codebase relies on
  */
@@ -38,7 +38,7 @@ export default [
   },
 
   js.configs.recommended,
-  importPlugin.flatConfigs.recommended,
+  importX.flatConfigs.recommended,
   stylisticConfig,
 
   {
@@ -101,7 +101,7 @@ export default [
       'no-path-concat': 'error',
 
       // Import hygiene
-      'import/no-dynamic-require': 'error',
+      'import-x/no-dynamic-require': 'error',
     },
   },
 

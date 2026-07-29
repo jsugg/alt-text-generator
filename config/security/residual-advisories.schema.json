@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./residual-advisories.schema.json",
+  "title": "Residual dependency advisory policy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "$comment",
+    "verifiedAt",
+    "lockfileSha256",
+    "overrides",
+    "accepted"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "./residual-advisories.schema.json"
+    },
+    "$comment": {
+      "type": "string",
+      "minLength": 1
+    },
+    "verifiedAt": {
+      "type": "string",
+      "format": "date"
+    },
+    "lockfileSha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "overrides": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "package",
+          "range",
+          "fixes"
+        ],
+        "properties": {
+          "package": {
+            "type": "string",
+            "minLength": 1
+          },
+          "range": {
+            "type": "string",
+            "minLength": 1
+          },
+          "fixes": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "accepted": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "advisory",
+          "package",
+          "severity",
+          "title",
+          "pulledBy",
+          "productionReachable",
+          "why"
+        ],
+        "properties": {
+          "advisory": {
+            "type": "string",
+            "pattern": "^GHSA-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{4}$"
+          },
+          "package": {
+            "type": "string",
+            "minLength": 1
+          },
+          "severity": {
+            "enum": [
+              "low",
+              "moderate",
+              "high",
+              "critical"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "pulledBy": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "productionReachable": {
+            "const": false
+          },
+          "why": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

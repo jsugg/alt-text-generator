@@ -171,6 +171,7 @@ const startRedisTestServer = async ({ redisUrl: externalRedisUrl } = {}) => {
     } catch (error) {
       throw new Error(
         `Redis integration endpoint ${externalRedisUrl} is not reachable: ${error.message}`,
+        { cause: error },
       );
     }
 
@@ -218,11 +219,14 @@ const startRedisTestServer = async ({ redisUrl: externalRedisUrl } = {}) => {
     await waitForRedis(redisUrl);
   } catch (error) {
     child.kill('SIGTERM');
-    throw new Error([
-      error.message,
-      stdout.length > 0 ? `stdout:\n${stdout.join('')}` : '',
-      stderr.length > 0 ? `stderr:\n${stderr.join('')}` : '',
-    ].filter(Boolean).join('\n\n'));
+    throw new Error(
+      [
+        error.message,
+        stdout.length > 0 ? `stdout:\n${stdout.join('')}` : '',
+        stderr.length > 0 ? `stderr:\n${stderr.join('')}` : '',
+      ].filter(Boolean).join('\n\n'),
+      { cause: error },
+    );
   }
 
   const stop = async () => {

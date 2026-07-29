@@ -395,6 +395,7 @@ function updateBranchRef(
       + 'repository automation GitHub App to be configured and allowed to update the '
       + `protected ${branch} ref. Add the app to the ${branch} branch protection or `
       + 'ruleset bypass list and retry.',
+      { cause: error },
     );
   }
 }
