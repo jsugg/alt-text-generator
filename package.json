@@ -111,13 +111,15 @@
     "babel-plugin-istanbul": "^8.0.0",
     "handlebars": "^4.7.9",
     "flatted": "^3.4.2",
-    "jose@>=3 <=4.15.4": "4.15.9",
     "lodash": "^4.18.1",
     "minimatch@>=9 <10.2.6": "^10.2.6",
+    "newman": {
+      "jose": "4.15.9",
+      "uuid": "11.1.1"
+    },
     "node-forge": "^1.4.0",
     "qs": "^6.15.3",
-    "underscore": "^1.13.8",
-    "uuid@<11.1.1": "11.1.1"
+    "underscore": "^1.13.8"
   },
   "nodemonConfig": {
     "ignore": [

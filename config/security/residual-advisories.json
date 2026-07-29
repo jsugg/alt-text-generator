@@ -1,8 +1,8 @@
 {
   "$schema": "./residual-advisories.schema.json",
   "$comment": "Residual advisory decisions and override pins. docs/dependency-security.md's tables are generated from this file — edit here, then run `npm run security:docs -- --write`. Verified by scripts/security/residual-advisories.js.",
-  "verifiedAt": "2026-07-28",
-  "lockfileSha256": "1eb8591302a7d1265cad791802d24a572b5a265cf140819b9c98ec896d8d1289",
+  "verifiedAt": "2026-07-29",
+  "lockfileSha256": "8dd0e40bc4c54e8be5df561cdfee00e3684bc7456f0cd3f59dcf8194c2fa2adf",
   "overrides": [
     {
       "package": "babel-plugin-istanbul",
@@ -20,7 +20,7 @@
       "fixes": "prototype pollution + unbounded-recursion DoS"
     },
     {
-      "package": "jose@>=3 <=4.15.4",
+      "package": "newman>jose",
       "range": "4.15.9",
       "fixes": "Newman's Postman runtime JWE resource-exhaustion advisory"
     },
@@ -50,7 +50,7 @@
       "fixes": "arbitrary code execution"
     },
     {
-      "package": "uuid@<11.1.1",
+      "package": "newman>uuid",
       "range": "11.1.1",
       "fixes": "Newman's Postman UUID buffer-bounds advisory"
     }
