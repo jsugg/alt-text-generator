@@ -23,6 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
+      dependencies_changed: ${{ steps.classify.outputs.dependencies_changed }}
       docs_changed: ${{ steps.classify.outputs.docs_changed }}
       docs_only: ${{ steps.classify.outputs.docs_only }}
     steps:
@@ -49,6 +50,49 @@ jobs:
           fi
 
           node scripts/ci/classify-changed-paths.js --input changed-files.txt
+
+  dependency-audit:
+    name: dependency-audit
+    needs:
+      - changes
+    if: needs.changes.outputs.dependencies_changed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Setup project
+        uses: ./.github/actions/setup-node-project
+
+      - name: Run full dependency audit
+        id: audit
+        env:
+          AUDIT_SCOPE: full
+        run: bash scripts/github/run-security-audit.sh
+
+      - name: Upload audit artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dependency-audit-artifacts
+          path: reports/security/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Fail when the registry audit is unavailable
+        if: steps.audit.outputs.available != 'true'
+        run: |
+          echo "npm audit did not return a complete report after bounded retries."
+          exit 1
+
+      - name: Fail on high or critical findings
+        if: >-
+          steps.audit.outputs.available == 'true' &&
+          (steps.audit.outputs.high != '0' || steps.audit.outputs.critical != '0')
+        run: |
+          echo "npm audit reported high or critical dependency findings."
+          exit 1
 
   # Runs unconditionally, unlike the other gates' docs-only skips. docs:validate
   # now asserts across the repository, not just within the changed files: it
@@ -646,6 +690,7 @@ jobs:
     needs:
       - changes
       - actionlint
+      - dependency-audit
       - docs
       - lint
       - openapi
@@ -664,6 +709,7 @@ jobs:
       - name: Write summary
         env:
           ACTIONLINT_RESULT: ${{ needs.actionlint.result }}
+          DEPENDENCY_AUDIT_RESULT: ${{ needs.dependency-audit.result }}
           DOCS_ONLY: ${{ needs.changes.outputs.docs_only }}
           DOCS_RESULT: ${{ needs.docs.result }}
           OPENAPI_RESULT: ${{ needs.openapi.result }}

@@ -6,6 +6,8 @@ summary_file="${1:?summary file is required}"
 {
   echo "## Security Audit"
   echo
+  echo "- Complete report: ${AUDIT_AVAILABLE:-false}"
+  echo "- npm audit exit status: ${AUDIT_STATUS:-unknown}"
   echo "- Critical: ${AUDIT_CRITICAL:-0}"
   echo "- High: ${AUDIT_HIGH:-0}"
   echo "- Moderate: ${AUDIT_MODERATE:-0}"

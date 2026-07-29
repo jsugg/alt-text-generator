@@ -1,5 +1,6 @@
 const {
   classifyChangedPaths,
+  isDependencyPath,
   isDocsPath,
   parseChangedFiles,
 } = require('../../../../scripts/ci/classify-changed-paths');
@@ -45,9 +46,29 @@ describe('Unit | Scripts | CI | Classify Changed Paths', () => {
     });
   });
 
+  describe('isDependencyPath', () => {
+    it.each([
+      ['.npmrc'],
+      ['npm-shrinkwrap.json'],
+      ['package-lock.json'],
+      ['package.json'],
+    ])('treats %s as dependency configuration', (filePath) => {
+      expect(isDependencyPath(filePath)).toBe(true);
+    });
+
+    it.each([
+      ['.github/dependabot.yml'],
+      ['docs/dependency-security.md'],
+      ['src/app.js'],
+    ])('does not audit unrelated path %s', (filePath) => {
+      expect(isDependencyPath(filePath)).toBe(false);
+    });
+  });
+
   describe('classifyChangedPaths', () => {
     it('runs the gates for a spec-only change', () => {
       expect(classifyChangedPaths(['docs/openapi.base.json'])).toEqual({
+        dependenciesChanged: false,
         docsChanged: false,
         docsOnly: false,
       });
@@ -55,6 +76,7 @@ describe('Unit | Scripts | CI | Classify Changed Paths', () => {
 
     it('runs the gates when a spec change is bundled with documentation', () => {
       expect(classifyChangedPaths(['docs/openapi.base.json', 'README.md'])).toEqual({
+        dependenciesChanged: false,
         docsChanged: true,
         docsOnly: false,
       });
@@ -62,6 +84,7 @@ describe('Unit | Scripts | CI | Classify Changed Paths', () => {
 
     it('runs the gates for a source-only change', () => {
       expect(classifyChangedPaths(['src/api/v1/routes/health.js'])).toEqual({
+        dependenciesChanged: false,
         docsChanged: false,
         docsOnly: false,
       });
@@ -69,6 +92,7 @@ describe('Unit | Scripts | CI | Classify Changed Paths', () => {
 
     it('skips the gates for a genuinely docs-only change', () => {
       expect(classifyChangedPaths(['README.md', 'docs/required-checks.md', 'LICENSE'])).toEqual({
+        dependenciesChanged: false,
         docsChanged: true,
         docsOnly: true,
       });
@@ -76,6 +100,7 @@ describe('Unit | Scripts | CI | Classify Changed Paths', () => {
 
     it('reports docs changed but not docs-only for a mixed change', () => {
       expect(classifyChangedPaths(['README.md', 'src/app.js'])).toEqual({
+        dependenciesChanged: false,
         docsChanged: true,
         docsOnly: false,
       });
@@ -84,6 +109,15 @@ describe('Unit | Scripts | CI | Classify Changed Paths', () => {
     // No evidence of what changed must never mean "safe to skip".
     it('never reports docs-only for an empty change set', () => {
       expect(classifyChangedPaths([])).toEqual({
+        dependenciesChanged: false,
+        docsChanged: false,
+        docsOnly: false,
+      });
+    });
+
+    it('requests a production audit when an npm dependency file changes', () => {
+      expect(classifyChangedPaths(['package-lock.json'])).toEqual({
+        dependenciesChanged: true,
         docsChanged: false,
         docsOnly: false,
       });

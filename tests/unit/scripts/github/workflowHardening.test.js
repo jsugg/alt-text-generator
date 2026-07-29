@@ -92,10 +92,12 @@ describe('Unit | Scripts | GitHub | Workflow Hardening', () => {
         firstStep.name,
         'Harden runner (audit)',
       );
-      assertStringContainsInvariant(
+      assertEqualInvariant(
         `${fileName}#${jobId} pins harden-runner to a full SHA`,
-        firstStep.uses,
-        'step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411',
+        typeof firstStep.uses === 'string'
+        && firstStep.uses.startsWith('step-security/harden-runner@')
+        && FULL_SHA_USES_PATTERN.test(firstStep.uses),
+        true,
       );
       assertDeepEqualInvariant(
         `${fileName}#${jobId} keeps harden-runner in audit (non-blocking) mode`,

@@ -37,14 +37,33 @@ function isDocsPath(filePath) {
   );
 }
 
+/** @type {ReadonlySet<string>} */
+const DEPENDENCY_PATHS = new Set([
+  '.npmrc',
+  'npm-shrinkwrap.json',
+  'package-lock.json',
+  'package.json',
+]);
+
+/**
+ * True when a path can change the installed npm dependency graph.
+ *
+ * @param {string} filePath
+ * @returns {boolean}
+ */
+function isDependencyPath(filePath) {
+  return DEPENDENCY_PATHS.has(filePath);
+}
+
 /**
  * @param {string[]} changedFiles
- * @returns {{ docsChanged: boolean, docsOnly: boolean }}
+ * @returns {{ dependenciesChanged: boolean, docsChanged: boolean, docsOnly: boolean }}
  */
 function classifyChangedPaths(changedFiles) {
   // An empty list is never docs-only: with no evidence of what changed, the
   // safe answer is to run the gates rather than skip them.
   return {
+    dependenciesChanged: changedFiles.some(isDependencyPath),
     docsChanged: changedFiles.some(isDocsPath),
     docsOnly: changedFiles.length > 0 && changedFiles.every(isDocsPath),
   };
@@ -100,18 +119,26 @@ function main(argv = process.argv.slice(2)) {
   }
 
   const changedFiles = parseChangedFiles(fs.readFileSync(args.input, 'utf8'));
-  const { docsChanged, docsOnly } = classifyChangedPaths(changedFiles);
+  const { dependenciesChanged, docsChanged, docsOnly } = classifyChangedPaths(changedFiles);
 
   if (args.json) {
-    process.stdout.write(`${JSON.stringify({ changedFiles, docsChanged, docsOnly }, null, 2)}\n`);
+    process.stdout.write(
+      `${JSON.stringify({
+        changedFiles, dependenciesChanged, docsChanged, docsOnly,
+      }, null, 2)}\n`,
+    );
   } else {
-    process.stdout.write(`docs_changed=${docsChanged} docs_only=${docsOnly} (${changedFiles.length} changed file(s))\n`);
+    process.stdout.write(
+      `dependencies_changed=${dependenciesChanged} docs_changed=${docsChanged} docs_only=${docsOnly} `
+      + `(${changedFiles.length} changed file(s))\n`,
+    );
   }
 
   if (process.env.GITHUB_OUTPUT) {
     fs.appendFileSync(
       process.env.GITHUB_OUTPUT,
-      `docs_changed=${docsChanged}\ndocs_only=${docsOnly}\n`,
+      `dependencies_changed=${dependenciesChanged}\n`
+      + `docs_changed=${docsChanged}\ndocs_only=${docsOnly}\n`,
     );
   }
 
@@ -124,6 +151,7 @@ if (require.main === module) {
 
 module.exports = {
   classifyChangedPaths,
+  isDependencyPath,
   isDocsPath,
   main,
   parseArgs,
