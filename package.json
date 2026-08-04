@@ -92,11 +92,11 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@stylistic/eslint-plugin": "^5.10.0",
-    "allure-commandline": "^2.37.0",
+    "allure-commandline": "^2.43.0",
     "allure-jest": "^3.10.2",
     "eslint": "^10.8.0",
     "eslint-plugin-import-x": "^4.17.1",
-    "globals": "^17.7.0",
+    "globals": "^17.8.0",
     "jest": "^30.4.2",
     "jest-environment-node": "^30.4.1",
     "jest-junit": "^17.0.0",
