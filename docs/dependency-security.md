@@ -55,9 +55,9 @@ fails if this document and the manifest disagree, and if the manifest's override
 list and `package.json`'s do.
 
 <!-- generated:verified start -->
-Last verified against a full-tree `npm audit`: **2026-07-29**.
+Last verified against a full-tree `npm audit`: **2026-08-10**.
 
-Lockfile at that time: `8dd0e40bc4c54e8be5df561cdfee00e3684bc7456f0cd3f59dcf8194c2fa2adf`
+Lockfile at that time: `b4bc4c3a6286e48d2206127603661dc113c67ccfa9512b251a557011509b6e55`
 
 When `package-lock.json` changes, this stops matching — which is the signal
 to re-verify and update `config/security/residual-advisories.json`.
