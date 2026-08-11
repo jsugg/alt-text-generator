@@ -1,0 +1,10 @@
+{
+    "Accept": "text/html",
+    "X-Expected-Status-Code": "302",
+    "User-Agent": "PostmanRuntime/7.39.1",
+    "Cache-Control": "no-cache",
+    "Postman-Token": "44170935-167b-4637-aaac-e4aae7433e08",
+    "Host": "127.0.0.1:43941",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Connection": "keep-alive"
+}
