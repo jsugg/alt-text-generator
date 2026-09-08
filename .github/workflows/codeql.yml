@@ -76,7 +76,7 @@ jobs:
 
       - name: Initialize CodeQL
         if: needs.changes.outputs.docs_only != 'true'
-        uses: github/codeql-action/init@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
+        uses: github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
         with:
           languages: javascript
           queries: security-extended
@@ -86,7 +86,7 @@ jobs:
 
       - name: Analyze
         if: needs.changes.outputs.docs_only != 'true'
-        uses: github/codeql-action/analyze@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
+        uses: github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
         with:
           category: /language:javascript
 
