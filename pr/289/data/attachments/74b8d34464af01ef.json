@@ -1,0 +1,10 @@
+{
+    "Accept": "application/javascript",
+    "X-Expected-Status-Code": "200",
+    "User-Agent": "PostmanRuntime/7.39.1",
+    "Cache-Control": "no-cache",
+    "Postman-Token": "389c5609-8cc7-44be-a342-6ee8fe73d693",
+    "Host": "127.0.0.1:42275",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Connection": "keep-alive"
+}
