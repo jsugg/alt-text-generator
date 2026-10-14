@@ -1,0 +1,1 @@
+<!DOCTYPE html><head><title>Found</title></head><body><p>Found. Redirecting to /api/v1/</p></body>
