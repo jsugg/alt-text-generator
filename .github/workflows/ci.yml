@@ -76,7 +76,7 @@ jobs:
 
       - name: Upload audit artifacts
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dependency-audit-artifacts
           path: reports/security/
@@ -326,7 +326,7 @@ jobs:
 
       - name: Upload Jest test results
         if: always() && needs.changes.outputs.docs_only != 'true'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: jest-results-node-24
           path: reports/jest/
@@ -335,7 +335,7 @@ jobs:
 
       - name: Upload Jest coverage
         if: always() && needs.changes.outputs.docs_only != 'true'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: jest-coverage-node-24
           path: coverage/
@@ -344,7 +344,7 @@ jobs:
 
       - name: Upload Jest Allure results
         if: always() && needs.changes.outputs.docs_only != 'true'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: jest-allure-results-node-24
           path: reports/allure-results/
@@ -389,7 +389,7 @@ jobs:
 
       - name: Upload Newman artifacts
         if: always() && needs.changes.outputs.docs_only != 'true'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: newman-artifacts-${{ env.NEWMAN_MODE }}
           path: reports/newman/
@@ -398,7 +398,7 @@ jobs:
 
       - name: Upload Newman Allure results
         if: always() && needs.changes.outputs.docs_only != 'true'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: newman-allure-results-${{ env.NEWMAN_MODE }}
           path: reports/allure-results/
@@ -418,14 +418,14 @@ jobs:
       checks: write
     steps:
       - name: Download Jest test results
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: jest-results-node-*
           path: reports/jest
           merge-multiple: true
 
       - name: Download Newman test results
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: newman-artifacts-*
           path: reports/newman
@@ -467,7 +467,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup Java
-        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v5
         with:
           distribution: temurin
           java-version: '21'
@@ -476,14 +476,14 @@ jobs:
         uses: ./.github/actions/setup-node-project
 
       - name: Download Jest Allure results
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: jest-allure-results-node-*
           path: reports/allure-results
           merge-multiple: true
 
       - name: Download Newman Allure results
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: newman-allure-results-*
           path: reports/allure-results
@@ -570,7 +570,7 @@ jobs:
           always() &&
           steps.allure-inputs.outputs.has-results == 'true' &&
           steps.history-policy.outputs.persist_history == 'true'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ${{ steps.history-policy.outputs.history_artifact_name }}
           path: reports/allure-history-artifact/
@@ -579,7 +579,7 @@ jobs:
 
       - name: Upload Allure report
         if: always() && steps.allure-inputs.outputs.has-results == 'true'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: allure-report
           path: reports/allure-report/
@@ -639,7 +639,7 @@ jobs:
           fi
 
       - name: Download Allure report artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: allure-report
           path: reports/allure-report
@@ -667,7 +667,7 @@ jobs:
           --report-kind "${REPORT_KIND}"
 
       - name: Upload prepared GitHub Pages site
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: allure-pages-site
           path: reports/pages-site-next/
@@ -675,7 +675,7 @@ jobs:
           retention-days: 1
 
       - name: Upload GitHub Pages metadata
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: allure-pages-metadata
           path: reports/pages-metadata/page-metadata.json
