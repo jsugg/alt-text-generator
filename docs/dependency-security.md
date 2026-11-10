@@ -74,7 +74,7 @@ list and `package.json`'s do.
 <!-- generated:verified start -->
 Last verified against a full-tree `npm audit`: **2026-11-10**.
 
-Lockfile at that time: `449457beb344744edf10ae8d0b08c2663cf43301731f33adc8795ce15db0530d`
+Lockfile at that time: `0a24da86b95133b8d9460321d539f1fdeb5acd54e05223bd07c0f905e97f9c1d`
 
 When `package-lock.json` changes, this stops matching — which is the signal
 to re-verify and update `config/security/residual-advisories.json`.
