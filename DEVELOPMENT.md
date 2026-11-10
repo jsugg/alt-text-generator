@@ -252,6 +252,8 @@ The promotion workflow uses the app token when both values are present. This is 
 
 The repository includes a black-box contract harness that validates the API over real HTTP/HTTPS instead of through in-process Supertest only.
 
+Postman dynamic variables (`{{$guid}}`, `{{$random*}}`, and the rest) and `replaceIn` are not allowed anywhere in `postman/**/*.json`, and `npm run postman:lint` rejects them. Newman's faker is replaced by the fail-closed `tools/faker-stub` (see [docs/dependency-security.md](./docs/dependency-security.md)), so any faker-backed variable throws at run time. Generate values in a pre-request script and read them with `pm.variables.get`.
+
 Modes:
 
 - `npm run postman:smoke`

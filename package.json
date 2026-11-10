@@ -91,6 +91,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@faker-js/faker": "file:tools/faker-stub",
     "@stylistic/eslint-plugin": "^5.10.0",
     "allure-commandline": "^2.46.1",
     "allure-jest": "^3.14.0",
@@ -117,6 +118,9 @@
       "markdownlint": "0.42.1"
     },
     "newman": {
+      "postman-collection": {
+        "@faker-js/faker": "$@faker-js/faker"
+      },
       "jose": "4.15.9",
       "uuid": "11.1.1"
     },

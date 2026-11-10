@@ -259,6 +259,26 @@ describe('Unit | Scripts | Postman | Collection Lint', () => {
     });
   });
 
+  describe('lintCollection dynamic-variable policy', () => {
+    it('flags dynamic variables and replaceIn in requests and scripts', () => {
+      const collection = collectionOf(
+        folder('00 Core', [
+          req('Ping', {
+            url: { raw: '{{baseUrl}}/api/{{$guid}}', host: ['{{baseUrl}}'] },
+            exec: [
+              'pm.response.to.have.status(200);',
+              'const id = pm.variables.replaceIn("{{$randomUUID}}");',
+            ],
+          }),
+        ]),
+      );
+      const rules = rulesOf(lintCollection(collection));
+
+      expect(rules.filter((rule) => rule === RULES.DYNAMIC_VARIABLES)).toHaveLength(2);
+      expect(rules.filter((rule) => rule === RULES.TEMPLATE_REPLACE_IN)).toHaveLength(1);
+    });
+  });
+
   describe('summarize', () => {
     it('counts folders and requests', () => {
       const collection = collectionOf(
