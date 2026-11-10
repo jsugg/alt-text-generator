@@ -22,13 +22,15 @@ patched releases. They arrive through Jest coverage/reporting and Newman:
 | Override | Fixes |
 |---|---|
 | `babel-plugin-istanbul → ^8.0.0` | Jest coverage's legacy `test-exclude` / `glob` vulnerability chain |
-| `handlebars → ^4.7.9` | **critical** AST-injection / prototype-pollution chain |
+| `handlebars → ^4.7.10` | **critical** AST type-confusion / own-property-check JavaScript-injection chain |
 | `flatted → ^3.4.2` | prototype pollution + unbounded-recursion DoS |
 | `newman>jose → 4.15.9` | Newman's Postman runtime JWE resource-exhaustion advisory |
 | `lodash → ^4.18.1` | code-injection + prototype-pollution advisories |
 | `minimatch@>=9 <10.2.6 → ^10.2.6` | Jest's `glob@10` brace-expansion OOM advisory |
-| `node-forge → ^1.4.0` | signature/verification advisories |
-| `qs → ^6.15.3` | transitive `qs` (the direct dep is already ≥ 6.15.3) |
+| `markdownlint-cli2>markdownlint → 0.42.1` | `markdownlint@0.42.0`'s exact `re2js@2.8.6` lookbehind ReDoS; 0.42.1 is upstream's own `re2js@2.9.1` fix |
+| `node-forge → ^1.4.3` | signature/verification, PEM ReDoS, and TLS record-processing DoS advisories |
+| `qs → ^6.17.1` | transitive `qs` (the direct dep is already ≥ 6.17.1) |
+| `test-exclude → ^8.0.0` | keeps Jest coverage on `glob@13` / `minimatch@10`; `test-exclude@7` nests `glob@10`, where npm 10 skips the minimatch override (Node 22 `npm ci`). Same `index.js` as 7.0.2 |
 | `underscore → ^1.13.8` | arbitrary code execution |
 | `newman>uuid → 11.1.1` | Newman's Postman UUID buffer-bounds advisory |
 <!-- generated:overrides end -->
@@ -40,7 +42,8 @@ directly.
 
 ## Accepted residual
 
-None. Full production and development dependency trees audit clean.
+None. The production tree has no high or critical advisories; development-tree
+findings are reported by the scheduled `Dependency Residual Audit` below.
 
 <!-- generated:accepted start -->
 
@@ -55,9 +58,9 @@ fails if this document and the manifest disagree, and if the manifest's override
 list and `package.json`'s do.
 
 <!-- generated:verified start -->
-Last verified against a full-tree `npm audit`: **2026-08-10**.
+Last verified against a full-tree `npm audit`: **2026-11-10**.
 
-Lockfile at that time: `b4bc4c3a6286e48d2206127603661dc113c67ccfa9512b251a557011509b6e55`
+Lockfile at that time: `696ca4b3d6d9a5b3563dd0f1ab94579c12f33c0ef5c67f006f636f1de6e0bd74`
 
 When `package-lock.json` changes, this stops matching — which is the signal
 to re-verify and update `config/security/residual-advisories.json`.

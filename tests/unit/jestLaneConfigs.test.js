@@ -142,10 +142,10 @@ describe('Unit | Jest Lane Configs', () => {
         branches: 70,
       },
       './scripts/github/promote-to-production.js': {
-        statements: 47,
+        statements: 54,
         branches: 56,
-        functions: 42,
-        lines: 47,
+        functions: 62,
+        lines: 54,
       },
       './scripts/postman-fixture-server.js': {
         statements: 60,
@@ -155,7 +155,7 @@ describe('Unit | Jest Lane Configs', () => {
       },
       './scripts/run-postman-deploy.js': {
         statements: 70,
-        branches: 62,
+        branches: 64,
         functions: 62,
         lines: 71,
       },
@@ -166,22 +166,22 @@ describe('Unit | Jest Lane Configs', () => {
         lines: 25,
       },
       './src/server/serverFunctions.js': {
-        statements: 78,
+        statements: 84,
         branches: 44,
-        functions: 62,
-        lines: 80,
+        functions: 74,
+        lines: 84,
       },
       './src/server/startApplicationRuntime.js': {
-        statements: 82,
-        branches: 45,
+        statements: 86,
+        branches: 60,
         functions: 20,
-        lines: 85,
+        lines: 88,
       },
       './src/services/ReplicateDescriberService.js': {
-        statements: 76,
-        branches: 63,
-        functions: 75,
-        lines: 77,
+        statements: 84,
+        branches: 78,
+        functions: 83,
+        lines: 85,
       },
     });
   });

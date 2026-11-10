@@ -7,6 +7,22 @@ const repoRoot = path.join(__dirname, '..', '..');
 const read = (relativePath) => fs.readFileSync(path.join(repoRoot, relativePath), 'utf8');
 
 /**
+ * Loads `dependency` the way `consumer` resolves it. npm may hoist a different
+ * major of the same package to the root, so a bare require would probe the
+ * wrong copy.
+ *
+ * @param {string} consumer
+ * @param {string} dependency
+ * @returns {any}
+ */
+const requireAsSeenBy = (consumer, dependency) => {
+  const resolved = require.resolve(dependency, { paths: [path.dirname(require.resolve(consumer))] });
+
+  // eslint-disable-next-line import-x/no-dynamic-require
+  return require(resolved);
+};
+
+/**
  * Collects files under `dir` whose name matches `pattern`, recursively.
  *
  * @param {string} dir
@@ -48,9 +64,9 @@ describe('Unit | Supply-chain pinning posture', () => {
   });
 
   it('keeps Newman security overrides compatible with their CommonJS consumers', () => {
-    const jose = require('jose');
+    const jose = requireAsSeenBy('postman-runtime', 'jose');
     const SerialisedError = require('serialised-error');
-    const uuid = require('uuid');
+    const uuid = requireAsSeenBy('serialised-error', 'uuid');
 
     const decorated = SerialisedError(new Error('compatibility probe'), true);
 
