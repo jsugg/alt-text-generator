@@ -11,11 +11,15 @@
 //
 //   --check-docs   deterministic, offline, blocking. The document's tables are
 //                  generated from the manifest, so they cannot drift from it.
-//   --check-audit  runs a full-tree `npm audit` and compares reality to the
-//                  manifest. Scheduled and NON-BLOCKING: it depends on the
-//                  advisory database, which changes without anyone touching
-//                  this repo, and a required check must not fail because a
-//                  third party published overnight.
+//                  Accepted entries render with `Expiry:`, which the docs gate
+//                  fails once the date passes.
+//   --check-audit  compares a full-tree `npm audit` report (`--audit-file`, as
+//                  written by scripts/github/run-security-audit.sh) to the
+//                  manifest. Blocking: it fails on any unapproved advisory at
+//                  or above `--fail-on` (default high) and on accepted entries
+//                  that are no longer reported. Lower-severity unapproved
+//                  advisories are reported, not failed, so overnight
+//                  low/moderate publications never break a required check.
 
 const { execFileSync } = require('node:child_process');
 const crypto = require('node:crypto');
@@ -26,6 +30,16 @@ const ROOT = path.resolve(__dirname, '../..');
 const MANIFEST_PATH = path.join(ROOT, 'config/security/residual-advisories.json');
 const DOC_PATH = path.join(ROOT, 'docs/dependency-security.md');
 const LOCKFILE_PATH = path.join(ROOT, 'package-lock.json');
+
+const SEVERITY_RANK = Object.freeze({
+  info: 0,
+  low: 1,
+  moderate: 2,
+  high: 3,
+  critical: 4,
+});
+const DEFAULT_FAIL_ON = 'high';
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/u;
 
 /** @param {string} name */
 const START = (name) => `<!-- generated:${name} start -->`;
@@ -63,9 +77,16 @@ function renderOverridesTable(manifest) {
 function renderAcceptedList(manifest) {
   return manifest.accepted
     .map((/** @type {any} */ entry) => {
+      // An unrendered or malformed date would silently escape the docs gate's
+      // Expiry check, so refuse to render the entry instead.
+      if (typeof entry.expires !== 'string' || !DATE_PATTERN.test(entry.expires)
+        || Number.isNaN(Date.parse(entry.expires))) {
+        throw new Error(`accepted advisory ${entry.advisory} needs an expires date (YYYY-MM-DD)`);
+      }
+
       const pulledBy = entry.pulledBy.map((/** @type {string} */ p) => `\`${p}\``).join(', ');
 
-      return `- **\`${entry.package}\`** (${entry.title}, ${entry.advisory}) — pulled by ${pulledBy}. ${entry.why}`;
+      return `- **\`${entry.package}\`** (${entry.title}, ${entry.advisory}) — pulled by ${pulledBy}. ${entry.why} Expiry: ${entry.expires}.`;
     })
     .join('\n');
 }
@@ -185,12 +206,32 @@ function writeDocs() {
 }
 
 /**
+ * Rejects a report that is not a complete `npm audit --json` result, such as
+ * the fallback run-security-audit.sh writes when the registry never answered.
+ *
+ * @param {any} audit
+ * @param {string} source
+ * @returns {any}
+ */
+function assertCompleteAudit(audit, source) {
+  const counts = audit?.metadata?.vulnerabilities;
+  const complete = !audit?.parseError && counts
+    && ['critical', 'high', 'moderate', 'low', 'total'].every((key) => Number.isInteger(counts[key]));
+
+  if (!complete) {
+    throw new Error(`${source} is not a complete npm audit report`);
+  }
+
+  return audit;
+}
+
+/**
  * @param {string} [auditFile]
  * @returns {any}
  */
 function loadAudit(auditFile) {
   if (auditFile) {
-    return JSON.parse(fs.readFileSync(auditFile, 'utf8'));
+    return assertCompleteAudit(JSON.parse(fs.readFileSync(auditFile, 'utf8')), auditFile);
   }
 
   // npm audit exits non-zero when it finds anything, which is the normal case
@@ -262,21 +303,37 @@ function flattenOverrides(overrides, prefix = '') {
 }
 
 /**
- * @param {string} [auditFile]
- * @param {any} [manifest]
+ * @param {string} severity
  * @returns {number}
  */
-function checkAudit(auditFile, manifest = readManifest()) {
+function severityRank(severity) {
+  return SEVERITY_RANK[/** @type {keyof typeof SEVERITY_RANK} */ (severity)] ?? SEVERITY_RANK.critical;
+}
+
+/**
+ * Compares a full-tree audit to the manifest and applies the fail policy:
+ * unapproved advisories at or above `failOn` and stale accepted entries fail;
+ * unapproved advisories below it are reported only.
+ *
+ * @param {string} [auditFile]
+ * @param {any} [manifest]
+ * @param {{ failOn?: string }} [options]
+ * @returns {number}
+ */
+function checkAudit(auditFile, manifest = readManifest(), { failOn = DEFAULT_FAIL_ON } = {}) {
   const audit = loadAudit(auditFile);
   const found = distinctAdvisories(audit);
   const accepted = new Set(manifest.accepted.map((/** @type {any} */ e) => e.advisory));
+  const threshold = severityRank(failOn);
 
   const unexpected = [...found.entries()].filter(([id]) => !accepted.has(id));
+  const blocking = unexpected.filter(([, info]) => severityRank(info.severity) >= threshold);
+  const reported = unexpected.filter(([, info]) => severityRank(info.severity) < threshold);
   const stale = [...accepted].filter((id) => !found.has(id));
   const totals = audit.metadata?.vulnerabilities ?? {};
-  const blocking = (totals.high ?? 0) + (totals.critical ?? 0);
 
   process.stdout.write(`security:residual full-tree audit: ${JSON.stringify(totals)}\n`);
+  process.stdout.write(`  fail policy: unapproved >= ${failOn}, or stale accepted entries\n`);
   process.stdout.write(`  lockfile sha256: ${lockfileSha256()}\n`);
   process.stdout.write(`  manifest verified: ${manifest.verifiedAt} (${manifest.lockfileSha256})\n`);
 
@@ -284,23 +341,45 @@ function checkAudit(auditFile, manifest = readManifest()) {
     process.stdout.write('  NOTE: lockfile has changed since the manifest was verified\n');
   }
 
-  unexpected.forEach(([id, info]) => {
-    process.stdout.write(`  UNAPPROVED ${info.severity} ${info.package} ${id} — ${info.title}\n`);
+  blocking.forEach(([id, info]) => {
+    process.stdout.write(`  BLOCKING unapproved ${info.severity} ${info.package} ${id} — ${info.title}\n`);
   });
 
   stale.forEach((id) => {
-    process.stdout.write(`  RESOLVED ${id} is approved in the manifest but no longer reported — remove it\n`);
+    process.stdout.write(`  BLOCKING stale ${id} is approved in the manifest but no longer reported — remove it\n`);
   });
 
-  if (blocking > 0) {
-    process.stdout.write(`  ${blocking} high/critical advisory(ies) present\n`);
+  reported.forEach(([id, info]) => {
+    process.stdout.write(`  REPORTED unapproved ${info.severity} ${info.package} ${id} — ${info.title}\n`);
+  });
+
+  if (blocking.length === 0 && stale.length === 0) {
+    process.stdout.write(
+      `  OK no unapproved advisory at or above ${failOn}; ${reported.length} lower-severity reported\n`,
+    );
+    return 0;
   }
 
-  if (unexpected.length === 0 && stale.length === 0 && blocking === 0) {
-    process.stdout.write('  OK reality matches the approved manifest\n');
+  return 1;
+}
+
+/**
+ * Reads `--name value` or `--name=value`.
+ *
+ * @param {string[]} argv
+ * @param {string} name
+ * @returns {string|undefined}
+ */
+function readOption(argv, name) {
+  const inline = argv.find((arg) => arg.startsWith(`${name}=`));
+
+  if (inline) {
+    return inline.slice(name.length + 1);
   }
 
-  return unexpected.length > 0 || stale.length > 0 || blocking > 0 ? 1 : 0;
+  const index = argv.indexOf(name);
+
+  return index === -1 ? undefined : argv[index + 1];
 }
 
 /**
@@ -313,9 +392,19 @@ function main(argv = process.argv.slice(2)) {
   }
 
   if (argv.includes('--check-audit')) {
-    const index = argv.indexOf('--audit-file');
+    const failOn = readOption(argv, '--fail-on') ?? DEFAULT_FAIL_ON;
 
-    return checkAudit(index === -1 ? undefined : argv[index + 1]);
+    if (!Object.hasOwn(SEVERITY_RANK, failOn)) {
+      process.stderr.write(`security:residual --fail-on must be one of ${Object.keys(SEVERITY_RANK).join(', ')}\n`);
+      return 2;
+    }
+
+    try {
+      return checkAudit(readOption(argv, '--audit-file'), undefined, { failOn });
+    } catch (error) {
+      process.stderr.write(`security:residual ${error instanceof Error ? error.message : error}\n`);
+      return 2;
+    }
   }
 
   return checkDocs();
@@ -326,6 +415,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  assertCompleteAudit,
   checkAudit,
   checkDocs,
   distinctAdvisories,

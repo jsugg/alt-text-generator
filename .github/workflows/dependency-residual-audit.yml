@@ -1,0 +1,78 @@
+name: Dependency Residual Audit
+
+# Full-tree audit compared against config/security/residual-advisories.json.
+# Fails on any unapproved high/critical advisory and on accepted entries that
+# are no longer reported; unapproved moderate/low advisories go to the step
+# summary only. Accepted entries carry an expiry that the docs gate enforces.
+# The same comparison runs in the pull-request `dependency-audit` job (ci.yml).
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '53 7 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dependency-residual-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  residual-advisories:
+    name: residual-advisories
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner (audit)
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup project
+        uses: ./.github/actions/setup-node-project
+
+      - name: Run full dependency audit
+        id: audit
+        env:
+          AUDIT_SCOPE: full
+        run: bash scripts/github/run-security-audit.sh
+
+      - name: Fail when the registry audit is unavailable
+        if: steps.audit.outputs.available != 'true'
+        run: |
+          echo "npm audit did not return a complete report after bounded retries."
+          exit 1
+
+      - name: Compare the full dependency tree against the approved manifest
+        shell: bash
+        run: >-
+          node scripts/security/residual-advisories.js --check-audit
+          --audit-file reports/security/npm-audit.json --fail-on high
+          | tee reports/security/residual.log
+
+      - name: Write summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '### Residual dependency advisories'
+            echo ''
+            echo '```'
+            cat reports/security/residual.log 2>/dev/null || echo 'residual comparison did not run'
+            echo '```'
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload audit artifacts
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dependency-residual-audit-artifacts
+          path: reports/security/
+          if-no-files-found: ignore
+          retention-days: 7

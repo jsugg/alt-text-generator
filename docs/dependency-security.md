@@ -56,8 +56,8 @@ directly.
 ## Accepted residual
 
 None. Neither the production nor the full dependency tree has high or critical
-advisories; lower-severity findings are reported by the scheduled
-`Dependency Residual Audit` below.
+advisories; lower-severity findings are summarized by the scheduled
+`Dependency Residual Audit` below. Any future entry needs an `expires` date.
 
 <!-- generated:accepted start -->
 
@@ -80,12 +80,24 @@ When `package-lock.json` changes, this stops matching — which is the signal
 to re-verify and update `config/security/residual-advisories.json`.
 <!-- generated:verified end -->
 
-`Dependency Residual Audit` runs a **full-tree** `npm audit` weekly and compares
-it to the manifest, reporting any advisory that is not approved, and any
-approved entry that upstream has since fixed. It is **non-blocking**: the
-advisory database changes without anyone touching this repo, and a required
-check must not go red because a third party published overnight.
+`Dependency Residual Audit` (`.github/workflows/dependency-residual-audit.yml`,
+weekly and on manual dispatch) runs a **full-tree** `npm audit` and compares it
+to the manifest. It is **blocking**, and it fails on:
 
-The always-required scheduled `npm-audit` job remains production-focused with
-`--omit=dev`. Dependency-changing pull requests also audit the full tree so a
-high/critical development-tool regression cannot merge unnoticed.
+- any **unapproved high or critical** advisory, and
+- any **accepted entry that is no longer reported** (remove it).
+
+Unapproved moderate and low advisories appear in the job summary but do not
+fail it, so an overnight low-severity publication never turns a required check
+red. The pull-request `dependency-audit` check (a required check) applies the
+same comparison to its own full-tree report whenever npm dependency inputs or
+this audit policy change.
+
+An accepted entry must carry an `expires` date. It renders above as `Expiry:`,
+and the `docs` gate fails once that date passes, so every acceptance is
+time-boxed. Accepted entries are development-only by schema
+(`productionReachable: false`).
+
+`Security Audit` is production-only: its `npm-audit` job stays `--omit=dev
+--audit-level=high` and fails on any high or critical production finding,
+with no accepted exceptions.

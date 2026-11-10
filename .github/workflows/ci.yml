@@ -74,6 +74,34 @@ jobs:
           AUDIT_SCOPE: full
         run: bash scripts/github/run-security-audit.sh
 
+      - name: Fail when the registry audit is unavailable
+        if: steps.audit.outputs.available != 'true'
+        run: |
+          echo "npm audit did not return a complete report after bounded retries."
+          exit 1
+
+      # Same policy as the scheduled Dependency Residual Audit, from this job's
+      # report: unapproved high/critical or stale accepted entries fail;
+      # unapproved moderate/low are summarized only.
+      - name: Compare the full dependency tree against the approved manifest
+        shell: bash
+        run: >-
+          node scripts/security/residual-advisories.js --check-audit
+          --audit-file reports/security/npm-audit.json --fail-on high
+          | tee reports/security/residual.log
+
+      - name: Write residual summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '### Residual dependency advisories'
+            echo ''
+            echo '```'
+            cat reports/security/residual.log 2>/dev/null || echo 'residual comparison did not run'
+            echo '```'
+          } >> "${GITHUB_STEP_SUMMARY}"
+
       - name: Upload audit artifacts
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -82,20 +110,6 @@ jobs:
           path: reports/security/
           if-no-files-found: ignore
           retention-days: 7
-
-      - name: Fail when the registry audit is unavailable
-        if: steps.audit.outputs.available != 'true'
-        run: |
-          echo "npm audit did not return a complete report after bounded retries."
-          exit 1
-
-      - name: Fail on high or critical findings
-        if: >-
-          steps.audit.outputs.available == 'true' &&
-          (steps.audit.outputs.high != '0' || steps.audit.outputs.critical != '0')
-        run: |
-          echo "npm audit reported high or critical dependency findings."
-          exit 1
 
   # Runs unconditionally, unlike the other gates' docs-only skips. docs:validate
   # now asserts across the repository, not just within the changed files: it

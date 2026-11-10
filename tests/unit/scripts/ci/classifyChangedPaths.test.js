@@ -52,6 +52,11 @@ describe('Unit | Scripts | CI | Classify Changed Paths', () => {
       ['npm-shrinkwrap.json'],
       ['package-lock.json'],
       ['package.json'],
+      ['config/security/residual-advisories.json'],
+      ['config/security/residual-advisories.schema.json'],
+      ['scripts/security/residual-advisories.js'],
+      ['scripts/github/run-security-audit.sh'],
+      ['scripts/github/parse-security-audit-report.js'],
     ])('treats %s as dependency configuration', (filePath) => {
       expect(isDependencyPath(filePath)).toBe(true);
     });
