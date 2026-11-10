@@ -706,6 +706,12 @@
               "application/json": {
                 "schema": {
                   "properties": {
+                    "commit": {
+                      "description": "Git commit SHA of the running build, or null when the platform does not report one.",
+                      "example": "ea29c7320f0a7d2c6b8e4d1f9a3c5b7e2d4f6a8c",
+                      "nullable": true,
+                      "type": "string"
+                    },
                     "message": {
                       "example": "OK",
                       "type": "string"
@@ -724,6 +730,7 @@
                   "required": [
                     "message",
                     "ready",
+                    "commit",
                     "timestamp",
                     "uptime"
                   ],
@@ -738,6 +745,12 @@
               "application/json": {
                 "schema": {
                   "properties": {
+                    "commit": {
+                      "description": "Git commit SHA of the running build, or null when the platform does not report one.",
+                      "example": "ea29c7320f0a7d2c6b8e4d1f9a3c5b7e2d4f6a8c",
+                      "nullable": true,
+                      "type": "string"
+                    },
                     "message": {
                       "example": "DRAINING",
                       "type": "string"
@@ -756,6 +769,7 @@
                   "required": [
                     "message",
                     "ready",
+                    "commit",
                     "timestamp",
                     "uptime"
                   ],

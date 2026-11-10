@@ -162,4 +162,10 @@ module.exports = {
       process.env.LOG_LEVEL
       || (process.env.NODE_ENV === 'production' ? 'info' : 'debug'),
   },
+
+  // Render injects the deployed commit SHA; /api/health reports it so deploy
+  // verification can tell which build is serving.
+  build: {
+    commit: process.env.RENDER_GIT_COMMIT?.trim() || null,
+  },
 };

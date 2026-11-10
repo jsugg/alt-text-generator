@@ -302,4 +302,18 @@ describe('Unit | Config | Index', () => {
       redisUrl: DEFAULT_UNIT_LOCAL_REDIS_URL,
     });
   });
+
+  it('reports the Render-provided commit SHA as the build commit', () => {
+    const commit = 'ea29c7320f0a7d2c6b8e4d1f9a3c5b7e2d4f6a8c';
+
+    expect(loadConfig({ overrides: { RENDER_GIT_COMMIT: ` ${commit}\n` } }).build)
+      .toEqual({ commit });
+  });
+
+  it.each([
+    ['unset', undefined],
+    ['blank', '  '],
+  ])('reports a null build commit when RENDER_GIT_COMMIT is %s', (_label, value) => {
+    expect(loadConfig({ overrides: { RENDER_GIT_COMMIT: value } }).build).toEqual({ commit: null });
+  });
 });

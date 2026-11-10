@@ -1,13 +1,51 @@
 const {
   buildPromotionDeploymentPayload,
+  classifyRequiredChecks,
   derivePromotionPlan,
-  ensureRequiredChecksGreen,
   getCheckRuns,
   isProtectedBranchRefUpdateError,
   parseArgs,
   resolveRequiredChecks,
   resolveRunLogUrl,
+  waitForRequiredChecks,
 } = require('../../../../scripts/github/promote-to-production');
+
+const REQUIRED_ARGS = [
+  '--repo',
+  'jsugg/alt-text-generator',
+  '--source-branch',
+  'main',
+  '--target-branch',
+  'production',
+];
+
+/**
+ * @param {string} name
+ * @param {string|null} conclusion
+ * @param {string} [status]
+ */
+const run = (name, conclusion, status = conclusion === null ? 'in_progress' : 'completed') => ({
+  name,
+  status,
+  conclusion,
+});
+
+/**
+ * Builds a fake clock whose sleep advances time, so polling is deterministic.
+ *
+ * @param {number} [startMs]
+ */
+const createFakeClock = (startMs = 1_000_000) => {
+  let nowMs = startMs;
+
+  return {
+    now: jest.fn(() => nowMs),
+    sleep: jest.fn((ms) => {
+      nowMs += ms;
+    }),
+    elapsedMs: () => nowMs - startMs,
+  };
+};
 
 describe('Unit | Scripts | GitHub | Promote To Production', () => {
   describe('parseArgs', () => {
@@ -32,7 +70,32 @@ describe('Unit | Scripts | GitHub | Promote To Production', () => {
         requiredChecks: ['actionlint', 'lint', 'newman'],
         outputFile: '/tmp/output.txt',
         summaryFile: '/tmp/summary.md',
+        checksTimeoutMs: 600_000,
+        checksPollIntervalMs: 20_000,
       });
+    });
+
+    it('parses the required-check wait timeout and poll interval in seconds', () => {
+      expect(parseArgs([
+        ...REQUIRED_ARGS,
+        '--checks-timeout-seconds',
+        '0',
+        '--checks-poll-interval-seconds=5',
+      ])).toMatchObject({
+        checksTimeoutMs: 0,
+        checksPollIntervalMs: 5_000,
+      });
+    });
+
+    it.each([
+      ['--checks-timeout-seconds', '-1', 0],
+      ['--checks-timeout-seconds', '1.5', 0],
+      ['--checks-timeout-seconds', 'ten', 0],
+      ['--checks-poll-interval-seconds', '0', 1],
+    ])('rejects %s %s', (flag, value, minimum) => {
+      expect(() => parseArgs([...REQUIRED_ARGS, flag, value])).toThrow(
+        `${flag} must be a whole number of seconds >= ${minimum}`,
+      );
     });
 
     it('rejects unsupported flags', () => {
@@ -89,63 +152,189 @@ describe('Unit | Scripts | GitHub | Promote To Production', () => {
     });
   });
 
-  describe('ensureRequiredChecksGreen', () => {
+  describe('classifyRequiredChecks', () => {
     it('accepts successful required checks even when duplicate runs exist', () => {
-      expect(() => ensureRequiredChecksGreen(
-        'abc123',
+      expect(classifyRequiredChecks(
         ['lint', 'newman'],
-        [
-          { name: 'lint', conclusion: 'failure' },
-          { name: 'lint', conclusion: 'success' },
-          { name: 'newman', conclusion: 'success' },
-        ],
-      )).not.toThrow();
-    });
-
-    it('throws when a required check is missing success', () => {
-      expect(() => ensureRequiredChecksGreen(
-        'abc123',
-        ['lint', 'newman'],
-        [
-          { name: 'lint', conclusion: 'success' },
-          { name: 'newman', conclusion: 'failure' },
-        ],
-      )).toThrow(
-        'Source commit abc123 is missing passing required checks: newman',
-      );
+        [run('lint', 'failure'), run('lint', 'success'), run('newman', 'success')],
+      )).toEqual({ failed: [], pending: [] });
     });
 
     it.each(['skipped', 'neutral'])('accepts a required check whose run concluded %s', (conclusion) => {
-      expect(() => ensureRequiredChecksGreen(
-        'abc123',
+      expect(classifyRequiredChecks(
         ['lint', 'dependency-audit'],
-        [
-          { name: 'lint', conclusion: 'success' },
-          { name: 'dependency-audit', conclusion },
-        ],
-      )).not.toThrow();
+        [run('lint', 'success'), run('dependency-audit', conclusion)],
+      )).toEqual({ failed: [], pending: [] });
     });
 
-    it.each(['failure', 'cancelled', 'timed_out', 'action_required', null])(
-      'rejects a required check whose only run concluded %s',
+    it.each(['failure', 'cancelled', 'timed_out', 'action_required', 'stale'])(
+      'fails a required check whose only run completed %s',
       (conclusion) => {
-        expect(() => ensureRequiredChecksGreen(
-          'abc123',
+        expect(classifyRequiredChecks(
           ['dependency-audit'],
-          [{ name: 'dependency-audit', conclusion }],
-        )).toThrow('Source commit abc123 is missing passing required checks: dependency-audit');
+          [run('dependency-audit', conclusion)],
+        )).toEqual({ failed: ['dependency-audit'], pending: [] });
       },
     );
 
-    it('rejects a required check with no run at all', () => {
-      expect(() => ensureRequiredChecksGreen('abc123', ['Attribution Guard'], []))
-        .toThrow('missing passing required checks: Attribution Guard');
+    it.each(['queued', 'in_progress', 'waiting', 'requested', 'pending'])(
+      'keeps a required check whose run is %s pending',
+      (status) => {
+        expect(classifyRequiredChecks(['codeql'], [run('codeql', null, status)])).toEqual({
+          failed: [],
+          pending: [`codeql (${status})`],
+        });
+      },
+    );
+
+    it('keeps a required check pending while it has not been reported at all', () => {
+      expect(classifyRequiredChecks(['Attribution Guard'], [])).toEqual({
+        failed: [],
+        pending: ['Attribution Guard (not reported)'],
+      });
+    });
+
+    it('keeps a failed required check pending while a re-run is still in progress', () => {
+      expect(classifyRequiredChecks(
+        ['codeql'],
+        [run('codeql', 'failure'), run('codeql', null, 'queued')],
+      )).toEqual({ failed: [], pending: ['codeql (queued)'] });
+    });
+
+    it('reports failed and pending checks together', () => {
+      expect(classifyRequiredChecks(
+        ['lint', 'codeql', 'newman', 'actionlint'],
+        [run('lint', 'success'), run('codeql', null), run('newman', 'failure')],
+      )).toEqual({
+        failed: ['newman'],
+        pending: ['codeql (in_progress)', 'actionlint (not reported)'],
+      });
+    });
+  });
+
+  describe('waitForRequiredChecks', () => {
+    /**
+     * @param {ReturnType<typeof createFakeClock>} clock
+     * @param {Array<ReturnType<typeof run>[]>} snapshots - check runs per poll; the last repeats
+     * @param {Partial<Parameters<typeof waitForRequiredChecks>[0]>} [overrides]
+     */
+    const waitWith = (clock, snapshots, overrides = {}) => {
+      const listCheckRuns = jest.fn(() => snapshots[
+        Math.min(listCheckRuns.mock.calls.length - 1, snapshots.length - 1)
+      ]);
+      const log = jest.fn();
+
+      return {
+        listCheckRuns,
+        log,
+        wait: () => waitForRequiredChecks({
+          repo: 'jsugg/alt-text-generator',
+          sha: 'ea29c73',
+          requiredChecks: ['lint', 'codeql'],
+          timeoutMs: 600_000,
+          pollIntervalMs: 20_000,
+          listCheckRuns,
+          sleep: clock.sleep,
+          now: clock.now,
+          log,
+          ...overrides,
+        }),
+      };
+    };
+
+    it('returns on the first poll without sleeping when every required check passed', () => {
+      const clock = createFakeClock();
+      const { listCheckRuns, wait } = waitWith(clock, [
+        [run('lint', 'success'), run('codeql', 'success')],
+      ]);
+
+      expect(wait).not.toThrow();
+      expect(listCheckRuns).toHaveBeenCalledTimes(1);
+      expect(listCheckRuns).toHaveBeenCalledWith('jsugg/alt-text-generator', 'ea29c73');
+      expect(clock.sleep).not.toHaveBeenCalled();
+    });
+
+    it('waits for an in-progress required check that later succeeds', () => {
+      const clock = createFakeClock();
+      const { listCheckRuns, log, wait } = waitWith(clock, [
+        [run('lint', 'success'), run('codeql', null)],
+        [run('lint', 'success'), run('codeql', null)],
+        [run('lint', 'success'), run('codeql', 'success')],
+      ]);
+
+      expect(wait).not.toThrow();
+      expect(listCheckRuns).toHaveBeenCalledTimes(3);
+      expect(clock.sleep).toHaveBeenCalledTimes(2);
+      expect(clock.sleep).toHaveBeenCalledWith(20_000);
+      expect(log).toHaveBeenCalledWith(
+        'Waiting for required checks on ea29c73: codeql (in_progress)',
+      );
+    });
+
+    it('waits for a required check that has not been reported yet', () => {
+      const clock = createFakeClock();
+      const { wait } = waitWith(clock, [
+        [run('lint', 'success')],
+        [run('lint', 'success'), run('codeql', 'success')],
+      ]);
+
+      expect(wait).not.toThrow();
+      expect(clock.sleep).toHaveBeenCalledTimes(1);
+    });
+
+    it('fails immediately when a required check completes without passing', () => {
+      const clock = createFakeClock();
+      const { listCheckRuns, wait } = waitWith(clock, [
+        [run('lint', 'failure'), run('codeql', null)],
+      ]);
+
+      expect(wait).toThrow('Source commit ea29c73 is missing passing required checks: lint');
+      expect(listCheckRuns).toHaveBeenCalledTimes(1);
+      expect(clock.sleep).not.toHaveBeenCalled();
+    });
+
+    it('fails as soon as a pending required check completes without passing', () => {
+      const clock = createFakeClock();
+      const { listCheckRuns, wait } = waitWith(clock, [
+        [run('lint', 'success'), run('codeql', null)],
+        [run('lint', 'success'), run('codeql', 'cancelled')],
+      ]);
+
+      expect(wait).toThrow('Source commit ea29c73 is missing passing required checks: codeql');
+      expect(listCheckRuns).toHaveBeenCalledTimes(2);
+    });
+
+    it('fails with the still-pending checks once the timeout elapses', () => {
+      const clock = createFakeClock();
+      const { listCheckRuns, wait } = waitWith(clock, [
+        [run('lint', 'success'), run('codeql', null, 'queued')],
+      ], { requiredChecks: ['lint', 'codeql', 'Attribution Guard'], timeoutMs: 50_000 });
+
+      expect(wait).toThrow(
+        'Timed out after 50s waiting for required checks on source commit ea29c73; '
+        + 'still pending: codeql (queued), Attribution Guard (not reported)',
+      );
+      // Sleeps are capped at the remaining budget, so the wait never overshoots it.
+      expect(clock.sleep.mock.calls.map(([ms]) => ms)).toEqual([20_000, 20_000, 10_000]);
+      expect(clock.elapsedMs()).toBe(50_000);
+      expect(listCheckRuns).toHaveBeenCalledTimes(4);
+    });
+
+    it('checks exactly once when the timeout is zero', () => {
+      const clock = createFakeClock();
+      const { listCheckRuns, wait } = waitWith(clock, [
+        [run('lint', 'success'), run('codeql', null)],
+      ], { timeoutMs: 0 });
+
+      expect(wait).toThrow('Timed out after 0s');
+      expect(listCheckRuns).toHaveBeenCalledTimes(1);
+      expect(clock.sleep).not.toHaveBeenCalled();
     });
   });
 
   describe('getCheckRuns', () => {
     /**
-     * @param {{ name: string, conclusion: string }[]} runs
+     * @param {{ name: string, status: string, conclusion: string }[]} runs
      * @returns {jest.Mock}
      */
     const pagedApi = (runs) => jest.fn((args) => {
@@ -159,13 +348,13 @@ describe('Unit | Scripts | GitHub | Promote To Production', () => {
         check_runs: runs.slice((page - 1) * perPage, page * perPage),
       };
     });
-    const runsNamed = (count) => Array.from({ length: count }, (_, index) => ({
-      name: `check-${index}`,
-      conclusion: 'success',
-    }));
+    const runsNamed = (count) => Array.from(
+      { length: count },
+      (_, index) => run(`check-${index}`, 'success'),
+    );
 
     it('pages through more than one page of check runs', () => {
-      const runs = [...runsNamed(129), { name: 'Attribution Guard', conclusion: 'success' }];
+      const runs = [...runsNamed(129), run('Attribution Guard', 'success')];
       const api = pagedApi(runs);
 
       const collected = getCheckRuns('jsugg/alt-text-generator', 'abc123', api);
@@ -181,8 +370,8 @@ describe('Unit | Scripts | GitHub | Promote To Production', () => {
         'repos/jsugg/alt-text-generator/commits/abc123/check-runs?per_page=100&page=2',
       ]);
       // The required check lives only on the second page.
-      expect(() => ensureRequiredChecksGreen('abc123', ['Attribution Guard'], collected))
-        .not.toThrow();
+      expect(classifyRequiredChecks(['Attribution Guard'], collected))
+        .toEqual({ failed: [], pending: [] });
     });
 
     it('stops after an exactly full final page when total_count is reached', () => {

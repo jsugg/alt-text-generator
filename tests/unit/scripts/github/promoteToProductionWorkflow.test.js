@@ -89,6 +89,26 @@ describe('Unit | Scripts | GitHub | Promote To Production Workflow', () => {
     );
   });
 
+  it('bounds the required-check wait well inside the promotion job timeout', () => {
+    const promoteStep = findStepByName(
+      promoteJob,
+      'promote',
+      'Promote main into production with GitHub App token',
+    );
+    const timeoutMatch = /--checks-timeout-seconds (\d+)/u.exec(promoteStep.run);
+    const intervalMatch = /--checks-poll-interval-seconds (\d+)/u.exec(promoteStep.run);
+    // Worst-case pre-warm: 5 curl attempts x 45s plus 4 x 5s retry delays.
+    const prewarmWorstCaseSeconds = 5 * 45 + 4 * 5;
+    const setupHeadroomSeconds = 120;
+
+    expect(timeoutMatch).not.toBeNull();
+    expect(intervalMatch).not.toBeNull();
+    expect(Number(intervalMatch[1])).toBeGreaterThan(0);
+    expect(
+      Number(timeoutMatch[1]) + prewarmWorstCaseSeconds + setupHeadroomSeconds,
+    ).toBeLessThanOrEqual(promoteJob['timeout-minutes'] * 60);
+  });
+
   it('keeps environment-scoped validation and bounded runtimes', () => {
     assertEqualInvariant(
       'Pre-production provider validation runs in the prod-validation environment',
@@ -108,7 +128,7 @@ describe('Unit | Scripts | GitHub | Promote To Production Workflow', () => {
     assertEqualInvariant(
       'Promotion declares a timeout',
       promoteJob['timeout-minutes'],
-      15,
+      20,
     );
     assertDeepEqualInvariant(
       'Promotion workflow uses its installation token rather than a write-capable workflow token',

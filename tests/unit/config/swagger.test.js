@@ -140,14 +140,18 @@ describe('Unit | Config | Swagger', () => {
         .toEqual(['jobId', 'model', 'pageUrl', 'status']);
     });
 
-    it('declares the required fields of the health drain response', () => {
+    it.each([
+      ['200', 'OK', true],
+      ['503', 'DRAINING', false],
+    ])('declares the required fields of the %s health response', (status, message, ready) => {
       const swaggerSpec = loadParsedSwaggerSpec();
 
-      expect(responseSchema(swaggerSpec, '/api/health', '503')).toMatchObject({
-        required: ['message', 'ready', 'timestamp', 'uptime'],
+      expect(responseSchema(swaggerSpec, '/api/health', status)).toMatchObject({
+        required: ['message', 'ready', 'commit', 'timestamp', 'uptime'],
         properties: {
-          message: { type: 'string', example: 'DRAINING' },
-          ready: { type: 'boolean', example: false },
+          message: { type: 'string', example: message },
+          ready: { type: 'boolean', example: ready },
+          commit: { type: 'string', nullable: true },
         },
       });
     });

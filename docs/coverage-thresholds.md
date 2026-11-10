@@ -10,6 +10,7 @@
   - `scripts/run-postman-live.js`
   - `scripts/postman-fixture-server.js`
   - `scripts/github/promote-to-production.js`
+  - `scripts/render/wait-for-deployed-commit.js`
 
 Coverage ignores `tests/**`, `coverage/**`, and `reports/**` so test helpers and generated reports do
 not change production/runtime coverage.

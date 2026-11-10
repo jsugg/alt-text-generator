@@ -38,13 +38,23 @@ const buildServiceIndexResponse = (requestId) => ({
   requestId,
 });
 
+/**
+ * @param {{
+ *   commit?: string|null,
+ *   now?: () => number,
+ *   ready?: boolean,
+ *   uptime?: () => number,
+ * }} options
+ */
 const buildHealthResponse = ({
+  commit = null,
   now = Date.now,
   ready = true,
   uptime = process.uptime,
 }) => ({
   message: ready ? 'OK' : 'DRAINING',
   ready,
+  commit,
   timestamp: now(),
   uptime: uptime(),
 });
@@ -161,6 +171,7 @@ const ping = (req, res) => res.status(200).send('pong');
  *               required:
  *                 - message
  *                 - ready
+ *                 - commit
  *                 - timestamp
  *                 - uptime
  *               properties:
@@ -172,6 +183,13 @@ const ping = (req, res) => res.status(200).send('pong');
  *                 ready:
  *                   type: boolean
  *                   example: true
+ *                 commit:
+ *                   type: string
+ *                   nullable: true
+ *                   description: >-
+ *                     Git commit SHA of the running build, or null when the
+ *                     platform does not report one.
+ *                   example: ea29c7320f0a7d2c6b8e4d1f9a3c5b7e2d4f6a8c
  *                 timestamp:
  *                   type: number
  *       503:
@@ -183,6 +201,7 @@ const ping = (req, res) => res.status(200).send('pong');
  *               required:
  *                 - message
  *                 - ready
+ *                 - commit
  *                 - timestamp
  *                 - uptime
  *               properties:
@@ -194,10 +213,26 @@ const ping = (req, res) => res.status(200).send('pong');
  *                 ready:
  *                   type: boolean
  *                   example: false
+ *                 commit:
+ *                   type: string
+ *                   nullable: true
+ *                   description: >-
+ *                     Git commit SHA of the running build, or null when the
+ *                     platform does not report one.
+ *                   example: ea29c7320f0a7d2c6b8e4d1f9a3c5b7e2d4f6a8c
  *                 timestamp:
  *                   type: number
  */
+/**
+ * @param {{
+ *   commit?: string|null,
+ *   now?: () => number,
+ *   runtimeState?: { isReady: () => boolean },
+ *   uptime?: () => number,
+ * }} [options]
+ */
 const createHealthController = ({
+  commit = null,
   now = Date.now,
   runtimeState = defaultRuntimeState,
   uptime = process.uptime,
@@ -210,6 +245,7 @@ const createHealthController = ({
   const health = (req, res) => {
     const ready = runtimeState.isReady();
     const payload = buildHealthResponse({
+      commit,
       now,
       ready,
       uptime,

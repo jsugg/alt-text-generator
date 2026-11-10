@@ -530,6 +530,42 @@ describe('Unit | Scripts | Run Postman Deploy', () => {
       );
     });
 
+    it('waits for Render to serve the pushed commit before Newman on production pushes', () => {
+      const smokeJob = getJob(loadWorkflow('post-deploy-verification.yml'), 'smoke');
+      const stepNames = smokeJob.steps.map((step) => step.name);
+      const waitStepName = 'Wait for Render to serve the pushed commit';
+      const waitStep = findStepByName(smokeJob, 'smoke', waitStepName);
+      const timeoutMatch = /--timeout-seconds (\d+)/u.exec(waitStep.run);
+      // Budget the pre-existing job needed before the commit wait was added.
+      const verificationBudgetSeconds = 10 * 60;
+
+      expect(stepNames.indexOf(waitStepName))
+        .toBeLessThan(stepNames.indexOf('Run post-deploy Newman verification'));
+      assertEqualInvariant(
+        'Commit wait runs only for production pushes, never manual custom-URL runs',
+        waitStep.if,
+        "github.event_name == 'push'",
+      );
+      assertStringContainsInvariant(
+        'Commit wait goes through the repository script',
+        waitStep.run,
+        'node scripts/render/wait-for-deployed-commit.js',
+      );
+      assertStringContainsInvariant(
+        'Commit wait targets the verified base URL',
+        waitStep.run,
+        '--base-url "${BASE_URL}"',
+      );
+      assertStringContainsInvariant(
+        'Commit wait expects the pushed production SHA',
+        waitStep.run,
+        '--expected-commit "${GITHUB_SHA}"',
+      );
+      expect(timeoutMatch).not.toBeNull();
+      expect(Number(timeoutMatch[1]) + verificationBudgetSeconds)
+        .toBeLessThanOrEqual(smokeJob['timeout-minutes'] * 60);
+    });
+
     it('pins release validation workflows to Hugging Face, OpenAI, and Together', () => {
       const postDeployWorkflow = loadWorkflow('post-deploy-verification.yml');
       const promoteWorkflow = loadWorkflow('promote-to-production.yml');

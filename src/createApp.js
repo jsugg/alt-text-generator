@@ -83,6 +83,7 @@ const createApp = ({
   const proxyConfig = config.proxy ?? defaultConfig.proxy;
   const pageDescriptionConfig = config.pageDescription ?? defaultConfig.pageDescription;
   const descriptionJobsConfig = config.descriptionJobs ?? defaultConfig.descriptionJobs;
+  const buildConfig = config.build ?? defaultConfig.build;
   const resolvedOutboundClients = outboundClients ?? createOutboundClients(config);
   const resolvedHttpClient = httpClient ?? resolvedOutboundClients.httpClient ?? axios;
   const resolvedOutboundUrlPolicy = outboundUrlPolicy ?? (
@@ -150,7 +151,10 @@ const createApp = ({
       failedTtlMs: descriptionJobsConfig.failedTtlMs,
       claimTtlMs: descriptionJobsConfig.claimTtlMs,
     });
-  const resolvedHealthController = health ?? createHealthController({ runtimeState });
+  const resolvedHealthController = health ?? createHealthController({
+    commit: buildConfig.commit,
+    runtimeState,
+  });
   const statusRateLimiter = createStatusRateLimiter(config, rateLimitStoreProvider);
 
   const scraperController = new ScraperController({

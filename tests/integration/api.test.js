@@ -181,8 +181,19 @@ describe('Integration | API', () => {
       expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('message', 'OK');
       expect(res.body).toHaveProperty('ready', true);
+      expect(res.body).toHaveProperty('commit', null);
       expect(res.body).toHaveProperty('uptime');
       expect(res.body).toHaveProperty('timestamp');
+    });
+
+    it('reports the deployed commit when the platform provides one', async () => {
+      const commit = 'ea29c7320f0a7d2c6b8e4d1f9a3c5b7e2d4f6a8c';
+      const { app } = buildTestApp({ config: { ...config, build: { commit } } });
+
+      const res = await secureGet(app, '/api/health');
+
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveProperty('commit', commit);
     });
 
     it('returns 503 while the instance is draining', async () => {
@@ -196,6 +207,7 @@ describe('Integration | API', () => {
       expect(res.body).toMatchObject({
         message: 'DRAINING',
         ready: false,
+        commit: null,
       });
     });
   });
