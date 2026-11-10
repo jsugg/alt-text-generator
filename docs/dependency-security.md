@@ -30,6 +30,7 @@ patched releases. They arrive through Jest coverage/reporting and Newman:
 | `markdownlint-cli2>markdownlint → 0.42.1` | `markdownlint@0.42.0`'s exact `re2js@2.8.6` lookbehind ReDoS; 0.42.1 is upstream's own `re2js@2.9.1` fix |
 | `node-forge → ^1.4.3` | signature/verification, PEM ReDoS, and TLS record-processing DoS advisories |
 | `qs → ^6.17.1` | transitive `qs` (the direct dep is already ≥ 6.17.1) |
+| `test-exclude → ^8.0.0` | keeps Jest coverage on `glob@13` / `minimatch@10`; `test-exclude@7` nests `glob@10`, where npm 10 skips the minimatch override (Node 22 `npm ci`). Same `index.js` as 7.0.2 |
 | `underscore → ^1.13.8` | arbitrary code execution |
 | `newman>uuid → 11.1.1` | Newman's Postman UUID buffer-bounds advisory |
 <!-- generated:overrides end -->
@@ -59,7 +60,7 @@ list and `package.json`'s do.
 <!-- generated:verified start -->
 Last verified against a full-tree `npm audit`: **2026-11-10**.
 
-Lockfile at that time: `b29fc263cc1ea8ff51924023502e8419f398146e8e1fb23c45f31ec891e6d360`
+Lockfile at that time: `696ca4b3d6d9a5b3563dd0f1ab94579c12f33c0ef5c67f006f636f1de6e0bd74`
 
 When `package-lock.json` changes, this stops matching — which is the signal
 to re-verify and update `config/security/residual-advisories.json`.
