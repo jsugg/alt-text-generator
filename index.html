@@ -2,11 +2,10 @@
 <html dir="ltr" lang="en">
 <head>
     <meta charset="utf-8">
-    <meta name="allure-report-uuid" content="f7457e0a-a92a-416f-8111-b73180604349">
     <title>Allure Report</title>
-    <link rel="icon" href="assets/favicon-BDLHVmV7.ico">
-    <!-- allure-core-head:start -->
-    <!-- allure-core-head:end -->
+    <link rel="icon" href="favicon.ico">
+    <link rel="stylesheet" type="text/css" href="styles.css">
+    <link rel="stylesheet" type="text/css" href="plugin/screen-diff/styles.css">
 </head>
 <body>
     <div id="alert"></div>
@@ -16,28 +15,18 @@
         </span>
     </div>
     <div id="popup"></div>
-    <!-- allure-core-body:start -->
-    <script>
-        window.__allureCoreLoaded = new Promise(function (resolve, reject) {
-        window.__allureResolveCoreLoaded = resolve;
-        window.__allureRejectCoreLoaded = reject;
-    });
-    </script>
-    <script src="assets/index-CqG5t6J2.js"></script>
-    <script>
-        if (typeof window.__allureResolveCoreLoaded === "function") {
-            window.__allureResolveCoreLoaded([]);
-        }
-    </script>
-    <!-- allure-core-body:end -->
+    <script src="app.js"></script>
+    <script src="plugin/behaviors/index.js"></script>
+    <script src="plugin/packages/index.js"></script>
+    <script src="plugin/screen-diff/index.js"></script>
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-FVWC4GKEYS"></script>
     <script>
         window.dataLayer = window.dataLayer || [];
         function gtag(){dataLayer.push(arguments);}
         gtag('js', new Date());
         gtag('config', 'G-FVWC4GKEYS', {
-          'allureVersion': '2.46.1',
-          'reportUuid': 'f7457e0a-a92a-416f-8111-b73180604349',
+          'allureVersion': '2.37.0',
+          'reportUuid': '9beacbb6-c1c8-4b44-979e-5de22ac90ae1',
           'single_file': false
         });
     </script>
