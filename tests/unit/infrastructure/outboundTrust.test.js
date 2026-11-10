@@ -1,7 +1,10 @@
 const fs = require('fs');
+const http2 = require('http2');
 const os = require('os');
 const path = require('path');
 const tls = require('tls');
+
+const selfsigned = require('selfsigned');
 
 const {
   createOutboundClients,
@@ -54,5 +57,69 @@ describe('Unit | Infrastructure | Outbound Trust', () => {
         caBundleFile: path.join(tempDir, 'missing.pem'),
       },
     })).toThrow('Outbound CA bundle file does not exist');
+  });
+
+  describe('fetch over TLS', () => {
+    /** @type {import('http2').Http2SecureServer} */
+    let server;
+    /** @type {string} */
+    let bundleFile;
+    /** @type {string} */
+    let origin;
+
+    beforeAll(async () => {
+      const { private: key, cert } = await selfsigned.generate(
+        [{ name: 'commonName', value: 'localhost' }],
+        {
+          algorithm: 'sha256',
+          days: 1,
+          keySize: 2048,
+          extensions: [{ name: 'subjectAltName', altNames: [{ type: 7, ip: '127.0.0.1' }] }],
+        },
+      );
+      bundleFile = path.join(tempDir, 'fetch-ca.pem');
+      fs.writeFileSync(bundleFile, cert, 'utf8');
+
+      // Offers h2 and http/1.1 via ALPN, so the response reveals what the client negotiated.
+      server = http2.createSecureServer({ key, cert, allowHTTP1: true }, (req, res) => {
+        res.end(req.httpVersion);
+      });
+      await new Promise((resolve) => {
+        server.listen(0, '127.0.0.1', () => resolve(undefined));
+      });
+      const address = /** @type {import('net').AddressInfo} */ (server.address());
+      origin = `https://127.0.0.1:${address.port}`;
+    });
+
+    afterAll(async () => {
+      await new Promise((resolve) => {
+        server.close(() => resolve(undefined));
+      });
+    });
+
+    it('trusts the configured CA bundle and stays on HTTP/1.1 when HTTP/2 is offered', async () => {
+      const { fetch, fetchDispatcher } = createOutboundClients({
+        outboundTls: { caBundleFile: bundleFile },
+      });
+
+      try {
+        const response = await fetch(`${origin}/`);
+
+        expect(response.status).toBe(200);
+        expect(await response.text()).toBe('1.1');
+      } finally {
+        await fetchDispatcher.close();
+      }
+    });
+
+    it('rejects the server certificate without the CA bundle', async () => {
+      const { fetch, fetchDispatcher } = createOutboundClients({});
+
+      try {
+        await expect(fetch(`${origin}/`)).rejects.toThrow('fetch failed');
+      } finally {
+        await fetchDispatcher.close();
+      }
+    });
   });
 });

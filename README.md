@@ -33,7 +33,7 @@ The service exposes these primary capabilities:
 ## Requirements
 
 - Node 24 is canonical (`.nvmrc`); CI also validates Node 22 as a compatibility lane.
-- `engines.node` allows Node 22 through 24; production (Render) resolves Node 24.
+- `engines.node` allows Node 22.19+ through 24 (undici 8 requires 22.19); production (Render) resolves Node 24.
 - npm 10+
 - At least one provider configuration:
   - `REPLICATE_API_TOKEN` for the `replicate` model

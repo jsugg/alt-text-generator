@@ -51,9 +51,11 @@ const createOutboundClients = (config) => {
     keepAlive: true,
     ...(trustedCas ? { ca: trustedCas } : {}),
   });
-  const fetchDispatcher = new UndiciAgent(
-    trustedCas ? { connect: { ca: trustedCas } } : {},
-  );
+  // undici 8 negotiates HTTP/2 by default; stay on HTTP/1.1 until h2 is validated end to end.
+  const fetchDispatcher = new UndiciAgent({
+    allowH2: false,
+    ...(trustedCas ? { connect: { ca: trustedCas } } : {}),
+  });
   /**
    * @param {import('undici').RequestInfo} input
    * @param {import('undici').RequestInit} [init]

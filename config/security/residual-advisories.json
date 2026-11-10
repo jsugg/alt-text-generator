@@ -2,7 +2,7 @@
   "$schema": "./residual-advisories.schema.json",
   "$comment": "Residual advisory decisions and override pins. docs/dependency-security.md's tables are generated from this file — edit here, then run `npm run security:docs -- --write`. Verified by scripts/security/residual-advisories.js.",
   "verifiedAt": "2026-11-10",
-  "lockfileSha256": "696ca4b3d6d9a5b3563dd0f1ab94579c12f33c0ef5c67f006f636f1de6e0bd74",
+  "lockfileSha256": "6ddc970a4235069f85e89c0fce956e3e9e7153f2c60700477fa089dbfb94a4c3",
   "overrides": [
     {
       "package": "babel-plugin-istanbul",
