@@ -34,7 +34,7 @@ const FALLBACK_RATE_LIMIT_WINDOW_MS = 1_000;
  * @property {(key: string) => Promise<any>} increment
  * @property {(key: string) => Promise<void> | void} decrement
  * @property {(key: string) => Promise<void> | void} resetKey
- * @property {(options: any) => void} [init]
+ * @property {(options: any) => void | Promise<void>} [init]
  * @property {(key: string) => Promise<any>} [get]
  * @property {() => Promise<void> | void} [resetAll]
  * @property {boolean} [localKeys]
@@ -120,9 +120,13 @@ const createFailOpenStore = ({
         return buildFailOpenRateLimitResponse(windowMs);
       }
     },
+    // Return the store's init promise: express-rate-limit attaches its own
+    // error handler to it. Dropped, a failed Redis script load at boot became an
+    // unhandled rejection and a fatal shutdown; handled, requests fail open
+    // until the store reloads its scripts.
     init: (options) => {
       windowMs = options?.windowMs;
-      store.init?.(options);
+      return store.init?.(options);
     },
     resetKey: async (key) => {
       try {
