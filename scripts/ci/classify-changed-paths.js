@@ -37,16 +37,24 @@ function isDocsPath(filePath) {
   );
 }
 
+// The npm dependency graph plus the dependency-audit policy that judges it, so
+// a policy change exercises the dependency-audit job on its own pull request.
 /** @type {ReadonlySet<string>} */
 const DEPENDENCY_PATHS = new Set([
   '.npmrc',
+  'config/security/residual-advisories.json',
+  'config/security/residual-advisories.schema.json',
   'npm-shrinkwrap.json',
   'package-lock.json',
   'package.json',
+  'scripts/github/parse-security-audit-report.js',
+  'scripts/github/run-security-audit.sh',
+  'scripts/security/residual-advisories.js',
 ]);
 
 /**
- * True when a path can change the installed npm dependency graph.
+ * True when a path can change the installed npm dependency graph or the
+ * dependency-audit policy.
  *
  * @param {string} filePath
  * @returns {boolean}

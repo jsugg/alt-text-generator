@@ -136,9 +136,14 @@ The repository gives each workflow a single responsibility:
   - runs on pushes and pull requests for `main` and `production`
   - also runs on a weekly schedule for repository-wide static analysis
 - `Security Audit` in `.github/workflows/security-audit.yml`
-  - runs on a weekly schedule and by manual dispatch
+  - production dependencies only; runs on a weekly schedule and by manual dispatch
   - executes `npm audit --omit=dev --audit-level=high`
   - uploads audit artifacts and fails when high or critical production dependency findings exist
+- `Dependency Residual Audit` in `.github/workflows/dependency-residual-audit.yml`
+  - runs on a weekly schedule and by manual dispatch, with its own concurrency group
+  - reuses `scripts/github/run-security-audit.sh` with `AUDIT_SCOPE=full`, then compares the report to `config/security/residual-advisories.json` (`--check-audit --audit-file ... --fail-on high`)
+  - fails on unapproved high/critical advisories and on accepted entries that are no longer reported; unapproved moderate/low go to the job summary only
+  - the pull-request `dependency-audit` CI job runs the same comparison on its own report
 - `Production Description Service Validation` in `.github/workflows/live-provider-validation.yml`
   - manual only
   - runs `npm run postman:live-provider -- --base-url <host>`
@@ -200,6 +205,7 @@ Branch protection requires these checks on both `main` (branch protection) and `
 - `Attribution Guard` (`main` only; promotion re-checks it on the `main` commit)
 - `actionlint`
 - `codeql`
+- `dependency-audit` (runs when npm dependency inputs or the audit policy change; a skipped run satisfies the requirement)
 - `dependency-review`
 - `docs`
 - `lint`
@@ -215,7 +221,7 @@ Release policy notes:
 - Node 24 is the canonical gate: `test:unit (24)` is required, and `test:ci (24)` is the canonical full integration/coverage/reporting check. `test:unit (22)` still runs as a non-required compatibility signal.
 - `typecheck` (strict JSDoc `checkJs`) is a required, blocking check; a single new type error fails the run.
 - `postman:full` is covered by the path-gated/manual/scheduled Local Provider Integration workflow, not the always-required CI Newman check.
-- `security-audit` is weekly/manual production dependency surveillance and is reviewed before release, but it is not a per-commit required status check.
+- `security-audit` is weekly/manual production dependency surveillance and is reviewed before release, but it is not a per-commit required status check. The weekly `Dependency Residual Audit` is its full-tree counterpart; per pull request, `dependency-audit` is the required full-tree gate.
 
 Promotion branch note:
 

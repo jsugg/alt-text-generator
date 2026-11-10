@@ -28,6 +28,7 @@ const HARDENED_JOBS = [
   ['promote-to-production.yml', 'promote'],
   ['post-deploy-verification.yml', 'smoke'],
   ['security-audit.yml', 'npm-audit'],
+  ['dependency-residual-audit.yml', 'residual-advisories'],
   ['dependency-review.yml', 'dependency-review'],
   ['live-provider-validation.yml', 'live-provider'],
   ['rollback-production.yml', 'rollback'],
