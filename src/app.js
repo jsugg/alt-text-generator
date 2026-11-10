@@ -1,8 +1,5 @@
-// dotenv must be loaded before any other module reads process.env
-require('dotenv').config({
-  path: process.env.ENV_FILE || '.env',
-  override: Boolean(process.env.ENV_FILE),
-});
+// The env file must be loaded before any other module reads process.env.
+require('./infrastructure/loadEnvFile').loadEnvFile();
 
 const cluster = require('cluster');
 
