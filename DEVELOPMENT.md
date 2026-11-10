@@ -627,7 +627,7 @@ At least one provider must be configured at startup: `REPLICATE_API_TOKEN`, Azur
 - The current Render deployment runs the `external` topology — it does not set `RATE_LIMIT_REDIS_TOPOLOGY` at all, and `external` is the code default (`config/rateLimitStore.js`) — so the future pod-local Redis path is inactive for now.
 - Horizontal instance scaling should use an external/shared Redis-backed limiter, and `STATUS_RATE_LIMIT_MAX` should be sized for the aggregate health-probe budget across instances.
 - The future `RATE_LIMIT_REDIS_TOPOLOGY=unit-local` mode is meant for a Docker/Kubernetes-style resilient unit where several worker processes intentionally share one pod-local Redis instance.
-- Redis-backed limiter errors fail open at request time to preserve availability, but startup still fails fast when Redis is explicitly required and unreachable during bootstrap.
+- Redis-backed limiter errors fail open at request time to preserve availability, but startup still fails fast when Redis is explicitly required and unreachable during bootstrap. "Unreachable" is decided by the Redis connect at startup; once connected, a failed Lua script load during limiter init is logged by express-rate-limit (`async error during store initialization`), requests fail open, and the store reloads its scripts on the next request that reaches Redis.
 - Auth-protected API failures use a structured JSON contract with `error`, `code`, `requestId`, and optional `details`.
 
 ## Render Deployment Contract
