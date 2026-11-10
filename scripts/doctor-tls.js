@@ -152,15 +152,27 @@ const matchesExpectedCertificate = (pemText, expectedCertificate) => {
   return subjectCommonName && expectedCommonName && subjectCommonName === expectedCommonName;
 };
 
-/** @param {string} bundleFile */
-const readBundleIfPresent = (bundleFile) => {
-  const resolvedBundleFile = resolveFile(bundleFile);
-  if (!fs.existsSync(resolvedBundleFile)) {
-    return '';
-  }
+/**
+ * Reads a file, treating a missing one as empty. Reading directly instead of
+ * checking existence first leaves no window for the file to change in between.
+ *
+ * @param {string} file
+ * @returns {string}
+ */
+const readTextIfPresent = (file) => {
+  try {
+    return fs.readFileSync(file, 'utf8');
+  } catch (error) {
+    if (/** @type {NodeJS.ErrnoException} */ (error).code === 'ENOENT') {
+      return '';
+    }
 
-  return fs.readFileSync(resolvedBundleFile, 'utf8');
+    throw error;
+  }
 };
+
+/** @param {string} bundleFile */
+const readBundleIfPresent = (bundleFile) => readTextIfPresent(resolveFile(bundleFile));
 
 /**
  * @param {string} bundleFile
@@ -196,9 +208,7 @@ const appendCertificateToBundle = (bundleFile, pemText) => {
 const updateEnvFile = (envFile, key, value) => {
   const resolvedEnvFile = resolveFile(envFile);
   const nextLine = `${key}=${value}`;
-  const existing = fs.existsSync(resolvedEnvFile)
-    ? fs.readFileSync(resolvedEnvFile, 'utf8')
-    : '';
+  const existing = readTextIfPresent(resolvedEnvFile);
   const lines = existing ? existing.split(/\r?\n/) : [];
   let replaced = false;
 
@@ -338,11 +348,11 @@ const findCertificateOnLinux = (expectedCertificate) => {
   ];
 
   for (const bundlePath of bundleCandidates) {
-    if (!fs.existsSync(bundlePath)) {
+    const pemText = readTextIfPresent(bundlePath);
+    if (!pemText) {
       continue;
     }
 
-    const pemText = fs.readFileSync(bundlePath, 'utf8');
     const match = loadCertificatesFromPemText(pemText, expectedCertificate);
     if (match) {
       return match;
@@ -487,7 +497,13 @@ const main = async () => {
   console.log(`  ENV_FILE=${args.envFile} node src/app.js`);
 };
 
-main().catch((error) => {
-  console.error(error.message);
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(error.message);
+    process.exitCode = 1;
+  });
+}
+
+module.exports = {
+  updateEnvFile,
+};
