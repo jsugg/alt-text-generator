@@ -6,6 +6,7 @@ const path = require('node:path');
 const {
   buildFailureDiagnosticLines,
   emitDiagnosticLines,
+  readDiagnosticLogTail,
 } = require('../../../../scripts/postman/newman-runner');
 
 const createTempDir = () => fs.mkdtempSync(
@@ -502,5 +503,35 @@ describe('Unit | Scripts | Postman | Newman Runner', () => {
       reportPath: '/tmp/provider-integration-openai.json',
       writeLog: () => {},
     })).rejects.toThrow('spawn failed');
+  });
+
+  describe('readDiagnosticLogTail', () => {
+    it('reports a missing log instead of throwing', () => {
+      const tempDir = createTempDir();
+
+      expect(readDiagnosticLogTail(path.join(tempDir, 'absent.log'))).toEqual(['(missing)']);
+    });
+
+    it('reports an empty log', () => {
+      const tempDir = createTempDir();
+      const logPath = path.join(tempDir, 'empty.log');
+      fs.writeFileSync(logPath, '');
+
+      expect(readDiagnosticLogTail(logPath)).toEqual(['(empty)']);
+    });
+
+    it('reads only the trailing bytes of a large log', () => {
+      const tempDir = createTempDir();
+      const logPath = path.join(tempDir, 'server.log');
+      fs.writeFileSync(logPath, 'first line\nsecond line\nlast line\n');
+
+      expect(readDiagnosticLogTail(logPath, 'last line\n'.length)).toEqual(['last line']);
+    });
+
+    it('propagates read errors other than a missing file', () => {
+      expect(() => readDiagnosticLogTail(createTempDir())).toThrow(
+        expect.objectContaining({ code: 'EISDIR' }),
+      );
+    });
   });
 });

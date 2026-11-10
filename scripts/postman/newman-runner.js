@@ -62,22 +62,33 @@ function appendFailureDiagnostics(lines, heading, failures) {
  * @returns {string[]}
  */
 function readDiagnosticLogTail(logPath, maxBytes = DIAGNOSTIC_LOG_TAIL_BYTES) {
-  if (!fs.existsSync(logPath)) {
-    return ['(missing)'];
+  /** @type {number} */
+  let fd;
+
+  // Open first and size via the descriptor so the file cannot change between check and read.
+  try {
+    fd = fs.openSync(logPath, 'r');
+  } catch (error) {
+    if (/** @type {NodeJS.ErrnoException} */ (error).code === 'ENOENT') {
+      return ['(missing)'];
+    }
+
+    throw error;
   }
 
-  const stats = fs.statSync(logPath);
-  const size = Math.min(stats.size, maxBytes);
-  const buffer = Buffer.alloc(size);
-  const fd = fs.openSync(logPath, 'r');
+  /** @type {Buffer} */
+  let buffer;
 
   try {
+    const fileSize = fs.fstatSync(fd).size;
+    const size = Math.min(fileSize, maxBytes);
+    buffer = Buffer.alloc(size);
     fs.readSync(
       fd,
       /** @type {NodeJS.ArrayBufferView} */ (/** @type {unknown} */ (buffer)),
       0,
       size,
-      Math.max(0, stats.size - size),
+      Math.max(0, fileSize - size),
     );
   } finally {
     fs.closeSync(fd);
