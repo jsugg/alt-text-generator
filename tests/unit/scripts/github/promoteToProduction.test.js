@@ -2,6 +2,7 @@ const {
   buildPromotionDeploymentPayload,
   derivePromotionPlan,
   ensureRequiredChecksGreen,
+  getCheckRuns,
   isProtectedBranchRefUpdateError,
   parseArgs,
   resolveRequiredChecks,
@@ -110,8 +111,92 @@ describe('Unit | Scripts | GitHub | Promote To Production', () => {
           { name: 'newman', conclusion: 'failure' },
         ],
       )).toThrow(
-        'Source commit abc123 is missing successful required checks: newman',
+        'Source commit abc123 is missing passing required checks: newman',
       );
+    });
+
+    it.each(['skipped', 'neutral'])('accepts a required check whose run concluded %s', (conclusion) => {
+      expect(() => ensureRequiredChecksGreen(
+        'abc123',
+        ['lint', 'dependency-audit'],
+        [
+          { name: 'lint', conclusion: 'success' },
+          { name: 'dependency-audit', conclusion },
+        ],
+      )).not.toThrow();
+    });
+
+    it.each(['failure', 'cancelled', 'timed_out', 'action_required', null])(
+      'rejects a required check whose only run concluded %s',
+      (conclusion) => {
+        expect(() => ensureRequiredChecksGreen(
+          'abc123',
+          ['dependency-audit'],
+          [{ name: 'dependency-audit', conclusion }],
+        )).toThrow('Source commit abc123 is missing passing required checks: dependency-audit');
+      },
+    );
+
+    it('rejects a required check with no run at all', () => {
+      expect(() => ensureRequiredChecksGreen('abc123', ['Attribution Guard'], []))
+        .toThrow('missing passing required checks: Attribution Guard');
+    });
+  });
+
+  describe('getCheckRuns', () => {
+    /**
+     * @param {{ name: string, conclusion: string }[]} runs
+     * @returns {jest.Mock}
+     */
+    const pagedApi = (runs) => jest.fn((args) => {
+      const [, endpoint] = args;
+      const query = new URLSearchParams(endpoint.split('?')[1]);
+      const perPage = Number(query.get('per_page'));
+      const page = Number(query.get('page'));
+
+      return {
+        total_count: runs.length,
+        check_runs: runs.slice((page - 1) * perPage, page * perPage),
+      };
+    });
+    const runsNamed = (count) => Array.from({ length: count }, (_, index) => ({
+      name: `check-${index}`,
+      conclusion: 'success',
+    }));
+
+    it('pages through more than one page of check runs', () => {
+      const runs = [...runsNamed(129), { name: 'Attribution Guard', conclusion: 'success' }];
+      const api = pagedApi(runs);
+
+      const collected = getCheckRuns('jsugg/alt-text-generator', 'abc123', api);
+
+      expect(collected).toHaveLength(130);
+      expect(api).toHaveBeenCalledTimes(2);
+      expect(api).toHaveBeenNthCalledWith(1, [
+        'api',
+        'repos/jsugg/alt-text-generator/commits/abc123/check-runs?per_page=100&page=1',
+      ]);
+      expect(api).toHaveBeenNthCalledWith(2, [
+        'api',
+        'repos/jsugg/alt-text-generator/commits/abc123/check-runs?per_page=100&page=2',
+      ]);
+      // The required check lives only on the second page.
+      expect(() => ensureRequiredChecksGreen('abc123', ['Attribution Guard'], collected))
+        .not.toThrow();
+    });
+
+    it('stops after an exactly full final page when total_count is reached', () => {
+      const api = pagedApi(runsNamed(100));
+
+      expect(getCheckRuns('jsugg/alt-text-generator', 'abc123', api)).toHaveLength(100);
+      expect(api).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns an empty list when the commit has no check runs', () => {
+      const api = jest.fn(() => ({ total_count: 0, check_runs: [] }));
+
+      expect(getCheckRuns('jsugg/alt-text-generator', 'abc123', api)).toEqual([]);
+      expect(api).toHaveBeenCalledTimes(1);
     });
   });
 

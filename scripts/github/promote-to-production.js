@@ -245,20 +245,45 @@ function resolveRequiredChecks(options) {
   return getRequiredCheckContexts(options.repo, options.sourceBranch);
 }
 
+const CHECK_RUNS_PAGE_SIZE = 100;
+
+// GitHub treats these conclusions as satisfying a required status check; a job
+// skipped by its own `if:` (e.g. dependency-audit without dependency changes)
+// reports `skipped`.
+const PASSING_CHECK_CONCLUSIONS = new Set(['success', 'skipped', 'neutral']);
+
 /**
- * Returns the check runs for a commit.
+ * Returns every check run for a commit. The endpoint pages (30 by default), so
+ * a commit with more runs than one page would hide required checks.
  *
  * @param {string} repo
  * @param {string} sha
+ * @param {(args: string[]) => any} [requestJson]
  * @returns {{ name: string, conclusion: string|null }[]}
  */
-function getCheckRuns(repo, sha) {
-  const payload = runGhJson(['api', `repos/${repo}/commits/${sha}/check-runs`]);
-  return payload.check_runs || [];
+function getCheckRuns(repo, sha, requestJson = runGhJson) {
+  /** @type {{ name: string, conclusion: string|null }[]} */
+  const checkRuns = [];
+
+  for (let page = 1; ; page += 1) {
+    const payload = requestJson([
+      'api',
+      `repos/${repo}/commits/${sha}/check-runs?per_page=${CHECK_RUNS_PAGE_SIZE}&page=${page}`,
+    ]);
+    const batch = Array.isArray(payload.check_runs) ? payload.check_runs : [];
+    const total = Number.isInteger(payload.total_count) ? payload.total_count : null;
+
+    checkRuns.push(...batch);
+
+    if (batch.length < CHECK_RUNS_PAGE_SIZE || (total !== null && checkRuns.length >= total)) {
+      return checkRuns;
+    }
+  }
 }
 
 /**
- * Throws when any required status check is not successful on the given SHA.
+ * Throws when any required status check has no passing run (success, skipped, or
+ * neutral) on the given SHA.
  *
  * @param {string} sha
  * @param {string[]} requiredChecks
@@ -273,13 +298,14 @@ function ensureRequiredChecksGreen(sha, requiredChecks, checkRuns) {
     conclusionsByName.set(run.name, conclusions);
   });
 
-  const missing = requiredChecks.filter(
-    (name) => !conclusionsByName.has(name) || !conclusionsByName.get(name).has('success'),
-  );
+  const missing = requiredChecks.filter((name) => (
+    !conclusionsByName.has(name)
+    || ![...conclusionsByName.get(name)].some((conclusion) => PASSING_CHECK_CONCLUSIONS.has(conclusion))
+  ));
 
   if (missing.length > 0) {
     throw new Error(
-      `Source commit ${sha} is missing successful required checks: ${missing.join(', ')}`,
+      `Source commit ${sha} is missing passing required checks: ${missing.join(', ')}`,
     );
   }
 }
@@ -655,6 +681,7 @@ module.exports = {
   createProductionDeployment,
   derivePromotionPlan,
   ensureRequiredChecksGreen,
+  getCheckRuns,
   isProtectedBranchRefUpdateError,
   parseArgs,
   recordPromotionDeployment,
