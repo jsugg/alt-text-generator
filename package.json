@@ -18,7 +18,7 @@
   "homepage": "https://github.com/jsugg/alt-text-generator#readme",
   "main": "src/app.js",
   "engines": {
-    "node": ">=22 <25"
+    "node": ">=22.19.0 <25"
   },
   "scripts": {
     "allure:clean": "node -e \"const fs=require('node:fs'); for (const dir of ['reports/allure-results','reports/allure-report']) { fs.rmSync(dir,{recursive:true,force:true}); fs.mkdirSync(dir,{recursive:true}); fs.writeFileSync(dir + '/.gitkeep', ''); }\"",
@@ -75,7 +75,7 @@
     "express-rate-limit": "^8.7.4",
     "follow-redirects": "^1.16.3",
     "helmet": "^7.2.0",
-    "joi": "^17.13.9",
+    "joi": "^18.3.2",
     "js-yaml": "^5.5.0",
     "pino": "^8.21.0",
     "pino-http": "^8.6.1",
@@ -87,7 +87,7 @@
     "selfsigned": "^5.5.0",
     "swagger-jsdoc": "^6.3.0",
     "swagger-ui-express": "^5.0.1",
-    "undici": "^6.29.1"
+    "undici": "^8.12.4"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
