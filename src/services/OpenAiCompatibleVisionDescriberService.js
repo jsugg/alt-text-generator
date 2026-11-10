@@ -38,6 +38,8 @@ const RETRY_JITTER_MS = 250;
  * @property {string} [apiKey]
  * @property {string} [model]
  * @property {number} [maxTokens]
+ * @property {'max_tokens' | 'max_completion_tokens'} [maxTokensParam] - request-body field
+ *   that carries `maxTokens`; defaults to `max_tokens`.
  * @property {string} [prompt]
  * @property {Record<string, string>} [headers]
  * @property {number} [requestAttempts]
@@ -265,6 +267,7 @@ class OpenAiCompatibleVisionDescriberService {
     this.apiKey = providerConfig.apiKey;
     this.model = providerConfig.model;
     this.maxTokens = providerConfig.maxTokens;
+    this.maxTokensParam = providerConfig.maxTokensParam ?? 'max_tokens';
     this.prompt = providerConfig.prompt;
     this.headers = providerConfig.headers ?? {};
     this.requestParams = providerConfig.requestParams ?? {};
@@ -307,7 +310,7 @@ class OpenAiCompatibleVisionDescriberService {
           ],
         },
       ],
-      max_tokens: this.maxTokens,
+      [this.maxTokensParam]: this.maxTokens,
       stream: false,
     };
   }
