@@ -3,4 +3,5 @@
 # enabled: auto defers to the normal env-driven runtime behavior.
 providers:
   azure:
-    enabled: auto
+    # Backing Azure subscription expired and was deleted; re-enable with auto once a new Vision resource exists.
+    enabled: false
