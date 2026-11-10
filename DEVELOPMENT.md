@@ -581,7 +581,7 @@ At least one provider must be configured at startup: `REPLICATE_API_TOKEN`, Azur
 | --- | --- | --- | --- |
 | `OPENAI_API_KEY` | No | none | Registers `openai`. |
 | `OPENAI_BASE_URL` | No | `https://api.openai.com/v1` | Override for proxies or compatible gateways. |
-| `OPENAI_MODEL` | No | `gpt-4.1-nano` | Default OpenAI multimodal model. |
+| `OPENAI_MODEL` | No | `gpt-5.4-nano` | Default OpenAI multimodal model. |
 | `OPENAI_MAX_TOKENS` | No | `160` | Max completion tokens for `openai`. |
 | `OPENAI_PROMPT` | No | shared alt-text prompt | Prompt sent with the image. |
 | `HF_API_KEY` | No | none | Registers `huggingface`. `HF_TOKEN` is accepted as an alias. |

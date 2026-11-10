@@ -596,7 +596,7 @@ describe('Unit | Scripts | Run Postman Deploy', () => {
           HF_API_KEY: '${{ secrets.HF_API_KEY }}',
           HF_MODEL: 'Qwen/Qwen3-VL-30B-A3B-Instruct:fastest',
           OPENAI_API_KEY: '${{ secrets.OPENAI_API_KEY }}',
-          OPENAI_MODEL: 'gpt-4.1-nano',
+          OPENAI_MODEL: 'gpt-5.4-nano',
           TOGETHER_API_KEY: '${{ secrets.TOGETHER_API_KEY }}',
         },
       );
@@ -616,7 +616,7 @@ describe('Unit | Scripts | Run Postman Deploy', () => {
           HF_API_KEY: '${{ secrets.HF_API_KEY }}',
           HF_MODEL: 'Qwen/Qwen3-VL-30B-A3B-Instruct:fastest',
           OPENAI_API_KEY: '${{ secrets.OPENAI_API_KEY }}',
-          OPENAI_MODEL: 'gpt-4.1-nano',
+          OPENAI_MODEL: 'gpt-5.4-nano',
           TOGETHER_API_KEY: '${{ secrets.TOGETHER_API_KEY }}',
         },
       );

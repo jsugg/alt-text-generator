@@ -8,9 +8,11 @@ module.exports = buildOpenAiCompatibleProvider({
   baseUrlEnvName: 'OPENAI_BASE_URL',
   defaultBaseUrl: 'https://api.openai.com/v1',
   modelEnvName: 'OPENAI_MODEL',
-  defaultModel: 'gpt-4.1-nano',
+  defaultModel: 'gpt-5.4-nano',
   maxTokensEnvName: 'OPENAI_MAX_TOKENS',
   promptEnvName: 'OPENAI_PROMPT',
+  // gpt-5.x rejects max_tokens; max_completion_tokens is accepted by every current chat model.
+  buildAdditionalConfig: () => ({ maxTokensParam: 'max_completion_tokens' }),
   providerValidation: {
     scopeKey: 'openai',
     autoPriority: 50,

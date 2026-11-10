@@ -90,6 +90,28 @@ describe('Unit | Services | OpenAI Compatible Vision Describer Service', () => {
     );
   });
 
+  it('sends the completion limit under the configured token parameter', async () => {
+    const apiClient = {
+      post: jest.fn().mockResolvedValue({
+        data: { choices: [{ message: { content: 'a lighthouse on the coast' } }] },
+      }),
+    };
+    const svc = new OpenAiCompatibleVisionDescriberService({
+      logger: mockLogger,
+      httpClient: { get: jest.fn() },
+      apiClient,
+      providerConfig: { ...mockProviderConfig, maxTokensParam: 'max_completion_tokens' },
+      providerKey: 'openai',
+      providerName: 'OpenAI Vision',
+    });
+
+    await svc.describeImage('https://example.com/lighthouse.jpg');
+
+    const [, body] = apiClient.post.mock.calls[0];
+    expect(body.max_completion_tokens).toBe(160);
+    expect(body).not.toHaveProperty('max_tokens');
+  });
+
   it('falls back to a fetched data url when the provider rejects the remote image url', async () => {
     const remoteUrlError = new Error('invalid image url');
     remoteUrlError.response = { status: 400 };
