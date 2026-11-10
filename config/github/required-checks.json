@@ -3,6 +3,7 @@
   "mainBranchProtection": {
     "branch": "main",
     "contexts": [
+      "Attribution Guard",
       "actionlint",
       "codeql",
       "dependency-audit",

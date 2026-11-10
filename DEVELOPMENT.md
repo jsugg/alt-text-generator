@@ -189,9 +189,15 @@ The repository gives each workflow a single responsibility:
   - monthly/manual advisory run of the warning-only `npm run perf:smoke` latency budgets; never a required check
 - `Actions Storage Report` in `.github/workflows/actions-storage-report.yml`
   - monthly/manual advisory summary of GitHub Actions cache and artifact storage volume
+- `Attribution Guard` in `.github/workflows/attribution-guard.yml`
+  - runs on every pull-request metadata event (`opened`, `reopened`, `synchronize`, `edited`, `labeled`, `unlabeled`, `ready_for_review`) and on pushes to `main`
+  - refetches the pull request through the API and fails on tool attribution in the title, body, head ref, labels, or any commit message or author/committer email; patterns live in `scripts/github/attribution-patterns.js`
+  - runs the checker from the base revision, so a pull request cannot change the rules that judge it
+  - is its own required `main` context rather than part of `ci-summary`, so metadata-only events re-evaluate the required status
 
 Branch protection requires these checks on both `main` (branch protection) and `production` (repository ruleset); the policy source of truth is `config/github/required-checks.json` (see [docs/required-checks.md](./docs/required-checks.md)):
 
+- `Attribution Guard` (`main` only; promotion re-checks it on the `main` commit)
 - `actionlint`
 - `codeql`
 - `dependency-review`
