@@ -1,0 +1,71 @@
+name: Attribution Guard
+
+# Owner rule: no tool attribution in pull-request metadata, ref names, labels,
+# or commits. `Attribution Guard` is its own required context (not folded into
+# ci-summary) so metadata-only events (edited, labeled) re-evaluate the
+# required status without a new commit. Patterns: scripts/github/attribution-patterns.js.
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - edited
+      - labeled
+      - unlabeled
+      - ready_for_review
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: attribution-guard-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  attribution-guard:
+    name: Attribution Guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # The checker runs from the base revision so a pull request cannot weaken
+      # the rules that judge it. Only a base that predates the checker (the
+      # bootstrap pull request) falls back to the pull-request revision.
+      - name: Checkout base revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.base.sha || github.event.before }}
+
+      - name: Locate checker
+        id: checker
+        run: |
+          if [[ -f scripts/github/check-attribution.js ]]; then
+            echo "from-base=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "from-base=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Checkout pull-request revision (bootstrap only)
+        if: steps.checker.outputs.from-base != 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Check attribution
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          PUSH_AFTER: ${{ github.event.after }}
+        run: node scripts/github/check-attribution.js
