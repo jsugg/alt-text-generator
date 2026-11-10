@@ -40,7 +40,8 @@ jobs:
     name: post-deploy-smoke
     runs-on: ubuntu-latest
     environment: prod-validation
-    timeout-minutes: 10
+    # Includes up to 15 min waiting for Render to serve the pushed commit.
+    timeout-minutes: 25
     permissions:
       contents: read
       deployments: write
@@ -73,6 +74,17 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
         run: node scripts/github/resolve-provider-validation-scope.js
+
+      # Render serves the previous build until the new one passes its health
+      # check; manual runs may target any URL or build, so only pushes wait.
+      - name: Wait for Render to serve the pushed commit
+        if: github.event_name == 'push'
+        run: >-
+          node scripts/render/wait-for-deployed-commit.js
+          --base-url "${BASE_URL}"
+          --expected-commit "${GITHUB_SHA}"
+          --timeout-seconds 900
+          --interval-seconds 15
 
       - name: Run post-deploy Newman verification
         id: newman-verify

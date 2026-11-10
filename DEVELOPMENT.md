@@ -168,13 +168,14 @@ The repository gives each workflow a single responsibility:
 - `Post Deploy Verification` in `.github/workflows/post-deploy-verification.yml`
   - runs automatically on `production` pushes
   - runs `npm run postman:post-deploy -- --base-url <host>`
+  - on `production` pushes, first waits (up to 15 min) until `/api/health` reports the pushed commit, so Newman never runs against the build Render is replacing; manual runs skip this wait
   - waits for consecutive stable health/auth probes before starting Newman so Render rollout overlap does not create deploy-smoke false negatives
   - verifies production health, Swagger server URL, expected production auth behavior, protected scraper behavior, and a low-cost live-provider subset
   - reads `PRODUCTION_API_AUTH_ENABLED` and `PRODUCTION_DEPLOY_VALIDATION_API_TOKEN` from the `prod-validation` GitHub Actions environment to match the deployed Render `API_AUTH_ENABLED` / `API_AUTH_TOKENS` state
 - `Promote to Production` in `.github/workflows/promote-to-production.yml`
   - manual only
   - runs a pre-production low-cost live-provider validation against the local app before promotion
-  - verifies that `main` has the required CI checks green
+  - verifies that `main` has the required CI checks green, polling (up to 10 min) while any is queued, in progress, or not yet reported, and failing as soon as one completes without passing
   - updates the `production` branch ref directly to the validated `main` commit so both branches end on the same tip SHA
   - treats `production` as a tracking branch for `main`; branch-only `production` history is realigned back to the validated `main` commit during promotion
   - requires a GitHub App installation token configured through `REPO_TOOLING_GITHUB_APP_ID` and `REPO_TOOLING_GITHUB_APP_PRIVATE_KEY`
@@ -450,6 +451,7 @@ Notes:
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
 | `PORT` | No | `8080` | HTTP listener port (same app as HTTPS). Platforms that inject a port (Render, Heroku, Cloud Run) set this automatically. |
+| `RENDER_GIT_COMMIT` | No | unset | Injected by Render with the deployed commit SHA. Reported as `commit` on `/api/health` (`null` when unset) so post-deploy verification can confirm which build is serving. Not validated by Joi. |
 | `TLS_ENABLED` | No | `true` | When `false`, the app runs HTTP-only: it binds `PORT`, skips certificate loading, and never starts the HTTPS listener. Set `false` only where TLS terminates at the platform edge (see [Inbound TLS posture](#inbound-tls-posture-https-first-vs-edge-termination)). |
 | `TLS_PORT` | No | `8443` | HTTPS listener port. Ignored when `TLS_ENABLED=false`. |
 | `TLS_KEY` | Prod (in-process TLS): Yes | none | TLS private key (inline PEM, base64-encoded PEM, or file path). Prefer absolute paths. Not needed when `TLS_ENABLED=false`. |
@@ -621,7 +623,7 @@ At least one provider must be configured at startup: `REPLICATE_API_TOKEN`, Azur
 - Logging stays on stdout so container platforms can collect it without relying on local files.
 - Public endpoints remain `ping`, `health`, and `api-docs` even when API auth is enabled.
 - `/api/ping` stays a liveness signal and continues returning `200` while the process is draining.
-- `/api/health` is the readiness signal used by Render. It returns `200` while the instance is ready and `503` once graceful shutdown begins.
+- `/api/health` is the readiness signal used by Render. It returns `200` while the instance is ready and `503` once graceful shutdown begins. Its `commit` field carries the running build's SHA (`RENDER_GIT_COMMIT`, or `null`).
 - Status routes use their own limiter so health probes are protected without sharing the main API request budget.
 - Clustered mode (`WORKER_COUNT > 1`) requires a Redis-backed limiter. Startup validation fails fast if clustered mode is enabled without `RATE_LIMIT_STORE=redis|auto` and a resolvable Redis endpoint.
 - The current Render deployment runs the `external` topology — it does not set `RATE_LIMIT_REDIS_TOPOLOGY` at all, and `external` is the code default (`config/rateLimitStore.js`) — so the future pod-local Redis path is inactive for now.

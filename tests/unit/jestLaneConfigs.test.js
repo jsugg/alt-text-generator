@@ -122,6 +122,7 @@ describe('Unit | Jest Lane Configs', () => {
       'scripts/run-postman-live.js',
       'scripts/postman-fixture-server.js',
       'scripts/github/promote-to-production.js',
+      'scripts/render/wait-for-deployed-commit.js',
       '!tests/**',
       '!coverage/**',
       '!reports/**',

@@ -20,7 +20,37 @@ const GH_MAX_BUFFER_BYTES = 64 * 1024 * 1024;
  * @property {string[]|null} requiredChecks
  * @property {string|null} outputFile
  * @property {string|null} summaryFile
+ * @property {number} checksTimeoutMs
+ * @property {number} checksPollIntervalMs
  */
+
+/**
+ * @typedef {object} CheckRun
+ * @property {string} name
+ * @property {string} status
+ * @property {string|null} conclusion
+ */
+
+const DEFAULT_CHECKS_TIMEOUT_SECONDS = 600;
+const DEFAULT_CHECKS_POLL_INTERVAL_SECONDS = 20;
+
+/**
+ * Parses a whole number of seconds into milliseconds.
+ *
+ * @param {string} key
+ * @param {string} rawValue
+ * @param {{ minimum: number }} options
+ * @returns {number}
+ */
+function parseSecondsFlag(key, rawValue, { minimum }) {
+  const seconds = Number(rawValue);
+
+  if (!/^\d+$/.test(rawValue.trim()) || seconds < minimum) {
+    throw new Error(`--${key} must be a whole number of seconds >= ${minimum}`);
+  }
+
+  return seconds * 1000;
+}
 
 /**
  * Parses command-line arguments into a key/value object.
@@ -34,6 +64,8 @@ function parseArgs(argv) {
     outputFile: null,
     summaryFile: null,
     requiredChecks: null,
+    checksTimeoutMs: DEFAULT_CHECKS_TIMEOUT_SECONDS * 1000,
+    checksPollIntervalMs: DEFAULT_CHECKS_POLL_INTERVAL_SECONDS * 1000,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -76,6 +108,12 @@ function parseArgs(argv) {
         break;
       case 'summary-file':
         args.summaryFile = rawValue;
+        break;
+      case 'checks-timeout-seconds':
+        args.checksTimeoutMs = parseSecondsFlag(key, rawValue, { minimum: 0 });
+        break;
+      case 'checks-poll-interval-seconds':
+        args.checksPollIntervalMs = parseSecondsFlag(key, rawValue, { minimum: 1 });
         break;
       default:
         throw new Error(`Unsupported argument: --${key}`);
@@ -259,10 +297,10 @@ const PASSING_CHECK_CONCLUSIONS = new Set(['success', 'skipped', 'neutral']);
  * @param {string} repo
  * @param {string} sha
  * @param {(args: string[]) => any} [requestJson]
- * @returns {{ name: string, conclusion: string|null }[]}
+ * @returns {CheckRun[]}
  */
 function getCheckRuns(repo, sha, requestJson = runGhJson) {
-  /** @type {{ name: string, conclusion: string|null }[]} */
+  /** @type {CheckRun[]} */
   const checkRuns = [];
 
   for (let page = 1; ; page += 1) {
@@ -282,31 +320,105 @@ function getCheckRuns(repo, sha, requestJson = runGhJson) {
 }
 
 /**
- * Throws when any required status check has no passing run (success, skipped, or
- * neutral) on the given SHA.
+ * Splits the required checks that have not passed yet into those that can still
+ * pass (not reported, or a run still queued/in progress) and those that cannot
+ * (every run completed without a passing conclusion).
  *
- * @param {string} sha
  * @param {string[]} requiredChecks
- * @param {{ name: string, conclusion: string|null }[]} checkRuns
+ * @param {CheckRun[]} checkRuns
+ * @returns {{ failed: string[], pending: string[] }} pending entries carry their state,
+ *   e.g. `codeql (in_progress)`
  */
-function ensureRequiredChecksGreen(sha, requiredChecks, checkRuns) {
-  const conclusionsByName = new Map();
+function classifyRequiredChecks(requiredChecks, checkRuns) {
+  /** @type {Map<string, CheckRun[]>} */
+  const runsByName = new Map();
 
   checkRuns.forEach((run) => {
-    const conclusions = conclusionsByName.get(run.name) || new Set();
-    conclusions.add(run.conclusion);
-    conclusionsByName.set(run.name, conclusions);
+    runsByName.set(run.name, (runsByName.get(run.name) || []).concat(run));
   });
 
-  const missing = requiredChecks.filter((name) => (
-    !conclusionsByName.has(name)
-    || ![...conclusionsByName.get(name)].some((conclusion) => PASSING_CHECK_CONCLUSIONS.has(conclusion))
-  ));
+  /** @type {string[]} */
+  const failed = [];
+  /** @type {string[]} */
+  const pending = [];
 
-  if (missing.length > 0) {
-    throw new Error(
-      `Source commit ${sha} is missing passing required checks: ${missing.join(', ')}`,
-    );
+  requiredChecks.forEach((name) => {
+    const runs = runsByName.get(name) || [];
+
+    if (runs.some((run) => run.conclusion !== null && PASSING_CHECK_CONCLUSIONS.has(run.conclusion))) {
+      return;
+    }
+
+    // An unfinished re-run can still satisfy a check whose earlier run failed.
+    const unfinishedRun = runs.find((run) => run.status !== 'completed');
+
+    if (runs.length === 0) {
+      pending.push(`${name} (not reported)`);
+    } else if (unfinishedRun) {
+      pending.push(`${name} (${unfinishedRun.status})`);
+    } else {
+      failed.push(name);
+    }
+  });
+
+  return { failed, pending };
+}
+
+/**
+ * Polls the source commit's check runs until every required check passes.
+ * Throws as soon as a required check can no longer pass, or with the checks
+ * still pending once the timeout elapses.
+ *
+ * @param {{
+ *   repo: string,
+ *   sha: string,
+ *   requiredChecks: string[],
+ *   timeoutMs: number,
+ *   pollIntervalMs: number,
+ *   listCheckRuns?: (repo: string, sha: string) => CheckRun[],
+ *   sleep?: (ms: number) => void,
+ *   now?: () => number,
+ *   log?: (message: string) => void,
+ * }} options
+ * @returns {void}
+ */
+function waitForRequiredChecks({
+  repo,
+  sha,
+  requiredChecks,
+  timeoutMs,
+  pollIntervalMs,
+  listCheckRuns = getCheckRuns,
+  sleep = sleepSync,
+  now = Date.now,
+  log = console.log,
+}) {
+  const deadline = now() + timeoutMs;
+
+  for (;;) {
+    const { failed, pending } = classifyRequiredChecks(requiredChecks, listCheckRuns(repo, sha));
+
+    if (failed.length > 0) {
+      throw new Error(
+        `Source commit ${sha} is missing passing required checks: ${failed.join(', ')}`,
+      );
+    }
+
+    if (pending.length === 0) {
+      return;
+    }
+
+    const remainingMs = deadline - now();
+
+    if (remainingMs <= 0) {
+      throw new Error(
+        `Timed out after ${timeoutMs / 1000}s waiting for required checks on source commit `
+        + `${sha}; still pending: ${pending.join(', ')}`,
+      );
+    }
+
+    log(`Waiting for required checks on ${sha}: ${pending.join(', ')}`);
+    sleep(Math.min(pollIntervalMs, remainingMs));
   }
 }
 
@@ -594,9 +706,14 @@ async function main() {
   const sourceSha = getBranchHeadSha(options.repo, options.sourceBranch);
   const targetSha = getBranchHeadSha(options.repo, options.targetBranch);
   const requiredChecks = resolveRequiredChecks(options);
-  const checkRuns = getCheckRuns(options.repo, sourceSha);
 
-  ensureRequiredChecksGreen(sourceSha, requiredChecks, checkRuns);
+  waitForRequiredChecks({
+    repo: options.repo,
+    sha: sourceSha,
+    requiredChecks,
+    timeoutMs: options.checksTimeoutMs,
+    pollIntervalMs: options.checksPollIntervalMs,
+  });
   console.log(`Verified ${options.sourceBranch}@${sourceSha} required checks.`);
 
   const sourceAheadBy = getAheadBy(options.repo, options.sourceBranch, options.targetBranch);
@@ -678,9 +795,9 @@ if (require.main === module) {
 
 module.exports = {
   buildPromotionDeploymentPayload,
+  classifyRequiredChecks,
   createProductionDeployment,
   derivePromotionPlan,
-  ensureRequiredChecksGreen,
   getCheckRuns,
   isProtectedBranchRefUpdateError,
   parseArgs,
@@ -688,4 +805,5 @@ module.exports = {
   resolveRequiredChecks,
   resolveRunLogUrl,
   setDeploymentStatus,
+  waitForRequiredChecks,
 };

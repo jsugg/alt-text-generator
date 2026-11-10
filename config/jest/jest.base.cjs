@@ -17,6 +17,7 @@ const COVERAGE_COLLECTION_PATTERNS = [
   'scripts/run-postman-live.js',
   'scripts/postman-fixture-server.js',
   'scripts/github/promote-to-production.js',
+  'scripts/render/wait-for-deployed-commit.js',
   '!**/node_modules/**',
   '!coverage/**',
   '!reports/**',
