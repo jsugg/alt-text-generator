@@ -76,6 +76,35 @@ describe('Unit | Supply-chain pinning posture', () => {
     expect(decorated.id).toMatch(/^[0-9a-f]{8}-[0-9a-f-]{27}$/);
   });
 
+  it('resolves Newman faker to the fail-closed local stub, not a registry package', () => {
+    const pkg = JSON.parse(read('package.json'));
+    const lock = JSON.parse(read('package-lock.json'));
+    const stubDir = path.join(repoRoot, 'tools', 'faker-stub');
+    const resolved = require.resolve('@faker-js/faker/locale/en', {
+      paths: [path.dirname(require.resolve('postman-collection'))],
+    });
+
+    expect(pkg.devDependencies['@faker-js/faker']).toBe('file:tools/faker-stub');
+    expect(pkg.overrides.newman['postman-collection']).toEqual({
+      '@faker-js/faker': '$@faker-js/faker',
+    });
+    expect(fs.realpathSync(resolved)).toBe(path.join(fs.realpathSync(stubDir), 'locale', 'en.js'));
+
+    const fakerEntries = Object.entries(lock.packages)
+      .filter(([key, entry]) => key.endsWith('@faker-js/faker') || entry.name === '@faker-js/faker');
+
+    expect(Object.fromEntries(fakerEntries)).toEqual({
+      'node_modules/@faker-js/faker': { resolved: 'tools/faker-stub', link: true },
+      'tools/faker-stub': expect.objectContaining({
+        name: '@faker-js/faker', version: '0.0.0-security-stub',
+      }),
+    });
+    fakerEntries.forEach(([, entry]) => {
+      expect(entry.integrity).toBeUndefined();
+      expect(String(entry.resolved ?? '')).not.toMatch(/^https?:/u);
+    });
+  });
+
   it('never pipes a network download straight into a shell', () => {
     const files = [
       ...collectFiles(path.join(repoRoot, '.github'), /\.(sh|ya?ml|bash)$/),

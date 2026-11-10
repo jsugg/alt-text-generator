@@ -1,0 +1,12 @@
+{
+  "name": "@faker-js/faker",
+  "version": "0.0.0-security-stub",
+  "private": true,
+  "description": "Fail-closed replacement for Postman's faker-backed dynamic variables, which this repository does not use.",
+  "license": "UNLICENSED",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./locale/en": "./locale/en.js"
+  }
+}

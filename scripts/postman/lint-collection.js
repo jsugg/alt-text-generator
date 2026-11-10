@@ -13,6 +13,12 @@
  *   - error-contract-assertions   : 4xx/5xx requests assert the public error body
  *   - forbidden-live-urls         : request URLs target Postman variables, never
  *                                   a literal/live host
+ *   - no-dynamic-variables        : no `{{$...}}` token anywhere (faker is stubbed)
+ *   - no-template-replace-in      : no `replaceIn`, which reaches the sandbox's
+ *                                   bundled faker
+ *
+ * The last two rules also scan every other JSON file under postman/
+ * (environments), see dynamic-variable-policy.js.
  *
  * Every violation reports the affected `folder > request` so failures point at
  * the exact item to fix. Exit code 0 = clean, 1 = violations, 2 = usage/IO error.
@@ -30,6 +36,12 @@ const {
   listTopLevelFolderNames,
   readCollection,
 } = require('./collection-utils');
+const {
+  POLICY_RULES,
+  findDynamicVariableViolations,
+  lintPostmanFiles,
+  listPostmanJsonFiles,
+} = require('./dynamic-variable-policy');
 
 /** @typedef {import('./collection-utils').CollectionItem} CollectionItem */
 /** @typedef {import('./collection-utils').PostmanCollection} PostmanCollection */
@@ -46,6 +58,8 @@ const RULES = {
   STATUS_EXPECTATIONS: 'exact-status-expectations',
   ERROR_CONTRACT: 'error-contract-assertions',
   FORBIDDEN_URLS: 'forbidden-live-urls',
+  DYNAMIC_VARIABLES: POLICY_RULES.DYNAMIC_VARIABLES,
+  TEMPLATE_REPLACE_IN: POLICY_RULES.TEMPLATE_REPLACE_IN,
 };
 
 // Top-level folders must read like "10 Scraper Contract": a two-digit ordering
@@ -84,7 +98,8 @@ const USAGE = `Usage: node scripts/postman/lint-collection.js [options]
 
 Validates the committed Postman collection against contract-harness policy
 before any server starts: deterministic folder/request names, exact status
-expectations, error/auth contract assertions, and forbidden live URLs.
+expectations, error/auth contract assertions, forbidden live URLs, and no
+Postman dynamic variables or replaceIn in any postman/ JSON file.
 
 Options:
   --collection <path>  Lint a specific collection file (default: committed collection)
@@ -331,12 +346,24 @@ function lintForbiddenUrls(collection) {
   }, /** @type {LintViolation[]} */ ([]));
 }
 
+/**
+ * Rejects Postman dynamic variables and `replaceIn` anywhere in the collection,
+ * scripts included.
+ *
+ * @param {PostmanCollection} collection
+ * @returns {LintViolation[]}
+ */
+function lintDynamicVariables(collection) {
+  return findDynamicVariableViolations(collection, 'collection');
+}
+
 const RULE_FUNCTIONS = [
   lintFolderNames,
   lintRequestNames,
   lintStatusExpectations,
   lintErrorContract,
   lintForbiddenUrls,
+  lintDynamicVariables,
 ];
 
 /**
@@ -470,7 +497,20 @@ function main(argv) {
     return 2;
   }
 
-  const violations = lintCollection(collection);
+  let companionViolations;
+
+  try {
+    companionViolations = lintPostmanFiles(
+      listPostmanJsonFiles().filter((file) => file !== args.collectionPath),
+    );
+  } catch (error) {
+    process.stderr.write(
+      `postman:lint failed to read postman/ JSON files: ${/** @type {Error} */ (error).message}\n`,
+    );
+    return 2;
+  }
+
+  const violations = [...lintCollection(collection), ...companionViolations];
   const stats = summarize(collection);
 
   if (args.json) {
@@ -492,6 +532,7 @@ module.exports = {
   RULES,
   getRequestUrl,
   lintCollection,
+  lintDynamicVariables,
   lintErrorContract,
   lintFolderNames,
   lintForbiddenUrls,

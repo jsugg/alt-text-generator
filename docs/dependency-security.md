@@ -25,6 +25,7 @@ patched releases. They arrive through Jest coverage/reporting and Newman:
 | `handlebars → ^4.7.10` | **critical** AST type-confusion / own-property-check JavaScript-injection chain |
 | `flatted → ^3.4.2` | prototype pollution + unbounded-recursion DoS |
 | `newman>jose → 4.15.9` | Newman's Postman runtime JWE resource-exhaustion advisory |
+| `newman>postman-collection>@faker-js/faker → $@faker-js/faker` | **high** GHSA-qxc2-j82w-r537: replaces faker with the fail-closed `tools/faker-stub` (Postman dynamic variables are banned by `postman:lint`) |
 | `lodash → ^4.18.1` | code-injection + prototype-pollution advisories |
 | `minimatch@>=9 <10.2.6 → ^10.2.6` | Jest's `glob@10` brace-expansion OOM advisory |
 | `markdownlint-cli2>markdownlint → 0.42.1` | `markdownlint@0.42.0`'s exact `re2js@2.8.6` lookbehind ReDoS; 0.42.1 is upstream's own `re2js@2.9.1` fix |
@@ -35,6 +36,18 @@ patched releases. They arrive through Jest coverage/reporting and Newman:
 | `newman>uuid → 11.1.1` | Newman's Postman UUID buffer-bounds advisory |
 <!-- generated:overrides end -->
 
+One override replaces a package instead of patching it. Every
+`postman-collection` release pins `@faker-js/faker@5.5.3`
+(GHSA-qxc2-j82w-r537), and the fixed faker is an incompatible rewrite.
+`postman-collection` uses faker only for Postman `{{$random*}}` dynamic
+variables, which this repository does not use. So `newman>postman-collection`
+resolves faker to `tools/faker-stub`, a dependency-free local package (a
+`file:` dev dependency referenced as `$@faker-js/faker`) whose every call
+throws. `postman:lint` rejects any `{{$...}}` token and any `replaceIn` in
+`postman/**/*.json`: postman-sandbox's prebuilt bootcode bundles its own faker,
+reachable only through `pm.variables.replaceIn`. Retire the stub when Newman
+leaves this repository.
+
 Override scopes target vulnerable version ranges or parent dependency trees.
 Replacements stay within the CommonJS/API shapes consumed by Jest and Newman;
 they are removed once upstream dependency ranges resolve patched releases
@@ -42,8 +55,9 @@ directly.
 
 ## Accepted residual
 
-None. The production tree has no high or critical advisories; development-tree
-findings are reported by the scheduled `Dependency Residual Audit` below.
+None. Neither the production nor the full dependency tree has high or critical
+advisories; lower-severity findings are reported by the scheduled
+`Dependency Residual Audit` below.
 
 <!-- generated:accepted start -->
 
@@ -60,7 +74,7 @@ list and `package.json`'s do.
 <!-- generated:verified start -->
 Last verified against a full-tree `npm audit`: **2026-11-10**.
 
-Lockfile at that time: `e8bfb299c24697d276fb1926536767e05648c23188994bb2149f553ad19125c7`
+Lockfile at that time: `9a9e99e832f26890d969bb8f9f4b6299a2f095ba715572c4a443907e8b14a223`
 
 When `package-lock.json` changes, this stops matching — which is the signal
 to re-verify and update `config/security/residual-advisories.json`.

@@ -2,7 +2,7 @@
   "$schema": "./residual-advisories.schema.json",
   "$comment": "Residual advisory decisions and override pins. docs/dependency-security.md's tables are generated from this file — edit here, then run `npm run security:docs -- --write`. Verified by scripts/security/residual-advisories.js.",
   "verifiedAt": "2026-11-10",
-  "lockfileSha256": "e8bfb299c24697d276fb1926536767e05648c23188994bb2149f553ad19125c7",
+  "lockfileSha256": "9a9e99e832f26890d969bb8f9f4b6299a2f095ba715572c4a443907e8b14a223",
   "overrides": [
     {
       "package": "babel-plugin-istanbul",
@@ -23,6 +23,11 @@
       "package": "newman>jose",
       "range": "4.15.9",
       "fixes": "Newman's Postman runtime JWE resource-exhaustion advisory"
+    },
+    {
+      "package": "newman>postman-collection>@faker-js/faker",
+      "range": "$@faker-js/faker",
+      "fixes": "**high** GHSA-qxc2-j82w-r537: replaces faker with the fail-closed `tools/faker-stub` (Postman dynamic variables are banned by `postman:lint`)"
     },
     {
       "package": "lodash",
