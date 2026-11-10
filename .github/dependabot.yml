@@ -46,7 +46,11 @@ updates:
         patterns:
           - "*"
   - package-ecosystem: github-actions
-    directory: /
+    # The composite action under .github/actions/ pins setup-node too; "/" alone
+    # scans only .github/workflows, which left that pin stale.
+    directories:
+      - /
+      - /.github/actions/*
     schedule:
       interval: weekly
     open-pull-requests-limit: 5

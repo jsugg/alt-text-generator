@@ -21,6 +21,11 @@ describe('Unit | Dependabot Policy', () => {
     expect(actionsUpdate.schedule).toEqual({ interval: 'weekly' });
   });
 
+  it('scans composite actions as well as workflows for action updates', () => {
+    expect(actionsUpdate).not.toHaveProperty('directory');
+    expect(actionsUpdate.directories).toEqual(['/', '/.github/actions/*']);
+  });
+
   it('does not suppress dependency updates', () => {
     expect(npmUpdate).not.toHaveProperty('ignore');
   });
