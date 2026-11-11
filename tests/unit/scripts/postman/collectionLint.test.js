@@ -9,6 +9,7 @@ const {
   lintFolderNames,
   lintForbiddenUrls,
   lintRequestNames,
+  lintRunControl,
   lintStatusExpectations,
   parseArgs,
   summarize,
@@ -232,6 +233,64 @@ describe('Unit | Scripts | Postman | Collection Lint', () => {
         .toEqual({ raw: '{{baseUrl}}/x', host: '' });
       expect(getRequestUrl({ request: { url: { raw: '{{baseUrl}}/x', host: ['{{baseUrl}}'] } } }))
         .toEqual({ raw: '{{baseUrl}}/x', host: '{{baseUrl}}' });
+    });
+  });
+
+  describe('lintRunControl', () => {
+    const withPrerequest = (item, exec) => ({
+      ...item,
+      event: [{ listen: 'prerequest', script: { type: 'text/javascript', exec } }, ...item.event],
+    });
+
+    it('accepts self-targeted polling and declared pre-request skips', () => {
+      const poll = withPrerequest(
+        req('Poll job', {
+          exec: ["setTimeout(() => pm.execution.setNextRequest('Poll job'), delayMs);"],
+        }),
+        ["if (!pm.collectionVariables.get('statusUrl')) {", '  pm.execution.skipRequest();', '}'],
+      );
+
+      expect(lintRunControl(collectionOf(folder('35 Async Jobs', [poll])))).toEqual([]);
+    });
+
+    it('rejects setNextRequest(null), jumps, and non-literal targets', () => {
+      const violations = lintRunControl(collectionOf(folder('35 Async Jobs', [
+        req('Poll job', {
+          exec: [
+            'pm.execution.setNextRequest(null);',
+            "pm.execution.setNextRequest('Start job');",
+            'postman.setNextRequest(nextName);',
+          ],
+        }),
+      ])));
+
+      expect(rulesOf(violations)).toEqual([RULES.RUN_CONTROL, RULES.RUN_CONTROL, RULES.RUN_CONTROL]);
+      expect(locationsOf(violations)).toEqual(Array(3).fill('35 Async Jobs > Poll job'));
+      expect(violations[0].message).toContain('setNextRequest(null) must target this request itself');
+      expect(violations[1].message).toContain("setNextRequest('Start job')");
+      expect(violations[2].message).toContain('setNextRequest(nextName)');
+    });
+
+    it('rejects run control in collection- and folder-level scripts', () => {
+      const collection = {
+        event: [{ listen: 'test', script: { exec: ['pm.execution.setNextRequest(null);'] } }],
+        item: [{
+          name: '35 Async Jobs',
+          event: [{ listen: 'prerequest', script: { exec: ["pm.execution.setNextRequest('X');"] } }],
+          item: [req('Start job')],
+        }],
+      };
+
+      expect(locationsOf(lintRunControl(collection))).toEqual(['collection', '35 Async Jobs']);
+    });
+
+    it('rejects skipRequest in test scripts, where it has no effect', () => {
+      const violations = lintRunControl(collectionOf(folder('90 Provider Validation', [
+        req('Job status', { exec: ['pm.execution.skipRequest();'] }),
+      ])));
+
+      expect(violations).toHaveLength(1);
+      expect(violations[0].message).toContain('only takes effect in a pre-request script');
     });
   });
 

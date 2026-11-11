@@ -26,7 +26,7 @@ const fs = require('node:fs');
  * @property {CollectionItem[]} [item]
  */
 
-/** @typedef {{ item?: CollectionItem[] }} PostmanCollection */
+/** @typedef {{ item?: CollectionItem[], event?: CollectionEvent[] }} PostmanCollection */
 
 /**
  * Reads and parses a Postman collection JSON file.
@@ -120,18 +120,42 @@ function hasSpecificStatusExpectation(item) {
 }
 
 /**
+ * Returns the concatenated source of every script on an item (request, folder,
+ * or collection) that listens to the given event.
+ *
+ * @param {{ event?: CollectionEvent[] }} item
+ * @param {'prerequest' | 'test'} listen
+ * @returns {string}
+ */
+function getEventScript(item, listen) {
+  const events = Array.isArray(item?.event) ? item.event : [];
+
+  return events
+    .filter((event) => event?.listen === listen && Array.isArray(event?.script?.exec))
+    .map((event) => /** @type {{ script: { exec: string[] } }} */ (event).script.exec.join('\n'))
+    .join('\n');
+}
+
+/**
  * Returns the concatenated source of every test-listener script on a request item.
  *
  * @param {CollectionItem} item
  * @returns {string}
  */
 function getRequestTestScript(item) {
-  const events = Array.isArray(item?.event) ? item.event : [];
+  return getEventScript(item, 'test');
+}
 
-  return events
-    .filter((event) => event?.listen === 'test' && Array.isArray(event?.script?.exec))
-    .map((event) => /** @type {{ script: { exec: string[] } }} */ (event).script.exec.join('\n'))
-    .join('\n');
+/**
+ * Returns true when the request declares, in its own pre-request script, that it
+ * may be skipped at runtime. This is the only sanctioned way for a selected
+ * request to legitimately not execute (see execution-coverage.js).
+ *
+ * @param {CollectionItem} item
+ * @returns {boolean}
+ */
+function declaresSkipRequest(item) {
+  return /\bpm\.execution\.skipRequest\s*\(/u.test(getEventScript(item, 'prerequest'));
 }
 
 /**
@@ -255,6 +279,8 @@ module.exports = {
   assertRequestItemsHaveSpecificStatusExpectations,
   assertTopLevelFoldersExist,
   buildItemFolderMap,
+  declaresSkipRequest,
+  getEventScript,
   getExpectedStatusCode,
   getRequestTestScript,
   hasExactStatusAssertion,

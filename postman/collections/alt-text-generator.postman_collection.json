@@ -1539,8 +1539,7 @@
                   "});",
                   "",
                   "pm.collectionVariables.set('asyncClipSuccessPageJobStatusUrl', body.statusUrl);",
-                  "pm.collectionVariables.set('asyncClipSuccessPageJobPollCount', '0');",
-                  "pm.execution.setNextRequest('Poll async replicate page description success');"
+                  "pm.collectionVariables.set('asyncClipSuccessPageJobPollCount', '0');"
                 ]
               }
             }
@@ -1605,7 +1604,6 @@
                   "  });",
                   "  pm.collectionVariables.unset('asyncClipSuccessPageJobStatusUrl');",
                   "  pm.collectionVariables.unset('asyncClipSuccessPageJobPollCount');",
-                  "  pm.execution.setNextRequest('Start async replicate page description failure');",
                   "}"
                 ]
               }
@@ -1670,8 +1668,7 @@
                   "});",
                   "",
                   "pm.collectionVariables.set('asyncClipFailurePageJobStatusUrl', body.statusUrl);",
-                  "pm.collectionVariables.set('asyncClipFailurePageJobPollCount', '0');",
-                  "pm.execution.setNextRequest('Poll async replicate page description failure');"
+                  "pm.collectionVariables.set('asyncClipFailurePageJobPollCount', '0');"
                 ]
               }
             }
@@ -1723,7 +1720,6 @@
                   "  });",
                   "  pm.collectionVariables.unset('asyncClipFailurePageJobStatusUrl');",
                   "  pm.collectionVariables.unset('asyncClipFailurePageJobPollCount');",
-                  "  pm.execution.setNextRequest(null);",
                   "}"
                 ]
               }
@@ -2313,7 +2309,6 @@
                   "  });",
                   "  pm.collectionVariables.set('providerValidationDescriptionStatusUrl', body.statusUrl);",
                   "  pm.collectionVariables.set('providerValidationDescriptionPollCount', '0');",
-                  "  pm.execution.setNextRequest('Provider validation single image job status');",
                   "} else {",
                   "  pm.test('returns 200', function () {",
                   "    pm.response.to.have.status(200);",
@@ -2327,7 +2322,6 @@
                   "    pm.expect(body[0].description).to.be.a('string');",
                   "    pm.expect(body[0].description.length).to.be.above(5);",
                   "  });",
-                  "  pm.execution.setNextRequest('Provider validation page descriptions');",
                   "}"
                 ]
               }
@@ -2357,6 +2351,18 @@
           "response": [],
           "event": [
             {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Synchronous providers answer inline, so there is no job to poll.",
+                  "if (!pm.collectionVariables.get('providerValidationDescriptionStatusUrl')) {",
+                  "  pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
@@ -2380,7 +2386,6 @@
                   "    });",
                   "    pm.collectionVariables.unset('providerValidationDescriptionStatusUrl');",
                   "    pm.collectionVariables.unset('providerValidationDescriptionPollCount');",
-                  "    pm.execution.setNextRequest(null);",
                   "  } else {",
                   "    pm.test('single-image provider validation stays within the polling budget', function () {",
                   "      pm.expect(attempt).to.be.below(maxAttempts);",
@@ -2402,7 +2407,6 @@
                   "  });",
                   "  pm.collectionVariables.unset('providerValidationDescriptionStatusUrl');",
                   "  pm.collectionVariables.unset('providerValidationDescriptionPollCount');",
-                  "  pm.execution.setNextRequest('Provider validation page descriptions');",
                   "}"
                 ]
               }
@@ -2467,7 +2471,6 @@
                   "  });",
                   "  pm.collectionVariables.set('providerValidationPageStatusUrl', body.statusUrl);",
                   "  pm.collectionVariables.set('providerValidationPagePollCount', '0');",
-                  "  pm.execution.setNextRequest('Provider validation page description job status');",
                   "} else {",
                   "  pm.test('returns 200', function () {",
                   "    pm.response.to.have.status(200);",
@@ -2491,7 +2494,6 @@
                   "      pm.expect(item.description).to.be.a('string');",
                   "    });",
                   "  });",
-                  "  pm.execution.setNextRequest(null);",
                   "}"
                 ]
               }
@@ -2521,6 +2523,18 @@
           "response": [],
           "event": [
             {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Synchronous providers answer inline, so there is no job to poll.",
+                  "if (!pm.collectionVariables.get('providerValidationPageStatusUrl')) {",
+                  "  pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
@@ -2544,7 +2558,6 @@
                   "    });",
                   "    pm.collectionVariables.unset('providerValidationPageStatusUrl');",
                   "    pm.collectionVariables.unset('providerValidationPagePollCount');",
-                  "    pm.execution.setNextRequest(null);",
                   "  } else {",
                   "    pm.test('page provider validation stays within the polling budget', function () {",
                   "      pm.expect(attempt).to.be.below(maxAttempts);",
@@ -2575,7 +2588,6 @@
                   "  });",
                   "  pm.collectionVariables.unset('providerValidationPageStatusUrl');",
                   "  pm.collectionVariables.unset('providerValidationPagePollCount');",
-                  "  pm.execution.setNextRequest(null);",
                   "}"
                 ]
               }

@@ -16,6 +16,10 @@
  *   - no-dynamic-variables        : no `{{$...}}` token anywhere (faker is stubbed)
  *   - no-template-replace-in      : no `replaceIn`, which reaches the sandbox's
  *                                   bundled faker
+ *   - self-targeted-run-control   : `setNextRequest` may only re-queue its own
+ *                                   request (polling); `null` or a jump would
+ *                                   silently drop the rest of the run, and
+ *                                   `skipRequest` only works in pre-request
  *
  * The last two rules also scan every other JSON file under postman/
  * (environments), see dynamic-variable-policy.js.
@@ -29,6 +33,7 @@
 const path = require('node:path');
 
 const {
+  getEventScript,
   getExpectedStatusCode,
   getRequestTestScript,
   hasSpecificStatusExpectation,
@@ -60,7 +65,12 @@ const RULES = {
   FORBIDDEN_URLS: 'forbidden-live-urls',
   DYNAMIC_VARIABLES: POLICY_RULES.DYNAMIC_VARIABLES,
   TEMPLATE_REPLACE_IN: POLICY_RULES.TEMPLATE_REPLACE_IN,
+  RUN_CONTROL: 'self-targeted-run-control',
 };
+
+const SET_NEXT_REQUEST_PATTERN = /\b(?:pm\.execution|postman)\.setNextRequest\s*\(([^)]*)\)/gu;
+const SKIP_REQUEST_PATTERN = /\bpm\.execution\.skipRequest\s*\(/u;
+const STRING_LITERAL_PATTERN = /^(['"`])(.*)\1$/u;
 
 // Top-level folders must read like "10 Scraper Contract": a two-digit ordering
 // prefix plus a non-blank label, which keeps Newman's run order deterministic.
@@ -98,8 +108,9 @@ const USAGE = `Usage: node scripts/postman/lint-collection.js [options]
 
 Validates the committed Postman collection against contract-harness policy
 before any server starts: deterministic folder/request names, exact status
-expectations, error/auth contract assertions, forbidden live URLs, and no
-Postman dynamic variables or replaceIn in any postman/ JSON file.
+expectations, error/auth contract assertions, forbidden live URLs, self-only
+setNextRequest polling, and no Postman dynamic variables or replaceIn in any
+postman/ JSON file.
 
 Options:
   --collection <path>  Lint a specific collection file (default: committed collection)
@@ -357,6 +368,83 @@ function lintDynamicVariables(collection) {
   return findDynamicVariableViolations(collection, 'collection');
 }
 
+/**
+ * Lists the literal target (or a non-literal marker) of every setNextRequest call.
+ *
+ * @param {string} script
+ * @returns {{ argument: string, target: string | null }[]}
+ */
+function listSetNextRequestTargets(script) {
+  return Array.from(script.matchAll(SET_NEXT_REQUEST_PATTERN), (match) => {
+    const argument = match[1].trim();
+    const literal = argument.match(STRING_LITERAL_PATTERN);
+
+    return { argument, target: literal ? literal[2] : null };
+  });
+}
+
+/**
+ * Restricts run control to self-polling so every selected request executes.
+ *
+ * Newman treats `setNextRequest(null)` as "stop the whole run" and any other
+ * target as a jump, both of which skip later requests without failing the run.
+ * Requests that may legitimately not run must declare `pm.execution.skipRequest()`
+ * in their own pre-request script instead, which execution coverage honours.
+ *
+ * @param {PostmanCollection} collection
+ * @returns {LintViolation[]}
+ */
+function lintRunControl(collection) {
+  /** @type {LintViolation[]} */
+  const violations = [];
+  /** @type {{ location: string, item: { event?: import('./collection-utils').CollectionEvent[] } }[]} */
+  const containers = [
+    { location: 'collection', item: collection },
+    ...(collection.item ?? [])
+      .filter((folder) => !folder.request)
+      .map((folder) => ({ location: String(folder.name), item: folder })),
+  ];
+
+  containers.forEach(({ location, item }) => {
+    const script = `${getEventScript(item, 'prerequest')}\n${getEventScript(item, 'test')}`;
+
+    if (listSetNextRequestTargets(script).length > 0) {
+      violations.push({
+        rule: RULES.RUN_CONTROL,
+        location,
+        message: 'collection- and folder-level scripts must not call setNextRequest',
+      });
+    }
+  });
+
+  listRequestItems(collection).forEach(({ item, topLevelFolderName }) => {
+    const location = requestLocation(topLevelFolderName, item);
+    const script = `${getEventScript(item, 'prerequest')}\n${getEventScript(item, 'test')}`;
+
+    listSetNextRequestTargets(script)
+      .filter(({ target }) => target !== item.name)
+      .forEach(({ argument }) => {
+        violations.push({
+          rule: RULES.RUN_CONTROL,
+          location,
+          message: `setNextRequest(${argument}) must target this request itself; `
+            + 'null or a jump silently skips the rest of the run '
+            + '(declare pm.execution.skipRequest() in a pre-request script for optional requests)',
+        });
+      });
+
+    if (SKIP_REQUEST_PATTERN.test(getEventScript(item, 'test'))) {
+      violations.push({
+        rule: RULES.RUN_CONTROL,
+        location,
+        message: 'pm.execution.skipRequest() only takes effect in a pre-request script',
+      });
+    }
+  });
+
+  return violations;
+}
+
 const RULE_FUNCTIONS = [
   lintFolderNames,
   lintRequestNames,
@@ -364,6 +452,7 @@ const RULE_FUNCTIONS = [
   lintErrorContract,
   lintForbiddenUrls,
   lintDynamicVariables,
+  lintRunControl,
 ];
 
 /**
@@ -537,6 +626,7 @@ module.exports = {
   lintFolderNames,
   lintForbiddenUrls,
   lintRequestNames,
+  lintRunControl,
   lintStatusExpectations,
   main,
   parseArgs,
