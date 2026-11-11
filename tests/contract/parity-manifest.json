@@ -1,0 +1,3602 @@
+{
+  "schemaVersion": 1,
+  "source": "postman/collections/alt-text-generator.postman_collection.json",
+  "totals": {
+    "folders": 13,
+    "requests": 45,
+    "pmTests": 134,
+    "pmExpectSites": 232,
+    "responseAssertionSites": 44,
+    "matcherSites": 276,
+    "portedPmTests": 0
+  },
+  "collectionScript": {
+    "pmTests": [
+      {
+        "id": "collection/response-status-is-exactly",
+        "name": "response status is exactly ${expectedStatusCode}",
+        "dynamicName": true,
+        "event": "test",
+        "line": 11,
+        "matchers": [
+          {
+            "id": "collection/response-status-is-exactly.1",
+            "kind": "pm.expect",
+            "line": 12,
+            "source": "pm.expect(pm.response.code, `unexpected status ${pm.response.code}`).to.eql(expectedStatusCode)"
+          }
+        ],
+        "jestTest": null
+      },
+      {
+        "id": "collection/performance-response-time-is-below-ms",
+        "name": "[performance] response time is below ${maxResponseTimeMs}ms",
+        "dynamicName": true,
+        "event": "test",
+        "line": 16,
+        "matchers": [
+          {
+            "id": "collection/performance-response-time-is-below-ms.1",
+            "kind": "pm.expect",
+            "line": 17,
+            "source": "pm.expect(pm.response.responseTime).to.be.below(maxResponseTimeMs)"
+          }
+        ],
+        "jestTest": null
+      },
+      {
+        "id": "collection/response-exposes-x-request-id-header",
+        "name": "response exposes x-request-id header",
+        "dynamicName": false,
+        "event": "test",
+        "line": 25,
+        "matchers": [
+          {
+            "id": "collection/response-exposes-x-request-id-header.1",
+            "kind": "pm.expect",
+            "line": 26,
+            "source": "pm.expect(requestId).to.be.a('string').and.not.empty"
+          }
+        ],
+        "jestTest": null
+      },
+      {
+        "id": "collection/redirect-responses-include-a-location-header",
+        "name": "redirect responses include a Location header",
+        "dynamicName": false,
+        "event": "test",
+        "line": 45,
+        "matchers": [
+          {
+            "id": "collection/redirect-responses-include-a-location-header.1",
+            "kind": "pm.expect",
+            "line": 46,
+            "source": "pm.expect(locationHeader).to.be.a('string').and.not.empty"
+          }
+        ],
+        "jestTest": null
+      },
+      {
+        "id": "collection/api-responses-expose-rate-limit-headers",
+        "name": "API responses expose rate-limit headers",
+        "dynamicName": false,
+        "event": "test",
+        "line": 51,
+        "matchers": [
+          {
+            "id": "collection/api-responses-expose-rate-limit-headers.1",
+            "kind": "pm.expect",
+            "line": 52,
+            "source": "pm.expect(pm.response.headers.has('X-RateLimit-Limit') || pm.response.headers.has('x-ratelimit-limit')).to.eql(true)"
+          },
+          {
+            "id": "collection/api-responses-expose-rate-limit-headers.2",
+            "kind": "pm.expect",
+            "line": 53,
+            "source": "pm.expect(pm.response.headers.has('X-RateLimit-Remaining') || pm.response.headers.has('x-ratelimit-remaining')).to.eql(true)"
+          },
+          {
+            "id": "collection/api-responses-expose-rate-limit-headers.3",
+            "kind": "pm.expect",
+            "line": 54,
+            "source": "pm.expect(pm.response.headers.has('X-RateLimit-Reset') || pm.response.headers.has('x-ratelimit-reset')).to.eql(true)"
+          }
+        ],
+        "jestTest": null
+      },
+      {
+        "id": "collection/json-requests-return-json-responses",
+        "name": "JSON requests return JSON responses",
+        "dynamicName": false,
+        "event": "test",
+        "line": 59,
+        "matchers": [
+          {
+            "id": "collection/json-requests-return-json-responses.1",
+            "kind": "pm.expect",
+            "line": 60,
+            "source": "pm.expect(contentType).to.include('application/json')"
+          }
+        ],
+        "jestTest": null
+      },
+      {
+        "id": "collection/response-body-is-valid-json",
+        "name": "response body is valid JSON",
+        "dynamicName": false,
+        "event": "test",
+        "line": 67,
+        "matchers": [
+          {
+            "id": "collection/response-body-is-valid-json.1",
+            "kind": "pm.expect",
+            "line": 68,
+            "source": "pm.expect(() => { jsonBody = pm.response.json(); }).not.to.throw()"
+          }
+        ],
+        "jestTest": null
+      },
+      {
+        "id": "collection/error-responses-expose-the-public-error-contract",
+        "name": "error responses expose the public error contract",
+        "dynamicName": false,
+        "event": "test",
+        "line": 75,
+        "matchers": [
+          {
+            "id": "collection/error-responses-expose-the-public-error-contract.1",
+            "kind": "pm.expect",
+            "line": 76,
+            "source": "pm.expect(jsonBody).to.have.property('error').that.is.a('string').and.not.empty"
+          },
+          {
+            "id": "collection/error-responses-expose-the-public-error-contract.2",
+            "kind": "pm.expect",
+            "line": 77,
+            "source": "pm.expect(jsonBody).to.have.property('code').that.is.a('string').and.match(/^[A-Z0-9_]+$/)"
+          },
+          {
+            "id": "collection/error-responses-expose-the-public-error-contract.3",
+            "kind": "pm.expect",
+            "line": 78,
+            "source": "pm.expect(jsonBody).to.have.property('requestId').that.is.a('string').and.not.empty"
+          }
+        ],
+        "jestTest": null
+      },
+      {
+        "id": "collection/error-response-requestid-matches-the-x-request-id-header",
+        "name": "error response requestId matches the x-request-id header",
+        "dynamicName": false,
+        "event": "test",
+        "line": 81,
+        "matchers": [
+          {
+            "id": "collection/error-response-requestid-matches-the-x-request-id-header.1",
+            "kind": "pm.expect",
+            "line": 82,
+            "source": "pm.expect(jsonBody.requestId).to.eql(requestId)"
+          }
+        ],
+        "jestTest": null
+      },
+      {
+        "id": "collection/error-responses-do-not-leak-stack-traces",
+        "name": "error responses do not leak stack traces",
+        "dynamicName": false,
+        "event": "test",
+        "line": 85,
+        "matchers": [
+          {
+            "id": "collection/error-responses-do-not-leak-stack-traces.1",
+            "kind": "pm.expect",
+            "line": 87,
+            "source": "pm.expect(serializedBody).not.to.include('stack')"
+          },
+          {
+            "id": "collection/error-responses-do-not-leak-stack-traces.2",
+            "kind": "pm.expect",
+            "line": 88,
+            "source": "pm.expect(serializedBody).not.to.include('AxiosError')"
+          }
+        ],
+        "jestTest": null
+      }
+    ],
+    "unownedMatchers": []
+  },
+  "folders": [
+    {
+      "name": "00 Core Smoke",
+      "pmTests": [],
+      "unownedMatchers": [],
+      "requests": [
+        {
+          "id": "00:ping",
+          "name": "Ping",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/ping",
+          "expectedStatus": 200,
+          "skippable": false,
+          "pmTests": [
+            {
+              "id": "00:ping/ping-returns-200",
+              "name": "ping returns 200",
+              "dynamicName": false,
+              "event": "test",
+              "line": 1,
+              "matchers": [
+                {
+                  "id": "00:ping/ping-returns-200.1",
+                  "kind": "pm.response.to",
+                  "line": 2,
+                  "source": "pm.response.to.have.status(200)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "00:ping/ping-returns-pong",
+              "name": "ping returns pong",
+              "dynamicName": false,
+              "event": "test",
+              "line": 5,
+              "matchers": [
+                {
+                  "id": "00:ping/ping-returns-pong.1",
+                  "kind": "pm.expect",
+                  "line": 6,
+                  "source": "pm.expect(pm.response.text()).to.eql('pong')"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        },
+        {
+          "id": "00:root-service-index",
+          "name": "Root Service Index",
+          "method": "GET",
+          "url": "{{baseUrl}}/",
+          "expectedStatus": 200,
+          "skippable": false,
+          "pmTests": [
+            {
+              "id": "00:root-service-index/root-service-index-returns-200",
+              "name": "root service index returns 200",
+              "dynamicName": false,
+              "event": "test",
+              "line": 1,
+              "matchers": [
+                {
+                  "id": "00:root-service-index/root-service-index-returns-200.1",
+                  "kind": "pm.response.to",
+                  "line": 2,
+                  "source": "pm.response.to.have.status(200)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "00:root-service-index/root-service-index-exposes-the-expected-top-level-shape",
+              "name": "root service index exposes the expected top-level shape",
+              "dynamicName": false,
+              "event": "test",
+              "line": 11,
+              "matchers": [
+                {
+                  "id": "00:root-service-index/root-service-index-exposes-the-expected-top-level-shape.1",
+                  "kind": "pm.expect",
+                  "line": 12,
+                  "source": "pm.expect(Object.keys(body).sort()).to.eql(['auth', 'links', 'name', 'requestId', 'status', 'version'])"
+                },
+                {
+                  "id": "00:root-service-index/root-service-index-exposes-the-expected-top-level-shape.2",
+                  "kind": "pm.expect",
+                  "line": 13,
+                  "source": "pm.expect(body).to.have.property('name', 'alt-text-generator')"
+                },
+                {
+                  "id": "00:root-service-index/root-service-index-exposes-the-expected-top-level-shape.3",
+                  "kind": "pm.expect",
+                  "line": 14,
+                  "source": "pm.expect(body).to.have.property('version').that.is.a('string').and.match(/^\\d+\\.\\d+\\.\\d+/)"
+                },
+                {
+                  "id": "00:root-service-index/root-service-index-exposes-the-expected-top-level-shape.4",
+                  "kind": "pm.expect",
+                  "line": 15,
+                  "source": "pm.expect(body).to.have.property('status', 'ok')"
+                },
+                {
+                  "id": "00:root-service-index/root-service-index-exposes-the-expected-top-level-shape.5",
+                  "kind": "pm.expect",
+                  "line": 16,
+                  "source": "pm.expect(body).to.have.property('requestId').that.is.a('string').and.not.empty"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "00:root-service-index/root-service-index-publishes-stable-discovery-links",
+              "name": "root service index publishes stable discovery links",
+              "dynamicName": false,
+              "event": "test",
+              "line": 19,
+              "matchers": [
+                {
+                  "id": "00:root-service-index/root-service-index-publishes-stable-discovery-links.1",
+                  "kind": "pm.expect",
+                  "line": 20,
+                  "source": "pm.expect(body).to.have.property('links')"
+                },
+                {
+                  "id": "00:root-service-index/root-service-index-publishes-stable-discovery-links.2",
+                  "kind": "pm.expect",
+                  "line": 21,
+                  "source": "pm.expect(Object.keys(body.links).sort()).to.eql(['api', 'docs', 'health', 'ping'])"
+                },
+                {
+                  "id": "00:root-service-index/root-service-index-publishes-stable-discovery-links.3",
+                  "kind": "pm.expect",
+                  "line": 22,
+                  "source": "pm.expect(body.links).to.deep.equal({ api: '/api/v1', docs: '/api-docs/', health: '/api/health', ping: '/api/ping', })"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "00:root-service-index/root-service-index-documents-supported-auth-schemes",
+              "name": "root service index documents supported auth schemes",
+              "dynamicName": false,
+              "event": "test",
+              "line": 30,
+              "matchers": [
+                {
+                  "id": "00:root-service-index/root-service-index-documents-supported-auth-schemes.1",
+                  "kind": "pm.expect",
+                  "line": 31,
+                  "source": "pm.expect(body).to.have.nested.property('auth.schemes')"
+                },
+                {
+                  "id": "00:root-service-index/root-service-index-documents-supported-auth-schemes.2",
+                  "kind": "pm.expect",
+                  "line": 32,
+                  "source": "pm.expect(body.auth.schemes).to.be.an('array').with.lengthOf(2)"
+                },
+                {
+                  "id": "00:root-service-index/root-service-index-documents-supported-auth-schemes.3",
+                  "kind": "pm.expect",
+                  "line": 33,
+                  "source": "pm.expect(body.auth.schemes).to.have.members(['X-API-Key', 'Bearer'])"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "00:root-service-index/root-service-index-requestid-matches-the-response-header",
+              "name": "root service index requestId matches the response header",
+              "dynamicName": false,
+              "event": "test",
+              "line": 36,
+              "matchers": [
+                {
+                  "id": "00:root-service-index/root-service-index-requestid-matches-the-response-header.1",
+                  "kind": "pm.expect",
+                  "line": 37,
+                  "source": "pm.expect(body.requestId).to.eql(requestId)"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        },
+        {
+          "id": "00:health",
+          "name": "Health",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/health",
+          "expectedStatus": 200,
+          "skippable": false,
+          "pmTests": [
+            {
+              "id": "00:health/health-returns-200",
+              "name": "health returns 200",
+              "dynamicName": false,
+              "event": "test",
+              "line": 1,
+              "matchers": [
+                {
+                  "id": "00:health/health-returns-200.1",
+                  "kind": "pm.response.to",
+                  "line": 2,
+                  "source": "pm.response.to.have.status(200)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "00:health/health-payload-contains-expected-fields",
+              "name": "health payload contains expected fields",
+              "dynamicName": false,
+              "event": "test",
+              "line": 7,
+              "matchers": [
+                {
+                  "id": "00:health/health-payload-contains-expected-fields.1",
+                  "kind": "pm.expect",
+                  "line": 8,
+                  "source": "pm.expect(body).to.have.property('message', 'OK')"
+                },
+                {
+                  "id": "00:health/health-payload-contains-expected-fields.2",
+                  "kind": "pm.expect",
+                  "line": 9,
+                  "source": "pm.expect(body).to.have.property('ready', true)"
+                },
+                {
+                  "id": "00:health/health-payload-contains-expected-fields.3",
+                  "kind": "pm.expect",
+                  "line": 10,
+                  "source": "pm.expect(body).to.have.property('uptime')"
+                },
+                {
+                  "id": "00:health/health-payload-contains-expected-fields.4",
+                  "kind": "pm.expect",
+                  "line": 11,
+                  "source": "pm.expect(body).to.have.property('timestamp')"
+                },
+                {
+                  "id": "00:health/health-payload-contains-expected-fields.5",
+                  "kind": "pm.expect",
+                  "line": 12,
+                  "source": "pm.expect(body.uptime).to.be.a('number')"
+                },
+                {
+                  "id": "00:health/health-payload-contains-expected-fields.6",
+                  "kind": "pm.expect",
+                  "line": 13,
+                  "source": "pm.expect(body.timestamp).to.be.a('number')"
+                },
+                {
+                  "id": "00:health/health-payload-contains-expected-fields.7",
+                  "kind": "pm.expect",
+                  "line": 14,
+                  "source": "pm.expect(body).to.have.property('commit')"
+                },
+                {
+                  "id": "00:health/health-payload-contains-expected-fields.8",
+                  "kind": "pm.expect",
+                  "line": 15,
+                  "source": "pm.expect(body.commit, 'commit is a full SHA or null').to.satisfy((commit) => commit === null || /^[0-9a-f]{40}$/.test(commit))"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        },
+        {
+          "id": "00:swagger-ui",
+          "name": "Swagger UI",
+          "method": "GET",
+          "url": "{{baseUrl}}/api-docs/",
+          "expectedStatus": 200,
+          "skippable": false,
+          "pmTests": [
+            {
+              "id": "00:swagger-ui/swagger-docs-return-200",
+              "name": "swagger docs return 200",
+              "dynamicName": false,
+              "event": "test",
+              "line": 1,
+              "matchers": [
+                {
+                  "id": "00:swagger-ui/swagger-docs-return-200.1",
+                  "kind": "pm.response.to",
+                  "line": 2,
+                  "source": "pm.response.to.have.status(200)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "00:swagger-ui/swagger-docs-are-html",
+              "name": "swagger docs are HTML",
+              "dynamicName": false,
+              "event": "test",
+              "line": 10,
+              "matchers": [
+                {
+                  "id": "00:swagger-ui/swagger-docs-are-html.1",
+                  "kind": "pm.expect",
+                  "line": 11,
+                  "source": "pm.expect(contentType).to.include('text/html')"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "00:swagger-ui/swagger-docs-body-is-non-empty",
+              "name": "swagger docs body is non-empty",
+              "dynamicName": false,
+              "event": "test",
+              "line": 14,
+              "matchers": [
+                {
+                  "id": "00:swagger-ui/swagger-docs-body-is-non-empty.1",
+                  "kind": "pm.expect",
+                  "line": 15,
+                  "source": "pm.expect(pm.response.text().length).to.be.above(100)"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        },
+        {
+          "id": "00:swagger-spec",
+          "name": "Swagger Spec",
+          "method": "GET",
+          "url": "{{baseUrl}}/api-docs/swagger-ui-init.js",
+          "expectedStatus": 200,
+          "skippable": false,
+          "pmTests": [
+            {
+              "id": "00:swagger-spec/swagger-init-returns-200",
+              "name": "swagger init returns 200",
+              "dynamicName": false,
+              "event": "test",
+              "line": 1,
+              "matchers": [
+                {
+                  "id": "00:swagger-spec/swagger-init-returns-200.1",
+                  "kind": "pm.response.to",
+                  "line": 2,
+                  "source": "pm.response.to.have.status(200)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "00:swagger-spec/swagger-init-exposes-an-embedded-servers-array",
+              "name": "swagger init exposes an embedded servers array",
+              "dynamicName": false,
+              "event": "test",
+              "line": 8,
+              "matchers": [
+                {
+                  "id": "00:swagger-spec/swagger-init-exposes-an-embedded-servers-array.1",
+                  "kind": "pm.expect",
+                  "line": 9,
+                  "source": "pm.expect(match, 'servers array not found in swagger-ui-init.js').not.to.eql(null)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "00:swagger-spec/swagger-spec-advertises-only-the-expected-local-server",
+              "name": "swagger spec advertises only the expected local server",
+              "dynamicName": false,
+              "event": "test",
+              "line": 15,
+              "matchers": [
+                {
+                  "id": "00:swagger-spec/swagger-spec-advertises-only-the-expected-local-server.1",
+                  "kind": "pm.expect",
+                  "line": 16,
+                  "source": "pm.expect(servers).to.eql([ { url: expectedSwaggerServerUrl, description: 'Development server' } ])"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "00:swagger-spec/swagger-spec-does-not-reference-the-retired-qcraft-dev-domain",
+              "name": "swagger spec does not reference the retired qcraft.dev domain",
+              "dynamicName": false,
+              "event": "test",
+              "line": 24,
+              "matchers": [
+                {
+                  "id": "00:swagger-spec/swagger-spec-does-not-reference-the-retired-qcraft-dev-domain.1",
+                  "kind": "pm.expect",
+                  "line": 25,
+                  "source": "pm.expect(body).not.to.include('wcag.qcraft.dev')"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        }
+      ]
+    },
+    {
+      "name": "05 Routing & Redirects",
+      "pmTests": [],
+      "unownedMatchers": [],
+      "requests": [
+        {
+          "id": "05:bare-api-redirects-to-api-v1",
+          "name": "Bare /api redirects to /api/v1/",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/",
+          "expectedStatus": 302,
+          "skippable": false,
+          "pmTests": [
+            {
+              "id": "05:bare-api-redirects-to-api-v1/bare-api-returns-302",
+              "name": "bare /api returns 302",
+              "dynamicName": false,
+              "event": "test",
+              "line": 1,
+              "matchers": [
+                {
+                  "id": "05:bare-api-redirects-to-api-v1/bare-api-returns-302.1",
+                  "kind": "pm.response.to",
+                  "line": 2,
+                  "source": "pm.response.to.have.status(302)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "05:bare-api-redirects-to-api-v1/redirect-location-points-to-api-v1",
+              "name": "redirect location points to /api/v1/",
+              "dynamicName": false,
+              "event": "test",
+              "line": 5,
+              "matchers": [
+                {
+                  "id": "05:bare-api-redirects-to-api-v1/redirect-location-points-to-api-v1.1",
+                  "kind": "pm.expect",
+                  "line": 7,
+                  "source": "pm.expect(location).to.match(/\\/api\\/v1\\/$/)"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        },
+        {
+          "id": "05:http-redirects-to-https",
+          "name": "HTTP redirects to HTTPS",
+          "method": "GET",
+          "url": "{{baseUrlHttp}}/api/ping",
+          "expectedStatus": 302,
+          "skippable": false,
+          "pmTests": [
+            {
+              "id": "05:http-redirects-to-https/http-request-returns-302",
+              "name": "http request returns 302",
+              "dynamicName": false,
+              "event": "test",
+              "line": 1,
+              "matchers": [
+                {
+                  "id": "05:http-redirects-to-https/http-request-returns-302.1",
+                  "kind": "pm.response.to",
+                  "line": 2,
+                  "source": "pm.response.to.have.status(302)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "05:http-redirects-to-https/redirect-location-is-the-https-ping-endpoint",
+              "name": "redirect location is the https ping endpoint",
+              "dynamicName": false,
+              "event": "test",
+              "line": 5,
+              "matchers": [
+                {
+                  "id": "05:http-redirects-to-https/redirect-location-is-the-https-ping-endpoint.1",
+                  "kind": "pm.expect",
+                  "line": 7,
+                  "source": "pm.expect(location).to.eql(`${pm.environment.get('baseUrl')}/api/ping`)"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        }
+      ]
+    },
+    {
+      "name": "07 Route Aliases",
+      "pmTests": [],
+      "unownedMatchers": [],
+      "requests": [
+        {
+          "id": "07:versioned-ping-alias",
+          "name": "Versioned ping alias",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/v1/ping",
+          "expectedStatus": 200,
+          "skippable": false,
+          "pmTests": [
+            {
+              "id": "07:versioned-ping-alias/versioned-ping-returns-200",
+              "name": "versioned ping returns 200",
+              "dynamicName": false,
+              "event": "test",
+              "line": 1,
+              "matchers": [
+                {
+                  "id": "07:versioned-ping-alias/versioned-ping-returns-200.1",
+                  "kind": "pm.response.to",
+                  "line": 2,
+                  "source": "pm.response.to.have.status(200)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "07:versioned-ping-alias/versioned-ping-returns-pong",
+              "name": "versioned ping returns pong",
+              "dynamicName": false,
+              "event": "test",
+              "line": 5,
+              "matchers": [
+                {
+                  "id": "07:versioned-ping-alias/versioned-ping-returns-pong.1",
+                  "kind": "pm.expect",
+                  "line": 6,
+                  "source": "pm.expect(pm.response.text()).to.eql('pong')"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        },
+        {
+          "id": "07:versioned-health-alias",
+          "name": "Versioned health alias",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/v1/health",
+          "expectedStatus": 200,
+          "skippable": false,
+          "pmTests": [
+            {
+              "id": "07:versioned-health-alias/versioned-health-returns-200",
+              "name": "versioned health returns 200",
+              "dynamicName": false,
+              "event": "test",
+              "line": 1,
+              "matchers": [
+                {
+                  "id": "07:versioned-health-alias/versioned-health-returns-200.1",
+                  "kind": "pm.response.to",
+                  "line": 2,
+                  "source": "pm.response.to.have.status(200)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "07:versioned-health-alias/versioned-health-payload-contains-expected-fields",
+              "name": "versioned health payload contains expected fields",
+              "dynamicName": false,
+              "event": "test",
+              "line": 7,
+              "matchers": [
+                {
+                  "id": "07:versioned-health-alias/versioned-health-payload-contains-expected-fields.1",
+                  "kind": "pm.expect",
+                  "line": 8,
+                  "source": "pm.expect(body).to.have.property('message', 'OK')"
+                },
+                {
+                  "id": "07:versioned-health-alias/versioned-health-payload-contains-expected-fields.2",
+                  "kind": "pm.expect",
+                  "line": 9,
+                  "source": "pm.expect(body).to.have.property('uptime')"
+                },
+                {
+                  "id": "07:versioned-health-alias/versioned-health-payload-contains-expected-fields.3",
+                  "kind": "pm.expect",
+                  "line": 10,
+                  "source": "pm.expect(body).to.have.property('timestamp')"
+                },
+                {
+                  "id": "07:versioned-health-alias/versioned-health-payload-contains-expected-fields.4",
+                  "kind": "pm.expect",
+                  "line": 11,
+                  "source": "pm.expect(body.uptime).to.be.a('number')"
+                },
+                {
+                  "id": "07:versioned-health-alias/versioned-health-payload-contains-expected-fields.5",
+                  "kind": "pm.expect",
+                  "line": 12,
+                  "source": "pm.expect(body.timestamp).to.be.a('number')"
+                },
+                {
+                  "id": "07:versioned-health-alias/versioned-health-payload-contains-expected-fields.6",
+                  "kind": "pm.expect",
+                  "line": 13,
+                  "source": "pm.expect(body).to.have.property('commit')"
+                },
+                {
+                  "id": "07:versioned-health-alias/versioned-health-payload-contains-expected-fields.7",
+                  "kind": "pm.expect",
+                  "line": 14,
+                  "source": "pm.expect(body.commit, 'commit is a full SHA or null').to.satisfy((commit) => commit === null || /^[0-9a-f]{40}$/.test(commit))"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        },
+        {
+          "id": "07:unversioned-scraper-alias",
+          "name": "Unversioned scraper alias",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/scraper/images",
+          "expectedStatus": 200,
+          "skippable": false,
+          "pmTests": [
+            {
+              "id": "07:unversioned-scraper-alias/unversioned-scraper-alias-returns-200",
+              "name": "unversioned scraper alias returns 200",
+              "dynamicName": false,
+              "event": "test",
+              "line": 1,
+              "matchers": [
+                {
+                  "id": "07:unversioned-scraper-alias/unversioned-scraper-alias-returns-200.1",
+                  "kind": "pm.response.to",
+                  "line": 2,
+                  "source": "pm.response.to.have.status(200)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "07:unversioned-scraper-alias/unversioned-scraper-alias-preserves-the-same-image-order",
+              "name": "unversioned scraper alias preserves the same image order",
+              "dynamicName": false,
+              "event": "test",
+              "line": 9,
+              "matchers": [
+                {
+                  "id": "07:unversioned-scraper-alias/unversioned-scraper-alias-preserves-the-same-image-order.1",
+                  "kind": "pm.expect",
+                  "line": 10,
+                  "source": "pm.expect(body.imageSources).to.eql([ expectedA, expectedB, expectedA ])"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        },
+        {
+          "id": "07:unversioned-single-description-alias",
+          "name": "Unversioned single description alias",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/accessibility/description",
+          "expectedStatus": 200,
+          "skippable": false,
+          "pmTests": [
+            {
+              "id": "07:unversioned-single-description-alias/unversioned-single-description-alias-returns-200",
+              "name": "unversioned single description alias returns 200",
+              "dynamicName": false,
+              "event": "test",
+              "line": 1,
+              "matchers": [
+                {
+                  "id": "07:unversioned-single-description-alias/unversioned-single-description-alias-returns-200.1",
+                  "kind": "pm.response.to",
+                  "line": 2,
+                  "source": "pm.response.to.have.status(200)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "07:unversioned-single-description-alias/unversioned-single-description-alias-matches-the-stub-payload",
+              "name": "unversioned single description alias matches the stub payload",
+              "dynamicName": false,
+              "event": "test",
+              "line": 8,
+              "matchers": [
+                {
+                  "id": "07:unversioned-single-description-alias/unversioned-single-description-alias-matches-the-stub-payload.1",
+                  "kind": "pm.expect",
+                  "line": 9,
+                  "source": "pm.expect(body).to.eql([ { description: 'stub caption for asset a', imageUrl: expectedImageUrl } ])"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        },
+        {
+          "id": "07:unversioned-page-descriptions-alias",
+          "name": "Unversioned page descriptions alias",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/accessibility/descriptions",
+          "expectedStatus": 200,
+          "skippable": false,
+          "pmTests": [
+            {
+              "id": "07:unversioned-page-descriptions-alias/unversioned-page-descriptions-alias-returns-200",
+              "name": "unversioned page descriptions alias returns 200",
+              "dynamicName": false,
+              "event": "test",
+              "line": 1,
+              "matchers": [
+                {
+                  "id": "07:unversioned-page-descriptions-alias/unversioned-page-descriptions-alias-returns-200.1",
+                  "kind": "pm.response.to",
+                  "line": 2,
+                  "source": "pm.response.to.have.status(200)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "07:unversioned-page-descriptions-alias/unversioned-page-descriptions-alias-preserves-duplicate-order",
+              "name": "unversioned page descriptions alias preserves duplicate order",
+              "dynamicName": false,
+              "event": "test",
+              "line": 9,
+              "matchers": [
+                {
+                  "id": "07:unversioned-page-descriptions-alias/unversioned-page-descriptions-alias-preserves-duplicate-order.1",
+                  "kind": "pm.expect",
+                  "line": 10,
+                  "source": "pm.expect(body.descriptions).to.eql([ { description: 'stub caption for asset a', imageUrl: expectedA }, { description: 'stub caption for asset b', imageUrl: expectedB }, { description: 'stub caption for asset a', imageUrl: expectedA } ])"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        }
+      ]
+    },
+    {
+      "name": "08 API Auth Contract",
+      "pmTests": [],
+      "unownedMatchers": [],
+      "requests": [
+        {
+          "id": "08:protected-description-rejects-missing-auth",
+          "name": "Protected description rejects missing auth",
+          "method": "GET",
+          "url": "{{authBaseUrl}}/api/v1/accessibility/description",
+          "expectedStatus": 401,
+          "skippable": false,
+          "pmTests": [
+            {
+              "id": "08:protected-description-rejects-missing-auth/returns-401",
+              "name": "returns 401",
+              "dynamicName": false,
+              "event": "test",
+              "line": 1,
+              "matchers": [
+                {
+                  "id": "08:protected-description-rejects-missing-auth/returns-401.1",
+                  "kind": "pm.response.to",
+                  "line": 2,
+                  "source": "pm.response.to.have.status(401)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "08:protected-description-rejects-missing-auth/auth-failure-matches-the-public-error-contract",
+              "name": "auth failure matches the public error contract",
+              "dynamicName": false,
+              "event": "test",
+              "line": 7,
+              "matchers": [
+                {
+                  "id": "08:protected-description-rejects-missing-auth/auth-failure-matches-the-public-error-contract.1",
+                  "kind": "pm.expect",
+                  "line": 8,
+                  "source": "pm.expect(body.error).to.eql('Missing or invalid API authentication credentials')"
+                },
+                {
+                  "id": "08:protected-description-rejects-missing-auth/auth-failure-matches-the-public-error-contract.2",
+                  "kind": "pm.expect",
+                  "line": 9,
+                  "source": "pm.expect(body.code).to.eql('API_AUTHENTICATION_FAILED')"
+                },
+                {
+                  "id": "08:protected-description-rejects-missing-auth/auth-failure-matches-the-public-error-contract.3",
+                  "kind": "pm.expect",
+                  "line": 10,
+                  "source": "pm.expect(body.requestId).to.be.a('string').and.not.empty"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        },
+        {
+          "id": "08:protected-description-accepts-x-api-key",
+          "name": "Protected description accepts X-API-Key",
+          "method": "GET",
+          "url": "{{authBaseUrl}}/api/v1/accessibility/description",
+          "expectedStatus": 200,
+          "skippable": false,
+          "pmTests": [
+            {
+              "id": "08:protected-description-accepts-x-api-key/returns-200",
+              "name": "returns 200",
+              "dynamicName": false,
+              "event": "test",
+              "line": 1,
+              "matchers": [
+                {
+                  "id": "08:protected-description-accepts-x-api-key/returns-200.1",
+                  "kind": "pm.response.to",
+                  "line": 2,
+                  "source": "pm.response.to.have.status(200)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "08:protected-description-accepts-x-api-key/x-api-key-auth-returns-the-expected-stub-payload",
+              "name": "x-api-key auth returns the expected stub payload",
+              "dynamicName": false,
+              "event": "test",
+              "line": 8,
+              "matchers": [
+                {
+                  "id": "08:protected-description-accepts-x-api-key/x-api-key-auth-returns-the-expected-stub-payload.1",
+                  "kind": "pm.expect",
+                  "line": 9,
+                  "source": "pm.expect(body).to.eql([ { description: 'stub caption for asset a', imageUrl: expectedImageUrl } ])"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        },
+        {
+          "id": "08:protected-scraper-accepts-bearer-token",
+          "name": "Protected scraper accepts Bearer token",
+          "method": "GET",
+          "url": "{{authBaseUrl}}/api/v1/scraper/images",
+          "expectedStatus": 200,
+          "skippable": false,
+          "pmTests": [
+            {
+              "id": "08:protected-scraper-accepts-bearer-token/returns-200",
+              "name": "returns 200",
+              "dynamicName": false,
+              "event": "test",
+              "line": 1,
+              "matchers": [
+                {
+                  "id": "08:protected-scraper-accepts-bearer-token/returns-200.1",
+                  "kind": "pm.response.to",
+                  "line": 2,
+                  "source": "pm.response.to.have.status(200)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "08:protected-scraper-accepts-bearer-token/bearer-auth-returns-the-expected-scraper-payload",
+              "name": "bearer auth returns the expected scraper payload",
+              "dynamicName": false,
+              "event": "test",
+              "line": 9,
+              "matchers": [
+                {
+                  "id": "08:protected-scraper-accepts-bearer-token/bearer-auth-returns-the-expected-scraper-payload.1",
+                  "kind": "pm.expect",
+                  "line": 10,
+                  "source": "pm.expect(body.imageSources).to.eql([ expectedA, expectedB, expectedA ])"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        }
+      ]
+    },
+    {
+      "name": "10 Scraper Contract",
+      "pmTests": [],
+      "unownedMatchers": [],
+      "requests": [
+        {
+          "id": "10:scrape-fixture-page-images",
+          "name": "Scrape fixture page images",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/v1/scraper/images",
+          "expectedStatus": 200,
+          "skippable": false,
+          "pmTests": [
+            {
+              "id": "10:scrape-fixture-page-images/scraper-returns-200",
+              "name": "scraper returns 200",
+              "dynamicName": false,
+              "event": "test",
+              "line": 1,
+              "matchers": [
+                {
+                  "id": "10:scrape-fixture-page-images/scraper-returns-200.1",
+                  "kind": "pm.response.to",
+                  "line": 2,
+                  "source": "pm.response.to.have.status(200)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "10:scrape-fixture-page-images/response-has-imagesources-array",
+              "name": "response has imageSources array",
+              "dynamicName": false,
+              "event": "test",
+              "line": 9,
+              "matchers": [
+                {
+                  "id": "10:scrape-fixture-page-images/response-has-imagesources-array.1",
+                  "kind": "pm.expect",
+                  "line": 10,
+                  "source": "pm.expect(body).to.have.property('imageSources')"
+                },
+                {
+                  "id": "10:scrape-fixture-page-images/response-has-imagesources-array.2",
+                  "kind": "pm.expect",
+                  "line": 11,
+                  "source": "pm.expect(body.imageSources).to.be.an('array')"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "10:scrape-fixture-page-images/relative-urls-are-resolved-and-duplicate-order-is-preserved",
+              "name": "relative URLs are resolved and duplicate order is preserved",
+              "dynamicName": false,
+              "event": "test",
+              "line": 14,
+              "matchers": [
+                {
+                  "id": "10:scrape-fixture-page-images/relative-urls-are-resolved-and-duplicate-order-is-preserved.1",
+                  "kind": "pm.expect",
+                  "line": 15,
+                  "source": "pm.expect(body.imageSources).to.eql([ expectedA, expectedB, expectedA ])"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        }
+      ]
+    },
+    {
+      "name": "20 Single Description (Azure Stub)",
+      "pmTests": [],
+      "unownedMatchers": [],
+      "requests": [
+        {
+          "id": "20:describe-fixture-image-a",
+          "name": "Describe fixture image A",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/v1/accessibility/description",
+          "expectedStatus": 200,
+          "skippable": false,
+          "pmTests": [
+            {
+              "id": "20:describe-fixture-image-a/single-description-returns-200",
+              "name": "single description returns 200",
+              "dynamicName": false,
+              "event": "test",
+              "line": 1,
+              "matchers": [
+                {
+                  "id": "20:describe-fixture-image-a/single-description-returns-200.1",
+                  "kind": "pm.response.to",
+                  "line": 2,
+                  "source": "pm.response.to.have.status(200)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "20:describe-fixture-image-a/response-is-a-one-item-array",
+              "name": "response is a one-item array",
+              "dynamicName": false,
+              "event": "test",
+              "line": 8,
+              "matchers": [
+                {
+                  "id": "20:describe-fixture-image-a/response-is-a-one-item-array.1",
+                  "kind": "pm.expect",
+                  "line": 9,
+                  "source": "pm.expect(body).to.be.an('array').with.lengthOf(1)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "20:describe-fixture-image-a/payload-matches-expected-shape-and-stub-caption",
+              "name": "payload matches expected shape and stub caption",
+              "dynamicName": false,
+              "event": "test",
+              "line": 12,
+              "matchers": [
+                {
+                  "id": "20:describe-fixture-image-a/payload-matches-expected-shape-and-stub-caption.1",
+                  "kind": "pm.expect",
+                  "line": 13,
+                  "source": "pm.expect(body[0]).to.eql({ description: 'stub caption for asset a', imageUrl: expectedImageUrl })"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        },
+        {
+          "id": "20:missing-image-returns-500",
+          "name": "Missing image returns 500",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/v1/accessibility/description",
+          "expectedStatus": 500,
+          "skippable": false,
+          "pmTests": [
+            {
+              "id": "20:missing-image-returns-500/single-description-returns-500-for-provider-fetch-failures",
+              "name": "single description returns 500 for provider fetch failures",
+              "dynamicName": false,
+              "event": "test",
+              "line": 1,
+              "matchers": [
+                {
+                  "id": "20:missing-image-returns-500/single-description-returns-500-for-provider-fetch-failures.1",
+                  "kind": "pm.response.to",
+                  "line": 2,
+                  "source": "pm.response.to.have.status(500)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "20:missing-image-returns-500/single-description-500-matches-the-public-error-contract",
+              "name": "single description 500 matches the public error contract",
+              "dynamicName": false,
+              "event": "test",
+              "line": 7,
+              "matchers": [
+                {
+                  "id": "20:missing-image-returns-500/single-description-500-matches-the-public-error-contract.1",
+                  "kind": "pm.expect",
+                  "line": 8,
+                  "source": "pm.expect(body.error).to.eql('Error fetching description for the provided image')"
+                },
+                {
+                  "id": "20:missing-image-returns-500/single-description-500-matches-the-public-error-contract.2",
+                  "kind": "pm.expect",
+                  "line": 9,
+                  "source": "pm.expect(body.code).to.eql('DESCRIPTION_FETCH_FAILED')"
+                },
+                {
+                  "id": "20:missing-image-returns-500/single-description-500-matches-the-public-error-contract.3",
+                  "kind": "pm.expect",
+                  "line": 10,
+                  "source": "pm.expect(body.requestId).to.be.a('string').and.not.empty"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        },
+        {
+          "id": "20:provider-outage-returns-500",
+          "name": "Provider outage returns 500",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/v1/accessibility/description",
+          "expectedStatus": 500,
+          "skippable": false,
+          "pmTests": [
+            {
+              "id": "20:provider-outage-returns-500/single-description-returns-500-for-non-skippable-provider-failures",
+              "name": "single description returns 500 for non-skippable provider failures",
+              "dynamicName": false,
+              "event": "test",
+              "line": 1,
+              "matchers": [
+                {
+                  "id": "20:provider-outage-returns-500/single-description-returns-500-for-non-skippable-provider-failures.1",
+                  "kind": "pm.response.to",
+                  "line": 2,
+                  "source": "pm.response.to.have.status(500)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "20:provider-outage-returns-500/single-description-provider-failure-matches-the-public-error-contract",
+              "name": "single description provider failure matches the public error contract",
+              "dynamicName": false,
+              "event": "test",
+              "line": 7,
+              "matchers": [
+                {
+                  "id": "20:provider-outage-returns-500/single-description-provider-failure-matches-the-public-error-contract.1",
+                  "kind": "pm.expect",
+                  "line": 8,
+                  "source": "pm.expect(body.error).to.eql('Error fetching description for the provided image')"
+                },
+                {
+                  "id": "20:provider-outage-returns-500/single-description-provider-failure-matches-the-public-error-contract.2",
+                  "kind": "pm.expect",
+                  "line": 9,
+                  "source": "pm.expect(body.code).to.eql('DESCRIPTION_FETCH_FAILED')"
+                },
+                {
+                  "id": "20:provider-outage-returns-500/single-description-provider-failure-matches-the-public-error-contract.3",
+                  "kind": "pm.expect",
+                  "line": 10,
+                  "source": "pm.expect(body.requestId).to.be.a('string').and.not.empty"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        }
+      ]
+    },
+    {
+      "name": "30 Page Descriptions (Azure Stub)",
+      "pmTests": [],
+      "unownedMatchers": [],
+      "requests": [
+        {
+          "id": "30:describe-all-images-on-fixture-page",
+          "name": "Describe all images on fixture page",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/v1/accessibility/descriptions",
+          "expectedStatus": 200,
+          "skippable": false,
+          "pmTests": [
+            {
+              "id": "30:describe-all-images-on-fixture-page/page-descriptions-return-200",
+              "name": "page descriptions return 200",
+              "dynamicName": false,
+              "event": "test",
+              "line": 1,
+              "matchers": [
+                {
+                  "id": "30:describe-all-images-on-fixture-page/page-descriptions-return-200.1",
+                  "kind": "pm.response.to",
+                  "line": 2,
+                  "source": "pm.response.to.have.status(200)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "30:describe-all-images-on-fixture-page/response-schema-is-valid",
+              "name": "response schema is valid",
+              "dynamicName": false,
+              "event": "test",
+              "line": 32,
+              "matchers": [
+                {
+                  "id": "30:describe-all-images-on-fixture-page/response-schema-is-valid.1",
+                  "kind": "pm.response.to",
+                  "line": 33,
+                  "source": "pm.response.to.have.jsonSchema(schema)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "30:describe-all-images-on-fixture-page/page-metadata-is-correct",
+              "name": "page metadata is correct",
+              "dynamicName": false,
+              "event": "test",
+              "line": 36,
+              "matchers": [
+                {
+                  "id": "30:describe-all-images-on-fixture-page/page-metadata-is-correct.1",
+                  "kind": "pm.expect",
+                  "line": 37,
+                  "source": "pm.expect(body.pageUrl).to.eql(expectedPageUrl)"
+                },
+                {
+                  "id": "30:describe-all-images-on-fixture-page/page-metadata-is-correct.2",
+                  "kind": "pm.expect",
+                  "line": 38,
+                  "source": "pm.expect(body.model).to.eql('azure')"
+                },
+                {
+                  "id": "30:describe-all-images-on-fixture-page/page-metadata-is-correct.3",
+                  "kind": "pm.expect",
+                  "line": 39,
+                  "source": "pm.expect(body.totalImages).to.eql(3)"
+                },
+                {
+                  "id": "30:describe-all-images-on-fixture-page/page-metadata-is-correct.4",
+                  "kind": "pm.expect",
+                  "line": 40,
+                  "source": "pm.expect(body.uniqueImages).to.eql(2)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "30:describe-all-images-on-fixture-page/duplicate-output-order-is-preserved",
+              "name": "duplicate output order is preserved",
+              "dynamicName": false,
+              "event": "test",
+              "line": 43,
+              "matchers": [
+                {
+                  "id": "30:describe-all-images-on-fixture-page/duplicate-output-order-is-preserved.1",
+                  "kind": "pm.expect",
+                  "line": 44,
+                  "source": "pm.expect(body.descriptions.map((item) => item.imageUrl)).to.eql([ expectedA, expectedB, expectedA ])"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "30:describe-all-images-on-fixture-page/descriptions-match-expected-stub-captions",
+              "name": "descriptions match expected stub captions",
+              "dynamicName": false,
+              "event": "test",
+              "line": 51,
+              "matchers": [
+                {
+                  "id": "30:describe-all-images-on-fixture-page/descriptions-match-expected-stub-captions.1",
+                  "kind": "pm.expect",
+                  "line": 52,
+                  "source": "pm.expect(body.descriptions).to.eql([ { description: 'stub caption for asset a', imageUrl: expectedA }, { description: 'stub caption for asset b', imageUrl: expectedB }, { description: 'stub caption for asset a', imageUrl: expectedA } ])"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        },
+        {
+          "id": "30:skips-missing-images-and-preserves-successful-duplicates",
+          "name": "Skips missing images and preserves successful duplicates",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/v1/accessibility/descriptions",
+          "expectedStatus": 200,
+          "skippable": false,
+          "pmTests": [
+            {
+              "id": "30:skips-missing-images-and-preserves-successful-duplicates/page-descriptions-return-200-when-bad-images-are-skippable",
+              "name": "page descriptions return 200 when bad images are skippable",
+              "dynamicName": false,
+              "event": "test",
+              "line": 1,
+              "matchers": [
+                {
+                  "id": "30:skips-missing-images-and-preserves-successful-duplicates/page-descriptions-return-200-when-bad-images-are-skippable.1",
+                  "kind": "pm.response.to",
+                  "line": 2,
+                  "source": "pm.response.to.have.status(200)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "30:skips-missing-images-and-preserves-successful-duplicates/page-metadata-counts-only-successful-image-descriptions",
+              "name": "page metadata counts only successful image descriptions",
+              "dynamicName": false,
+              "event": "test",
+              "line": 9,
+              "matchers": [
+                {
+                  "id": "30:skips-missing-images-and-preserves-successful-duplicates/page-metadata-counts-only-successful-image-descriptions.1",
+                  "kind": "pm.expect",
+                  "line": 10,
+                  "source": "pm.expect(body.pageUrl).to.eql(expectedPageUrl)"
+                },
+                {
+                  "id": "30:skips-missing-images-and-preserves-successful-duplicates/page-metadata-counts-only-successful-image-descriptions.2",
+                  "kind": "pm.expect",
+                  "line": 11,
+                  "source": "pm.expect(body.model).to.eql('azure')"
+                },
+                {
+                  "id": "30:skips-missing-images-and-preserves-successful-duplicates/page-metadata-counts-only-successful-image-descriptions.3",
+                  "kind": "pm.expect",
+                  "line": 12,
+                  "source": "pm.expect(body.totalImages).to.eql(2)"
+                },
+                {
+                  "id": "30:skips-missing-images-and-preserves-successful-duplicates/page-metadata-counts-only-successful-image-descriptions.4",
+                  "kind": "pm.expect",
+                  "line": 13,
+                  "source": "pm.expect(body.uniqueImages).to.eql(1)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "30:skips-missing-images-and-preserves-successful-duplicates/successful-duplicate-output-order-is-preserved-after-skips",
+              "name": "successful duplicate output order is preserved after skips",
+              "dynamicName": false,
+              "event": "test",
+              "line": 16,
+              "matchers": [
+                {
+                  "id": "30:skips-missing-images-and-preserves-successful-duplicates/successful-duplicate-output-order-is-preserved-after-skips.1",
+                  "kind": "pm.expect",
+                  "line": 17,
+                  "source": "pm.expect(body.descriptions).to.eql([ { description: 'stub caption for asset a', imageUrl: expectedA }, { description: 'stub caption for asset a', imageUrl: expectedA } ])"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        },
+        {
+          "id": "30:provider-outage-fails-the-whole-page-request",
+          "name": "Provider outage fails the whole page request",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/v1/accessibility/descriptions",
+          "expectedStatus": 500,
+          "skippable": false,
+          "pmTests": [
+            {
+              "id": "30:provider-outage-fails-the-whole-page-request/page-descriptions-return-500-for-non-skippable-provider-failures",
+              "name": "page descriptions return 500 for non-skippable provider failures",
+              "dynamicName": false,
+              "event": "test",
+              "line": 1,
+              "matchers": [
+                {
+                  "id": "30:provider-outage-fails-the-whole-page-request/page-descriptions-return-500-for-non-skippable-provider-failures.1",
+                  "kind": "pm.response.to",
+                  "line": 2,
+                  "source": "pm.response.to.have.status(500)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "30:provider-outage-fails-the-whole-page-request/page-description-provider-failure-matches-the-public-error-contract",
+              "name": "page description provider failure matches the public error contract",
+              "dynamicName": false,
+              "event": "test",
+              "line": 7,
+              "matchers": [
+                {
+                  "id": "30:provider-outage-fails-the-whole-page-request/page-description-provider-failure-matches-the-public-error-contract.1",
+                  "kind": "pm.expect",
+                  "line": 8,
+                  "source": "pm.expect(body.error).to.eql('Error fetching descriptions for the provided page')"
+                },
+                {
+                  "id": "30:provider-outage-fails-the-whole-page-request/page-description-provider-failure-matches-the-public-error-contract.2",
+                  "kind": "pm.expect",
+                  "line": 9,
+                  "source": "pm.expect(body.code).to.eql('PAGE_DESCRIPTION_FETCH_FAILED')"
+                },
+                {
+                  "id": "30:provider-outage-fails-the-whole-page-request/page-description-provider-failure-matches-the-public-error-contract.3",
+                  "kind": "pm.expect",
+                  "line": 10,
+                  "source": "pm.expect(body.requestId).to.be.a('string').and.not.empty"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        }
+      ]
+    },
+    {
+      "name": "35 Async Page Description Jobs (Clip Stub)",
+      "pmTests": [],
+      "unownedMatchers": [],
+      "requests": [
+        {
+          "id": "35:start-async-replicate-page-description-success",
+          "name": "Start async replicate page description success",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/v1/accessibility/descriptions",
+          "expectedStatus": 202,
+          "skippable": false,
+          "pmTests": [
+            {
+              "id": "35:start-async-replicate-page-description-success/replicate-page-descriptions-return-202-while-the-async-job-is-pending",
+              "name": "replicate page descriptions return 202 while the async job is pending",
+              "dynamicName": false,
+              "event": "test",
+              "line": 1,
+              "matchers": [
+                {
+                  "id": "35:start-async-replicate-page-description-success/replicate-page-descriptions-return-202-while-the-async-job-is-pending.1",
+                  "kind": "pm.response.to",
+                  "line": 2,
+                  "source": "pm.response.to.have.status(202)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "35:start-async-replicate-page-description-success/pending-replicate-page-job-response-contains-expected-metadata",
+              "name": "pending replicate page job response contains expected metadata",
+              "dynamicName": false,
+              "event": "test",
+              "line": 7,
+              "matchers": [
+                {
+                  "id": "35:start-async-replicate-page-description-success/pending-replicate-page-job-response-contains-expected-metadata.1",
+                  "kind": "pm.expect",
+                  "line": 8,
+                  "source": "pm.expect(body.model).to.eql('replicate')"
+                },
+                {
+                  "id": "35:start-async-replicate-page-description-success/pending-replicate-page-job-response-contains-expected-metadata.2",
+                  "kind": "pm.expect",
+                  "line": 9,
+                  "source": "pm.expect(body.pageUrl).to.eql(pm.environment.get('samplePageUrl'))"
+                },
+                {
+                  "id": "35:start-async-replicate-page-description-success/pending-replicate-page-job-response-contains-expected-metadata.3",
+                  "kind": "pm.expect",
+                  "line": 10,
+                  "source": "pm.expect(body.status).to.match(/^(pending|processing|starting)$/)"
+                },
+                {
+                  "id": "35:start-async-replicate-page-description-success/pending-replicate-page-job-response-contains-expected-metadata.4",
+                  "kind": "pm.expect",
+                  "line": 11,
+                  "source": "pm.expect(body.pollAfterMs).to.be.a('number')"
+                },
+                {
+                  "id": "35:start-async-replicate-page-description-success/pending-replicate-page-job-response-contains-expected-metadata.5",
+                  "kind": "pm.expect",
+                  "line": 12,
+                  "source": "pm.expect(body.statusUrl).to.match(/^\\/api\\/v1\\/accessibility\\/page-description-jobs\\//)"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        },
+        {
+          "id": "35:poll-async-replicate-page-description-success",
+          "name": "Poll async replicate page description success",
+          "method": "GET",
+          "url": "{{baseUrl}}{{asyncClipSuccessPageJobStatusUrl}}",
+          "expectedStatus": 200,
+          "skippable": false,
+          "pmTests": [
+            {
+              "id": "35:poll-async-replicate-page-description-success/replicate-page-job-stays-pending-until-completion",
+              "name": "replicate page job stays pending until completion",
+              "dynamicName": false,
+              "event": "test",
+              "line": 9,
+              "matchers": [
+                {
+                  "id": "35:poll-async-replicate-page-description-success/replicate-page-job-stays-pending-until-completion.1",
+                  "kind": "pm.expect",
+                  "line": 10,
+                  "source": "pm.expect(body.status).to.match(/^(pending|processing|starting)$/)"
+                },
+                {
+                  "id": "35:poll-async-replicate-page-description-success/replicate-page-job-stays-pending-until-completion.2",
+                  "kind": "pm.expect",
+                  "line": 11,
+                  "source": "pm.expect(body.statusUrl).to.eql(pm.collectionVariables.get('asyncClipSuccessPageJobStatusUrl'))"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "35:poll-async-replicate-page-description-success/replicate-page-job-polling-stays-within-the-attempt-budget",
+              "name": "replicate page job polling stays within the attempt budget",
+              "dynamicName": false,
+              "event": "test",
+              "line": 13,
+              "matchers": [
+                {
+                  "id": "35:poll-async-replicate-page-description-success/replicate-page-job-polling-stays-within-the-attempt-budget.1",
+                  "kind": "pm.expect",
+                  "line": 14,
+                  "source": "pm.expect(attempt).to.be.below(30)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "35:poll-async-replicate-page-description-success/replicate-page-job-eventually-returns-200",
+              "name": "replicate page job eventually returns 200",
+              "dynamicName": false,
+              "event": "test",
+              "line": 19,
+              "matchers": [
+                {
+                  "id": "35:poll-async-replicate-page-description-success/replicate-page-job-eventually-returns-200.1",
+                  "kind": "pm.response.to",
+                  "line": 20,
+                  "source": "pm.response.to.have.status(200)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "35:poll-async-replicate-page-description-success/terminal-replicate-page-job-succeeded-with-expected-payload",
+              "name": "terminal replicate page job succeeded with expected payload",
+              "dynamicName": false,
+              "event": "test",
+              "line": 22,
+              "matchers": [
+                {
+                  "id": "35:poll-async-replicate-page-description-success/terminal-replicate-page-job-succeeded-with-expected-payload.1",
+                  "kind": "pm.expect",
+                  "line": 23,
+                  "source": "pm.expect(body.status).to.eql('succeeded')"
+                },
+                {
+                  "id": "35:poll-async-replicate-page-description-success/terminal-replicate-page-job-succeeded-with-expected-payload.2",
+                  "kind": "pm.expect",
+                  "line": 24,
+                  "source": "pm.expect(body.model).to.eql('replicate')"
+                },
+                {
+                  "id": "35:poll-async-replicate-page-description-success/terminal-replicate-page-job-succeeded-with-expected-payload.3",
+                  "kind": "pm.expect",
+                  "line": 25,
+                  "source": "pm.expect(body.pageUrl).to.eql(expectedPageUrl)"
+                },
+                {
+                  "id": "35:poll-async-replicate-page-description-success/terminal-replicate-page-job-succeeded-with-expected-payload.4",
+                  "kind": "pm.expect",
+                  "line": 26,
+                  "source": "pm.expect(body.result.pageUrl).to.eql(expectedPageUrl)"
+                },
+                {
+                  "id": "35:poll-async-replicate-page-description-success/terminal-replicate-page-job-succeeded-with-expected-payload.5",
+                  "kind": "pm.expect",
+                  "line": 27,
+                  "source": "pm.expect(body.result.model).to.eql('replicate')"
+                },
+                {
+                  "id": "35:poll-async-replicate-page-description-success/terminal-replicate-page-job-succeeded-with-expected-payload.6",
+                  "kind": "pm.expect",
+                  "line": 28,
+                  "source": "pm.expect(body.result.totalImages).to.eql(3)"
+                },
+                {
+                  "id": "35:poll-async-replicate-page-description-success/terminal-replicate-page-job-succeeded-with-expected-payload.7",
+                  "kind": "pm.expect",
+                  "line": 29,
+                  "source": "pm.expect(body.result.uniqueImages).to.eql(2)"
+                },
+                {
+                  "id": "35:poll-async-replicate-page-description-success/terminal-replicate-page-job-succeeded-with-expected-payload.8",
+                  "kind": "pm.expect",
+                  "line": 30,
+                  "source": "pm.expect(body.result.descriptions.map((item) => item.imageUrl)).to.eql([ expectedA, expectedB, expectedA ])"
+                },
+                {
+                  "id": "35:poll-async-replicate-page-description-success/terminal-replicate-page-job-succeeded-with-expected-payload.9",
+                  "kind": "pm.expect",
+                  "line": 36,
+                  "source": "pm.expect(item.description).to.eql('replicate stub caption')"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        },
+        {
+          "id": "35:start-async-replicate-page-description-failure",
+          "name": "Start async replicate page description failure",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/v1/accessibility/descriptions",
+          "expectedStatus": 202,
+          "skippable": false,
+          "pmTests": [
+            {
+              "id": "35:start-async-replicate-page-description-failure/replicate-provider-failure-page-returns-202-while-the-async-job-is-pending",
+              "name": "replicate provider failure page returns 202 while the async job is pending",
+              "dynamicName": false,
+              "event": "test",
+              "line": 1,
+              "matchers": [
+                {
+                  "id": "35:start-async-replicate-page-description-failure/replicate-provider-failure-page-returns-202-while-the-async-job-is-pending.1",
+                  "kind": "pm.response.to",
+                  "line": 2,
+                  "source": "pm.response.to.have.status(202)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "35:start-async-replicate-page-description-failure/failed-replicate-page-job-response-contains-expected-metadata",
+              "name": "failed replicate page job response contains expected metadata",
+              "dynamicName": false,
+              "event": "test",
+              "line": 7,
+              "matchers": [
+                {
+                  "id": "35:start-async-replicate-page-description-failure/failed-replicate-page-job-response-contains-expected-metadata.1",
+                  "kind": "pm.expect",
+                  "line": 8,
+                  "source": "pm.expect(body.model).to.eql('replicate')"
+                },
+                {
+                  "id": "35:start-async-replicate-page-description-failure/failed-replicate-page-job-response-contains-expected-metadata.2",
+                  "kind": "pm.expect",
+                  "line": 9,
+                  "source": "pm.expect(body.pageUrl).to.eql(pm.environment.get('sampleProviderFailurePageUrl'))"
+                },
+                {
+                  "id": "35:start-async-replicate-page-description-failure/failed-replicate-page-job-response-contains-expected-metadata.3",
+                  "kind": "pm.expect",
+                  "line": 10,
+                  "source": "pm.expect(body.status).to.match(/^(pending|processing|starting)$/)"
+                },
+                {
+                  "id": "35:start-async-replicate-page-description-failure/failed-replicate-page-job-response-contains-expected-metadata.4",
+                  "kind": "pm.expect",
+                  "line": 11,
+                  "source": "pm.expect(body.statusUrl).to.match(/^\\/api\\/v1\\/accessibility\\/page-description-jobs\\//)"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        },
+        {
+          "id": "35:poll-async-replicate-page-description-failure",
+          "name": "Poll async replicate page description failure",
+          "method": "GET",
+          "url": "{{baseUrl}}{{asyncClipFailurePageJobStatusUrl}}",
+          "expectedStatus": 200,
+          "skippable": false,
+          "pmTests": [
+            {
+              "id": "35:poll-async-replicate-page-description-failure/failed-replicate-page-job-stays-pending-until-it-settles",
+              "name": "failed replicate page job stays pending until it settles",
+              "dynamicName": false,
+              "event": "test",
+              "line": 6,
+              "matchers": [
+                {
+                  "id": "35:poll-async-replicate-page-description-failure/failed-replicate-page-job-stays-pending-until-it-settles.1",
+                  "kind": "pm.expect",
+                  "line": 7,
+                  "source": "pm.expect(body.status).to.match(/^(pending|processing|starting)$/)"
+                },
+                {
+                  "id": "35:poll-async-replicate-page-description-failure/failed-replicate-page-job-stays-pending-until-it-settles.2",
+                  "kind": "pm.expect",
+                  "line": 8,
+                  "source": "pm.expect(body.statusUrl).to.eql(pm.collectionVariables.get('asyncClipFailurePageJobStatusUrl'))"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "35:poll-async-replicate-page-description-failure/failed-replicate-page-job-polling-stays-within-the-attempt-budget",
+              "name": "failed replicate page job polling stays within the attempt budget",
+              "dynamicName": false,
+              "event": "test",
+              "line": 10,
+              "matchers": [
+                {
+                  "id": "35:poll-async-replicate-page-description-failure/failed-replicate-page-job-polling-stays-within-the-attempt-budget.1",
+                  "kind": "pm.expect",
+                  "line": 11,
+                  "source": "pm.expect(attempt).to.be.below(30)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "35:poll-async-replicate-page-description-failure/failed-replicate-page-job-eventually-returns-200",
+              "name": "failed replicate page job eventually returns 200",
+              "dynamicName": false,
+              "event": "test",
+              "line": 16,
+              "matchers": [
+                {
+                  "id": "35:poll-async-replicate-page-description-failure/failed-replicate-page-job-eventually-returns-200.1",
+                  "kind": "pm.response.to",
+                  "line": 17,
+                  "source": "pm.response.to.have.status(200)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "35:poll-async-replicate-page-description-failure/terminal-replicate-page-job-exposes-the-provider-failure",
+              "name": "terminal replicate page job exposes the provider failure",
+              "dynamicName": false,
+              "event": "test",
+              "line": 19,
+              "matchers": [
+                {
+                  "id": "35:poll-async-replicate-page-description-failure/terminal-replicate-page-job-exposes-the-provider-failure.1",
+                  "kind": "pm.expect",
+                  "line": 20,
+                  "source": "pm.expect(body.status).to.eql('failed')"
+                },
+                {
+                  "id": "35:poll-async-replicate-page-description-failure/terminal-replicate-page-job-exposes-the-provider-failure.2",
+                  "kind": "pm.expect",
+                  "line": 21,
+                  "source": "pm.expect(body.model).to.eql('replicate')"
+                },
+                {
+                  "id": "35:poll-async-replicate-page-description-failure/terminal-replicate-page-job-exposes-the-provider-failure.3",
+                  "kind": "pm.expect",
+                  "line": 22,
+                  "source": "pm.expect(body.pageUrl).to.eql(pm.environment.get('sampleProviderFailurePageUrl'))"
+                },
+                {
+                  "id": "35:poll-async-replicate-page-description-failure/terminal-replicate-page-job-exposes-the-provider-failure.4",
+                  "kind": "pm.expect",
+                  "line": 23,
+                  "source": "pm.expect(body.error).to.eql({ message: 'stub replicate provider failure' })"
+                },
+                {
+                  "id": "35:poll-async-replicate-page-description-failure/terminal-replicate-page-job-exposes-the-provider-failure.5",
+                  "kind": "pm.expect",
+                  "line": 24,
+                  "source": "pm.expect(body).not.to.have.property('result')"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        }
+      ]
+    },
+    {
+      "name": "40 Negative Paths",
+      "pmTests": [],
+      "unownedMatchers": [],
+      "requests": [
+        {
+          "id": "40:scraper-missing-url",
+          "name": "Scraper missing url",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/v1/scraper/images",
+          "expectedStatus": 400,
+          "skippable": false,
+          "pmTests": [
+            {
+              "id": "40:scraper-missing-url/returns-400",
+              "name": "returns 400",
+              "dynamicName": false,
+              "event": "test",
+              "line": 1,
+              "matchers": [
+                {
+                  "id": "40:scraper-missing-url/returns-400.1",
+                  "kind": "pm.response.to",
+                  "line": 2,
+                  "source": "pm.response.to.have.status(400)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "40:scraper-missing-url/error-matches-contract",
+              "name": "error matches contract",
+              "dynamicName": false,
+              "event": "test",
+              "line": 7,
+              "matchers": [
+                {
+                  "id": "40:scraper-missing-url/error-matches-contract.1",
+                  "kind": "pm.expect",
+                  "line": 8,
+                  "source": "pm.expect(body.error).to.eql('Missing required query parameter: url')"
+                },
+                {
+                  "id": "40:scraper-missing-url/error-matches-contract.2",
+                  "kind": "pm.expect",
+                  "line": 9,
+                  "source": "pm.expect(body.code).to.eql('QUERY_VALIDATION_ERROR')"
+                },
+                {
+                  "id": "40:scraper-missing-url/error-matches-contract.3",
+                  "kind": "pm.expect",
+                  "line": 10,
+                  "source": "pm.expect(body.requestId).to.be.a('string').and.not.empty"
+                },
+                {
+                  "id": "40:scraper-missing-url/error-matches-contract.4",
+                  "kind": "pm.expect",
+                  "line": 11,
+                  "source": "pm.expect(body.details).to.eql([{ field: 'url', issue: 'required' }])"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        },
+        {
+          "id": "40:scraper-invalid-url",
+          "name": "Scraper invalid url",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/v1/scraper/images",
+          "expectedStatus": 400,
+          "skippable": false,
+          "pmTests": [
+            {
+              "id": "40:scraper-invalid-url/returns-400",
+              "name": "returns 400",
+              "dynamicName": false,
+              "event": "test",
+              "line": 1,
+              "matchers": [
+                {
+                  "id": "40:scraper-invalid-url/returns-400.1",
+                  "kind": "pm.response.to",
+                  "line": 2,
+                  "source": "pm.response.to.have.status(400)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "40:scraper-invalid-url/error-matches-contract",
+              "name": "error matches contract",
+              "dynamicName": false,
+              "event": "test",
+              "line": 7,
+              "matchers": [
+                {
+                  "id": "40:scraper-invalid-url/error-matches-contract.1",
+                  "kind": "pm.expect",
+                  "line": 8,
+                  "source": "pm.expect(body.error).to.eql('Invalid URL format')"
+                },
+                {
+                  "id": "40:scraper-invalid-url/error-matches-contract.2",
+                  "kind": "pm.expect",
+                  "line": 9,
+                  "source": "pm.expect(body.code).to.eql('INVALID_PAGE_URL')"
+                },
+                {
+                  "id": "40:scraper-invalid-url/error-matches-contract.3",
+                  "kind": "pm.expect",
+                  "line": 10,
+                  "source": "pm.expect(body.requestId).to.be.a('string').and.not.empty"
+                },
+                {
+                  "id": "40:scraper-invalid-url/error-matches-contract.4",
+                  "kind": "pm.expect",
+                  "line": 11,
+                  "source": "pm.expect(body.details).to.eql([{ field: 'url', issue: 'invalid_url' }])"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        },
+        {
+          "id": "40:single-description-missing-image-source",
+          "name": "Single description missing image_source",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/v1/accessibility/description",
+          "expectedStatus": 400,
+          "skippable": false,
+          "pmTests": [
+            {
+              "id": "40:single-description-missing-image-source/returns-400",
+              "name": "returns 400",
+              "dynamicName": false,
+              "event": "test",
+              "line": 1,
+              "matchers": [
+                {
+                  "id": "40:single-description-missing-image-source/returns-400.1",
+                  "kind": "pm.response.to",
+                  "line": 2,
+                  "source": "pm.response.to.have.status(400)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "40:single-description-missing-image-source/error-matches-contract",
+              "name": "error matches contract",
+              "dynamicName": false,
+              "event": "test",
+              "line": 7,
+              "matchers": [
+                {
+                  "id": "40:single-description-missing-image-source/error-matches-contract.1",
+                  "kind": "pm.expect",
+                  "line": 8,
+                  "source": "pm.expect(body.error).to.eql('Missing required query parameters: image_source and model')"
+                },
+                {
+                  "id": "40:single-description-missing-image-source/error-matches-contract.2",
+                  "kind": "pm.expect",
+                  "line": 9,
+                  "source": "pm.expect(body.code).to.eql('QUERY_VALIDATION_ERROR')"
+                },
+                {
+                  "id": "40:single-description-missing-image-source/error-matches-contract.3",
+                  "kind": "pm.expect",
+                  "line": 10,
+                  "source": "pm.expect(body.requestId).to.be.a('string').and.not.empty"
+                },
+                {
+                  "id": "40:single-description-missing-image-source/error-matches-contract.4",
+                  "kind": "pm.expect",
+                  "line": 11,
+                  "source": "pm.expect(body.details).to.eql([{ field: 'image_source', issue: 'required' }])"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        },
+        {
+          "id": "40:single-description-invalid-image-source",
+          "name": "Single description invalid image_source",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/v1/accessibility/description",
+          "expectedStatus": 400,
+          "skippable": false,
+          "pmTests": [
+            {
+              "id": "40:single-description-invalid-image-source/returns-400",
+              "name": "returns 400",
+              "dynamicName": false,
+              "event": "test",
+              "line": 1,
+              "matchers": [
+                {
+                  "id": "40:single-description-invalid-image-source/returns-400.1",
+                  "kind": "pm.response.to",
+                  "line": 2,
+                  "source": "pm.response.to.have.status(400)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "40:single-description-invalid-image-source/error-matches-contract",
+              "name": "error matches contract",
+              "dynamicName": false,
+              "event": "test",
+              "line": 7,
+              "matchers": [
+                {
+                  "id": "40:single-description-invalid-image-source/error-matches-contract.1",
+                  "kind": "pm.expect",
+                  "line": 8,
+                  "source": "pm.expect(body.error).to.eql('Invalid image_source URL')"
+                },
+                {
+                  "id": "40:single-description-invalid-image-source/error-matches-contract.2",
+                  "kind": "pm.expect",
+                  "line": 9,
+                  "source": "pm.expect(body.code).to.eql('INVALID_IMAGE_SOURCE_URL')"
+                },
+                {
+                  "id": "40:single-description-invalid-image-source/error-matches-contract.3",
+                  "kind": "pm.expect",
+                  "line": 10,
+                  "source": "pm.expect(body.requestId).to.be.a('string').and.not.empty"
+                },
+                {
+                  "id": "40:single-description-invalid-image-source/error-matches-contract.4",
+                  "kind": "pm.expect",
+                  "line": 11,
+                  "source": "pm.expect(body.details).to.eql([{ field: 'image_source', issue: 'invalid_url' }])"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        },
+        {
+          "id": "40:single-description-unknown-model",
+          "name": "Single description unknown model",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/v1/accessibility/description",
+          "expectedStatus": 400,
+          "skippable": false,
+          "pmTests": [
+            {
+              "id": "40:single-description-unknown-model/returns-400",
+              "name": "returns 400",
+              "dynamicName": false,
+              "event": "test",
+              "line": 1,
+              "matchers": [
+                {
+                  "id": "40:single-description-unknown-model/returns-400.1",
+                  "kind": "pm.response.to",
+                  "line": 2,
+                  "source": "pm.response.to.have.status(400)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "40:single-description-unknown-model/error-identifies-unknown-model-and-available-providers",
+              "name": "error identifies unknown model and available providers",
+              "dynamicName": false,
+              "event": "test",
+              "line": 7,
+              "matchers": [
+                {
+                  "id": "40:single-description-unknown-model/error-identifies-unknown-model-and-available-providers.1",
+                  "kind": "pm.expect",
+                  "line": 8,
+                  "source": "pm.expect(body).to.have.property('error')"
+                },
+                {
+                  "id": "40:single-description-unknown-model/error-identifies-unknown-model-and-available-providers.2",
+                  "kind": "pm.expect",
+                  "line": 9,
+                  "source": "pm.expect(body.error).to.include(\"Unknown model 'unknownmodel'\")"
+                },
+                {
+                  "id": "40:single-description-unknown-model/error-identifies-unknown-model-and-available-providers.3",
+                  "kind": "pm.expect",
+                  "line": 10,
+                  "source": "pm.expect(body.error).to.include('replicate')"
+                },
+                {
+                  "id": "40:single-description-unknown-model/error-identifies-unknown-model-and-available-providers.4",
+                  "kind": "pm.expect",
+                  "line": 11,
+                  "source": "pm.expect(body.error).to.include('azure')"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        },
+        {
+          "id": "40:page-descriptions-missing-url",
+          "name": "Page descriptions missing url",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/v1/accessibility/descriptions",
+          "expectedStatus": 400,
+          "skippable": false,
+          "pmTests": [
+            {
+              "id": "40:page-descriptions-missing-url/returns-400",
+              "name": "returns 400",
+              "dynamicName": false,
+              "event": "test",
+              "line": 1,
+              "matchers": [
+                {
+                  "id": "40:page-descriptions-missing-url/returns-400.1",
+                  "kind": "pm.response.to",
+                  "line": 2,
+                  "source": "pm.response.to.have.status(400)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "40:page-descriptions-missing-url/error-matches-contract",
+              "name": "error matches contract",
+              "dynamicName": false,
+              "event": "test",
+              "line": 7,
+              "matchers": [
+                {
+                  "id": "40:page-descriptions-missing-url/error-matches-contract.1",
+                  "kind": "pm.expect",
+                  "line": 8,
+                  "source": "pm.expect(body.error).to.eql('Missing required query parameters: url and model')"
+                },
+                {
+                  "id": "40:page-descriptions-missing-url/error-matches-contract.2",
+                  "kind": "pm.expect",
+                  "line": 9,
+                  "source": "pm.expect(body.code).to.eql('QUERY_VALIDATION_ERROR')"
+                },
+                {
+                  "id": "40:page-descriptions-missing-url/error-matches-contract.3",
+                  "kind": "pm.expect",
+                  "line": 10,
+                  "source": "pm.expect(body.requestId).to.be.a('string').and.not.empty"
+                },
+                {
+                  "id": "40:page-descriptions-missing-url/error-matches-contract.4",
+                  "kind": "pm.expect",
+                  "line": 11,
+                  "source": "pm.expect(body.details).to.eql([{ field: 'url', issue: 'required' }])"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        },
+        {
+          "id": "40:page-descriptions-invalid-url",
+          "name": "Page descriptions invalid url",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/v1/accessibility/descriptions",
+          "expectedStatus": 400,
+          "skippable": false,
+          "pmTests": [
+            {
+              "id": "40:page-descriptions-invalid-url/returns-400",
+              "name": "returns 400",
+              "dynamicName": false,
+              "event": "test",
+              "line": 1,
+              "matchers": [
+                {
+                  "id": "40:page-descriptions-invalid-url/returns-400.1",
+                  "kind": "pm.response.to",
+                  "line": 2,
+                  "source": "pm.response.to.have.status(400)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "40:page-descriptions-invalid-url/error-matches-contract",
+              "name": "error matches contract",
+              "dynamicName": false,
+              "event": "test",
+              "line": 7,
+              "matchers": [
+                {
+                  "id": "40:page-descriptions-invalid-url/error-matches-contract.1",
+                  "kind": "pm.expect",
+                  "line": 8,
+                  "source": "pm.expect(body.error).to.eql('Invalid url parameter')"
+                },
+                {
+                  "id": "40:page-descriptions-invalid-url/error-matches-contract.2",
+                  "kind": "pm.expect",
+                  "line": 9,
+                  "source": "pm.expect(body.code).to.eql('INVALID_PAGE_URL')"
+                },
+                {
+                  "id": "40:page-descriptions-invalid-url/error-matches-contract.3",
+                  "kind": "pm.expect",
+                  "line": 10,
+                  "source": "pm.expect(body.requestId).to.be.a('string').and.not.empty"
+                },
+                {
+                  "id": "40:page-descriptions-invalid-url/error-matches-contract.4",
+                  "kind": "pm.expect",
+                  "line": 11,
+                  "source": "pm.expect(body.details).to.eql([{ field: 'url', issue: 'invalid_url' }])"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        },
+        {
+          "id": "40:page-descriptions-unknown-model",
+          "name": "Page descriptions unknown model",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/v1/accessibility/descriptions",
+          "expectedStatus": 400,
+          "skippable": false,
+          "pmTests": [
+            {
+              "id": "40:page-descriptions-unknown-model/returns-400",
+              "name": "returns 400",
+              "dynamicName": false,
+              "event": "test",
+              "line": 1,
+              "matchers": [
+                {
+                  "id": "40:page-descriptions-unknown-model/returns-400.1",
+                  "kind": "pm.response.to",
+                  "line": 2,
+                  "source": "pm.response.to.have.status(400)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "40:page-descriptions-unknown-model/error-identifies-unknown-model-and-available-providers",
+              "name": "error identifies unknown model and available providers",
+              "dynamicName": false,
+              "event": "test",
+              "line": 7,
+              "matchers": [
+                {
+                  "id": "40:page-descriptions-unknown-model/error-identifies-unknown-model-and-available-providers.1",
+                  "kind": "pm.expect",
+                  "line": 8,
+                  "source": "pm.expect(body).to.have.property('error')"
+                },
+                {
+                  "id": "40:page-descriptions-unknown-model/error-identifies-unknown-model-and-available-providers.2",
+                  "kind": "pm.expect",
+                  "line": 9,
+                  "source": "pm.expect(body.error).to.include(\"Unknown model 'unknownmodel'\")"
+                },
+                {
+                  "id": "40:page-descriptions-unknown-model/error-identifies-unknown-model-and-available-providers.3",
+                  "kind": "pm.expect",
+                  "line": 10,
+                  "source": "pm.expect(body.error).to.include('replicate')"
+                },
+                {
+                  "id": "40:page-descriptions-unknown-model/error-identifies-unknown-model-and-available-providers.4",
+                  "kind": "pm.expect",
+                  "line": 11,
+                  "source": "pm.expect(body.error).to.include('azure')"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        },
+        {
+          "id": "40:unknown-route",
+          "name": "Unknown route",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/v1/does-not-exist",
+          "expectedStatus": 404,
+          "skippable": false,
+          "pmTests": [
+            {
+              "id": "40:unknown-route/returns-404",
+              "name": "returns 404",
+              "dynamicName": false,
+              "event": "test",
+              "line": 1,
+              "matchers": [
+                {
+                  "id": "40:unknown-route/returns-404.1",
+                  "kind": "pm.response.to",
+                  "line": 2,
+                  "source": "pm.response.to.have.status(404)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "40:unknown-route/404-fallback-matches-contract",
+              "name": "404 fallback matches contract",
+              "dynamicName": false,
+              "event": "test",
+              "line": 7,
+              "matchers": [
+                {
+                  "id": "40:unknown-route/404-fallback-matches-contract.1",
+                  "kind": "pm.expect",
+                  "line": 8,
+                  "source": "pm.expect(body.error).to.eql('Endpoint not found')"
+                },
+                {
+                  "id": "40:unknown-route/404-fallback-matches-contract.2",
+                  "kind": "pm.expect",
+                  "line": 9,
+                  "source": "pm.expect(body.code).to.eql('ENDPOINT_NOT_FOUND')"
+                },
+                {
+                  "id": "40:unknown-route/404-fallback-matches-contract.3",
+                  "kind": "pm.expect",
+                  "line": 10,
+                  "source": "pm.expect(body.requestId).to.be.a('string').and.not.empty"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        }
+      ]
+    },
+    {
+      "name": "90 Provider Validation",
+      "pmTests": [],
+      "unownedMatchers": [],
+      "requests": [
+        {
+          "id": "90:provider-validation-single-image",
+          "name": "Provider validation single image",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/v1/accessibility/description",
+          "expectedStatus": 200,
+          "skippable": false,
+          "pmTests": [
+            {
+              "id": "90:provider-validation-single-image/async-provider-validation-single-image-request-returns-a-pending-job-payload",
+              "name": "async provider validation single-image request returns a pending job payload",
+              "dynamicName": false,
+              "event": "test",
+              "line": 3,
+              "matchers": [
+                {
+                  "id": "90:provider-validation-single-image/async-provider-validation-single-image-request-returns-a-pending-job-payload.1",
+                  "kind": "pm.expect",
+                  "line": 4,
+                  "source": "pm.expect(body.model).to.eql(pm.environment.get('model'))"
+                },
+                {
+                  "id": "90:provider-validation-single-image/async-provider-validation-single-image-request-returns-a-pending-job-payload.2",
+                  "kind": "pm.expect",
+                  "line": 5,
+                  "source": "pm.expect(body.imageUrl).to.eql(pm.environment.get('providerValidationImageUrl'))"
+                },
+                {
+                  "id": "90:provider-validation-single-image/async-provider-validation-single-image-request-returns-a-pending-job-payload.3",
+                  "kind": "pm.expect",
+                  "line": 6,
+                  "source": "pm.expect(body.status).to.match(/^(pending|processing|starting)$/)"
+                },
+                {
+                  "id": "90:provider-validation-single-image/async-provider-validation-single-image-request-returns-a-pending-job-payload.4",
+                  "kind": "pm.expect",
+                  "line": 7,
+                  "source": "pm.expect(body.statusUrl).to.match(/^\\/api\\/v1\\/accessibility\\/description-jobs\\//)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "90:provider-validation-single-image/returns-200",
+              "name": "returns 200",
+              "dynamicName": false,
+              "event": "test",
+              "line": 12,
+              "matchers": [
+                {
+                  "id": "90:provider-validation-single-image/returns-200.1",
+                  "kind": "pm.response.to",
+                  "line": 13,
+                  "source": "pm.response.to.have.status(200)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "90:provider-validation-single-image/response-is-a-one-item-array",
+              "name": "response is a one-item array",
+              "dynamicName": false,
+              "event": "test",
+              "line": 16,
+              "matchers": [
+                {
+                  "id": "90:provider-validation-single-image/response-is-a-one-item-array.1",
+                  "kind": "pm.expect",
+                  "line": 17,
+                  "source": "pm.expect(body).to.be.an('array').with.lengthOf(1)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "90:provider-validation-single-image/description-is-a-non-empty-string-for-the-requested-image",
+              "name": "description is a non-empty string for the requested image",
+              "dynamicName": false,
+              "event": "test",
+              "line": 19,
+              "matchers": [
+                {
+                  "id": "90:provider-validation-single-image/description-is-a-non-empty-string-for-the-requested-image.1",
+                  "kind": "pm.expect",
+                  "line": 20,
+                  "source": "pm.expect(body[0].imageUrl).to.eql(pm.environment.get('providerValidationImageUrl'))"
+                },
+                {
+                  "id": "90:provider-validation-single-image/description-is-a-non-empty-string-for-the-requested-image.2",
+                  "kind": "pm.expect",
+                  "line": 21,
+                  "source": "pm.expect(body[0].description).to.be.a('string')"
+                },
+                {
+                  "id": "90:provider-validation-single-image/description-is-a-non-empty-string-for-the-requested-image.3",
+                  "kind": "pm.expect",
+                  "line": 22,
+                  "source": "pm.expect(body[0].description.length).to.be.above(5)"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        },
+        {
+          "id": "90:provider-validation-single-image-job-status",
+          "name": "Provider validation single image job status",
+          "method": "GET",
+          "url": "{{baseUrl}}{{providerValidationDescriptionStatusUrl}}",
+          "expectedStatus": 200,
+          "skippable": true,
+          "pmTests": [
+            {
+              "id": "90:provider-validation-single-image-job-status/single-image-async-job-remains-pending-until-the-provider-completes",
+              "name": "single-image async job remains pending until the provider completes",
+              "dynamicName": false,
+              "event": "test",
+              "line": 10,
+              "matchers": [
+                {
+                  "id": "90:provider-validation-single-image-job-status/single-image-async-job-remains-pending-until-the-provider-completes.1",
+                  "kind": "pm.expect",
+                  "line": 11,
+                  "source": "pm.expect(body.status).to.match(/^(pending|processing|starting)$/)"
+                },
+                {
+                  "id": "90:provider-validation-single-image-job-status/single-image-async-job-remains-pending-until-the-provider-completes.2",
+                  "kind": "pm.expect",
+                  "line": 12,
+                  "source": "pm.expect(body.statusUrl).to.eql(pm.collectionVariables.get('providerValidationDescriptionStatusUrl'))"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "90:provider-validation-single-image-job-status/single-image-provider-validation-stays-within-the-polling-budget",
+              "name": "single-image provider validation stays within the polling budget",
+              "dynamicName": false,
+              "event": "test",
+              "line": 15,
+              "matchers": [
+                {
+                  "id": "90:provider-validation-single-image-job-status/single-image-provider-validation-stays-within-the-polling-budget.1",
+                  "kind": "pm.expect.fail",
+                  "line": 16,
+                  "source": "pm.expect.fail(`pending after ${attempt} polls; max allowed is ${maxAttempts - 1}`)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "90:provider-validation-single-image-job-status/single-image-provider-validation-stays-within-the-polling-budget~2",
+              "name": "single-image provider validation stays within the polling budget",
+              "dynamicName": false,
+              "event": "test",
+              "line": 21,
+              "matchers": [
+                {
+                  "id": "90:provider-validation-single-image-job-status/single-image-provider-validation-stays-within-the-polling-budget~2.1",
+                  "kind": "pm.expect",
+                  "line": 22,
+                  "source": "pm.expect(attempt).to.be.below(maxAttempts)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "90:provider-validation-single-image-job-status/single-image-async-job-eventually-returns-200",
+              "name": "single-image async job eventually returns 200",
+              "dynamicName": false,
+              "event": "test",
+              "line": 28,
+              "matchers": [
+                {
+                  "id": "90:provider-validation-single-image-job-status/single-image-async-job-eventually-returns-200.1",
+                  "kind": "pm.response.to",
+                  "line": 29,
+                  "source": "pm.response.to.have.status(200)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "90:provider-validation-single-image-job-status/single-image-async-job-succeeded-with-a-usable-description",
+              "name": "single-image async job succeeded with a usable description",
+              "dynamicName": false,
+              "event": "test",
+              "line": 31,
+              "matchers": [
+                {
+                  "id": "90:provider-validation-single-image-job-status/single-image-async-job-succeeded-with-a-usable-description.1",
+                  "kind": "pm.expect",
+                  "line": 32,
+                  "source": "pm.expect(body.status).to.eql('succeeded')"
+                },
+                {
+                  "id": "90:provider-validation-single-image-job-status/single-image-async-job-succeeded-with-a-usable-description.2",
+                  "kind": "pm.expect",
+                  "line": 33,
+                  "source": "pm.expect(body.model).to.eql(pm.environment.get('model'))"
+                },
+                {
+                  "id": "90:provider-validation-single-image-job-status/single-image-async-job-succeeded-with-a-usable-description.3",
+                  "kind": "pm.expect",
+                  "line": 34,
+                  "source": "pm.expect(body.imageUrl).to.eql(pm.environment.get('providerValidationImageUrl'))"
+                },
+                {
+                  "id": "90:provider-validation-single-image-job-status/single-image-async-job-succeeded-with-a-usable-description.4",
+                  "kind": "pm.expect",
+                  "line": 35,
+                  "source": "pm.expect(body.result.imageUrl).to.eql(pm.environment.get('providerValidationImageUrl'))"
+                },
+                {
+                  "id": "90:provider-validation-single-image-job-status/single-image-async-job-succeeded-with-a-usable-description.5",
+                  "kind": "pm.expect",
+                  "line": 36,
+                  "source": "pm.expect(body.result.description).to.be.a('string')"
+                },
+                {
+                  "id": "90:provider-validation-single-image-job-status/single-image-async-job-succeeded-with-a-usable-description.6",
+                  "kind": "pm.expect",
+                  "line": 37,
+                  "source": "pm.expect(body.result.description.length).to.be.above(5)"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        },
+        {
+          "id": "90:provider-validation-page-descriptions",
+          "name": "Provider validation page descriptions",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/v1/accessibility/descriptions",
+          "expectedStatus": 200,
+          "skippable": false,
+          "pmTests": [
+            {
+              "id": "90:provider-validation-page-descriptions/async-provider-validation-page-request-returns-a-pending-page-job-payload",
+              "name": "async provider validation page request returns a pending page job payload",
+              "dynamicName": false,
+              "event": "test",
+              "line": 3,
+              "matchers": [
+                {
+                  "id": "90:provider-validation-page-descriptions/async-provider-validation-page-request-returns-a-pending-page-job-payload.1",
+                  "kind": "pm.expect",
+                  "line": 4,
+                  "source": "pm.expect(body.model).to.eql(pm.environment.get('model'))"
+                },
+                {
+                  "id": "90:provider-validation-page-descriptions/async-provider-validation-page-request-returns-a-pending-page-job-payload.2",
+                  "kind": "pm.expect",
+                  "line": 5,
+                  "source": "pm.expect(body.pageUrl).to.eql(pm.environment.get('providerValidationPageUrl'))"
+                },
+                {
+                  "id": "90:provider-validation-page-descriptions/async-provider-validation-page-request-returns-a-pending-page-job-payload.3",
+                  "kind": "pm.expect",
+                  "line": 6,
+                  "source": "pm.expect(body.status).to.match(/^(pending|processing|starting)$/)"
+                },
+                {
+                  "id": "90:provider-validation-page-descriptions/async-provider-validation-page-request-returns-a-pending-page-job-payload.4",
+                  "kind": "pm.expect",
+                  "line": 7,
+                  "source": "pm.expect(body.statusUrl).to.match(/^\\/api\\/v1\\/accessibility\\/page-description-jobs\\//)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "90:provider-validation-page-descriptions/returns-200",
+              "name": "returns 200",
+              "dynamicName": false,
+              "event": "test",
+              "line": 12,
+              "matchers": [
+                {
+                  "id": "90:provider-validation-page-descriptions/returns-200.1",
+                  "kind": "pm.response.to",
+                  "line": 13,
+                  "source": "pm.response.to.have.status(200)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "90:provider-validation-page-descriptions/response-includes-page-metadata",
+              "name": "response includes page metadata",
+              "dynamicName": false,
+              "event": "test",
+              "line": 16,
+              "matchers": [
+                {
+                  "id": "90:provider-validation-page-descriptions/response-includes-page-metadata.1",
+                  "kind": "pm.expect",
+                  "line": 17,
+                  "source": "pm.expect(body.pageUrl).to.eql(pm.environment.get('providerValidationPageUrl'))"
+                },
+                {
+                  "id": "90:provider-validation-page-descriptions/response-includes-page-metadata.2",
+                  "kind": "pm.expect",
+                  "line": 18,
+                  "source": "pm.expect(body.model).to.eql(pm.environment.get('model'))"
+                },
+                {
+                  "id": "90:provider-validation-page-descriptions/response-includes-page-metadata.3",
+                  "kind": "pm.expect",
+                  "line": 19,
+                  "source": "pm.expect(body.totalImages).to.be.a('number')"
+                },
+                {
+                  "id": "90:provider-validation-page-descriptions/response-includes-page-metadata.4",
+                  "kind": "pm.expect",
+                  "line": 20,
+                  "source": "pm.expect(body.uniqueImages).to.be.a('number')"
+                },
+                {
+                  "id": "90:provider-validation-page-descriptions/response-includes-page-metadata.5",
+                  "kind": "pm.expect",
+                  "line": 21,
+                  "source": "pm.expect(body.descriptions).to.be.an('array')"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "90:provider-validation-page-descriptions/at-least-one-description-is-returned",
+              "name": "at least one description is returned",
+              "dynamicName": false,
+              "event": "test",
+              "line": 23,
+              "matchers": [
+                {
+                  "id": "90:provider-validation-page-descriptions/at-least-one-description-is-returned.1",
+                  "kind": "pm.expect",
+                  "line": 24,
+                  "source": "pm.expect(body.descriptions.length).to.be.above(0)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "90:provider-validation-page-descriptions/each-description-has-the-expected-shape",
+              "name": "each description has the expected shape",
+              "dynamicName": false,
+              "event": "test",
+              "line": 26,
+              "matchers": [
+                {
+                  "id": "90:provider-validation-page-descriptions/each-description-has-the-expected-shape.1",
+                  "kind": "pm.expect",
+                  "line": 28,
+                  "source": "pm.expect(item).to.have.property('imageUrl')"
+                },
+                {
+                  "id": "90:provider-validation-page-descriptions/each-description-has-the-expected-shape.2",
+                  "kind": "pm.expect",
+                  "line": 29,
+                  "source": "pm.expect(item).to.have.property('description')"
+                },
+                {
+                  "id": "90:provider-validation-page-descriptions/each-description-has-the-expected-shape.3",
+                  "kind": "pm.expect",
+                  "line": 30,
+                  "source": "pm.expect(item.imageUrl).to.be.a('string')"
+                },
+                {
+                  "id": "90:provider-validation-page-descriptions/each-description-has-the-expected-shape.4",
+                  "kind": "pm.expect",
+                  "line": 31,
+                  "source": "pm.expect(item.description).to.be.a('string')"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        },
+        {
+          "id": "90:provider-validation-page-description-job-status",
+          "name": "Provider validation page description job status",
+          "method": "GET",
+          "url": "{{baseUrl}}{{providerValidationPageStatusUrl}}",
+          "expectedStatus": 200,
+          "skippable": true,
+          "pmTests": [
+            {
+              "id": "90:provider-validation-page-description-job-status/page-async-job-remains-pending-until-the-provider-completes",
+              "name": "page async job remains pending until the provider completes",
+              "dynamicName": false,
+              "event": "test",
+              "line": 10,
+              "matchers": [
+                {
+                  "id": "90:provider-validation-page-description-job-status/page-async-job-remains-pending-until-the-provider-completes.1",
+                  "kind": "pm.expect",
+                  "line": 11,
+                  "source": "pm.expect(body.status).to.match(/^(pending|processing|starting)$/)"
+                },
+                {
+                  "id": "90:provider-validation-page-description-job-status/page-async-job-remains-pending-until-the-provider-completes.2",
+                  "kind": "pm.expect",
+                  "line": 12,
+                  "source": "pm.expect(body.statusUrl).to.eql(pm.collectionVariables.get('providerValidationPageStatusUrl'))"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "90:provider-validation-page-description-job-status/page-provider-validation-stays-within-the-polling-budget",
+              "name": "page provider validation stays within the polling budget",
+              "dynamicName": false,
+              "event": "test",
+              "line": 15,
+              "matchers": [
+                {
+                  "id": "90:provider-validation-page-description-job-status/page-provider-validation-stays-within-the-polling-budget.1",
+                  "kind": "pm.expect.fail",
+                  "line": 16,
+                  "source": "pm.expect.fail(`pending after ${attempt} polls; max allowed is ${maxAttempts - 1}`)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "90:provider-validation-page-description-job-status/page-provider-validation-stays-within-the-polling-budget~2",
+              "name": "page provider validation stays within the polling budget",
+              "dynamicName": false,
+              "event": "test",
+              "line": 21,
+              "matchers": [
+                {
+                  "id": "90:provider-validation-page-description-job-status/page-provider-validation-stays-within-the-polling-budget~2.1",
+                  "kind": "pm.expect",
+                  "line": 22,
+                  "source": "pm.expect(attempt).to.be.below(maxAttempts)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "90:provider-validation-page-description-job-status/page-async-job-eventually-returns-200",
+              "name": "page async job eventually returns 200",
+              "dynamicName": false,
+              "event": "test",
+              "line": 28,
+              "matchers": [
+                {
+                  "id": "90:provider-validation-page-description-job-status/page-async-job-eventually-returns-200.1",
+                  "kind": "pm.response.to",
+                  "line": 29,
+                  "source": "pm.response.to.have.status(200)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "90:provider-validation-page-description-job-status/page-async-job-succeeded-with-page-metadata-and-descriptions",
+              "name": "page async job succeeded with page metadata and descriptions",
+              "dynamicName": false,
+              "event": "test",
+              "line": 31,
+              "matchers": [
+                {
+                  "id": "90:provider-validation-page-description-job-status/page-async-job-succeeded-with-page-metadata-and-descriptions.1",
+                  "kind": "pm.expect",
+                  "line": 32,
+                  "source": "pm.expect(body.status).to.eql('succeeded')"
+                },
+                {
+                  "id": "90:provider-validation-page-description-job-status/page-async-job-succeeded-with-page-metadata-and-descriptions.2",
+                  "kind": "pm.expect",
+                  "line": 33,
+                  "source": "pm.expect(body.model).to.eql(pm.environment.get('model'))"
+                },
+                {
+                  "id": "90:provider-validation-page-description-job-status/page-async-job-succeeded-with-page-metadata-and-descriptions.3",
+                  "kind": "pm.expect",
+                  "line": 34,
+                  "source": "pm.expect(body.pageUrl).to.eql(pm.environment.get('providerValidationPageUrl'))"
+                },
+                {
+                  "id": "90:provider-validation-page-description-job-status/page-async-job-succeeded-with-page-metadata-and-descriptions.4",
+                  "kind": "pm.expect",
+                  "line": 35,
+                  "source": "pm.expect(body.result.pageUrl).to.eql(pm.environment.get('providerValidationPageUrl'))"
+                },
+                {
+                  "id": "90:provider-validation-page-description-job-status/page-async-job-succeeded-with-page-metadata-and-descriptions.5",
+                  "kind": "pm.expect",
+                  "line": 36,
+                  "source": "pm.expect(body.result.model).to.eql(pm.environment.get('model'))"
+                },
+                {
+                  "id": "90:provider-validation-page-description-job-status/page-async-job-succeeded-with-page-metadata-and-descriptions.6",
+                  "kind": "pm.expect",
+                  "line": 37,
+                  "source": "pm.expect(body.result.totalImages).to.be.a('number')"
+                },
+                {
+                  "id": "90:provider-validation-page-description-job-status/page-async-job-succeeded-with-page-metadata-and-descriptions.7",
+                  "kind": "pm.expect",
+                  "line": 38,
+                  "source": "pm.expect(body.result.uniqueImages).to.be.a('number')"
+                },
+                {
+                  "id": "90:provider-validation-page-description-job-status/page-async-job-succeeded-with-page-metadata-and-descriptions.8",
+                  "kind": "pm.expect",
+                  "line": 39,
+                  "source": "pm.expect(body.result.descriptions).to.be.an('array')"
+                },
+                {
+                  "id": "90:provider-validation-page-description-job-status/page-async-job-succeeded-with-page-metadata-and-descriptions.9",
+                  "kind": "pm.expect",
+                  "line": 40,
+                  "source": "pm.expect(body.result.descriptions.length).to.be.above(0)"
+                },
+                {
+                  "id": "90:provider-validation-page-description-job-status/page-async-job-succeeded-with-page-metadata-and-descriptions.10",
+                  "kind": "pm.expect",
+                  "line": 42,
+                  "source": "pm.expect(item).to.have.property('imageUrl')"
+                },
+                {
+                  "id": "90:provider-validation-page-description-job-status/page-async-job-succeeded-with-page-metadata-and-descriptions.11",
+                  "kind": "pm.expect",
+                  "line": 43,
+                  "source": "pm.expect(item).to.have.property('description')"
+                },
+                {
+                  "id": "90:provider-validation-page-description-job-status/page-async-job-succeeded-with-page-metadata-and-descriptions.12",
+                  "kind": "pm.expect",
+                  "line": 44,
+                  "source": "pm.expect(item.imageUrl).to.be.a('string')"
+                },
+                {
+                  "id": "90:provider-validation-page-description-job-status/page-async-job-succeeded-with-page-metadata-and-descriptions.13",
+                  "kind": "pm.expect",
+                  "line": 45,
+                  "source": "pm.expect(item.description).to.be.a('string')"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        }
+      ]
+    },
+    {
+      "name": "91 Azure Provider Validation",
+      "pmTests": [],
+      "unownedMatchers": [],
+      "requests": [
+        {
+          "id": "91:azure-provider-validation-single-image",
+          "name": "Azure provider validation single image",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/v1/accessibility/description",
+          "expectedStatus": 200,
+          "skippable": false,
+          "pmTests": [
+            {
+              "id": "91:azure-provider-validation-single-image/returns-200",
+              "name": "returns 200",
+              "dynamicName": false,
+              "event": "test",
+              "line": 1,
+              "matchers": [
+                {
+                  "id": "91:azure-provider-validation-single-image/returns-200.1",
+                  "kind": "pm.response.to",
+                  "line": 2,
+                  "source": "pm.response.to.have.status(200)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "91:azure-provider-validation-single-image/response-is-a-one-item-array",
+              "name": "response is a one-item array",
+              "dynamicName": false,
+              "event": "test",
+              "line": 7,
+              "matchers": [
+                {
+                  "id": "91:azure-provider-validation-single-image/response-is-a-one-item-array.1",
+                  "kind": "pm.expect",
+                  "line": 8,
+                  "source": "pm.expect(body).to.be.an('array').with.lengthOf(1)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "91:azure-provider-validation-single-image/azure-description-is-a-non-empty-string-for-the-requested-image",
+              "name": "azure description is a non-empty string for the requested image",
+              "dynamicName": false,
+              "event": "test",
+              "line": 11,
+              "matchers": [
+                {
+                  "id": "91:azure-provider-validation-single-image/azure-description-is-a-non-empty-string-for-the-requested-image.1",
+                  "kind": "pm.expect",
+                  "line": 12,
+                  "source": "pm.expect(body[0].imageUrl).to.eql(pm.environment.get('providerValidationAzureImageUrl'))"
+                },
+                {
+                  "id": "91:azure-provider-validation-single-image/azure-description-is-a-non-empty-string-for-the-requested-image.2",
+                  "kind": "pm.expect",
+                  "line": 13,
+                  "source": "pm.expect(body[0].description).to.be.a('string')"
+                },
+                {
+                  "id": "91:azure-provider-validation-single-image/azure-description-is-a-non-empty-string-for-the-requested-image.3",
+                  "kind": "pm.expect",
+                  "line": 14,
+                  "source": "pm.expect(body[0].description.length).to.be.above(0)"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        },
+        {
+          "id": "91:azure-provider-validation-page-descriptions",
+          "name": "Azure provider validation page descriptions",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/v1/accessibility/descriptions",
+          "expectedStatus": 200,
+          "skippable": false,
+          "pmTests": [
+            {
+              "id": "91:azure-provider-validation-page-descriptions/returns-200",
+              "name": "returns 200",
+              "dynamicName": false,
+              "event": "test",
+              "line": 1,
+              "matchers": [
+                {
+                  "id": "91:azure-provider-validation-page-descriptions/returns-200.1",
+                  "kind": "pm.response.to",
+                  "line": 2,
+                  "source": "pm.response.to.have.status(200)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "91:azure-provider-validation-page-descriptions/response-includes-azure-page-metadata",
+              "name": "response includes azure page metadata",
+              "dynamicName": false,
+              "event": "test",
+              "line": 7,
+              "matchers": [
+                {
+                  "id": "91:azure-provider-validation-page-descriptions/response-includes-azure-page-metadata.1",
+                  "kind": "pm.expect",
+                  "line": 8,
+                  "source": "pm.expect(body.pageUrl).to.eql(pm.environment.get('providerValidationAzurePageUrl'))"
+                },
+                {
+                  "id": "91:azure-provider-validation-page-descriptions/response-includes-azure-page-metadata.2",
+                  "kind": "pm.expect",
+                  "line": 9,
+                  "source": "pm.expect(body.model).to.eql('azure')"
+                },
+                {
+                  "id": "91:azure-provider-validation-page-descriptions/response-includes-azure-page-metadata.3",
+                  "kind": "pm.expect",
+                  "line": 10,
+                  "source": "pm.expect(body.totalImages).to.be.a('number')"
+                },
+                {
+                  "id": "91:azure-provider-validation-page-descriptions/response-includes-azure-page-metadata.4",
+                  "kind": "pm.expect",
+                  "line": 11,
+                  "source": "pm.expect(body.uniqueImages).to.be.a('number')"
+                },
+                {
+                  "id": "91:azure-provider-validation-page-descriptions/response-includes-azure-page-metadata.5",
+                  "kind": "pm.expect",
+                  "line": 12,
+                  "source": "pm.expect(body.descriptions).to.be.an('array')"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "91:azure-provider-validation-page-descriptions/at-least-one-azure-description-is-returned",
+              "name": "at least one azure description is returned",
+              "dynamicName": false,
+              "event": "test",
+              "line": 15,
+              "matchers": [
+                {
+                  "id": "91:azure-provider-validation-page-descriptions/at-least-one-azure-description-is-returned.1",
+                  "kind": "pm.expect",
+                  "line": 16,
+                  "source": "pm.expect(body.descriptions.length).to.be.above(0)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "91:azure-provider-validation-page-descriptions/each-azure-description-has-the-expected-shape",
+              "name": "each azure description has the expected shape",
+              "dynamicName": false,
+              "event": "test",
+              "line": 19,
+              "matchers": [
+                {
+                  "id": "91:azure-provider-validation-page-descriptions/each-azure-description-has-the-expected-shape.1",
+                  "kind": "pm.expect",
+                  "line": 21,
+                  "source": "pm.expect(item).to.have.property('imageUrl')"
+                },
+                {
+                  "id": "91:azure-provider-validation-page-descriptions/each-azure-description-has-the-expected-shape.2",
+                  "kind": "pm.expect",
+                  "line": 22,
+                  "source": "pm.expect(item).to.have.property('description')"
+                },
+                {
+                  "id": "91:azure-provider-validation-page-descriptions/each-azure-description-has-the-expected-shape.3",
+                  "kind": "pm.expect",
+                  "line": 23,
+                  "source": "pm.expect(item.imageUrl).to.be.a('string')"
+                },
+                {
+                  "id": "91:azure-provider-validation-page-descriptions/each-azure-description-has-the-expected-shape.4",
+                  "kind": "pm.expect",
+                  "line": 24,
+                  "source": "pm.expect(item.description).to.be.a('string')"
+                },
+                {
+                  "id": "91:azure-provider-validation-page-descriptions/each-azure-description-has-the-expected-shape.5",
+                  "kind": "pm.expect",
+                  "line": 25,
+                  "source": "pm.expect(item.description.length).to.be.above(0)"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        }
+      ]
+    },
+    {
+      "name": "95 Post Deploy Verification",
+      "pmTests": [],
+      "unownedMatchers": [],
+      "requests": [
+        {
+          "id": "95:post-deploy-health",
+          "name": "Post deploy health",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/health",
+          "expectedStatus": 200,
+          "skippable": false,
+          "pmTests": [
+            {
+              "id": "95:post-deploy-health/deploy-health-returns-200",
+              "name": "deploy health returns 200",
+              "dynamicName": false,
+              "event": "test",
+              "line": 1,
+              "matchers": [
+                {
+                  "id": "95:post-deploy-health/deploy-health-returns-200.1",
+                  "kind": "pm.response.to",
+                  "line": 2,
+                  "source": "pm.response.to.have.status(200)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "95:post-deploy-health/deploy-health-payload-contains-expected-fields",
+              "name": "deploy health payload contains expected fields",
+              "dynamicName": false,
+              "event": "test",
+              "line": 7,
+              "matchers": [
+                {
+                  "id": "95:post-deploy-health/deploy-health-payload-contains-expected-fields.1",
+                  "kind": "pm.expect",
+                  "line": 8,
+                  "source": "pm.expect(body).to.have.property('message', 'OK')"
+                },
+                {
+                  "id": "95:post-deploy-health/deploy-health-payload-contains-expected-fields.2",
+                  "kind": "pm.expect",
+                  "line": 9,
+                  "source": "pm.expect(body).to.have.property('uptime')"
+                },
+                {
+                  "id": "95:post-deploy-health/deploy-health-payload-contains-expected-fields.3",
+                  "kind": "pm.expect",
+                  "line": 10,
+                  "source": "pm.expect(body).to.have.property('timestamp')"
+                },
+                {
+                  "id": "95:post-deploy-health/deploy-health-payload-contains-expected-fields.4",
+                  "kind": "pm.expect",
+                  "line": 11,
+                  "source": "pm.expect(body.uptime).to.be.a('number')"
+                },
+                {
+                  "id": "95:post-deploy-health/deploy-health-payload-contains-expected-fields.5",
+                  "kind": "pm.expect",
+                  "line": 12,
+                  "source": "pm.expect(body.timestamp).to.be.a('number')"
+                },
+                {
+                  "id": "95:post-deploy-health/deploy-health-payload-contains-expected-fields.6",
+                  "kind": "pm.expect",
+                  "line": 13,
+                  "source": "pm.expect(body).to.have.property('commit')"
+                },
+                {
+                  "id": "95:post-deploy-health/deploy-health-payload-contains-expected-fields.7",
+                  "kind": "pm.expect",
+                  "line": 14,
+                  "source": "pm.expect(body.commit, 'commit is a full SHA or null').to.satisfy((commit) => commit === null || /^[0-9a-f]{40}$/.test(commit))"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        },
+        {
+          "id": "95:post-deploy-swagger-spec",
+          "name": "Post deploy swagger spec",
+          "method": "GET",
+          "url": "{{baseUrl}}/api-docs/swagger-ui-init.js",
+          "expectedStatus": 200,
+          "skippable": false,
+          "pmTests": [
+            {
+              "id": "95:post-deploy-swagger-spec/deploy-swagger-init-returns-200",
+              "name": "deploy swagger init returns 200",
+              "dynamicName": false,
+              "event": "test",
+              "line": 1,
+              "matchers": [
+                {
+                  "id": "95:post-deploy-swagger-spec/deploy-swagger-init-returns-200.1",
+                  "kind": "pm.response.to",
+                  "line": 2,
+                  "source": "pm.response.to.have.status(200)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "95:post-deploy-swagger-spec/deploy-swagger-init-exposes-an-embedded-servers-array",
+              "name": "deploy swagger init exposes an embedded servers array",
+              "dynamicName": false,
+              "event": "test",
+              "line": 8,
+              "matchers": [
+                {
+                  "id": "95:post-deploy-swagger-spec/deploy-swagger-init-exposes-an-embedded-servers-array.1",
+                  "kind": "pm.expect",
+                  "line": 9,
+                  "source": "pm.expect(match, 'servers array not found in swagger-ui-init.js').not.to.eql(null)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "95:post-deploy-swagger-spec/deploy-swagger-spec-includes-the-expected-production-server",
+              "name": "deploy swagger spec includes the expected production server",
+              "dynamicName": false,
+              "event": "test",
+              "line": 15,
+              "matchers": [
+                {
+                  "id": "95:post-deploy-swagger-spec/deploy-swagger-spec-includes-the-expected-production-server.1",
+                  "kind": "pm.expect",
+                  "line": 16,
+                  "source": "pm.expect(servers.some((server) => server.url === expectedSwaggerServerUrl)).to.eql(true)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "95:post-deploy-swagger-spec/deploy-swagger-spec-does-not-reference-the-retired-qcraft-dev-domain",
+              "name": "deploy swagger spec does not reference the retired qcraft.dev domain",
+              "dynamicName": false,
+              "event": "test",
+              "line": 19,
+              "matchers": [
+                {
+                  "id": "95:post-deploy-swagger-spec/deploy-swagger-spec-does-not-reference-the-retired-qcraft-dev-domain.1",
+                  "kind": "pm.expect",
+                  "line": 20,
+                  "source": "pm.expect(body).not.to.include('wcag.qcraft.dev')"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        },
+        {
+          "id": "95:post-deploy-protected-auth-expectation",
+          "name": "Post deploy protected auth expectation",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/scraper/images",
+          "expectedStatus": null,
+          "skippable": false,
+          "pmTests": [
+            {
+              "id": "95:post-deploy-protected-auth-expectation/deploy-protected-auth-expectation-matches-configured-production-auth-state",
+              "name": "deploy protected auth expectation matches configured production auth state",
+              "dynamicName": false,
+              "event": "test",
+              "line": 7,
+              "matchers": [
+                {
+                  "id": "95:post-deploy-protected-auth-expectation/deploy-protected-auth-expectation-matches-configured-production-auth-state.1",
+                  "kind": "pm.expect",
+                  "line": 8,
+                  "source": "pm.expect(pm.response.code, failureMessage).to.eql(expectedStatus)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "95:post-deploy-protected-auth-expectation/deploy-unauthorized-response-matches-the-public-error-contract",
+              "name": "deploy unauthorized response matches the public error contract",
+              "dynamicName": false,
+              "event": "test",
+              "line": 14,
+              "matchers": [
+                {
+                  "id": "95:post-deploy-protected-auth-expectation/deploy-unauthorized-response-matches-the-public-error-contract.1",
+                  "kind": "pm.expect",
+                  "line": 15,
+                  "source": "pm.expect(body).to.have.property('code', 'API_AUTHENTICATION_FAILED')"
+                },
+                {
+                  "id": "95:post-deploy-protected-auth-expectation/deploy-unauthorized-response-matches-the-public-error-contract.2",
+                  "kind": "pm.expect",
+                  "line": 16,
+                  "source": "pm.expect(body).to.have.property('error', 'Missing or invalid API authentication credentials')"
+                },
+                {
+                  "id": "95:post-deploy-protected-auth-expectation/deploy-unauthorized-response-matches-the-public-error-contract.3",
+                  "kind": "pm.expect",
+                  "line": 17,
+                  "source": "pm.expect(body).to.have.property('requestId')"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "95:post-deploy-protected-auth-expectation/deploy-unauthenticated-protected-request-succeeds-when-auth-is-disabled",
+              "name": "deploy unauthenticated protected request succeeds when auth is disabled",
+              "dynamicName": false,
+              "event": "test",
+              "line": 20,
+              "matchers": [
+                {
+                  "id": "95:post-deploy-protected-auth-expectation/deploy-unauthenticated-protected-request-succeeds-when-auth-is-disabled.1",
+                  "kind": "pm.expect",
+                  "line": 21,
+                  "source": "pm.expect(body).to.have.property('imageSources')"
+                },
+                {
+                  "id": "95:post-deploy-protected-auth-expectation/deploy-unauthenticated-protected-request-succeeds-when-auth-is-disabled.2",
+                  "kind": "pm.expect",
+                  "line": 22,
+                  "source": "pm.expect(body.imageSources).to.be.an('array')"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        }
+      ]
+    },
+    {
+      "name": "96 Post Deploy Protected Verification",
+      "pmTests": [],
+      "unownedMatchers": [],
+      "requests": [
+        {
+          "id": "96:post-deploy-scraper-contract",
+          "name": "Post deploy scraper contract",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/scraper/images",
+          "expectedStatus": 200,
+          "skippable": false,
+          "pmTests": [
+            {
+              "id": "96:post-deploy-scraper-contract/deploy-scraper-returns-200",
+              "name": "deploy scraper returns 200",
+              "dynamicName": false,
+              "event": "test",
+              "line": 1,
+              "matchers": [
+                {
+                  "id": "96:post-deploy-scraper-contract/deploy-scraper-returns-200.1",
+                  "kind": "pm.expect",
+                  "line": 2,
+                  "source": "pm.expect(pm.response.code, 'Expected deploy scraper request to succeed. Verify PRODUCTION_DEPLOY_VALIDATION_API_TOKEN matches a token in Render API_AUTH_TOKENS when Render API_AUTH_ENABLED=true.').to.eql(200)"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "96:post-deploy-scraper-contract/deploy-scraper-response-has-an-imagesources-array",
+              "name": "deploy scraper response has an imageSources array",
+              "dynamicName": false,
+              "event": "test",
+              "line": 7,
+              "matchers": [
+                {
+                  "id": "96:post-deploy-scraper-contract/deploy-scraper-response-has-an-imagesources-array.1",
+                  "kind": "pm.expect",
+                  "line": 8,
+                  "source": "pm.expect(body).to.have.property('imageSources')"
+                },
+                {
+                  "id": "96:post-deploy-scraper-contract/deploy-scraper-response-has-an-imagesources-array.2",
+                  "kind": "pm.expect",
+                  "line": 9,
+                  "source": "pm.expect(body.imageSources).to.be.an('array')"
+                }
+              ],
+              "jestTest": null
+            },
+            {
+              "id": "96:post-deploy-scraper-contract/deploy-scraper-image-sources-are-strings-when-present",
+              "name": "deploy scraper image sources are strings when present",
+              "dynamicName": false,
+              "event": "test",
+              "line": 12,
+              "matchers": [
+                {
+                  "id": "96:post-deploy-scraper-contract/deploy-scraper-image-sources-are-strings-when-present.1",
+                  "kind": "pm.expect",
+                  "line": 14,
+                  "source": "pm.expect(imageUrl).to.be.a('string')"
+                }
+              ],
+              "jestTest": null
+            }
+          ],
+          "unownedMatchers": []
+        }
+      ]
+    }
+  ]
+}
