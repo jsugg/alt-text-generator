@@ -13,6 +13,38 @@ const createTempDir = () => fs.mkdtempSync(
   path.join(os.tmpdir(), 'newman-runner-test-'),
 );
 
+const PROVIDER_FOLDER = {
+  name: '90 Provider Validation',
+  item: [
+    { id: 'single-image', name: 'Provider validation single image', request: {} },
+    { id: 'page-descriptions', name: 'Provider validation page descriptions', request: {} },
+  ],
+};
+
+/**
+ * Writes a Newman JSON report that embeds the run collection, as Newman does.
+ *
+ * @param {string} reportPath
+ * @param {string[]} executedIds
+ */
+const writeProviderReport = (reportPath, executedIds) => {
+  fs.mkdirSync(path.dirname(reportPath), { recursive: true });
+  fs.writeFileSync(reportPath, JSON.stringify({
+    collection: { item: [PROVIDER_FOLDER] },
+    run: {
+      stats: {
+        requests: { total: executedIds.length },
+        assertions: { total: executedIds.length, failed: 0 },
+      },
+      executions: executedIds.map((id) => ({
+        item: { id, name: PROVIDER_FOLDER.item.find((item) => item.id === id).name },
+        assertions: [{ assertion: 'returns 200' }],
+      })),
+      failures: [],
+    },
+  }), 'utf8');
+};
+
 /**
  * @param {{
  *   rmSyncImpl?: typeof fs.rmSync,
@@ -210,7 +242,10 @@ describe('Unit | Scripts | Postman | Newman Runner', () => {
     const reportPath = path.join(tempDir, 'reports', 'provider-integration-openai.json');
     const child = new EventEmitter();
     const spawnMock = jest.fn(() => {
-      process.nextTick(() => child.emit('exit', 0));
+      process.nextTick(() => {
+        writeProviderReport(reportPath, ['single-image', 'page-descriptions']);
+        child.emit('exit', 0);
+      });
       return child;
     });
     const writes = [];
@@ -235,6 +270,89 @@ describe('Unit | Scripts | Postman | Newman Runner', () => {
       `[newman] starting provider-integration-openai for 90 Provider Validation -> ${path.join('reports', 'provider-integration-openai.json')}`,
     );
     expect(writes[writes.length - 1]).toBe('[newman] provider-integration-openai completed successfully');
+  });
+
+  it('rejects a clean Newman exit that skipped selected requests', async () => {
+    const tempDir = createTempDir();
+    const reportPath = path.join(tempDir, 'reports', 'provider-integration-openai.json');
+    const child = new EventEmitter();
+    const spawnMock = jest.fn(() => {
+      process.nextTick(() => {
+        writeProviderReport(reportPath, ['single-image']);
+        child.emit('exit', 0);
+      });
+      return child;
+    });
+    const writes = [];
+    const { runNewmanCommand } = loadRunnerModule({ spawnImpl: spawnMock });
+
+    await expect(runNewmanCommand({
+      args: ['npx', 'newman', 'run'],
+      collectionPath: path.join(tempDir, 'collection.json'),
+      cwd: tempDir,
+      folders: ['90 Provider Validation'],
+      label: 'provider-integration-openai',
+      reportPath,
+      writeLog: (line) => writes.push(line),
+    })).rejects.toThrow(
+      '[newman] provider-integration-openai did not execute every selected request '
+      + `(report: ${path.join('reports', 'provider-integration-openai.json')})`,
+    );
+
+    expect(writes).toEqual(expect.arrayContaining([
+      '::group::Newman Failure Diagnostics',
+      '- request coverage: 1/2 required requests executed (0 declared skippable)',
+      '- unexecuted selected requests (1):',
+      '  - 90 Provider Validation / Provider validation page descriptions',
+      '::endgroup::',
+    ]));
+    expect(writes).not.toContain('[newman] provider-integration-openai completed successfully');
+  });
+
+  it('rejects a clean Newman exit that produced no JSON report', async () => {
+    const tempDir = createTempDir();
+    const reportPath = path.join(tempDir, 'reports', 'provider-integration-openai.json');
+    const child = new EventEmitter();
+    const spawnMock = jest.fn(() => {
+      process.nextTick(() => child.emit('exit', 0));
+      return child;
+    });
+    const writes = [];
+    const { runNewmanCommand } = loadRunnerModule({ spawnImpl: spawnMock });
+
+    await expect(runNewmanCommand({
+      args: ['npx', 'newman', 'run'],
+      collectionPath: path.join(tempDir, 'collection.json'),
+      cwd: tempDir,
+      folders: ['90 Provider Validation'],
+      label: 'provider-integration-openai',
+      reportPath,
+      writeLog: (line) => writes.push(line),
+    })).rejects.toThrow('did not execute every selected request');
+
+    expect(writes).toEqual(expect.arrayContaining([
+      expect.stringContaining('- coverage issue: unable to read Newman JSON report'),
+    ]));
+  });
+
+  it('lists unexecuted requests in failure diagnostics when the report embeds the collection', () => {
+    const tempDir = createTempDir();
+    const reportPath = path.join(tempDir, 'reports', 'provider-integration-openai.json');
+    writeProviderReport(reportPath, ['single-image']);
+
+    const lines = buildFailureDiagnosticLines({
+      collectionPath: path.join(tempDir, 'collection.json'),
+      cwd: tempDir,
+      exitCode: 1,
+      folders: ['90 Provider Validation'],
+      label: 'provider-integration-openai',
+      reportPath,
+    });
+
+    expect(lines).toEqual(expect.arrayContaining([
+      '- unexecuted selected requests (1):',
+      '  - 90 Provider Validation / Provider validation page descriptions',
+    ]));
   });
 
   it('prints grouped diagnostics and rejects with the report path when the Newman command fails', async () => {
@@ -434,9 +552,14 @@ describe('Unit | Scripts | Postman | Newman Runner', () => {
   });
 
   it('ignores missing stale reports before spawning Newman', async () => {
+    const tempDir = createTempDir();
+    const reportPath = path.join(tempDir, 'provider-integration-openai.json');
     const child = new EventEmitter();
     const spawnMock = jest.fn(() => {
-      process.nextTick(() => child.emit('exit', 0));
+      process.nextTick(() => {
+        writeProviderReport(reportPath, ['single-image', 'page-descriptions']);
+        child.emit('exit', 0);
+      });
       return child;
     });
     const rmSyncMock = jest.fn(() => {
@@ -451,11 +574,11 @@ describe('Unit | Scripts | Postman | Newman Runner', () => {
 
     await expect(runNewmanCommand({
       args: ['npx', 'newman', 'run'],
-      collectionPath: '/tmp/collection.json',
-      cwd: '/tmp',
+      collectionPath: path.join(tempDir, 'collection.json'),
+      cwd: tempDir,
       folders: ['90 Provider Validation'],
       label: 'provider-integration-openai',
-      reportPath: '/tmp/provider-integration-openai.json',
+      reportPath,
       writeLog: () => {},
     })).resolves.toBeUndefined();
 

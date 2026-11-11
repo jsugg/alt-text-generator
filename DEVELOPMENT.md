@@ -261,6 +261,8 @@ The repository includes a black-box contract harness that validates the API over
 
 Postman dynamic variables (`{{$guid}}`, `{{$random*}}`, and the rest) and `replaceIn` are not allowed anywhere in `postman/**/*.json`, and `npm run postman:lint` rejects them. Newman's faker is replaced by the fail-closed `tools/faker-stub` (see [docs/dependency-security.md](./docs/dependency-security.md)), so any faker-backed variable throws at run time. Generate values in a pre-request script and read them with `pm.variables.get`.
 
+Requests run in collection order. `pm.execution.setNextRequest` may only re-queue the current request (polling); `postman:lint` rejects `setNextRequest(null)` and jumps, because Newman treats them as "stop" or "skip ahead" and drops later requests without failing. A request that may legitimately not run (for example a job-status poll that synchronous providers never need) must call `pm.execution.skipRequest()` in its own pre-request script. Every Newman invocation then checks its JSON report and fails when any other selected request did not execute.
+
 Modes:
 
 - `npm run postman:smoke`

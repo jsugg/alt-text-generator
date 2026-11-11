@@ -7,6 +7,11 @@ const {
   FAILURE_CATEGORY_PERFORMANCE_BUDGET,
   buildReportSummary,
 } = require('./newman-summary');
+const {
+  formatCoverageLines,
+  isCoverageComplete,
+  readExecutionCoverage,
+} = require('./execution-coverage');
 
 /** @typedef {import('./newman-summary').FailureRecord} FailureRecord */
 
@@ -195,8 +200,41 @@ function buildFailureDiagnosticLines({
     });
   }
 
+  const coverage = readExecutionCoverage({ reportPath, folders });
+  if (coverage.unexecuted.length > 0) {
+    lines.push(...formatCoverageLines(coverage));
+  }
+
   appendDiagnosticLogs(lines, diagnosticLogs, cwd);
   return lines;
+}
+
+/**
+ * Builds diagnostics for a Newman run that exited cleanly but did not execute
+ * every selected request.
+ *
+ * @param {{
+ *   coverage: import('./execution-coverage').ExecutionCoverage,
+ *   cwd: string,
+ *   folders: string[],
+ *   label: string,
+ *   reportPath: string,
+ * }} options
+ * @returns {string[]}
+ */
+function buildCoverageFailureLines({
+  coverage,
+  cwd,
+  folders,
+  label,
+  reportPath,
+}) {
+  return [
+    `[newman] ${label} did not execute every selected request`,
+    `- folders: ${formatFolderList(folders)}`,
+    `- report: ${path.relative(cwd, reportPath) || path.basename(reportPath)}`,
+    ...formatCoverageLines(coverage),
+  ];
 }
 
 /**
@@ -294,8 +332,26 @@ function runNewmanCommand({
 
     child.on('exit', (code) => {
       if (code === 0) {
-        writeLog(`[newman] ${label} completed successfully`);
-        resolve();
+        const coverage = readExecutionCoverage({ reportPath, folders });
+
+        if (isCoverageComplete(coverage)) {
+          writeLog(`[newman] ${label} completed successfully`);
+          resolve();
+          return;
+        }
+
+        const coverageLines = buildCoverageFailureLines({
+          coverage,
+          cwd,
+          folders,
+          label,
+          reportPath,
+        });
+        emitDiagnosticLines(coverageLines, writeLog);
+        reject(new Error(
+          `${coverageLines[0]} `
+          + `(report: ${path.relative(cwd, reportPath) || path.basename(reportPath)})`,
+        ));
         return;
       }
 
@@ -320,6 +376,7 @@ function runNewmanCommand({
 }
 
 module.exports = {
+  buildCoverageFailureLines,
   buildFailureDiagnosticLines,
   emitDiagnosticLines,
   readDiagnosticLogTail,

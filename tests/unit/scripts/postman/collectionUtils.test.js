@@ -4,6 +4,8 @@ const {
   assertRequestItemsHaveSpecificStatusExpectations,
   assertTopLevelFoldersExist,
   buildItemFolderMap,
+  declaresSkipRequest,
+  getEventScript,
   hasExactStatusAssertion,
   hasExpectedStatusCodeHeader,
   hasSpecificStatusExpectation,
@@ -246,7 +248,29 @@ describe('Unit | Scripts | Postman | Collection Utils', () => {
 
       expect(testScript).toContain("pm.environment.get('providerValidationMaxPollAttempts')");
       expect(testScript).toContain("pm.environment.get('providerValidationMinPollDelayMs')");
-      expect(testScript).toContain('pm.execution.setNextRequest(null);');
+      expect(testScript).not.toContain('setNextRequest(null)');
+      expect(declaresSkipRequest(item)).toBe(true);
     });
+  });
+
+  it('reads scripts by listener and detects declared pre-request skips', () => {
+    const item = {
+      name: 'Poll job',
+      request: {},
+      event: [
+        { listen: 'prerequest', script: { exec: ['if (!ready) {', '  pm.execution.skipRequest();', '}'] } },
+        { listen: 'test', script: { exec: ['pm.test("ok", () => {});'] } },
+      ],
+    };
+
+    expect(getEventScript(item, 'prerequest')).toContain('pm.execution.skipRequest();');
+    expect(getEventScript(item, 'test')).toBe('pm.test("ok", () => {});');
+    expect(declaresSkipRequest(item)).toBe(true);
+    expect(declaresSkipRequest({
+      name: 'Test-only skip',
+      request: {},
+      event: [{ listen: 'test', script: { exec: ['pm.execution.skipRequest();'] } }],
+    })).toBe(false);
+    expect(declaresSkipRequest({ name: 'No events', request: {} })).toBe(false);
   });
 });
