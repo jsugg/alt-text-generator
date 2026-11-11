@@ -16,6 +16,7 @@ If you only need a quick local boot, start with `README.md` and come back here f
 - [GitHub Workflows](#github-workflows)
 - [Repository Automation GitHub App](#repository-automation-github-app)
 - [Postman/Newman Harness](#postmannewman-harness)
+- [API Contract Suites (Jest)](#api-contract-suites-jest)
 - [Supported Models](#supported-models)
 - [Configuration and Profiles](#configuration-and-profiles)
 - [Environment Variable Reference](#environment-variable-reference)
@@ -354,6 +355,15 @@ Allure workflow:
 - `Allure Pages Publish` still exposes `workflow_dispatch` with a `run_id` input so a specific CI run can be republished or backfilled after the workflow lands on `main`. The publish workflow also accepts completed CI runs that produced an Allure artifact even if later jobs in that CI run failed.
 - The publish workflow checks out the repository so it can reuse the shared Node helpers, deploys the composed site with the official Pages actions, and then syncs the exact deployed snapshot back to `gh-pages`. That branch is no longer the publication trigger, but it remains the durable snapshot source that future `compose-pages-site` runs merge against.
 - Post-deploy verification now emits Allure output as well. Pushes to `production` persist a `deploy-production` history stream, while manual post-deploy verification runs only persist that stream when the workflow dispatch input `persist_history=true` is selected for the canonical production URL.
+
+## API Contract Suites (Jest)
+
+The Newman collection is being ported to Jest, using Supertest in-process and Undici for black-box runs. Newman stays canonical and required until the cutover, and the contract lane is not part of the CI lanes yet.
+
+- `tests/contract/parity-manifest.json` is generated from the collection by `npm run contract:manifest`. It lists every request, `pm.test` block, and matcher site under a stable id, plus the Jest test each block is ported to (`jestTest`, `null` until ported). Regenerating keeps a mapping only while its block keeps both its id and its name. It refuses to drop mappings unless you pass `-- --prune`. `npm run contract:manifest:check`, and a unit test, fail when the manifest no longer matches the collection.
+- `scripts/contract/contract-client.js` defines the transport-neutral client. Without `CONTRACT_BASE_URL`, suites run in-process through Supertest. With it, they run through Undici against that URL (`CONTRACT_INSECURE_TLS=true` accepts self-signed certificates). Both transports decode gzip/deflate bodies, and neither follows redirects.
+- `npm run test:contract` runs `tests/contract/**/*.contract.test.js` with `config/jest/jest.contract.cjs`. It writes JUnit, Jest JSON, and a request log to `reports/api-contract/`, and writes Allure results when `ALLURE_RESULTS_DIR` is set.
+- `npm run contract:summary` prints request, test, failure, and duration counts. Pass `--summary-file "$GITHUB_STEP_SUMMARY"` to write a CI step summary. Failure text is redacted (credential headers, bearer tokens, query strings, secret JSON fields, and secret-named env values), and request headers and bodies are never recorded.
 
 ## Supported Models
 

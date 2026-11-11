@@ -280,6 +280,25 @@ describe('Unit | Jest Lane Configs', () => {
     }
   });
 
+  it('keeps the API contract lane standalone with its own JUnit output', () => {
+    const config = loadLaneConfig('jest.contract.cjs');
+    const { COMPOSED_LANES, LANE_CONFIG_PATH } = require('../../config/jest/jest.base.cjs');
+
+    expect(config.displayName).toBe('contract');
+    expect(config.rootDir).toBe(ROOT_DIR);
+    expect(config.testMatch).toEqual(['<rootDir>/tests/contract/**/*.contract.test.js']);
+    expect(config).not.toHaveProperty('collectCoverage');
+    expect(config.reporters).toEqual([
+      'default',
+      ['jest-junit', {
+        outputDirectory: 'reports/api-contract',
+        outputName: 'junit.xml',
+        suiteName: 'api-contract',
+      }],
+    ]);
+    expect(COMPOSED_LANES).not.toContain(LANE_CONFIG_PATH.contract);
+  });
+
   it('composes every tier without JUnit or coverage in the reporting lane', () => {
     const config = loadLaneConfig('jest.reporting.cjs');
 
@@ -309,6 +328,11 @@ describe('Unit | Jest Lane Configs', () => {
     );
     expect(scripts['test:allure']).toBe(
       'ALLURE_RESULTS_DIR=reports/allure-results jest --config config/jest/jest.reporting.cjs',
+    );
+    expect(scripts['test:contract']).toBe(
+      'CONTRACT_REQUEST_LOG_DIR=reports/api-contract/requests '
+      + 'jest --config config/jest/jest.contract.cjs --json '
+      + '--outputFile=reports/api-contract/jest-results.json',
     );
   });
 

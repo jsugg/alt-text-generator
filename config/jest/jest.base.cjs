@@ -98,6 +98,9 @@ const TEST_MATCH = {
   integration: ['<rootDir>/tests/integration/*.test.js'],
   redis: [REDIS_INTEGRATION_TEST_GLOB],
   scripts: ['<rootDir>/tests/integration/scripts/**/*.test.js'],
+  // API contract suites (the Newman replacement). Not composed into the CI
+  // lanes while Newman stays canonical; run through `npm run test:contract`.
+  contract: ['<rootDir>/tests/contract/**/*.contract.test.js'],
 };
 
 // The general integration lane must skip every Redis-backed spec, which needs a
@@ -153,6 +156,7 @@ const LANE_CONFIG_PATH = {
   integration: path.join(JEST_CONFIG_DIR, 'jest.integration.cjs'),
   redis: path.join(JEST_CONFIG_DIR, 'jest.integration.redis.cjs'),
   scripts: path.join(JEST_CONFIG_DIR, 'jest.integration.scripts.cjs'),
+  contract: path.join(JEST_CONFIG_DIR, 'jest.contract.cjs'),
 };
 
 // Tiers every composite lane (coverage, CI, reporting) runs, in order. Each is

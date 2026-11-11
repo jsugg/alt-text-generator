@@ -125,6 +125,8 @@ reports/allure-history-artifact/*
 !reports/allure-history-artifact/.gitkeep
 reports/jest/*
 !reports/jest/.gitkeep
+reports/api-contract/*
+!reports/api-contract/.gitkeep
 
 repotoolingbot.2026-03-10.private-key.pem
 
