@@ -1,0 +1,1 @@
+{"message":"OK","ready":true,"commit":null,"timestamp":1794365879491,"uptime":1.976358673}
