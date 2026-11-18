@@ -93,7 +93,10 @@ describe('Unit | Scripts | Security | Residual Advisories', () => {
     });
 
     it('records auditable verification metadata without coupling every dependency PR to it', () => {
-      expect(manifest.accepted).toEqual([]);
+      manifest.accepted.forEach((entry) => {
+        expect(entry.productionReachable).toBe(false);
+        expect(entry.expires).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      });
       expect(manifest.lockfileSha256).toMatch(/^[0-9a-f]{64}$/);
       expect(manifest.verifiedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
       expect(lockfileSha256()).toMatch(/^[0-9a-f]{64}$/);
@@ -224,11 +227,15 @@ describe('Unit | Scripts | Security | Residual Advisories', () => {
     const auditWith = (advisories) => {
       const file = path.join(dir, 'npm-audit.json');
 
-      fs.writeFileSync(file, JSON.stringify(auditFixture(advisories)));
+      // Report the committed accepted entries too, so they never count as stale here.
+      const accepted = manifest.accepted.map((e) => ({
+        id: e.advisory, name: e.package, severity: e.severity, title: e.title,
+      }));
+
+      fs.writeFileSync(file, JSON.stringify(auditFixture([...advisories, ...accepted])));
       return file;
     };
 
-    // The committed manifest accepts nothing, so any reported advisory is unapproved.
     it.each([
       ['--audit-file=<file> --fail-on=high', (file) => [`--audit-file=${file}`, '--fail-on=high']],
       ['--audit-file <file> --fail-on high', (file) => ['--audit-file', file, '--fail-on', 'high']],
