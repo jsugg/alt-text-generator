@@ -96,7 +96,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@faker-js/faker": "file:tools/faker-stub",
-    "@stylistic/eslint-plugin": "^5.10.0",
+    "@stylistic/eslint-plugin": "^6.0.1",
     "allure-commandline": "^2.46.1",
     "allure-jest": "^3.14.0",
     "eslint": "^10.15.0",
