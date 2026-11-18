@@ -52,6 +52,8 @@ export default [
     rules: {
       // airbnb permits double quotes to avoid escaping embedded single quotes.
       '@stylistic/quotes': ['error', 'single', { avoidEscape: true }],
+      // v6 customize() adds list-style; airbnb allows several items per line.
+      '@stylistic/list-style': 'off',
 
       // Correctness / best practices (airbnb-flavored)
       'no-await-in-loop': 'error',
