@@ -60,7 +60,7 @@ advisories; lower-severity findings are summarized by the scheduled
 `Dependency Residual Audit` below. Any future entry needs an `expires` date.
 
 <!-- generated:accepted start -->
-
+- **`picomatch`** (ReDoS through single-branch repeated extglobs, GHSA-fc5q-39xc-vjpf) — pulled by `jest`, `jest-environment-node`, `allure-jest`, `@stylistic/eslint-plugin`, `markdownlint-cli2`, `nodemon`. Every published picomatch (<= 4.0.7) is affected and no fix exists. Only dev tooling pulls it in, and it matches repo-authored globs, never request input. Expiry: 2027-02-17.
 <!-- generated:accepted end -->
 
 ## Verifying

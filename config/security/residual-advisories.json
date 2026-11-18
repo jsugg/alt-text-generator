@@ -70,5 +70,23 @@
       "fixes": "Newman's Postman UUID buffer-bounds advisory"
     }
   ],
-  "accepted": []
+  "accepted": [
+    {
+      "advisory": "GHSA-fc5q-39xc-vjpf",
+      "package": "picomatch",
+      "severity": "high",
+      "title": "ReDoS through single-branch repeated extglobs",
+      "pulledBy": [
+        "jest",
+        "jest-environment-node",
+        "allure-jest",
+        "@stylistic/eslint-plugin",
+        "markdownlint-cli2",
+        "nodemon"
+      ],
+      "productionReachable": false,
+      "why": "Every published picomatch (<= 4.0.7) is affected and no fix exists. Only dev tooling pulls it in, and it matches repo-authored globs, never request input.",
+      "expires": "2027-02-17"
+    }
+  ]
 }
